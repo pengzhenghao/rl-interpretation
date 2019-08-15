@@ -63,6 +63,11 @@ PRESET_INFORMATION_DICT = {
         "default_value": 0.0,
         "text_function": lambda val: "Value {:.3f}".format(val),
         "pos_ratio": (0.95, 0.7)
+    },
+    "title": {
+        "default_value": "",
+        "text_function": lambda val: val,
+        "pos_ratio": (0.95, 0.05)
     }
 }
 
@@ -233,6 +238,9 @@ class MultipolicyWrapper(MultiAgentEnv):
 
                 self.information[info_name].update(info_details)
 
+            for key in self.envs_dict.keys():
+                self.information["title"][key] = key
+
     def reset(self):
         self._reset_information(self.info_dict)
         self.dones = {aid: False for aid in self.envs_dict.keys()}
@@ -303,6 +311,7 @@ def create_parser(parser_creator=None):
     parser.add_argument("--iters", default=1, type=int)
     parser.add_argument("--steps", default=int(1e10), type=int)
     parser.add_argument("--out", default=None, help="Output filename.")
+    parser.add_argument("--local-mode", default=False, action="store_true")
     parser.add_argument(
         "--config",
         default="{}",
@@ -324,9 +333,10 @@ def run(
         args_config=None,
         env_name=None,
         args_out=None,
-        args_no_render=False
+        args_no_render=False,
+        local_mode=False
 ):
-    ray.init(logging_level=logging.ERROR, log_to_driver=False)
+    ray.init(logging_level=logging.ERROR, log_to_driver=False, local_mode=local_mode)
 
     assert isinstance(name_ckpt_mapping, OrderedDict), \
         "The name-checkpoint dict is not OrderedDict!!! " \
@@ -530,5 +540,5 @@ if __name__ == "__main__":
 
     run(
         name_ckpt_mapping, args.yaml[:-5], args.run, args.steps, args.iters,
-        args.seed, args.config, args.env, args.out, args.no_render
+        args.seed, args.config, args.env, args.out, args.no_render, args.local_mode
     )
