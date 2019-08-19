@@ -26,7 +26,7 @@ from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from utils import DefaultMapping
+from utils import DefaultMapping, VideoRecorder
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -142,7 +142,7 @@ class BipedalWalkerWrapper(BipedalWalker):
             self.viewer = OpencvViewer(VIEWPORT_W, VIEWPORT_H)
         self.viewer.set_bounds(
             self.scroll, VIEWPORT_W / SCALE + self.scroll, 0,
-            VIEWPORT_H / SCALE
+                         VIEWPORT_H / SCALE
         )
 
         self.viewer.draw_polygon(
@@ -288,7 +288,7 @@ def create_parser(parser_creator=None):
     parser = parser_creator(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-        "given a checkpoint."
+                    "given a checkpoint."
     )
     parser.add_argument(
         "yaml",
@@ -301,9 +301,9 @@ def create_parser(parser_creator=None):
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-        "user-defined trainable function or class registered in the "
-        "tune registry."
+             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+             "user-defined trainable function or class registered in the "
+             "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use."
@@ -320,9 +320,344 @@ def create_parser(parser_creator=None):
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-        "Surpresses loading of configuration from checkpoint."
+             "Surpresses loading of configuration from checkpoint."
     )
     return parser
+
+@ray.remote
+def collect_frames(run_name, env_name, config, ckpt, num_steps, seed=0):
+    """
+    This function create one agent and return one frame sequence.
+    :param run_name:
+    :param env_name:
+    :param config:
+    :param ckpt:
+    :param num_steps:
+    :param seed:
+    :return:
+    """
+    cls = get_agent_class(run_name)
+    agent = cls(env=env_name, config=config)
+    agent.restore(ckpt)
+    # agents[name] = agent
+    # print("[{}/{}] (T +{:.1f}s Total {:.1f}s) "
+    #       "Restored agent <{}>".format(aid + 1, len(name_ckpt_mapping),
+    #                                    time.time() - now,
+    #                                    time.time() - start, name))
+    # now = time.time()
+
+    if hasattr(agent, "workers"):
+        env = agent.workers.local_worker().env
+    else:
+        env = gym.make(env_name)
+
+    env.seed(seed)
+
+    # frames, extra_info = rollout(agent, env, num_steps)
+    if hasattr(agent, "workers"):
+        # env = agent.workers.local_worker().env
+        policy_map = agent.workers.local_worker().policy_map
+        state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
+        use_lstm = {p: len(s) > 0 for p, s in state_init.items()}
+        action_init = {
+            p: _flatten_action(m.action_space.sample())
+            for p, m in policy_map.items()
+        }
+    else:
+        # env = gym.make(env_name)
+        use_lstm = {DEFAULT_POLICY_ID: False}
+
+    frames = []
+    extra_info = {"value": [], "reward": [], "done": [], "step": 0}
+
+    mapping_cache = {}  # in case policy_agent_mapping is stochastic
+
+    obs = env.reset()
+    agent_states = DefaultMapping(
+        lambda agent_id: state_init[mapping_cache[agent_id]]
+    )
+    prev_actions = DefaultMapping(
+        lambda agent_id: action_init[mapping_cache[agent_id]]
+    )
+    prev_rewards = collections.defaultdict(lambda: 0.)
+    done = False
+    reward_total = 0.0
+    cnt_steps = 0
+    now = time.time()
+    start = now
+    while (not done) and (cnt_steps <= num_steps):
+        if cnt_steps % 10 == 9:
+            print(
+                "Current Steps: {}, Time Elapsed: {:.2f}s, "
+                "Last 10 Steps Time: {:.2f}s".format(
+                    cnt_steps,
+                    time.time() - start,
+                    time.time() - now
+                )
+            )
+            now = time.time()
+        cnt_steps += 1
+        multi_obs = {_DUMMY_AGENT_ID: obs}
+        action_dict = {}
+        value_functions = {}
+        for agent_id, a_obs in multi_obs.items():
+            if a_obs is not None:
+                policy_id = mapping_cache.setdefault(
+                    agent_id, DEFAULT_POLICY_ID
+                )
+                p_use_lstm = use_lstm[policy_id]
+                if p_use_lstm:
+                    a_action, p_state, a_info = agent.compute_action(
+                        a_obs,
+                        state=agent_states[agent_id],
+                        prev_action=prev_actions[agent_id],
+                        prev_reward=prev_rewards[agent_id],
+                        policy_id=policy_id
+                    )
+                    agent_states[agent_id] = p_state
+                else:
+                    a_action, _, a_info = agent.compute_action(
+                        a_obs,
+                        prev_action=prev_actions[agent_id],
+                        prev_reward=prev_rewards[agent_id],
+                        policy_id=policy_id,
+                        full_fetch=True
+                    )
+                a_action = _flatten_action(a_action)  # tuple actions
+                action_dict[agent_id] = a_action
+                prev_actions[agent_id] = a_action
+                value_functions[agent_id] = a_info["vf_preds"]
+
+        extra_info['value'].append(value_functions[_DUMMY_AGENT_ID])
+        action = action_dict[_DUMMY_AGENT_ID]
+        obs, reward, done, _ = env.step(action)
+
+        extra_info["done"].append(done)
+        extra_info["reward"].append(reward)
+        extra_info["step"] += 1
+
+        prev_rewards[_DUMMY_AGENT_ID] = reward
+
+        reward_total += reward
+
+        kwargs = {}
+        frame = env.render(**kwargs)
+        frames.append(frame)
+
+    assert len(extra_info['done']) == len(extra_info["reward"]) == \
+           len(extra_info["value"]) == len(frames)
+    print("Episode reward", reward_total)
+    return frames, extra_info
+
+
+
+class GridVideoRecorder(object):
+    # TODO make rollour async!
+
+    def __init__(self, video_path, env_name, local_mode=False):
+
+        ray.init(
+            logging_level=logging.ERROR,
+            log_to_driver=False,
+            local_mode=local_mode
+        )
+
+        single_env = gym.make(env_name)
+
+        self.video_recorder = VideoRecorder(single_env, video_path)
+
+
+    def run(self, name_ckpt_mapping,
+            video_path,
+            run_name,
+            num_steps=int(1e10),
+            num_iters=1,
+            seed=0,
+            args_config=None,
+            env_name=None):
+
+
+        assert isinstance(name_ckpt_mapping, OrderedDict), \
+            "The name-checkpoint dict is not OrderedDict!!! " \
+            "We suggest you to use OrderedDict."
+
+        agents = OrderedDict()
+        now = time.time()
+        start = now
+        for aid, (name, ckpt) in enumerate(name_ckpt_mapping.items()):
+
+
+            ckpt = os.path.abspath(
+                os.path.expanduser(ckpt))  # Remove relative dir
+            config = {"log_level": "ERROR"}
+            # Load configuration from file
+            config_dir = os.path.dirname(ckpt)
+            config_path = os.path.join(config_dir, "params.pkl")
+            if not os.path.exists(config_path):
+                config_path = os.path.join(config_dir, "../params.pkl")
+            if not os.path.exists(config_path):
+                if not args_config:
+                    raise ValueError(
+                        "Could not find params.pkl in either the checkpoint "
+                        "dir "
+                        "or "
+                        "its parent directory."
+                    )
+            else:
+                with open(config_path, "rb") as f:
+                    config = pickle.load(f)
+            if "num_workers" in config:
+                config["num_workers"] = min(1, config["num_workers"])
+
+            config["log_level"] = "ERROR"
+            config = merge_dicts(config, args_config or {})
+
+            frames, extra_info = \
+                collect_frames.remote(run_name, env_name, config, ckpt,
+                                      num_steps, seed)
+
+
+
+
+
+
+
+            # if not env_name:
+            #     if not config.get("env"):
+            #         raise ValueError(
+            #             "the following arguments are required: --env")
+            #     env_name = config.get("env")
+            #
+            # cls = get_agent_class(run_name)
+            # agent = cls(env=env_name, config=config)
+            # agent.restore(ckpt)
+            # agents[name] = agent
+            print("[{}/{}] (T +{:.1f}s Total {:.1f}s) "
+                  "Restored agent <{}>".format(aid + 1, len(name_ckpt_mapping),
+                                               time.time() - now,
+                                               time.time() - start, name))
+            now = time.time()
+
+            if hasattr(agent, "workers"):
+                env = agent.workers.local_worker().env
+            else:
+                env = gym.make(env_name)
+
+            env.seed(seed)
+
+            frames, extra_info = rollout(agent, env, num_steps)
+
+
+
+
+
+
+
+
+    def _rollout(self, agent, num_steps):
+        # Todo use env as input. Don't make env every time
+        if hasattr(agent, "workers"):
+            # env = agent.workers.local_worker().env
+            policy_map = agent.workers.local_worker().policy_map
+            state_init = {p: m.get_initial_state() for p, m in
+                          policy_map.items()}
+            use_lstm = {p: len(s) > 0 for p, s in state_init.items()}
+            action_init = {
+                p: _flatten_action(m.action_space.sample())
+                for p, m in policy_map.items()
+            }
+        else:
+            # env = gym.make(env_name)
+            use_lstm = {DEFAULT_POLICY_ID: False}
+
+        frames = []
+        extra_info = {"value": [], "reward": [], "done": [], "step": 0}
+
+        mapping_cache = {}  # in case policy_agent_mapping is stochastic
+
+        obs = self.env.reset()
+        agent_states = DefaultMapping(
+            lambda agent_id: state_init[mapping_cache[agent_id]]
+        )
+        prev_actions = DefaultMapping(
+            lambda agent_id: action_init[mapping_cache[agent_id]]
+        )
+        prev_rewards = collections.defaultdict(lambda: 0.)
+        done = False
+        reward_total = 0.0
+        cnt_steps = 0
+        now = time.time()
+        start = now
+        while (not done) and (cnt_steps <= num_steps):
+            if cnt_steps % 10 == 9:
+                print(
+                    "Current Steps: {}, Time Elapsed: {:.2f}s, "
+                    "Last 10 Steps Time: {:.2f}s".format(
+                        cnt_steps,
+                        time.time() - start,
+                        time.time() - now
+                    )
+                )
+                now = time.time()
+            cnt_steps += 1
+            multi_obs = {_DUMMY_AGENT_ID: obs}
+            action_dict = {}
+            value_functions = {}
+            for agent_id, a_obs in multi_obs.items():
+                if a_obs is not None:
+                    policy_id = mapping_cache.setdefault(
+                        agent_id, DEFAULT_POLICY_ID
+                    )
+                    p_use_lstm = use_lstm[policy_id]
+                    if p_use_lstm:
+                        a_action, p_state, a_info = agent.compute_action(
+                            a_obs,
+                            state=agent_states[agent_id],
+                            prev_action=prev_actions[agent_id],
+                            prev_reward=prev_rewards[agent_id],
+                            policy_id=policy_id
+                        )
+                        agent_states[agent_id] = p_state
+                    else:
+                        a_action, _, a_info = agent.compute_action(
+                            a_obs,
+                            prev_action=prev_actions[agent_id],
+                            prev_reward=prev_rewards[agent_id],
+                            policy_id=policy_id,
+                            full_fetch=True
+                        )
+                    a_action = _flatten_action(a_action)  # tuple actions
+                    action_dict[agent_id] = a_action
+                    prev_actions[agent_id] = a_action
+                    value_functions[agent_id] = a_info["vf_preds"]
+
+            extra_info['value'].append(value_functions[_DUMMY_AGENT_ID])
+            action = action_dict[_DUMMY_AGENT_ID]
+            obs, reward, done, _ = self.env.step(action)
+
+            extra_info["done"].append(done)
+            extra_info["reward"].append(reward)
+            extra_info["step"] += 1
+
+            prev_rewards[_DUMMY_AGENT_ID] = reward
+
+            reward_total += reward
+
+            kwargs = {}
+            frame = self.env.render(**kwargs)
+            frames.append(frame)
+
+        assert len(extra_info['done']) == len(extra_info["reward"]) == \
+               len(extra_info["value"]) == len(frames)
+        print("Episode reward", reward_total)
+        return frames, extra_info
+
+    def _aggregate(self):
+        pass
+
+    def close(self):
+
+        ray.shutdown()
 
 
 # def run(args, parser, name_ckpt_mapping):

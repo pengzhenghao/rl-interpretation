@@ -38,8 +38,6 @@ from ray import tune
 from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.schedules import LinearSchedule
 
-
-
 # The arguments below is copied from
 # https://github.com/araffin/rl-baselines-zoo/blob/master/hyperparams/ppo2.yml
 # Notes for BipedalWalker: BipedalWalker-v2 defines "solving" as getting
@@ -121,11 +119,12 @@ elif args.env == "BipedalWalkerHardcore-v2":
             },
             "timesteps_total": int(10e7)
         }
-
     }
 else:
-    raise NotImplementedError("Only prepared BipedalWalker and "
-                              "BipedalWalkerHardcore two environments.")
+    raise NotImplementedError(
+        "Only prepared BipedalWalker and "
+        "BipedalWalkerHardcore two environments."
+    )
 
 algo_specify_config = algo_specify_config_dict[args.run]
 

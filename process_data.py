@@ -95,8 +95,8 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
 
     if mode == 'uniform':
         interval = int(floor(len(list_of_dict) / number))
-    # list_of_dict[::interval][-number:]
-    # list_of_dict - interval * number
+        # list_of_dict[::interval][-number:]
+        # list_of_dict - interval * number
 
         start_index = len(list_of_dict) % number
         indices = reversed(list_of_dict[:start_index:-interval])
@@ -104,7 +104,6 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
         indices = list_of_dict[-number:]
     else:
         raise ValueError()
-
 
     for d in indices:
         ret[d['name']] = d['path']

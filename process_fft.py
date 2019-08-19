@@ -12,7 +12,6 @@ from scipy.fftpack import fft
 
 from utils import DefaultMapping
 
-
 # %matplotlib inline
 # import seaborn as sns
 # import ray
@@ -24,6 +23,7 @@ from utils import DefaultMapping
 #     agent = cls(env="BipedalWalker-v2", config=config)
 #     agent.restore(ckpt)
 #     return agent
+
 
 def default_policy_agent_mapping(unused_agent_id):
     return DEFAULT_POLICY_ID
@@ -38,8 +38,8 @@ def rollout(agent, env_name, num_steps, seed=0, out=None, no_render=True):
         env = agent.workers.local_worker().env
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
-            policy_agent_mapping = agent.config["multiagent"][
-                "policy_mapping_fn"]
+            policy_agent_mapping = agent.config["multiagent"
+                                                ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -63,9 +63,11 @@ def rollout(agent, env_name, num_steps, seed=0, out=None, no_render=True):
         rollout = []
     obs = env.reset()
     agent_states = DefaultMapping(
-        lambda agent_id: state_init[mapping_cache[agent_id]])
+        lambda agent_id: state_init[mapping_cache[agent_id]]
+    )
     prev_actions = DefaultMapping(
-        lambda agent_id: action_init[mapping_cache[agent_id]])
+        lambda agent_id: action_init[mapping_cache[agent_id]]
+    )
     prev_rewards = collections.defaultdict(lambda: 0.)
     done = False
     reward_total = 0.0
@@ -76,7 +78,8 @@ def rollout(agent, env_name, num_steps, seed=0, out=None, no_render=True):
         for agent_id, a_obs in multi_obs.items():
             if a_obs is not None:
                 policy_id = mapping_cache.setdefault(
-                    agent_id, policy_agent_mapping(agent_id))
+                    agent_id, policy_agent_mapping(agent_id)
+                )
                 p_use_lstm = use_lstm[policy_id]
                 if p_use_lstm:
                     a_action, p_state, _ = agent.compute_action(
@@ -84,14 +87,16 @@ def rollout(agent, env_name, num_steps, seed=0, out=None, no_render=True):
                         state=agent_states[agent_id],
                         prev_action=prev_actions[agent_id],
                         prev_reward=prev_rewards[agent_id],
-                        policy_id=policy_id)
+                        policy_id=policy_id
+                    )
                     agent_states[agent_id] = p_state
                 else:
                     a_action = agent.compute_action(
                         a_obs,
                         prev_action=prev_actions[agent_id],
                         prev_reward=prev_rewards[agent_id],
-                        policy_id=policy_id)
+                        policy_id=policy_id
+                    )
                 a_action = _flatten_action(a_action)  # tuple actions
                 action_dict[agent_id] = a_action
                 prev_actions[agent_id] = a_action
@@ -173,8 +178,9 @@ def rollout_once(agent, seed=0):
     return obs, act
 
 
-def rollout_multiple(agent_name, agent, seed_list, normalize=True,
-                     stack_rollout=True):
+def rollout_multiple(
+        agent_name, agent, seed_list, normalize=True, stack_rollout=True
+):
     assert isinstance(seed_list, list)
     data_frame = None
     obs_list = []
@@ -191,18 +197,23 @@ def rollout_multiple(agent_name, agent, seed_list, normalize=True,
             obs_list.append(obs)
             act_list.append(act)
     if stack_rollout:
-        data_frame = stack_fft(np.concatenate(obs_list),
-                               np.concatenate(act_list), normalize=normalize)
+        data_frame = stack_fft(
+            np.concatenate(obs_list),
+            np.concatenate(act_list),
+            normalize=normalize
+        )
     data_frame.insert(data_frame.shape[1], "agent", agent_name)
     return data_frame
 
 
-def evaluate_agents_frequency_character(agent_dict, seed_list, normalize=True,
-                                        stack_rollout=False):
+def evaluate_agents_frequency_character(
+        agent_dict, seed_list, normalize=True, stack_rollout=False
+):
     data_frame = None
     for agent_name, agent in agent_dict.items():
-        df = rollout_multiple(agent_name, agent, seed_list, normalize,
-                              stack_rollout)
+        df = rollout_multiple(
+            agent_name, agent, seed_list, normalize, stack_rollout
+        )
         if data_frame is None:
             data_frame = df
         else:

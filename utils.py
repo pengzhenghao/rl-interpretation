@@ -71,20 +71,15 @@ class VideoRecorder(object):
     """
 
     def __init__(
-            self, env, path=None, metadata=None, enabled=True, base_path=None
+            self, env, path=None, metadata=None, base_path=None
     ):
 
         modes = env.metadata.get('render.modes', [])
         self._async = env.metadata.get('semantics.async')
-        self.enabled = enabled
         self.frame_shape = None
         self.num_envs = env.num_envs
         self.frame_range = None
         self.scale = None
-
-        # Don't bother setting anything else if not enabled
-        if not self.enabled:
-            return
 
         self.ansi_mode = False
         if 'rgb_array' not in modes:
@@ -95,8 +90,6 @@ class VideoRecorder(object):
                     'Disabling video recorder because {} neither supports '
                     'video mode "rgb_array" nor "ansi".'.format(env)
                 )
-                # Whoops, turns out we shouldn't be enabled after all
-                self.enabled = False
                 return
 
         if path is not None and base_path is not None:
@@ -148,10 +141,6 @@ class VideoRecorder(object):
         logger.info('Starting new video recorder writing to %s', self.path)
         self.empty = True
         self.initialized = False
-
-    @property
-    def functional(self):
-        return self.enabled and not self.broken
 
     def put_text(self, img, text, pos, thickness=1):
         if not text:
@@ -255,9 +244,6 @@ class VideoRecorder(object):
         # Add extra 5 seconds static frames to help visualization.
         for _ in range(5 * int(self.frames_per_sec)):
             self._encode_image_frame(self.last_frame)
-
-        if not self.enabled:
-            return
 
         if self.encoder:
             logger.debug('Closing video encoder: path=%s', self.path)
