@@ -87,16 +87,24 @@ def get_latest_checkpoint(trial_dir):
     return sorted_ckpt_paths[-1]["path"]
 
 
-def make_ordereddict(list_of_dict, number=None):
+def make_ordereddict(list_of_dict, number=None, mode="uniform"):
+    assert mode in ['uniform', 'top']
     ret = OrderedDict()
 
     assert number <= len(list_of_dict)
-    interval = int(floor(len(list_of_dict) / number))
+
+    if mode == 'uniform':
+        interval = int(floor(len(list_of_dict) / number))
     # list_of_dict[::interval][-number:]
     # list_of_dict - interval * number
 
-    start_index = len(list_of_dict) % number
-    indices = reversed(list_of_dict[:start_index:-interval])
+        start_index = len(list_of_dict) % number
+        indices = reversed(list_of_dict[:start_index:-interval])
+    elif mode == 'top':
+        indices = list_of_dict[-number:]
+    else:
+        raise ValueError()
+
 
     for d in indices:
         ret[d['name']] = d['path']
