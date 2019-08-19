@@ -15,6 +15,7 @@ import logging
 import os
 import pickle
 
+import gym
 import numpy as np
 import ray
 import yaml
@@ -24,8 +25,8 @@ from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
-import gym
-from utils import VideoRecorder, DefaultMapping
+
+from utils import DefaultMapping
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -181,8 +182,10 @@ class BipedalWalkerWrapper(BipedalWalker):
                 if type(f.shape) is circleShape:
                     raise NotImplementedError
                     # t = rendering.Transform(translation=trans*f.shape.pos)
-                    # self.viewer.draw_circle(f.shape.radius, 30, color=obj.color1).add_attr(t)
-                    # self.viewer.draw_circle(f.shape.radius, 30, color=obj.color2, filled=False, linewidth=2).add_attr(t)
+                    # self.viewer.draw_circle(f.shape.radius, 30,
+                    # color=obj.color1).add_attr(t)
+                    # self.viewer.draw_circle(f.shape.radius, 30,
+                    # color=obj.color2, filled=False, linewidth=2).add_attr(t)
                 else:
                     path = [trans * v for v in f.shape.vertices]
                     self.viewer.draw_polygon(path, color=obj.color1)
@@ -336,7 +339,11 @@ def run(
         args_no_render=False,
         local_mode=False
 ):
-    ray.init(logging_level=logging.ERROR, log_to_driver=False, local_mode=local_mode)
+    ray.init(
+        logging_level=logging.ERROR,
+        log_to_driver=False,
+        local_mode=local_mode
+    )
 
     assert isinstance(name_ckpt_mapping, OrderedDict), \
         "The name-checkpoint dict is not OrderedDict!!! " \
@@ -385,44 +392,36 @@ def run(
             )
         )
         now = time.time()
-        frames, extra_info = rollout(agent, seed, env_name, num_steps)
 
-    # rollout(
-    #     agents, video_path, seed, env_name, int(num_iters), num_steps,
-    #     args_out, args_no_render
-    # )
+        if hasattr(agent, "workers"):
+            env = agent.workers.local_worker().env
+        else:
+            env = gym.make(env_name)
+
+        env.seed(seed)
+
+        frames, extra_info = rollout(agent, env, num_steps)
 
     ray.shutdown()
 
-# Input: one agent
-# Output: ndarray [video length, 84, 84, 4]
-def rollout(
-        agent,
-        seed,
-        env_name,
-        num_steps=float("inf"),
-):
-    # Todo use env as input. Don't make env every time.
 
+def rollout(agent, env, num_steps=float("inf")):
+    # Todo use env as input. Don't make env every time
     if hasattr(agent, "workers"):
-        env = agent.workers.local_worker().env
+        # env = agent.workers.local_worker().env
         policy_map = agent.workers.local_worker().policy_map
-        state_init = {
-            p: m.get_initial_state()
-            for p, m in policy_map.items()
-        }
+        state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
         use_lstm = {p: len(s) > 0 for p, s in state_init.items()}
         action_init = {
             p: _flatten_action(m.action_space.sample())
             for p, m in policy_map.items()
         }
     else:
-        env = gym.make(env_name)
+        # env = gym.make(env_name)
         use_lstm = {DEFAULT_POLICY_ID: False}
 
-    env.seed(seed)
     frames = []
-    extra_info = {"value": []}
+    extra_info = {"value": [], "reward": [], "done": [], "step": 0}
 
     mapping_cache = {}  # in case policy_agent_mapping is stochastic
 
@@ -462,12 +461,12 @@ def rollout(
                 p_use_lstm = use_lstm[policy_id]
                 if p_use_lstm:
                     a_action, p_state, a_info = agent.compute_action(
-                            a_obs,
-                            state=agent_states[agent_id],
-                            prev_action=prev_actions[agent_id],
-                            prev_reward=prev_rewards[agent_id],
-                            policy_id=policy_id
-                        )
+                        a_obs,
+                        state=agent_states[agent_id],
+                        prev_action=prev_actions[agent_id],
+                        prev_reward=prev_rewards[agent_id],
+                        policy_id=policy_id
+                    )
                     agent_states[agent_id] = p_state
                 else:
                     a_action, _, a_info = agent.compute_action(
@@ -498,6 +497,8 @@ def rollout(
         frame = env.render(**kwargs)
         frames.append(frame)
 
+    assert len(extra_info['done']) == len(extra_info["reward"]) == \
+           len(extra_info["value"]) == len(frames)
     print("Episode reward", reward_total)
     return frames, extra_info
 
@@ -515,5 +516,6 @@ if __name__ == "__main__":
 
     run(
         name_ckpt_mapping, args.yaml[:-5], args.run, args.steps, args.iters,
-        args.seed, args.config, args.env, args.out, args.no_render, args.local_mode
+        args.seed, args.config, args.env, args.out, args.no_render,
+        args.local_mode
     )
