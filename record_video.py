@@ -24,7 +24,7 @@ from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
-
+import gym
 from utils import VideoRecorder, DefaultMapping
 
 VIDEO_WIDTH = 1920
@@ -385,146 +385,121 @@ def run(
             )
         )
         now = time.time()
+        frames, extra_info = rollout(agent, seed, env_name, num_steps)
 
-    rollout(
-        agents, video_path, seed, env_name, int(num_iters), num_steps,
-        args_out, args_no_render
-    )
+    # rollout(
+    #     agents, video_path, seed, env_name, int(num_iters), num_steps,
+    #     args_out, args_no_render
+    # )
 
     ray.shutdown()
 
-
+# Input: one agent
+# Output: ndarray [video length, 84, 84, 4]
 def rollout(
-        agents,
-        base_path,
+        agent,
         seed,
         env_name,
-        num_iters,
-        num_steps,
-        out=None,
-        no_render=True
+        num_steps=float("inf"),
 ):
-    policy_agent_mapping = lambda x: DEFAULT_POLICY_ID
-    envs = OrderedDict()
-    for nid, (aid, agent) in enumerate(agents.items()):
-        if hasattr(agent, "workers"):
-            # env = agent.workers.local_worker().env
-            policy_map = agent.workers.local_worker().policy_map
-            state_init = {
-                p: m.get_initial_state()
-                for p, m in policy_map.items()
-            }
-            use_lstm = {p: len(s) > 0 for p, s in state_init.items()}
-            action_init = {
-                p: _flatten_action(m.action_space.sample())
-                for p, m in policy_map.items()
-            }
-        else:
-            # env = gym.make(env_name)
-            use_lstm = {DEFAULT_POLICY_ID: False}
-        env = BipedalWalkerWrapper()
-        env.seed(seed)
-        envs[aid] = env
-    multiagent = True
-    env = MultipolicyWrapper(envs, info_dict=PRESET_INFORMATION_DICT)
-    # base_path = args_yaml[:-5]  # The same path to yaml file.
-    video_recorder_env = VideoRecorder(env, base_path=base_path)
+    # Todo use env as input. Don't make env every time.
 
-    if out is not None:
-        rollouts = []
-    for cnt_iters in range(num_iters):
-        mapping_cache = {}  # in case policy_agent_mapping is stochastic
-        if out is not None:
-            rollout = []
+    if hasattr(agent, "workers"):
+        env = agent.workers.local_worker().env
+        policy_map = agent.workers.local_worker().policy_map
+        state_init = {
+            p: m.get_initial_state()
+            for p, m in policy_map.items()
+        }
+        use_lstm = {p: len(s) > 0 for p, s in state_init.items()}
+        action_init = {
+            p: _flatten_action(m.action_space.sample())
+            for p, m in policy_map.items()
+        }
+    else:
+        env = gym.make(env_name)
+        use_lstm = {DEFAULT_POLICY_ID: False}
 
-        obs = env.reset()
-        agent_states = DefaultMapping(
-            lambda agent_id: state_init[mapping_cache[agent_id]]
-        )
-        prev_actions = DefaultMapping(
-            lambda agent_id: action_init[mapping_cache[agent_id]]
-        )
-        prev_rewards = collections.defaultdict(lambda: 0.)
-        done = False
-        reward_total = 0.0
-        cnt_steps = 0
-        now = time.time()
-        start = now
-        while (not done) and (cnt_steps <= num_steps):
-            if cnt_steps % 10 == 9:
-                print(
-                    "Current Steps: {}, Time Elapsed: {:.2f}s, "
-                    "Last 10 Steps Time: {:.2f}s".format(
-                        cnt_steps,
-                        time.time() - start,
-                        time.time() - now
-                    )
+    env.seed(seed)
+    frames = []
+    extra_info = {"value": []}
+
+    mapping_cache = {}  # in case policy_agent_mapping is stochastic
+
+    obs = env.reset()
+    agent_states = DefaultMapping(
+        lambda agent_id: state_init[mapping_cache[agent_id]]
+    )
+    prev_actions = DefaultMapping(
+        lambda agent_id: action_init[mapping_cache[agent_id]]
+    )
+    prev_rewards = collections.defaultdict(lambda: 0.)
+    done = False
+    reward_total = 0.0
+    cnt_steps = 0
+    now = time.time()
+    start = now
+    while (not done) and (cnt_steps <= num_steps):
+        if cnt_steps % 10 == 9:
+            print(
+                "Current Steps: {}, Time Elapsed: {:.2f}s, "
+                "Last 10 Steps Time: {:.2f}s".format(
+                    cnt_steps,
+                    time.time() - start,
+                    time.time() - now
                 )
-                now = time.time()
-            cnt_steps += 1
-            multi_obs = obs if multiagent else {_DUMMY_AGENT_ID: obs}
-            action_dict = {}
-            value_functions = {}
-            for agent_id, a_obs in multi_obs.items():
-                if a_obs is not None:
-                    policy_id = mapping_cache.setdefault(
-                        agent_id, policy_agent_mapping(agent_id)
-                    )
-                    p_use_lstm = use_lstm[policy_id]
-                    if p_use_lstm:
-                        a_action, p_state, a_info = agents[
-                            agent_id].compute_action(
-                                a_obs,
-                                state=agent_states[agent_id],
-                                prev_action=prev_actions[agent_id],
-                                prev_reward=prev_rewards[agent_id],
-                                policy_id=policy_id
-                            )
-                        agent_states[agent_id] = p_state
-                    else:
-                        # print("policy id:", policy_id)
-                        a_action, _, a_info = agents[agent_id].compute_action(
+            )
+            now = time.time()
+        cnt_steps += 1
+        multi_obs = {_DUMMY_AGENT_ID: obs}
+        action_dict = {}
+        value_functions = {}
+        for agent_id, a_obs in multi_obs.items():
+            if a_obs is not None:
+                policy_id = mapping_cache.setdefault(
+                    agent_id, DEFAULT_POLICY_ID
+                )
+                p_use_lstm = use_lstm[policy_id]
+                if p_use_lstm:
+                    a_action, p_state, a_info = agent.compute_action(
                             a_obs,
+                            state=agent_states[agent_id],
                             prev_action=prev_actions[agent_id],
                             prev_reward=prev_rewards[agent_id],
-                            policy_id=policy_id,
-                            full_fetch=True
+                            policy_id=policy_id
                         )
-                    a_action = _flatten_action(a_action)  # tuple actions
-                    action_dict[agent_id] = a_action
-                    prev_actions[agent_id] = a_action
-                    value_functions[agent_id] = a_info["vf_preds"]
+                    agent_states[agent_id] = p_state
+                else:
+                    a_action, _, a_info = agent.compute_action(
+                        a_obs,
+                        prev_action=prev_actions[agent_id],
+                        prev_reward=prev_rewards[agent_id],
+                        policy_id=policy_id,
+                        full_fetch=True
+                    )
+                a_action = _flatten_action(a_action)  # tuple actions
+                action_dict[agent_id] = a_action
+                prev_actions[agent_id] = a_action
+                value_functions[agent_id] = a_info["vf_preds"]
 
-            env.update_value_functions(value_functions)
+        extra_info['value'].append(value_functions[_DUMMY_AGENT_ID])
+        action = action_dict[_DUMMY_AGENT_ID]
+        obs, reward, done, _ = env.step(action)
 
-            action = action_dict
+        extra_info["done"].append(done)
+        extra_info["reward"].append(reward)
+        extra_info["step"] += 1
 
-            action = action if multiagent else action[_DUMMY_AGENT_ID]
-            next_obs, reward, done, _ = env.step(action)
-            if multiagent:
-                for agent_id, r in reward.items():
-                    prev_rewards[agent_id] = r
-            else:
-                prev_rewards[_DUMMY_AGENT_ID] = reward
+        prev_rewards[_DUMMY_AGENT_ID] = reward
 
-            if multiagent:
-                done = done["__all__"]
-                reward_total += sum(reward.values())
-            else:
-                reward_total += reward
-            if not no_render:
-                video_recorder_env.capture_frame()
-            if out is not None:
-                rollout.append([obs, action, next_obs, reward, done])
-            obs = next_obs
-        if out is not None:
-            rollouts.append(rollout)
-        print("Episode reward", reward_total)
+        reward_total += reward
 
-    if out is not None:
-        pickle.dump(rollouts, open(out, "wb"))
-    print("Video has been saved at: ", video_recorder_env.path)
-    video_recorder_env.close()
+        kwargs = {}
+        frame = env.render(**kwargs)
+        frames.append(frame)
+
+    print("Episode reward", reward_total)
+    return frames, extra_info
 
 
 if __name__ == "__main__":
