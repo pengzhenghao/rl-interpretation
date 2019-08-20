@@ -5,7 +5,7 @@
 -
   name: same file seed 1
   path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
-#- same file seed 2: /home/zh peng/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+#- same file seed 2: /home/zhpeng/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
 #- same file seed 3: /home/zhpeng/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
 #- same file seed 4: /home/zhpeng/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
 #- same file seed 5: /home/zhpeng/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313

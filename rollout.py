@@ -233,17 +233,17 @@ def rollout(
                     action_dict[agent_id] = a_action
                     prev_actions[agent_id] = a_action
                     value_functions[agent_id] = a_info["vf_preds"]
-
-            extra_info['value_function'].append(
-                value_functions[_DUMMY_AGENT_ID]
-            )
+            if require_frame:
+                extra_info['value_function'].append(
+                    value_functions[_DUMMY_AGENT_ID]
+                )
             action = action_dict[_DUMMY_AGENT_ID]
 
             next_obs, reward, done, _ = env.step(action)
-
-            extra_info["done"].append(done)
-            extra_info["reward"].append(reward)
-            extra_info["step"] += 1
+            if require_frame:
+                extra_info["done"].append(done)
+                extra_info["reward"].append(reward)
+                extra_info["step"] += 1
 
             if multiagent:
                 for agent_id, r in reward.items():

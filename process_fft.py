@@ -1,11 +1,9 @@
 import numpy as np
 import pandas
-
-from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
-from scipy.fftpack import fft
-import gym
-from rollout import rollout
 import ray
+from scipy.fftpack import fft
+
+from rollout import rollout
 from utils import restore_agent
 
 
@@ -69,16 +67,58 @@ class FFTWorker(object):
         self.agent = restore_agent(run_name, ckpt, env_name)
         self.env_maker = env_maker
         self.agent_name = agent_name
+        self._num_steps = None
+
+    def _get_representation1(self, df):
+        # M sequence whose length is NL
+        mean = df.groupby(['rollout', 'frequency']).mean().value.to_numpy()
+        std = df.groupby(['rollout', 'frequency']).std().value.to_numpy()
+        return mean, std
+
+    def _get_representation2(self, df):
+        # MN sequence whose length is L
+        mean = df.groupby('frequency').mean().value.to_numpy()
+        std = df.groupby('frequency').std().value.to_numpy()
+        return mean, std
+
+    def _get_representation3(self, df):
+        # M sequence which are averaged sequence (length L) across N
+        n_averaged = df.groupby(['frequency', 'seed']).mean()
+        # now n_averaged looks like:
+        """
+                            value  rollout
+        frequency seed                   
+        0         0    -0.850097        2
+                  1    -0.812924        2
+                  2    -0.810672        2
+        1         0    -2.704238        2
+                  1    -2.565724        2
+                          ...      ...
+        48        1    -5.055128        2
+                  2    -5.066221        2
+        49        0    -4.989105        2
+                  1    -5.000202        2
+                  2    -5.088004        2
+        [150 rows x 2 columns]
+        """
+        mean = n_averaged.value.mean(level='frequency').to_numpy()
+        std = n_averaged.value.std(level='frequency').to_numpy()
+        return mean, std
 
     def _rollout(self, env):
-        ret = rollout(self.agent, env, require_trajectory=True)
+        ret = rollout(
+            self.agent,
+            env,
+            require_trajectory=True,
+            num_steps=self._num_steps or 0
+        )
         ret = ret["trajectory"]
         obs = np.array([a[0] for a in ret])
         act = np.array([a[1] for a in ret])
         return obs, act
 
     def _rollout_multiple(
-            self, number_of_rollouts, seed, stack=False, normalize=True
+            self, num_rollouts, seed, stack=False, normalize=True, log=True
     ):
         # One seed, N rollouts.
         env = self.env_maker()
@@ -86,16 +126,16 @@ class FFTWorker(object):
         data_frame = None
         obs_list = []
         act_list = []
-        for i in range(number_of_rollouts):
+        for i in range(num_rollouts):
             print(
                 "Agent {}, Rollout {}/{}".format(
-                    self.agent_name, i, number_of_rollouts
+                    self.agent_name, i, num_rollouts
                 )
             )
             obs, act = self._rollout(env)
             if not stack:
-                df = stack_fft(obs, act, normalize=normalize)
-                df.insert(df.shape[1], "seed", seed)
+                df = stack_fft(obs, act, normalize=normalize, use_log=log)
+                df.insert(df.shape[1], "rollout", i)
                 data_frame = df if data_frame is None else \
                     data_frame.append(df, ignore_index=True)
             else:
@@ -105,17 +145,34 @@ class FFTWorker(object):
             data_frame = stack_fft(
                 np.concatenate(obs_list),
                 np.concatenate(act_list),
-                normalize=normalize
+                normalize=normalize,
+                use_log=log
             )
+            data_frame.insert(data_frame.shape[1], "rollout", 0)
         data_frame.insert(data_frame.shape[1], "agent", self.agent_name)
+        data_frame.insert(data_frame.shape[1], "seed", seed)
         return data_frame
 
-    def _get_representation(self, data_frame):
-        representation = None
-        # TODO
-        return representation
+    def _get_representation(self, data_frame, stack):
+        representation_form = {
+            # M sequence whose length is NL
+            "M_sequenceNL": self._get_representation1,
+            # MN sequence whose length is L
+            "MN_sequenceL": self._get_representation2,
+            # M sequence which are averaged sequence (length L) across N
+            "M_N_sequenceL": self._get_representation3
+        }
+        if stack:
+            rep = representation_form['M_sequenceNL'](data_frame)
+            return {"M_sequenceNL": rep}
+        else:
+            result = {}
+            for key in ['MN_sequenceL', "M_N_sequenceL"]:
+                rep = representation_form[key](data_frame)
+                result[key] = rep
+            return result
 
-    @ray.method(num_return_vals=1)
+    @ray.method(num_return_vals=2)
     def fft(
             self,
             num_seeds,
@@ -123,16 +180,45 @@ class FFTWorker(object):
             stack=False,
             clip=None,
             normalize=True,
-            log=True
+            log=True,
+            fillna=0,
+            _num_steps=None
     ):
+        if _num_steps:
+            # For testing purpose
+            self._num_steps = _num_steps
         data_frame = None
         for seed in range(num_seeds):
-            df = self._rollout_multiple(num_rollouts, seed, stack, normalize)
+            df = self._rollout_multiple(
+                num_rollouts, seed, stack, normalize, log
+            )
             if data_frame is None:
                 data_frame = df
             else:
                 data_frame = data_frame.append(df, ignore_index=True)
+        # print("df shape", data_frame.shape)
         if clip:
             pass
             # TODO
-        return self._get_representation(data_frame)
+        data_frame.fillna(fillna, inplace=True)
+        return data_frame, self._get_representation(data_frame, stack)
+
+
+if __name__ == '__main__':
+    from gym.envs.box2d import BipedalWalker
+
+    ray.init(local_mode=True)
+
+    fft_worker = FFTWorker.remote(
+        "PPO",
+        "~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08"
+        "-10_15-21-164grca382/checkpoint_313/checkpoint-313",
+        "BipedalWalker-v2", BipedalWalker, "TEST_AGENT"
+    )
+
+    oid1, oid2 = fft_worker.fft.remote(3, 5, False)
+
+    df = ray.get(oid1)
+    rep = ray.get(oid2)
+
+    # ray.shutdown()
