@@ -6,6 +6,8 @@ from scipy.fftpack import fft
 import gym
 from rollout import rollout
 import ray
+from utils import restore_agent
+
 
 def compute_fft(y, normalize=True, normalize_max=None, normalize_min=None):
     y = np.asarray(y)
@@ -23,6 +25,7 @@ def compute_fft(y, normalize=True, normalize_max=None, normalize_min=None):
     yf1 = yf / len(y)
     yf2 = yf1[:int(len(y) / 2)]
     return yf2
+
 
 def stack_fft(obs, act, normalize, use_log=True):
     obs = np.asarray(obs)
@@ -58,15 +61,14 @@ def stack_fft(obs, act, normalize, use_log=True):
 
     return pandas.DataFrame(result)
 
+
 @ray.remote
 class FFTWorker(object):
-
-    def __init__(self, ckpt):
+    def __init__(self, run_name, ckpt, env_name, env_maker, agent_name):
         # restore an agent here
-        self.agent = None
-        self.env_maker = None
-        self.agent_name = None
-        pass
+        self.agent = restore_agent(run_name, ckpt, env_name)
+        self.env_maker = env_maker
+        self.agent_name = agent_name
 
     def _rollout(self, env):
         ret = rollout(self.agent, env, require_trajectory=True)
@@ -75,8 +77,9 @@ class FFTWorker(object):
         act = np.array([a[1] for a in ret])
         return obs, act
 
-    def _rollout_multiple(self, number_of_rollouts, seed,
-                          stack=False, normalize=True):
+    def _rollout_multiple(
+            self, number_of_rollouts, seed, stack=False, normalize=True
+    ):
         # One seed, N rollouts.
         env = self.env_maker()
         env.seed(seed)
@@ -84,7 +87,11 @@ class FFTWorker(object):
         obs_list = []
         act_list = []
         for i in range(number_of_rollouts):
-            print("Agent {}, Rollout {}/{}".format(self.agent_name, i, number_of_rollouts))
+            print(
+                "Agent {}, Rollout {}/{}".format(
+                    self.agent_name, i, number_of_rollouts
+                )
+            )
             obs, act = self._rollout(env)
             if not stack:
                 df = stack_fft(obs, act, normalize=normalize)
@@ -109,8 +116,15 @@ class FFTWorker(object):
         return representation
 
     @ray.method(num_return_vals=1)
-    def fft(self, num_seeds, num_rollouts, stack=False, clip=None, normalize=True,
-            log=True):
+    def fft(
+            self,
+            num_seeds,
+            num_rollouts,
+            stack=False,
+            clip=None,
+            normalize=True,
+            log=True
+    ):
         data_frame = None
         for seed in range(num_seeds):
             df = self._rollout_multiple(num_rollouts, seed, stack, normalize)
