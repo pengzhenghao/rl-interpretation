@@ -15,28 +15,19 @@ import logging
 import os
 import pickle
 
-import gym
-import numpy as np
 import ray
 import yaml
 from ray.rllib.agents.registry import get_agent_class
 from ray.rllib.env.base_env import _DUMMY_AGENT_ID
-from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from utils import DefaultMapping, VideoRecorder
+from utils import DefaultMapping, VideoRecorder, BipedalWalkerWrapper
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
-from gym.envs.box2d.bipedal_walker import (
-    BipedalWalker, VIEWPORT_H, VIEWPORT_W, SCALE, TERRAIN_HEIGHT, TERRAIN_STEP
-)
-from Box2D.b2 import circleShape
-
-from opencv_wrappers import Surface
 from collections import OrderedDict
 import time
 
@@ -72,142 +63,7 @@ PRESET_INFORMATION_DICT = {
     }
 }
 
-
-def scale_color(color_in_1):
-    return tuple(int(c * 255) for c in color_in_1)
-
-
-class OpencvViewer(object):
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.surface = Surface(height=height, width=width)
-        self.translation = 0, 0
-        self.scale = 1, 1
-        self.frame = np.empty((height, width, 4), dtype=np.uint8)
-        self.frame.fill(255)
-
-    def set_bounds(self, left, right, bottom, top):
-        assert right > left and top > bottom
-        scalex = self.width / (right - left)
-        scaley = self.height / (top - bottom)
-        self.translation = -left, -bottom
-        self.scale = scalex, scaley
-
-    def draw_circle(self, radius=10, res=30, filled=True, **attrs):
-        raise NotImplementedError
-
-    def translate(self, point):
-        point1 = point[0] + self.translation[0], point[1] + \
-                 self.translation[1]
-        point2 = point1[0] * self.scale[0], point1[1] * \
-                 self.scale[1]
-        return self.height - point2[1], point2[0]
-
-    def draw_polygon(self, v, filled=True, **attrs):
-        v = [self.translate(p) for p in v]
-        color = scale_color(attrs["color"])
-        self.surface.polygon(v, color)
-
-    def draw_polyline(self, v, **attrs):
-        color = scale_color(attrs["color"])
-        thickness = attrs['thickness'] if 'thickness' in attrs \
-            else attrs['linewidth']
-        for point1, point2 in zip(v[:-1], v[1:]):
-            point1 = self.translate(tuple(point1))
-            point2 = self.translate(tuple(point2))
-            self.surface.line(point1, point2, color, thickness)
-
-    def draw_line(self, start, end, **attrs):
-        start = self.translate(start)
-        end = self.translate(end)
-        self.surface.line(start, end, **attrs)
-
-    def render(self, return_rgb_array):
-        self.frame.fill(255)
-        # if not return_rgb_array:
-        #     self.surface.display(1)
-        frame = self.surface.raw_data()
-        return frame[:, :, 2::-1]
-
-    def close(self):
-        del self.surface
-
-
-class BipedalWalkerWrapper(BipedalWalker):
-    def render(self, mode='rgb_array'):
-        # This function is almost identical to the original one but the
-        # importing of pyglet is avoided.
-        if self.viewer is None:
-            self.viewer = OpencvViewer(VIEWPORT_W, VIEWPORT_H)
-        self.viewer.set_bounds(
-            self.scroll, VIEWPORT_W / SCALE + self.scroll, 0,
-            VIEWPORT_H / SCALE
-        )
-
-        self.viewer.draw_polygon(
-            [
-                (self.scroll, 0),
-                (self.scroll + VIEWPORT_W / SCALE, 0),
-                (self.scroll + VIEWPORT_W / SCALE, VIEWPORT_H / SCALE),
-                (self.scroll, VIEWPORT_H / SCALE),
-            ],
-            color=(0.9, 0.9, 1.0)
-        )
-        for poly, x1, x2 in self.cloud_poly:
-            if x2 < self.scroll / 2: continue
-            if x1 > self.scroll / 2 + VIEWPORT_W / SCALE: continue
-            self.viewer.draw_polygon(
-                [(p[0] + self.scroll / 2, p[1]) for p in poly],
-                color=(1, 1, 1)
-            )
-        for poly, color in self.terrain_poly:
-            if poly[1][0] < self.scroll: continue
-            if poly[0][0] > self.scroll + VIEWPORT_W / SCALE: continue
-            self.viewer.draw_polygon(poly, color=color)
-
-        self.lidar_render = (self.lidar_render + 1) % 100
-        i = self.lidar_render
-        if i < 2 * len(self.lidar):
-            l = self.lidar[i] if i < len(self.lidar
-                                         ) else self.lidar[len(self.lidar) -
-                                                           i - 1]
-            self.viewer.draw_polyline(
-                [l.p1, l.p2], color=(1, 0, 0), linewidth=1
-            )
-
-        for obj in self.drawlist:
-            for f in obj.fixtures:
-                trans = f.body.transform
-                if type(f.shape) is circleShape:
-                    raise NotImplementedError
-                    # t = rendering.Transform(translation=trans*f.shape.pos)
-                    # self.viewer.draw_circle(f.shape.radius, 30,
-                    # color=obj.color1).add_attr(t)
-                    # self.viewer.draw_circle(f.shape.radius, 30,
-                    # color=obj.color2, filled=False, linewidth=2).add_attr(t)
-                else:
-                    path = [trans * v for v in f.shape.vertices]
-                    self.viewer.draw_polygon(path, color=obj.color1)
-                    path.append(path[0])
-                    self.viewer.draw_polyline(
-                        path, color=obj.color2, linewidth=2
-                    )
-
-        flagy1 = TERRAIN_HEIGHT
-        flagy2 = flagy1 + 50 / SCALE
-        x = TERRAIN_STEP * 3
-        self.viewer.draw_polyline(
-            [(x, flagy1), (x, flagy2)], color=(0, 0, 0), linewidth=2
-        )
-        f = [
-            (x, flagy2), (x, flagy2 - 10 / SCALE),
-            (x + 25 / SCALE, flagy2 - 5 / SCALE)
-        ]
-        self.viewer.draw_polygon(f, color=(0.9, 0.2, 0))
-        self.viewer.draw_polyline(f + [f[0]], color=(0, 0, 0), linewidth=2)
-
-        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+ENVIRONMENT_MAPPING = {"BipedalWalker-v2": BipedalWalkerWrapper}
 
 
 def create_parser(parser_creator=None):
@@ -254,7 +110,7 @@ def create_parser(parser_creator=None):
 
 @ray.remote
 def collect_frames(
-        run_name, env_name, config, ckpt, num_steps, num_iters=1, seed=0
+        run_name, env, env_name, config, ckpt, num_steps, num_iters=1, seed=0
 ):
     """
     This function create one agent and return one frame sequence.
@@ -271,18 +127,6 @@ def collect_frames(
     cls = get_agent_class(run_name)
     agent = cls(env=env_name, config=config)
     agent.restore(ckpt)
-    # agents[name] = agent
-    # print("[{}/{}] (T +{:.1f}s Total {:.1f}s) "
-    #       "Restored agent <{}>".format(aid + 1, len(name_ckpt_mapping),
-    #                                    time.time() - now,
-    #                                    time.time() - start, name))
-    # now = time.time()
-
-    if hasattr(agent, "workers"):
-        env = agent.workers.local_worker().env
-    else:
-        env = gym.make(env_name)
-
     env.seed(seed)
 
     # frames, extra_info = rollout(agent, env, num_steps)
@@ -444,8 +288,13 @@ class GridVideoRecorder(object):
             config = merge_dicts(config, args_config or {})
 
             object_id_dict[name] = collect_frames.remote(
-                self.run_name, self.env_name, config, ckpt, num_steps,
-                num_iters, seed
+                self.run_name,
+                ENVIRONMENT_MAPPING[self.env_name],
+                config,
+                ckpt,
+                num_steps,
+                num_iters,
+                seed
             )
             print(
                 "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
