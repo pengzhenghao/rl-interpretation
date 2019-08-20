@@ -33,8 +33,6 @@ import time
 import pickle
 from ray.tune.util import merge_dicts
 
-# from gym.wrappers.monitoring.video_recorder import ImageEncoder
-
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
@@ -173,9 +171,7 @@ class VideoRecorder(object):
 
         for rang, (title, frames) in zip(self.frame_range,
                                          frames_dict.items()):
-            # for rang, (title, frame) in zip(self.frame_range,
-            # frames.items()):
-
+            # TODO we can add async execution here
             height = rang["height"]
             width = rang["width"]
 
@@ -239,10 +235,6 @@ class VideoRecorder(object):
             self.height = tmp_frame.shape[0]
             self._build_frame_range()
             self.initialized = True
-
-        # Pre-process the frames
-        # new_frames_dict = \
-        #     self._add_things_on_frame(frames_dict, extra_info_dict)
 
         self._build_background(frames_dict)
 
