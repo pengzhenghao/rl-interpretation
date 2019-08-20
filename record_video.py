@@ -210,79 +210,6 @@ class BipedalWalkerWrapper(BipedalWalker):
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
 
-class MultipolicyWrapper(MultiAgentEnv):
-    def __init__(self, envs_dict, info_dict=None):
-        self.envs_dict = envs_dict
-        envs = list(envs_dict.values())
-        self.metadata = envs[0].metadata
-        self.action_space = [env.action_space for env in envs]
-        self.observation_space = [env.observation_space for env in envs]
-        self.num_envs = len(envs)
-        self.info_dict = info_dict
-        self.dones = {aid: False for aid in self.envs_dict.keys()}
-        self.information = {}
-        self._reset_information(self.info_dict)
-
-    def _reset_information(self, info_dict=None):
-        if info_dict:
-            self.information = {}
-            for info_name, info_details in info_dict.items():
-                # info_datails should contain:
-                #   default_value: the default value of this measurement
-                #   text_function: a function transform the value to string
-                #   pos_ratio: a tuple: (left_ratio, bottom_ratio)
-
-                for key in ["default_value", "text_function", "pos_ratio"]:
-                    assert key in info_details
-
-                default_value = info_details['default_value']
-                self.information[info_name] = \
-                    {aid: default_value for aid in self.envs_dict.keys()}
-
-                self.information[info_name].update(info_details)
-
-            for key in self.envs_dict.keys():
-                self.information["title"][key] = key
-
-    def reset(self):
-        self._reset_information(self.info_dict)
-        self.dones = {aid: False for aid in self.envs_dict.keys()}
-        ret = {}
-        for aid, env in self.envs_dict.items():
-            ret[aid] = env.reset()
-        return ret
-
-    def step(self, action_dict):
-        ret_obs = {}
-        ret_rew = {}
-        ret_info = {}
-        for aid, act in action_dict.items():
-            if self.dones[aid]:
-                continue
-            obs, rew, done, info = self.envs_dict[aid].step(act)
-            ret_obs[aid] = obs
-            ret_rew[aid] = rew
-            self.dones[aid] = done or self.dones[aid]
-            self.information["done"][aid] = self.dones[aid]
-            self.information["reward"][aid] += rew
-            self.information["step"][aid] += 1
-            ret_info[aid] = info
-        ret_done = self.dones.copy()
-        ret_done["__all__"] = all(ret_done.values())
-        return ret_obs, ret_rew, ret_done, ret_info
-
-    def update_value_functions(self, value_functions):
-        if "value_function" in self.information:
-            self.information["value_function"].update(value_functions)
-
-    def render(self, *args, **kwargs):
-        frames = {}
-        for eid, env in self.envs_dict.items():
-            frame = env.render(mode="rgb_array")
-            frames[eid] = frame
-        return frames
-
-
 def create_parser(parser_creator=None):
     parser_creator = parser_creator or argparse.ArgumentParser
     parser = parser_creator(
@@ -553,7 +480,6 @@ class GridVideoRecorder(object):
         for key in PRESET_INFORMATION_DICT.keys():
             new_extra_info_dict[key].update(extra_info_dict[key])
 
-        # extra_info_dict.update(PRESET_INFORMATION_DICT)
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):
@@ -574,12 +500,6 @@ if __name__ == "__main__":
     for d in name_ckpt_list:
         name_ckpt_mapping[d["name"]] = d["path"]
 
-    # run(
-    #     name_ckpt_mapping, args.yaml[:-5], args.run, args.steps, args.iters,
-    #     args.seed, args.config, args.env, args.out, args.no_render,
-    #     args.local_mode
-    # )
-
     gvr = GridVideoRecorder(
         video_path=args.yaml[:-5],
         env_name=args.env,
@@ -590,6 +510,7 @@ if __name__ == "__main__":
     frames_dict, extra_info_dict = gvr.rollout(
         name_ckpt_mapping, args.steps, args.iters, args.seed
     )
+
     gvr.close()
     vr = VideoRecorder("test_path_just_a_video", len(name_ckpt_mapping))
     vr.generate_video(frames_dict, extra_info_dict)
