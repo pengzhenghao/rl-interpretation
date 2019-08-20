@@ -8,31 +8,19 @@ Usage:
 
 from __future__ import absolute_import, division, print_function
 
-import argparse
 import collections
-import json
-import logging
-import os
-import pickle
-import tempfile
-
-import gym
-import ray
-from gym import logger, error
-# from gym.wrappers.monitoring.video_recorder import ImageEncoder
-
-import subprocess
 import distutils
+import json
+import os
+import subprocess
+import tempfile
+from math import floor
 
-from ray.rllib.agents.registry import get_agent_class
-from ray.rllib.env import MultiAgentEnv
-from ray.rllib.env.base_env import _DUMMY_AGENT_ID
-from ray.rllib.evaluation.episode import _flatten_action
-from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
-from ray.tune.util import merge_dicts
-import numpy as np
-from math import sqrt, floor, ceil
 import cv2
+import numpy as np
+from gym import logger, error
+
+# from gym.wrappers.monitoring.video_recorder import ImageEncoder
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -71,45 +59,42 @@ class VideoRecorder(object):
     """
 
     def __init__(
-            self, env, path=None, metadata=None, base_path=None
+            # self, env, path=None, metadata=None, base_path=None
+            self, base_path, FPS=50
     ):
 
-        modes = env.metadata.get('render.modes', [])
-        self._async = env.metadata.get('semantics.async')
+        # modes = env.metadata.get('render.modes', [])
+        # self._async = env.metadata.get('semantics.async')
         self.frame_shape = None
-        self.num_envs = env.num_envs
+        # self.num_envs = env.num_envs
         self.frame_range = None
         self.scale = None
 
         self.ansi_mode = False
-        if 'rgb_array' not in modes:
-            if 'ansi' in modes:
-                self.ansi_mode = True
-            else:
-                logger.info(
-                    'Disabling video recorder because {} neither supports '
-                    'video mode "rgb_array" nor "ansi".'.format(env)
-                )
-                return
+        # if 'rgb_array' not in modes:
+        #     if 'ansi' in modes:
+        #         self.ansi_mode = True
+        #     else:
+        #         logger.info(
+        #             'Disabling video recorder because {} neither supports '
+        #             'video mode "rgb_array" nor "ansi".'.format(env)
+        #         )
+        #         return
 
-        if path is not None and base_path is not None:
-            raise error.Error(
-                "You can pass at most one of `path` or `base_path`."
-            )
 
         self.last_frame = None
-        self.env = env
+        # self.env = env
 
-        required_ext = '.json' if self.ansi_mode else '.mp4'
-        if path is None:
-            if base_path is not None:
-                # Base path given, append ext
-                path = base_path + required_ext
-            else:
-                # Otherwise, just generate a unique filename
-                with tempfile.NamedTemporaryFile(suffix=required_ext,
-                                                 delete=False) as f:
-                    path = f.name
+        # required_ext = '.json' if self.ansi_mode else '.mp4'
+        required_ext = '.mp4'
+        if base_path is not None:
+            # Base path given, append ext
+            path = base_path + required_ext
+        else:
+            # Otherwise, just generate a unique filename
+            with tempfile.NamedTemporaryFile(suffix=required_ext,
+                                             delete=False) as f:
+                path = f.name
         self.path = path
 
         path_base, actual_ext = os.path.splitext(self.path)
@@ -127,19 +112,21 @@ class VideoRecorder(object):
         # OS X, the file is precreated, but not on Linux.
         touch(path)
 
-        self.frames_per_sec = env.metadata.get('video.frames_per_second', 30)
+        self.extra_num_frames = None
+        # self.frames_per_sec = env.metadata.get('video.frames_per_second', 30)
+        self.frames_per_sec = FPS
         self.encoder = None  # lazily start the process
-        self.broken = False
+        # self.broken = False
 
         # Dump metadata
-        self.metadata = metadata or {}
-        self.metadata['content_type'] = 'video/vnd.openai.ansivid' \
-            if self.ansi_mode else 'video/mp4'
-        self.metadata_path = '{}.meta.json'.format(path_base)
-        self.write_metadata()
+        # self.metadata = metadata or {}
+        # self.metadata['content_type'] = 'video/vnd.openai.ansivid' \
+        #     if self.ansi_mode else 'video/mp4'
+        # self.metadata_path = '{}.meta.json'.format(path_base)
+        # self.write_metadata()
 
         logger.info('Starting new video recorder writing to %s', self.path)
-        self.empty = True
+        # self.empty = True
         self.initialized = False
 
     def put_text(self, img, text, pos, thickness=1):
@@ -151,10 +138,31 @@ class VideoRecorder(object):
             # , cv2.LINE_AA # Unable the anti-aliasing
         )
 
-    def build_grids(self, frames):
-        background = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8')
+    def _build_background(self, frames_dict):
 
-        for rang, (title, frame) in zip(self.frame_range, frames.items()):
+        assert self.frames_per_sec is not None
+
+        self.extra_num_frames = 5 * int(self.frames_per_sec)
+
+        video_length = max([len(frames) for frames in frames_dict.values()])\
+                       + self.extra_num_frames
+
+        self.background = np.zeros(
+            (video_length, VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8')
+
+        self._add_fixed_text()
+
+    def _add_fixed_text(self):
+        # TODO can add title and names of each row or column.
+        pass
+
+    def build_grids(self, frames_dict):
+        # background = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8')
+
+        for rang, (title, frames) in zip(self.frame_range,
+                                         frames_dict.items()):
+            # for rang, (title, frame) in zip(self.frame_range,
+            # frames.items()):
 
             height = rang["height"]
             width = rang["width"]
@@ -171,37 +179,28 @@ class VideoRecorder(object):
                 )
 
             if self.scale < 1:
-                frame = cv2.resize(
-                    frame, (
-                        int(self.width * self.scale
-                            ), int(self.height * self.scale)
-                    ),
+                frames = [cv2.resize(
+                    frame, (int(self.width * self.scale),
+                            int(self.height * self.scale)
+                            ),
                     interpolation=cv2.INTER_CUBIC
-                )
+                ) for frame in frames]
+                frames = np.concatenate(frames)
 
-            background[height[0]:height[1], width[0]:width[1], 2::-1] = frame
+            self.background[:len(frames), height[0]:height[1],
+            width[0]:width[1], 2::-1] = frames
 
-            for info_name, information in self.env.information.items():
-                # info_name: like "done" or "reward"
-                # information:
-                #   {
-                #       agent_name1: value,
-                #       agent_name2: value,
-                #       ...
-                #       text_function: f(value) -> text
-                #       pos_ratio: (left_ratio, bottom_ratio)
-                #       default_value: value
-                #   }
-                pos = get_pos(*information['pos_ratio'])
-                value = information[title]
-                text = information['text_function'](value)
-                self.put_text(background, text, pos)
+            # filled the extra number of frames
+            self.background[len(frames):len(frames)+self.extra_num_frames,
+            height[0]:height[1], width[0]:width[1], 2::-1] = frames[-1]
 
-        return background
+        return self.background
 
-    def capture_frame(self):
+    def generate_video(self, frames_dict):
         """Render the given `env` and add the resulting frame to the video."""
-        if not self.functional: return
+
+        # assert isinstance(frames, list)
+
         logger.debug('Capturing video frame: path=%s', self.path)
 
         # render_mode = 'ansi' if self.ansi_mode else 'rgb_array'
@@ -211,39 +210,30 @@ class VideoRecorder(object):
         #     single_frame = env.render(mode=render_mode)
         #     frames.append(single_frame)
 
-        frames = self.env.render()
+        # frames = self.env.render()
 
         if not self.initialized:
-            tmp_frame = list(frames.values())[0]
+            tmp_frame = list(frames_dict.values())[0][0]
             self.width = tmp_frame.shape[1]
             self.height = tmp_frame.shape[0]
             self._build_frame_range()
             self.initialized = True
-        frame = self.build_grids(frames)
-        if frame is None:
-            if self._async:
-                return
-            else:
-                # Indicates a bug in the environment: don't want to raise
-                # an error here.
-                logger.warn(
-                    'Env returned None on render(). Disabling further '
-                    'rendering for video recorder by marking as disabl'
-                    'ed: path=%s metadata_path=%s', self.path,
-                    self.metadata_path
-                )
-                self.broken = True
-        else:
+
+        self.build_grids(frames_dict)
+
+        for frame in self.background:
             self.last_frame = frame
             self._encode_image_frame(frame)
 
-    def close(self):
+        self._close()
+
+    def _close(self):
         """Make sure to manually close, or else you'll leak the encoder
         process"""
 
         # Add extra 5 seconds static frames to help visualization.
-        for _ in range(5 * int(self.frames_per_sec)):
-            self._encode_image_frame(self.last_frame)
+        # for _ in range(5 * int(self.frames_per_sec)):
+        #     self._encode_image_frame(self.last_frame)
 
         if self.encoder:
             logger.debug('Closing video encoder: path=%s', self.path)
@@ -254,31 +244,31 @@ class VideoRecorder(object):
             # file.
             os.remove(self.path)
 
-            if self.metadata is None:
-                self.metadata = {}
-            self.metadata['empty'] = True
+            # if self.metadata is None:
+            #     self.metadata = {}
+            # self.metadata['empty'] = True
 
         # If broken, get rid of the output file, otherwise we'd leak it.
-        if self.broken:
-            logger.info(
-                'Cleaning up paths for broken video recorder: path=%s '
-                'metadata_path=%s', self.path, self.metadata_path
-            )
+        # if self.broken:
+        #     logger.info(
+        #         'Cleaning up paths for broken video recorder: path=%s '
+        #         'metadata_path=%s', self.path, self.metadata_path
+        #     )
+        #
+        #     # Might have crashed before even starting the output file,
+        #     # don't try to remove in that case.
+        #     if os.path.exists(self.path):
+        #         os.remove(self.path)
+        #
+        #     if self.metadata is None:
+        #         self.metadata = {}
+        #     self.metadata['broken'] = True
 
-            # Might have crashed before even starting the output file,
-            # don't try to remove in that case.
-            if os.path.exists(self.path):
-                os.remove(self.path)
+        # self.write_metadata()
 
-            if self.metadata is None:
-                self.metadata = {}
-            self.metadata['broken'] = True
-
-        self.write_metadata()
-
-    def write_metadata(self):
-        with open(self.metadata_path, 'w') as f:
-            json.dump(self.metadata, f)
+    # def write_metadata(self):
+    #     with open(self.metadata_path, 'w') as f:
+    #         json.dump(self.metadata, f)
 
     def _build_frame_range(self):
         def center_range(center, rang):
@@ -314,10 +304,6 @@ class VideoRecorder(object):
         width_margin = int(width_margin)
         height_margin = int(height_margin)
 
-        # Don't need to scale the video, just spread them
-        # margin = (VIDEO_WIDTH - self.num_envs * self.width) / (self.num_envs + 1)
-        # margin = int(margin)
-        # height_range = center_range(VIDEO_HEIGHT / 2, self.height)
         frame_range = []
         for i in range(self.num_envs):
             row_id = int(i / num_cols)
@@ -368,8 +354,10 @@ class ImageEncoder(object):
         h, w, pixfmt = frame_shape
         if pixfmt != 3 and pixfmt != 4:
             raise error.InvalidFrame(
-                "Your frame has shape {}, but we require (w,h,3) or (w,h,4), i.e., RGB values for a w-by-h image, with an optional alpha channel."
-                .format(frame_shape)
+                "Your frame has shape {}, but we require (w,h,3) or (w,h,4), "
+                "i.e., RGB values for a w-by-h image, with an optional alpha "
+                "channel."
+                    .format(frame_shape)
             )
         self.wh = (w, h)
         self.includes_alpha = (pixfmt == 4)
@@ -382,7 +370,11 @@ class ImageEncoder(object):
             self.backend = 'ffmpeg'
         else:
             raise error.DependencyNotInstalled(
-                """Found neither the ffmpeg nor avconv executables. On OS X, you can install ffmpeg via `brew install ffmpeg`. On most Ubuntu variants, `sudo apt-get install ffmpeg` should do it. On Ubuntu 14.04, however, you'll need to install avconv with `sudo apt-get install libav-tools`."""
+                """Found neither the ffmpeg nor avconv executables. On OS X, 
+                you can install ffmpeg via `brew install ffmpeg`. On most 
+                Ubuntu variants, `sudo apt-get install ffmpeg` should do it. 
+                On Ubuntu 14.04, however, you'll need to install avconv with 
+                `sudo apt-get install libav-tools`."""
             )
 
         self.start()
@@ -391,15 +383,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-            self.backend,
+                self.backend,
             'version':
-            str(
-                subprocess.check_output(
-                    [self.backend, '-version'], stderr=subprocess.STDOUT
-                )
-            ),
+                str(
+                    subprocess.check_output(
+                        [self.backend, '-version'], stderr=subprocess.STDOUT
+                    )
+                ),
             'cmdline':
-            self.cmdline
+                self.cmdline
         }
 
     def start(self):
@@ -448,17 +440,19 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                format(type(frame), frame)
+                    format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(
-                "Your frame has shape {}, but the VideoRecorder is configured for shape {}."
-                .format(frame.shape, self.frame_shape)
+                "Your frame has shape {}, but the VideoRecorder is "
+                "configured for shape {}."
+                    .format(frame.shape, self.frame_shape)
             )
         if frame.dtype != np.uint8:
             raise error.InvalidFrame(
-                "Your frame has data type {}, but we require uint8 (i.e. RGB values from 0-255)."
-                .format(frame.dtype)
+                "Your frame has data type {}, but we require uint8 (i.e. RGB "
+                "values from 0-255)."
+                    .format(frame.dtype)
             )
 
         if distutils.version.LooseVersion(

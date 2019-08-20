@@ -125,8 +125,8 @@ class OpencvViewer(object):
 
     def render(self, return_rgb_array):
         self.frame.fill(255)
-        if not return_rgb_array:
-            self.surface.display(1)
+        # if not return_rgb_array:
+        #     self.surface.display(1)
         frame = self.surface.raw_data()
         return frame[:, :, 2::-1]
 
@@ -135,7 +135,7 @@ class OpencvViewer(object):
 
 
 class BipedalWalkerWrapper(BipedalWalker):
-    def render(self, mode='human'):
+    def render(self, mode='rgb_array'):
         # This function is almost identical to the original one but the
         # importing of pyglet is avoided.
         if self.viewer is None:
@@ -306,7 +306,7 @@ def create_parser(parser_creator=None):
              "tune registry."
     )
     required_named.add_argument(
-        "--env", type=str, help="The gym environment to use."
+        "--env", type=str, help="The gym environment to use.", required=True
     )
     parser.add_argument("--no-render", default=False, action="store_true")
     parser.add_argument("--num-envs", '-n', type=int, default=6)
@@ -323,6 +323,7 @@ def create_parser(parser_creator=None):
              "Surpresses loading of configuration from checkpoint."
     )
     return parser
+
 
 @ray.remote
 def collect_frames(run_name, env_name, config, ckpt, num_steps, seed=0):
@@ -440,7 +441,7 @@ def collect_frames(run_name, env_name, config, ckpt, num_steps, seed=0):
 
         reward_total += reward
 
-        kwargs = {}
+        kwargs = {"mode": "return_rgb_array"}
         frame = env.render(**kwargs)
         frames.append(frame)
 
@@ -448,7 +449,6 @@ def collect_frames(run_name, env_name, config, ckpt, num_steps, seed=0):
            len(extra_info["value"]) == len(frames)
     print("Episode reward", reward_total)
     return frames, extra_info
-
 
 
 class GridVideoRecorder(object):
@@ -464,29 +464,22 @@ class GridVideoRecorder(object):
 
         single_env = gym.make(env_name)
 
-        self.video_recorder = VideoRecorder(single_env, video_path)
-
+        self.video_recorder = VideoRecorder(video_path)
 
     def run(self, name_ckpt_mapping,
-            video_path,
-            run_name,
             num_steps=int(1e10),
             num_iters=1,
             seed=0,
-            args_config=None,
-            env_name=None):
-
+            args_config=None):
 
         assert isinstance(name_ckpt_mapping, OrderedDict), \
             "The name-checkpoint dict is not OrderedDict!!! " \
             "We suggest you to use OrderedDict."
 
-        agents = OrderedDict()
+        # agents = OrderedDict()
         now = time.time()
         start = now
         for aid, (name, ckpt) in enumerate(name_ckpt_mapping.items()):
-
-
             ckpt = os.path.abspath(
                 os.path.expanduser(ckpt))  # Remove relative dir
             config = {"log_level": "ERROR"}
@@ -516,12 +509,6 @@ class GridVideoRecorder(object):
                 collect_frames.remote(run_name, env_name, config, ckpt,
                                       num_steps, seed)
 
-
-
-
-
-
-
             # if not env_name:
             #     if not config.get("env"):
             #         raise ValueError(
@@ -538,21 +525,14 @@ class GridVideoRecorder(object):
                                                time.time() - start, name))
             now = time.time()
 
-            if hasattr(agent, "workers"):
-                env = agent.workers.local_worker().env
-            else:
-                env = gym.make(env_name)
+            # if hasattr(agent, "workers"):
+            #     env = agent.workers.local_worker().env
+            # else:
+            #     env = gym.make(env_name)
+            #
+            # env.seed(seed)
 
-            env.seed(seed)
-
-            frames, extra_info = rollout(agent, env, num_steps)
-
-
-
-
-
-
-
+            # frames, extra_info = rollout(agent, env, num_steps)
 
     def _rollout(self, agent, num_steps):
         # Todo use env as input. Don't make env every time
@@ -849,8 +829,14 @@ if __name__ == "__main__":
     for d in name_ckpt_list:
         name_ckpt_mapping[d["name"]] = d["path"]
 
-    run(
-        name_ckpt_mapping, args.yaml[:-5], args.run, args.steps, args.iters,
-        args.seed, args.config, args.env, args.out, args.no_render,
-        args.local_mode
-    )
+    # run(
+    #     name_ckpt_mapping, args.yaml[:-5], args.run, args.steps, args.iters,
+    #     args.seed, args.config, args.env, args.out, args.no_render,
+    #     args.local_mode
+    # )
+
+    gvr = GridVideoRecorder(video_path=args.yaml[:-5],
+                            env_name=args.env,
+                            local_mode=args.local_mode)
+
+    gvr.run(name_ckpt_mapping, args.steps, args.iters, args.seed)
