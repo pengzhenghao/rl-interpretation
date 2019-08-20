@@ -142,7 +142,7 @@ class BipedalWalkerWrapper(BipedalWalker):
             self.viewer = OpencvViewer(VIEWPORT_W, VIEWPORT_H)
         self.viewer.set_bounds(
             self.scroll, VIEWPORT_W / SCALE + self.scroll, 0,
-                         VIEWPORT_H / SCALE
+            VIEWPORT_H / SCALE
         )
 
         self.viewer.draw_polygon(
@@ -288,7 +288,7 @@ def create_parser(parser_creator=None):
     parser = parser_creator(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-                    "given a checkpoint."
+        "given a checkpoint."
     )
     parser.add_argument(
         "yaml",
@@ -301,9 +301,9 @@ def create_parser(parser_creator=None):
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-             "user-defined trainable function or class registered in the "
-             "tune registry."
+        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+        "user-defined trainable function or class registered in the "
+        "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use.", required=True
@@ -320,14 +320,15 @@ def create_parser(parser_creator=None):
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-             "Surpresses loading of configuration from checkpoint."
+        "Surpresses loading of configuration from checkpoint."
     )
     return parser
 
 
 @ray.remote
-def collect_frames(run_name, env_name, config, ckpt, num_steps, num_iters=1,
-                   seed=0):
+def collect_frames(
+        run_name, env_name, config, ckpt, num_steps, num_iters=1, seed=0
+):
     """
     This function create one agent and return one frame sequence.
     :param run_name:
@@ -372,7 +373,8 @@ def collect_frames(run_name, env_name, config, ckpt, num_steps, num_iters=1,
         use_lstm = {DEFAULT_POLICY_ID: False}
 
     frames = []
-    extra_info = {"value": [], "reward": [], "done": [], "step": 0}
+    extra_info = {"value_function": [], "reward": [], "done": [], "step": 0}
+    # extra_info = PRESET_INFORMATION_DICT
 
     mapping_cache = {}  # in case policy_agent_mapping is stochastic
 
@@ -432,7 +434,7 @@ def collect_frames(run_name, env_name, config, ckpt, num_steps, num_iters=1,
                 prev_actions[agent_id] = a_action
                 value_functions[agent_id] = a_info["vf_preds"]
 
-        extra_info['value'].append(value_functions[_DUMMY_AGENT_ID])
+        extra_info['value_function'].append(value_functions[_DUMMY_AGENT_ID])
         action = action_dict[_DUMMY_AGENT_ID]
         obs, reward, done, _ = env.step(action)
 
@@ -450,9 +452,8 @@ def collect_frames(run_name, env_name, config, ckpt, num_steps, num_iters=1,
         frame = env.render(**kwargs).copy()
         frames.append(frame)
 
-    # assert len(extra_info['done']) == len(extra_info["reward"]) == \
-    #        len(extra_info["value"]) == len(frames)
     print("Episode reward", reward_total)
+    env.close()
     return frames, extra_info
 
 
@@ -471,11 +472,14 @@ class GridVideoRecorder(object):
         self.video_path = video_path
         # self.video_recorder = VideoRecorder(video_path)
 
-    def rollout(self, name_ckpt_mapping,
+    def rollout(
+            self,
+            name_ckpt_mapping,
             num_steps=int(1e10),
             num_iters=1,
             seed=0,
-            args_config=None):
+            args_config=None
+    ):
 
         assert isinstance(name_ckpt_mapping, OrderedDict), \
             "The name-checkpoint dict is not OrderedDict!!! " \
@@ -484,15 +488,11 @@ class GridVideoRecorder(object):
         # agents = OrderedDict()
         now = time.time()
         start = now
-        frames_dict = {}
-        extra_info_dict = {}
         object_id_dict = {}
         for aid, (name, ckpt) in enumerate(name_ckpt_mapping.items()):
-
-            print("Start to restore agent {} with ckpt: {}".format(name, ckpt))
-
             ckpt = os.path.abspath(
-                os.path.expanduser(ckpt))  # Remove relative dir
+                os.path.expanduser(ckpt)
+            )  # Remove relative dir
             config = {"log_level": "ERROR"}
             # Load configuration from file
             config_dir = os.path.dirname(ckpt)
@@ -516,48 +516,48 @@ class GridVideoRecorder(object):
             config["log_level"] = "ERROR"
             config = merge_dicts(config, args_config or {})
 
-            # if not self.env_name:
-            #     if not config.get("env"):
-            #         raise ValueError(
-            #             "the following arguments are required: --env")
-            #     self.env_name = config.get("env")
-
-            object_id = collect_frames.remote(
-                self.run_name, self.env_name,config, ckpt,
-                                      num_steps, num_iters, seed)
-
-            print("Object id:", object_id)
-            object_id_dict[name] = object_id
-            # frames, extra_info = ray.get(object_id)
-            # frames_dict[name] = frames
-            # extra_info_dict[name] = extra_info
-            #
-            # cls = get_agent_class(run_name)
-            # agent = cls(env=env_name, config=config)
-            # agent.restore(ckpt)
-            # agents[name] = agent
-            print("[{}/{}] (T +{:.1f}s Total {:.1f}s) "
-                  "Restored agent <{}>".format(aid + 1, len(name_ckpt_mapping),
-                                               time.time() - now,
-                                               time.time() - start, name))
+            object_id_dict[name] = collect_frames.remote(
+                self.run_name, self.env_name, config, ckpt, num_steps,
+                num_iters, seed
+            )
+            print(
+                "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
+                "Restored agent <{}>".format(
+                    aid + 1, len(name_ckpt_mapping),
+                    time.time() - now,
+                    time.time() - start, name
+                )
+            )
             now = time.time()
-            # if hasattr(agent, "workers"):
-            #     env = agent.workers.local_worker().env
-            # else:
-            #     env = gym.make(env_name)
-            #
-            # env.seed(seed)
 
-            # frames, extra_info = rollout(agent, env, num_steps)
-        for name, object_id in object_id_dict.items():
+        frames_dict = {}
+        extra_info_dict = PRESET_INFORMATION_DICT
+        for aid, (name, object_id) in enumerate(object_id_dict.items()):
             frames, extra_info = ray.get(object_id)
             frames_dict[name] = frames
-            extra_info_dict[name] = extra_info
-        return frames_dict, extra_info_dict
+            for key, val in extra_info.items():
+                extra_info_dict[key][name] = val
+            extra_info_dict['title'][name] = name
+
+            print(
+                "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
+                "Get data from agent <{}>".format(
+                    aid + 1, len(name_ckpt_mapping),
+                    time.time() - now,
+                    time.time() - start, name
+                )
+            )
+            now = time.time()
+
+        new_extra_info_dict = PRESET_INFORMATION_DICT
+        for key in PRESET_INFORMATION_DICT.keys():
+            new_extra_info_dict[key].update(extra_info_dict[key])
+
+        # extra_info_dict.update(PRESET_INFORMATION_DICT)
+        return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):
-        new_frames_dict = self._add_elements(frames_dict, extra_info_dict)
-        self.video_recorder.generate_video(new_frames_dict)
+        self.video_recorder.generate_video(frames_dict, extra_info_dict)
 
     def close(self):
         ray.shutdown()
@@ -758,10 +758,16 @@ if __name__ == "__main__":
     #     args.local_mode
     # )
 
-    gvr = GridVideoRecorder(video_path=args.yaml[:-5],
-                            env_name=args.env,
-                            run_name=args.run,
-                            local_mode=args.local_mode)
+    gvr = GridVideoRecorder(
+        video_path=args.yaml[:-5],
+        env_name=args.env,
+        run_name=args.run,
+        local_mode=args.local_mode
+    )
 
-    frames_dict, extra_info_dict = gvr.rollout(name_ckpt_mapping, args.steps,
-                                               args.iters, args.seed)
+    frames_dict, extra_info_dict = gvr.rollout(
+        name_ckpt_mapping, args.steps, args.iters, args.seed
+    )
+    gvr.close()
+    vr = VideoRecorder("test_path_just_a_video", len(name_ckpt_mapping))
+    vr.generate_video(frames_dict, extra_info_dict)

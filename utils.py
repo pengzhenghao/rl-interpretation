@@ -10,10 +10,10 @@ from __future__ import absolute_import, division, print_function
 
 import collections
 import distutils
-import json
 import os
 import subprocess
 import tempfile
+import time
 from math import floor
 
 import cv2
@@ -60,32 +60,17 @@ class VideoRecorder(object):
 
     def __init__(
             # self, env, path=None, metadata=None, base_path=None
-            self, base_path, FPS=50
+            self,
+            base_path,
+            num_envs,
+            FPS=50
     ):
-
-        # modes = env.metadata.get('render.modes', [])
-        # self._async = env.metadata.get('semantics.async')
         self.frame_shape = None
-        # self.num_envs = env.num_envs
+        self.num_envs = num_envs
         self.frame_range = None
         self.scale = None
-
-        self.ansi_mode = False
-        # if 'rgb_array' not in modes:
-        #     if 'ansi' in modes:
-        #         self.ansi_mode = True
-        #     else:
-        #         logger.info(
-        #             'Disabling video recorder because {} neither supports '
-        #             'video mode "rgb_array" nor "ansi".'.format(env)
-        #         )
-        #         return
-
-
         self.last_frame = None
-        # self.env = env
 
-        # required_ext = '.json' if self.ansi_mode else '.mp4'
         required_ext = '.mp4'
         if base_path is not None:
             # Base path given, append ext
@@ -113,50 +98,37 @@ class VideoRecorder(object):
         touch(path)
 
         self.extra_num_frames = None
-        # self.frames_per_sec = env.metadata.get('video.frames_per_second', 30)
         self.frames_per_sec = FPS
         self.encoder = None  # lazily start the process
-        # self.broken = False
-
-        # Dump metadata
-        # self.metadata = metadata or {}
-        # self.metadata['content_type'] = 'video/vnd.openai.ansivid' \
-        #     if self.ansi_mode else 'video/mp4'
-        # self.metadata_path = '{}.meta.json'.format(path_base)
-        # self.write_metadata()
 
         logger.info('Starting new video recorder writing to %s', self.path)
-        # self.empty = True
         self.initialized = False
 
-    def put_text(self, img, text, pos, thickness=1):
+    def _put_text(self, timestep, text, pos, thickness=1):
+        # print("put text {} at pos {} at time {}".format(text, pos, timestep))
         if not text:
             return
         cv2.putText(
-            img, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5 * self.scale + 0.15,
-            (0, 0, 0), thickness
+            self.background[timestep], text, pos, cv2.FONT_HERSHEY_SIMPLEX,
+            0.5 * self.scale + 0.15, (0, 0, 0), thickness
             # , cv2.LINE_AA # Unable the anti-aliasing
         )
 
     def _build_background(self, frames_dict):
-
         assert self.frames_per_sec is not None
-
         self.extra_num_frames = 5 * int(self.frames_per_sec)
-
-        video_length = max([len(frames) for frames in frames_dict.values()])\
+        video_length = max([len(frames) for frames in frames_dict.values()]) \
                        + self.extra_num_frames
-
         self.background = np.zeros(
-            (video_length, VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8')
+            (video_length, VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8'
+        )
+        self._add_things_on_backgaround()
 
-        self._add_fixed_text()
-
-    def _add_fixed_text(self):
+    def _add_things_on_backgaround(self):
         # TODO can add title and names of each row or column.
-        pass
+        return self.background
 
-    def build_grids(self, frames_dict):
+    def _build_grid_of_frames(self, frames_dict, extra_info_dict):
         # background = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8')
 
         for rang, (title, frames) in zip(self.frame_range,
@@ -179,38 +151,47 @@ class VideoRecorder(object):
                 )
 
             if self.scale < 1:
-                frames = [cv2.resize(
-                    frame, (int(self.width * self.scale),
-                            int(self.height * self.scale)
-                            ),
-                    interpolation=cv2.INTER_CUBIC
-                ) for frame in frames]
+                frames = [
+                    cv2.resize(
+                        frame, (
+                            int(self.width * self.scale
+                                ), int(self.height * self.scale)
+                        ),
+                        interpolation=cv2.INTER_CUBIC
+                    ) for frame in frames
+                ]
                 frames = np.concatenate(frames)
 
-            self.background[:len(frames), height[0]:height[1],
-            width[0]:width[1], 2::-1] = frames
+            self.background[:len(frames), height[0]:height[1], width[0]:
+                            width[1], 2::-1] = frames
 
             # filled the extra number of frames
-            self.background[len(frames):len(frames)+self.extra_num_frames,
-            height[0]:height[1], width[0]:width[1], 2::-1] = frames[-1]
+            self.background[len(frames):len(frames) +
+                            self.extra_num_frames, height[0]:height[1],
+                            width[0]:width[1], 2::-1] = frames[-1]
+
+            for information in extra_info_dict.values():
+                pos = get_pos(*information['pos_ratio'])
+                value = information[title]
+                if isinstance(value, list):
+                    value_sequence = value
+                    for timestep, value in enumerate(value_sequence):
+                        text = information['text_function'](value)
+                        self._put_text(timestep, text, pos)
+                    text = information['text_function'](value_sequence[-1])
+                    for timestep in range(len(value_sequence),
+                                          len(self.background)):
+                        self._put_text(timestep, text, pos)
+                else:
+                    text = information['text_function'](value)
+                    for timestep in range(len(self.background)):
+                        self._put_text(timestep, text, pos)
 
         return self.background
 
-    def generate_video(self, frames_dict):
+    def generate_video(self, frames_dict, extra_info_dict):
         """Render the given `env` and add the resulting frame to the video."""
-
-        # assert isinstance(frames, list)
-
         logger.debug('Capturing video frame: path=%s', self.path)
-
-        # render_mode = 'ansi' if self.ansi_mode else 'rgb_array'
-
-        # frames = []
-        # for env in self.envs:
-        #     single_frame = env.render(mode=render_mode)
-        #     frames.append(single_frame)
-
-        # frames = self.env.render()
 
         if not self.initialized:
             tmp_frame = list(frames_dict.values())[0][0]
@@ -219,9 +200,26 @@ class VideoRecorder(object):
             self._build_frame_range()
             self.initialized = True
 
-        self.build_grids(frames_dict)
+        # Pre-process the frames
+        # new_frames_dict = \
+        #     self._add_things_on_frame(frames_dict, extra_info_dict)
 
-        for frame in self.background:
+        self._build_background(frames_dict)
+
+        self._build_grid_of_frames(frames_dict, extra_info_dict)
+
+        now = time.time()
+        start = now
+        for idx, frame in enumerate(self.background):
+            if idx % 100 == 99:
+                print(
+                    "[{}/{}] (T +{:.1f}s Total {:.1f}s)".format(
+                        idx + 1, len(self.background),
+                        time.time() - now,
+                        time.time() - start
+                    )
+                )
+                now = time.time()
             self.last_frame = frame
             self._encode_image_frame(frame)
 
@@ -244,38 +242,9 @@ class VideoRecorder(object):
             # file.
             os.remove(self.path)
 
-            # if self.metadata is None:
-            #     self.metadata = {}
-            # self.metadata['empty'] = True
-
-        # If broken, get rid of the output file, otherwise we'd leak it.
-        # if self.broken:
-        #     logger.info(
-        #         'Cleaning up paths for broken video recorder: path=%s '
-        #         'metadata_path=%s', self.path, self.metadata_path
-        #     )
-        #
-        #     # Might have crashed before even starting the output file,
-        #     # don't try to remove in that case.
-        #     if os.path.exists(self.path):
-        #         os.remove(self.path)
-        #
-        #     if self.metadata is None:
-        #         self.metadata = {}
-        #     self.metadata['broken'] = True
-
-        # self.write_metadata()
-
-    # def write_metadata(self):
-    #     with open(self.metadata_path, 'w') as f:
-    #         json.dump(self.metadata, f)
-
     def _build_frame_range(self):
         def center_range(center, rang):
-            return [int(center - rang / 2), int(center + range / 2)]
-
-        # scale = sqrt(self.num_envs / (
-        # floor(VIDEO_HEIGHT / self.height) * floor(VIDEO_WIDTH / self.width)))
+            return [int(center - rang / 2), int(center + rang / 2)]
 
         wv_over_wf = VIDEO_WIDTH / self.width
         hv_over_hf = VIDEO_HEIGHT / self.height
@@ -333,8 +302,6 @@ class VideoRecorder(object):
             self.encoder = ImageEncoder(
                 self.path, frame.shape, self.frames_per_sec
             )
-            self.metadata['encoder_version'] = self.encoder.version_info
-
         try:
             self.encoder.capture_frame(frame)
         except error.InvalidFrame as e:
@@ -356,8 +323,7 @@ class ImageEncoder(object):
             raise error.InvalidFrame(
                 "Your frame has shape {}, but we require (w,h,3) or (w,h,4), "
                 "i.e., RGB values for a w-by-h image, with an optional alpha "
-                "channel."
-                    .format(frame_shape)
+                "channel.".format(frame_shape)
             )
         self.wh = (w, h)
         self.includes_alpha = (pixfmt == 4)
@@ -383,15 +349,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-                self.backend,
+            self.backend,
             'version':
-                str(
-                    subprocess.check_output(
-                        [self.backend, '-version'], stderr=subprocess.STDOUT
-                    )
-                ),
+            str(
+                subprocess.check_output(
+                    [self.backend, '-version'], stderr=subprocess.STDOUT
+                )
+            ),
             'cmdline':
-                self.cmdline
+            self.cmdline
         }
 
     def start(self):
@@ -440,19 +406,19 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                    format(type(frame), frame)
+                format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(
                 "Your frame has shape {}, but the VideoRecorder is "
-                "configured for shape {}."
-                    .format(frame.shape, self.frame_shape)
+                "configured for shape {}.".format(
+                    frame.shape, self.frame_shape
+                )
             )
         if frame.dtype != np.uint8:
             raise error.InvalidFrame(
                 "Your frame has data type {}, but we require uint8 (i.e. RGB "
-                "values from 0-255)."
-                    .format(frame.dtype)
+                "values from 0-255).".format(frame.dtype)
             )
 
         if distutils.version.LooseVersion(
