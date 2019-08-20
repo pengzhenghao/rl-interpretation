@@ -12,11 +12,12 @@ import argparse
 import json
 import logging
 
+
 import ray
 import yaml
 from ray.rllib.agents.registry import get_agent_class
 
-from utils import build_config, VideoRecorder, BipedalWalkerWrapper
+from utils import build_config, VideoRecorder, BipedalWalkerWrapper, restore_agent
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -128,9 +129,7 @@ def collect_frames(
     """
     # TODO allow multiple iters.
 
-    cls = get_agent_class(run_name)
-    agent = cls(env=env_name, config=config)
-    agent.restore(ckpt)
+    agent = restore_agent(run_name, ckpt, env_name, config)
     env = env_maker()
     env.seed(seed)
 
