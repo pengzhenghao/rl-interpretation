@@ -7,21 +7,21 @@ import gym
 from rollout import rollout
 import ray
 
-def default_policy_agent_mapping(unused_agent_id):
-    return DEFAULT_POLICY_ID
-
-def compute_fft(y, normalize=True):
+def compute_fft(y, normalize=True, normalize_max=None, normalize_min=None):
     y = np.asarray(y)
     assert y.ndim == 1
 
     if normalize:
-        y = (y - y.min()) / (y.max() - y.min())
+        if normalize_min is None:
+            normalize_min = y.min()
+        if normalize_max is None:
+            normalize_max = y.max()
+        y = (y - normalize_min) / (normalize_max - normalize_min)
 
-    yy = fft(y)  # 快速傅里叶变换
-
-    yf = np.abs(yy)  # 取绝对值
-    yf1 = yf / len(y)  # 归一化处理
-    yf2 = yf1[:int(len(y) / 2)]  # 由于对称性，只取一半区间
+    yy = fft(y)
+    yf = np.abs(yy)
+    yf1 = yf / len(y)
+    yf2 = yf1[:int(len(y) / 2)]
     return yf2
 
 def stack_fft(obs, act, normalize, use_log=True):
