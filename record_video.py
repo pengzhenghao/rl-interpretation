@@ -9,21 +9,14 @@ Usage:
 from __future__ import absolute_import, division, print_function
 
 import argparse
-import collections
 import json
 import logging
-import os
-import pickle
 
 import ray
 import yaml
 from ray.rllib.agents.registry import get_agent_class
-from ray.rllib.env.base_env import _DUMMY_AGENT_ID
-from ray.rllib.evaluation.episode import _flatten_action
-from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
-from ray.tune.util import merge_dicts
 
-from utils import DefaultMapping, VideoRecorder, BipedalWalkerWrapper
+from utils import build_config, VideoRecorder, BipedalWalkerWrapper
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -62,7 +55,8 @@ PRESET_INFORMATION_DICT = {
         "pos_ratio": (0.95, 0.05)
     }
 }
-
+# from gym.envs.box2d import BipedalWalker
+# ENVIRONMENT_MAPPING = {"BipedalWalker-v2": BipedalWalker}
 ENVIRONMENT_MAPPING = {"BipedalWalker-v2": BipedalWalkerWrapper}
 
 
@@ -108,9 +102,19 @@ def create_parser(parser_creator=None):
     return parser
 
 
+from rollout import rollout
+
+
 @ray.remote
 def collect_frames(
-        run_name, env, env_name, config, ckpt, num_steps, num_iters=1, seed=0
+        run_name,
+        env_maker,
+        env_name,
+        config,
+        ckpt,
+        num_steps=0,
+        num_iters=1,
+        seed=0
 ):
     """
     This function create one agent and return one frame sequence.
@@ -127,103 +131,11 @@ def collect_frames(
     cls = get_agent_class(run_name)
     agent = cls(env=env_name, config=config)
     agent.restore(ckpt)
+    env = env_maker()
     env.seed(seed)
 
-    # frames, extra_info = rollout(agent, env, num_steps)
-    if hasattr(agent, "workers"):
-        # env = agent.workers.local_worker().env
-        policy_map = agent.workers.local_worker().policy_map
-        state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
-        use_lstm = {p: len(s) > 0 for p, s in state_init.items()}
-        action_init = {
-            p: _flatten_action(m.action_space.sample())
-            for p, m in policy_map.items()
-        }
-    else:
-        # env = gym.make(env_name)
-        use_lstm = {DEFAULT_POLICY_ID: False}
-
-    frames = []
-    extra_info = {"value_function": [], "reward": [], "done": [], "step": 0}
-    # extra_info = PRESET_INFORMATION_DICT
-
-    mapping_cache = {}  # in case policy_agent_mapping is stochastic
-
-    obs = env.reset()
-    agent_states = DefaultMapping(
-        lambda agent_id: state_init[mapping_cache[agent_id]]
-    )
-    prev_actions = DefaultMapping(
-        lambda agent_id: action_init[mapping_cache[agent_id]]
-    )
-    prev_rewards = collections.defaultdict(lambda: 0.)
-    done = False
-    reward_total = 0.0
-    cnt_steps = 0
-    now = time.time()
-    start = now
-    while (not done) and (cnt_steps <= num_steps):
-        if cnt_steps % 10 == 9:
-            print(
-                "Current Steps: {}, Time Elapsed: {:.2f}s, "
-                "Last 10 Steps Time: {:.2f}s".format(
-                    cnt_steps,
-                    time.time() - start,
-                    time.time() - now
-                )
-            )
-            now = time.time()
-        cnt_steps += 1
-        multi_obs = {_DUMMY_AGENT_ID: obs}
-        action_dict = {}
-        value_functions = {}
-        for agent_id, a_obs in multi_obs.items():
-            if a_obs is not None:
-                policy_id = mapping_cache.setdefault(
-                    agent_id, DEFAULT_POLICY_ID
-                )
-                p_use_lstm = use_lstm[policy_id]
-                if p_use_lstm:
-                    a_action, p_state, a_info = agent.compute_action(
-                        a_obs,
-                        state=agent_states[agent_id],
-                        prev_action=prev_actions[agent_id],
-                        prev_reward=prev_rewards[agent_id],
-                        policy_id=policy_id
-                    )
-                    agent_states[agent_id] = p_state
-                else:
-                    a_action, _, a_info = agent.compute_action(
-                        a_obs,
-                        prev_action=prev_actions[agent_id],
-                        prev_reward=prev_rewards[agent_id],
-                        policy_id=policy_id,
-                        full_fetch=True
-                    )
-                a_action = _flatten_action(a_action)  # tuple actions
-                action_dict[agent_id] = a_action
-                prev_actions[agent_id] = a_action
-                value_functions[agent_id] = a_info["vf_preds"]
-
-        extra_info['value_function'].append(value_functions[_DUMMY_AGENT_ID])
-        action = action_dict[_DUMMY_AGENT_ID]
-        obs, reward, done, _ = env.step(action)
-
-        extra_info["done"].append(done)
-        extra_info["reward"].append(reward)
-        extra_info["step"] += 1
-
-        prev_rewards[_DUMMY_AGENT_ID] = reward
-
-        reward_total += reward
-
-        kwargs = {"mode": "rgb_array"}
-        # This copy() is really important!
-        # Otherwise see error: pyarrow.lib.ArrowInvalid
-        frame = env.render(**kwargs).copy()
-        frames.append(frame)
-
-    print("Episode reward", reward_total)
+    result = rollout(agent, env, num_steps, require_frame=True)
+    frames, extra_info = result['frames'], result['extra_info']
     env.close()
     return frames, extra_info
 
@@ -243,7 +155,7 @@ class GridVideoRecorder(object):
         self.video_path = video_path
         # self.video_recorder = VideoRecorder(video_path)
 
-    def rollout(
+    def generate_frames(
             self,
             name_ckpt_mapping,
             num_steps=int(1e10),
@@ -261,40 +173,10 @@ class GridVideoRecorder(object):
         start = now
         object_id_dict = {}
         for aid, (name, ckpt) in enumerate(name_ckpt_mapping.items()):
-            ckpt = os.path.abspath(
-                os.path.expanduser(ckpt)
-            )  # Remove relative dir
-            config = {"log_level": "ERROR"}
-            # Load configuration from file
-            config_dir = os.path.dirname(ckpt)
-            config_path = os.path.join(config_dir, "params.pkl")
-            if not os.path.exists(config_path):
-                config_path = os.path.join(config_dir, "../params.pkl")
-            if not os.path.exists(config_path):
-                if not args_config:
-                    raise ValueError(
-                        "Could not find params.pkl in either the checkpoint "
-                        "dir "
-                        "or "
-                        "its parent directory."
-                    )
-            else:
-                with open(config_path, "rb") as f:
-                    config = pickle.load(f)
-            if "num_workers" in config:
-                config["num_workers"] = min(1, config["num_workers"])
-
-            config["log_level"] = "ERROR"
-            config = merge_dicts(config, args_config or {})
-
+            config = build_config(ckpt, args_config)
             object_id_dict[name] = collect_frames.remote(
-                self.run_name,
-                ENVIRONMENT_MAPPING[self.env_name],
-                config,
-                ckpt,
-                num_steps,
-                num_iters,
-                seed
+                self.run_name, ENVIRONMENT_MAPPING[self.env_name],
+                self.env_name, config, ckpt, num_steps, num_iters, seed
             )
             print(
                 "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
@@ -356,7 +238,7 @@ if __name__ == "__main__":
         local_mode=args.local_mode
     )
 
-    frames_dict, extra_info_dict = gvr.rollout(
+    frames_dict, extra_info_dict = gvr.generate_frames(
         name_ckpt_mapping, args.steps, args.iters, args.seed
     )
 

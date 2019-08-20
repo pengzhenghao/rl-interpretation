@@ -30,11 +30,40 @@ from Box2D.b2 import circleShape
 
 from opencv_wrappers import Surface
 import time
+import pickle
+from ray.tune.util import merge_dicts
 
 # from gym.wrappers.monitoring.video_recorder import ImageEncoder
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
+
+
+def build_config(ckpt, args_config):
+    ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
+    config = {"log_level": "ERROR"}
+    # Load configuration from file
+    config_dir = os.path.dirname(ckpt)
+    config_path = os.path.join(config_dir, "params.pkl")
+    if not os.path.exists(config_path):
+        config_path = os.path.join(config_dir, "../params.pkl")
+    if not os.path.exists(config_path):
+        if not args_config:
+            raise ValueError(
+                "Could not find params.pkl in either the checkpoint "
+                "dir "
+                "or "
+                "its parent directory."
+            )
+    else:
+        with open(config_path, "rb") as f:
+            config = pickle.load(f)
+    if "num_workers" in config:
+        config["num_workers"] = min(1, config["num_workers"])
+
+    config["log_level"] = "ERROR"
+    config = merge_dicts(config, args_config or {})
+    return config
 
 
 def touch(path):
