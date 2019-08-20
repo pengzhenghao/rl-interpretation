@@ -326,7 +326,8 @@ def create_parser(parser_creator=None):
 
 
 @ray.remote
-def collect_frames(run_name, env_name, config, ckpt, num_steps, seed=0):
+def collect_frames(run_name, env_name, config, ckpt, num_steps, num_iters=1,
+                   seed=0):
     """
     This function create one agent and return one frame sequence.
     :param run_name:
@@ -337,6 +338,8 @@ def collect_frames(run_name, env_name, config, ckpt, num_steps, seed=0):
     :param seed:
     :return:
     """
+    # TODO allow multiple iters.
+
     cls = get_agent_class(run_name)
     agent = cls(env=env_name, config=config)
     agent.restore(ckpt)
@@ -441,20 +444,20 @@ def collect_frames(run_name, env_name, config, ckpt, num_steps, seed=0):
 
         reward_total += reward
 
-        kwargs = {"mode": "return_rgb_array"}
-        frame = env.render(**kwargs)
+        kwargs = {"mode": "rgb_array"}
+        # This copy() is really important!
+        # Otherwise see error: pyarrow.lib.ArrowInvalid
+        frame = env.render(**kwargs).copy()
         frames.append(frame)
 
-    assert len(extra_info['done']) == len(extra_info["reward"]) == \
-           len(extra_info["value"]) == len(frames)
+    # assert len(extra_info['done']) == len(extra_info["reward"]) == \
+    #        len(extra_info["value"]) == len(frames)
     print("Episode reward", reward_total)
     return frames, extra_info
 
 
 class GridVideoRecorder(object):
-    # TODO make rollour async!
-
-    def __init__(self, video_path, env_name, local_mode=False):
+    def __init__(self, video_path, env_name, run_name, local_mode=False):
 
         ray.init(
             logging_level=logging.ERROR,
@@ -462,11 +465,13 @@ class GridVideoRecorder(object):
             local_mode=local_mode
         )
 
-        single_env = gym.make(env_name)
+        # single_env = gym.make(env_name)
+        self.env_name = env_name
+        self.run_name = run_name
+        self.video_path = video_path
+        # self.video_recorder = VideoRecorder(video_path)
 
-        self.video_recorder = VideoRecorder(video_path)
-
-    def run(self, name_ckpt_mapping,
+    def rollout(self, name_ckpt_mapping,
             num_steps=int(1e10),
             num_iters=1,
             seed=0,
@@ -479,7 +484,13 @@ class GridVideoRecorder(object):
         # agents = OrderedDict()
         now = time.time()
         start = now
+        frames_dict = {}
+        extra_info_dict = {}
+        object_id_dict = {}
         for aid, (name, ckpt) in enumerate(name_ckpt_mapping.items()):
+
+            print("Start to restore agent {} with ckpt: {}".format(name, ckpt))
+
             ckpt = os.path.abspath(
                 os.path.expanduser(ckpt))  # Remove relative dir
             config = {"log_level": "ERROR"}
@@ -505,15 +516,21 @@ class GridVideoRecorder(object):
             config["log_level"] = "ERROR"
             config = merge_dicts(config, args_config or {})
 
-            frames, extra_info = \
-                collect_frames.remote(run_name, env_name, config, ckpt,
-                                      num_steps, seed)
-
-            # if not env_name:
+            # if not self.env_name:
             #     if not config.get("env"):
             #         raise ValueError(
             #             "the following arguments are required: --env")
-            #     env_name = config.get("env")
+            #     self.env_name = config.get("env")
+
+            object_id = collect_frames.remote(
+                self.run_name, self.env_name,config, ckpt,
+                                      num_steps, num_iters, seed)
+
+            print("Object id:", object_id)
+            object_id_dict[name] = object_id
+            # frames, extra_info = ray.get(object_id)
+            # frames_dict[name] = frames
+            # extra_info_dict[name] = extra_info
             #
             # cls = get_agent_class(run_name)
             # agent = cls(env=env_name, config=config)
@@ -524,7 +541,6 @@ class GridVideoRecorder(object):
                                                time.time() - now,
                                                time.time() - start, name))
             now = time.time()
-
             # if hasattr(agent, "workers"):
             #     env = agent.workers.local_worker().env
             # else:
@@ -533,110 +549,17 @@ class GridVideoRecorder(object):
             # env.seed(seed)
 
             # frames, extra_info = rollout(agent, env, num_steps)
+        for name, object_id in object_id_dict.items():
+            frames, extra_info = ray.get(object_id)
+            frames_dict[name] = frames
+            extra_info_dict[name] = extra_info
+        return frames_dict, extra_info_dict
 
-    def _rollout(self, agent, num_steps):
-        # Todo use env as input. Don't make env every time
-        if hasattr(agent, "workers"):
-            # env = agent.workers.local_worker().env
-            policy_map = agent.workers.local_worker().policy_map
-            state_init = {p: m.get_initial_state() for p, m in
-                          policy_map.items()}
-            use_lstm = {p: len(s) > 0 for p, s in state_init.items()}
-            action_init = {
-                p: _flatten_action(m.action_space.sample())
-                for p, m in policy_map.items()
-            }
-        else:
-            # env = gym.make(env_name)
-            use_lstm = {DEFAULT_POLICY_ID: False}
-
-        frames = []
-        extra_info = {"value": [], "reward": [], "done": [], "step": 0}
-
-        mapping_cache = {}  # in case policy_agent_mapping is stochastic
-
-        obs = self.env.reset()
-        agent_states = DefaultMapping(
-            lambda agent_id: state_init[mapping_cache[agent_id]]
-        )
-        prev_actions = DefaultMapping(
-            lambda agent_id: action_init[mapping_cache[agent_id]]
-        )
-        prev_rewards = collections.defaultdict(lambda: 0.)
-        done = False
-        reward_total = 0.0
-        cnt_steps = 0
-        now = time.time()
-        start = now
-        while (not done) and (cnt_steps <= num_steps):
-            if cnt_steps % 10 == 9:
-                print(
-                    "Current Steps: {}, Time Elapsed: {:.2f}s, "
-                    "Last 10 Steps Time: {:.2f}s".format(
-                        cnt_steps,
-                        time.time() - start,
-                        time.time() - now
-                    )
-                )
-                now = time.time()
-            cnt_steps += 1
-            multi_obs = {_DUMMY_AGENT_ID: obs}
-            action_dict = {}
-            value_functions = {}
-            for agent_id, a_obs in multi_obs.items():
-                if a_obs is not None:
-                    policy_id = mapping_cache.setdefault(
-                        agent_id, DEFAULT_POLICY_ID
-                    )
-                    p_use_lstm = use_lstm[policy_id]
-                    if p_use_lstm:
-                        a_action, p_state, a_info = agent.compute_action(
-                            a_obs,
-                            state=agent_states[agent_id],
-                            prev_action=prev_actions[agent_id],
-                            prev_reward=prev_rewards[agent_id],
-                            policy_id=policy_id
-                        )
-                        agent_states[agent_id] = p_state
-                    else:
-                        a_action, _, a_info = agent.compute_action(
-                            a_obs,
-                            prev_action=prev_actions[agent_id],
-                            prev_reward=prev_rewards[agent_id],
-                            policy_id=policy_id,
-                            full_fetch=True
-                        )
-                    a_action = _flatten_action(a_action)  # tuple actions
-                    action_dict[agent_id] = a_action
-                    prev_actions[agent_id] = a_action
-                    value_functions[agent_id] = a_info["vf_preds"]
-
-            extra_info['value'].append(value_functions[_DUMMY_AGENT_ID])
-            action = action_dict[_DUMMY_AGENT_ID]
-            obs, reward, done, _ = self.env.step(action)
-
-            extra_info["done"].append(done)
-            extra_info["reward"].append(reward)
-            extra_info["step"] += 1
-
-            prev_rewards[_DUMMY_AGENT_ID] = reward
-
-            reward_total += reward
-
-            kwargs = {}
-            frame = self.env.render(**kwargs)
-            frames.append(frame)
-
-        assert len(extra_info['done']) == len(extra_info["reward"]) == \
-               len(extra_info["value"]) == len(frames)
-        print("Episode reward", reward_total)
-        return frames, extra_info
-
-    def _aggregate(self):
-        pass
+    def generate_video(self, frames_dict, extra_info_dict):
+        new_frames_dict = self._add_elements(frames_dict, extra_info_dict)
+        self.video_recorder.generate_video(new_frames_dict)
 
     def close(self):
-
         ray.shutdown()
 
 
@@ -837,6 +760,8 @@ if __name__ == "__main__":
 
     gvr = GridVideoRecorder(video_path=args.yaml[:-5],
                             env_name=args.env,
+                            run_name=args.run,
                             local_mode=args.local_mode)
 
-    gvr.run(name_ckpt_mapping, args.steps, args.iters, args.seed)
+    frames_dict, extra_info_dict = gvr.rollout(name_ckpt_mapping, args.steps,
+                                               args.iters, args.seed)
