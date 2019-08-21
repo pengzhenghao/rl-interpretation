@@ -14,6 +14,7 @@ import time
 import os
 import pickle
 import logging
+import numpy as np
 
 import gym
 import ray
@@ -272,7 +273,7 @@ def rollout(
         logging.info("Episode reward", reward_total)
     result = {}
     if require_frame:
-        result['frames'] = frames
+        result['frames'] = np.stack(frames)
         result['extra_info'] = extra_info
     if require_trajectory:
         result['trajectory'] = trajectory

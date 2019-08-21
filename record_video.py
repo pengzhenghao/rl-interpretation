@@ -67,7 +67,7 @@ def create_parser(parser_creator=None):
     parser = parser_creator(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-                    "given a checkpoint."
+        "given a checkpoint."
     )
     parser.add_argument(
         "yaml",
@@ -80,9 +80,9 @@ def create_parser(parser_creator=None):
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-             "user-defined trainable function or class registered in the "
-             "tune registry."
+        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+        "user-defined trainable function or class registered in the "
+        "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use.", required=True
@@ -99,7 +99,7 @@ def create_parser(parser_creator=None):
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-             "Surpresses loading of configuration from checkpoint."
+        "Surpresses loading of configuration from checkpoint."
     )
     return parser
 
@@ -209,11 +209,15 @@ class GridVideoRecorder(object):
                 frames, extra_info = ray.get(object_id)
 
                 frames_info = {
-                    "frames": frames,
-                    "column": None if name_column_mapping is None
-                    else name_column_mapping[name],
-                    "row": None if name_row_mapping is None
-                    else name_row_mapping[name]}
+                    "frames":
+                    frames,
+                    "column":
+                    None if name_column_mapping is None else
+                    name_column_mapping[name],
+                    "row":
+                    None
+                    if name_row_mapping is None else name_row_mapping[name]
+                }
 
                 frames_dict[name] = frames_info
                 for key, val in extra_info.items():
@@ -235,8 +239,10 @@ class GridVideoRecorder(object):
         new_extra_info_dict = PRESET_INFORMATION_DICT
         for key in PRESET_INFORMATION_DICT.keys():
             new_extra_info_dict[key].update(extra_info_dict[key])
-        new_extra_info_dict['frame_info'] = {"width": frames[0].shape[1],
-                                             "height": frames[0].shape[0]}
+        new_extra_info_dict['frame_info'] = {
+            "width": frames[0].shape[1],
+            "height": frames[0].shape[0]
+        }
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):

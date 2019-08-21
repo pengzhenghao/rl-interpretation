@@ -64,7 +64,7 @@ def stack_fft(obs, act, normalize, use_log=True):
 @ray.remote
 class FFTWorker(object):
     def __init__(self):
-    # def __init__(self, run_name, ckpt, env_name, env_maker, agent_name):
+        # def __init__(self, run_name, ckpt, env_name, env_maker, agent_name):
         # restore an agent here
         # self.agent = restore_agent(run_name, ckpt, env_name)
         # self.env_maker = env_maker
@@ -75,7 +75,9 @@ class FFTWorker(object):
         self.env_maker = None
 
     @ray.method(num_return_vals=0)
-    def reset(self, run_name, ckpt, env_name, env_maker, agent_name, extra_name):
+    def reset(
+            self, run_name, ckpt, env_name, env_maker, agent_name, extra_name
+    ):
         self.agent = restore_agent(run_name, ckpt, env_name)
         self.env_maker = env_maker
         self.agent_name = agent_name
@@ -153,8 +155,8 @@ class FFTWorker(object):
         for i in range(num_rollouts):
             print(
                 "Agent {}<{}>, Seed {}, Rollout {}/{}".format(
-                    _extra_name,
-                    self.agent_name, seed if _num_seeds is None else
+                    _extra_name, self.agent_name,
+                    seed if _num_seeds is None else
                     "No.{}/{} (Real: {})".format(seed + 1, _num_seeds, seed),
                     i, num_rollouts
                 )
@@ -308,7 +310,10 @@ def get_fft_representation(
             )
 
             df_obj_id, rep_obj_id = fft_worker.fft.remote(
-                num_seeds, num_rollouts, stack, normalize=normalize,
+                num_seeds,
+                num_rollouts,
+                stack,
+                normalize=normalize,
                 _extra_name="[{}/{}] ".format(agent_count, num_agent)
             )
 
@@ -374,8 +379,11 @@ def parse_result_single_method(
             arr_list.append(array)
         filled_dict[agent] = arr_list
         filled_flat_dict[agent] = np.concatenate(arr_list)
-        print("Finished parse data of agent <{}> (method {})".format(
-            agent, method_name))
+        print(
+            "Finished parse data of agent <{}> (method {})".format(
+                agent, method_name
+            )
+        )
     cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
     return cluster_df.copy()
 

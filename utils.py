@@ -1,41 +1,35 @@
-"""
-Record video given a trained PPO model.
-
-Usage:
-    python record_video.py /YOUR_HOME/ray_results/EXP_NAME/TRAIL_NAME \
-    -l 3000 --scene split -rf REWARD_FUNCTION_NAME
-"""
-
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
 
 import collections
 import distutils
 import os
+import pickle
 import subprocess
 import tempfile
+import time
 from math import floor
 
 import cv2
 import numpy as np
+from Box2D.b2 import circleShape
 from gym import logger, error
-from ray.rllib.agents.registry import get_agent_class
-
-VIDEO_WIDTH = 1920
-VIDEO_HEIGHT = 1080
-
 from gym.envs.box2d.bipedal_walker import (
     BipedalWalker, VIEWPORT_H, VIEWPORT_W, SCALE, TERRAIN_HEIGHT, TERRAIN_STEP
 )
-from Box2D.b2 import circleShape
-
-from opencv_wrappers import Surface
-import time
-import pickle
+from ray.rllib.agents.registry import get_agent_class
 from ray.tune.util import merge_dicts
 
-VIDEO_WIDTH = 1920
-VIDEO_HEIGHT = 1080
+from opencv_wrappers import Surface
+
+ORIGINAL_VIDEO_WIDTH = 1920
+ORIGINAL_VIDEO_HEIGHT = 1080
+
+VIDEO_WIDTH_EDGE = 100
+VIDEO_HEIGHT_EDGE = 80
+
+VIDEO_WIDTH = ORIGINAL_VIDEO_WIDTH - 2 * VIDEO_WIDTH_EDGE
+VIDEO_HEIGHT = ORIGINAL_VIDEO_HEIGHT - 2 * VIDEO_HEIGHT_EDGE
 
 
 def build_config(ckpt, args_config):
@@ -156,13 +150,16 @@ class VideoRecorder(object):
     def _build_background(self, frames_dict):
         assert self.frames_per_sec is not None
         self.extra_num_frames = 5 * int(self.frames_per_sec)
-        video_length = max([len(frames_info['frames'])
-                            for frames_info in
-                            frames_dict.values()]) + self.extra_num_frames
+        video_length = max(
+            [
+                len(frames_info['frames'])
+                for frames_info in frames_dict.values()
+            ]
+        ) + self.extra_num_frames
         self.background = np.zeros(
-            (video_length, VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8'
+            (video_length, ORIGINAL_VIDEO_HEIGHT, ORIGINAL_VIDEO_WIDTH, 4),
+            dtype='uint8'
         )
-        self._add_things_on_backgaround(frames_dict)
 
     def _add_things_on_backgaround(self, frames_dict):
         # TODO can add title and names of each row or column.
@@ -172,8 +169,9 @@ class VideoRecorder(object):
     def _build_grid_of_frames(self, frames_dict, extra_info_dict):
         # background = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8')
 
-        for rang, (title, frames_info) in zip(self.frame_range,
-                                         frames_dict.items()):
+        for rang, (title, frames_info) in \
+                zip(self.frame_range, frames_dict.items()):
+
             # TODO we can add async execution here
             height = rang["height"]
             width = rang["width"]
@@ -201,16 +199,15 @@ class VideoRecorder(object):
                         interpolation=cv2.INTER_CUBIC
                     ) for frame in frames
                 ]
-                frames = np.concatenate(frames)
+                frames = np.stack(frames)
 
             self.background[:len(frames), height[0]:height[1], width[0]:
-            width[1], 2::-1] = frames
+                            width[1], 2::-1] = frames
 
             # filled the extra number of frames
             self.background[len(frames):len(frames) +
-                                        self.extra_num_frames,
-            height[0]:height[1],
-            width[0]:width[1], 2::-1] = frames[-1]
+                            self.extra_num_frames, height[0]:height[1],
+                            width[0]:width[1], 2::-1] = frames[-1]
 
             for information in extra_info_dict.values():
                 if 'pos_ratio' not in information:
@@ -231,6 +228,7 @@ class VideoRecorder(object):
                     for timestep in range(len(self.background)):
                         self._put_text(timestep, text, pos)
 
+        self._add_things_on_backgaround(frames_dict)
         return self.background
 
     def generate_video(self, frames_dict, extra_info_dict):
@@ -250,9 +248,6 @@ class VideoRecorder(object):
         #       "col_names": [COL1, COL2, ..],
         #       "frame_info": {'width':.., "height":.., }
         # }
-
-
-
 
         if not self.initialized:
             info = extra_info_dict['frame_info']
@@ -343,12 +338,15 @@ class VideoRecorder(object):
                 {
                     "height": [
                         (height_margin + frame_height) * row_id +
-                        height_margin,
-                        (height_margin + frame_height) * (row_id + 1)
+                        height_margin + VIDEO_HEIGHT_EDGE,
+                        (height_margin + frame_height) * (row_id + 1) +
+                        VIDEO_HEIGHT_EDGE
                     ],
                     "width": [
-                        (width_margin + frame_width) * col_id + width_margin,
-                        (width_margin + frame_width) * (col_id + 1)
+                        (width_margin + frame_width) * col_id +
+                        width_margin + VIDEO_WIDTH_EDGE,
+                        (width_margin + frame_width) * (col_id + 1) +
+                        VIDEO_WIDTH_EDGE
                     ]
                 }
             )
@@ -407,15 +405,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-                self.backend,
+            self.backend,
             'version':
-                str(
-                    subprocess.check_output(
-                        [self.backend, '-version'], stderr=subprocess.STDOUT
-                    )
-                ),
+            str(
+                subprocess.check_output(
+                    [self.backend, '-version'], stderr=subprocess.STDOUT
+                )
+            ),
             'cmdline':
-                self.cmdline
+            self.cmdline
         }
 
     def start(self):
@@ -464,7 +462,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                    format(type(frame), frame)
+                format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(
@@ -573,7 +571,7 @@ class BipedalWalkerWrapper(BipedalWalker):
             self.viewer = OpencvViewer(VIEWPORT_W, VIEWPORT_H)
         self.viewer.set_bounds(
             self.scroll, VIEWPORT_W / SCALE + self.scroll, 0,
-                         VIEWPORT_H / SCALE
+            VIEWPORT_H / SCALE
         )
 
         self.viewer.draw_polygon(
