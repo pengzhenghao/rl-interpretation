@@ -71,19 +71,21 @@ class FFTWorker(object):
 
     def _get_representation1(self, df):
         # M sequence whose length is NL
-        mean = df.groupby(['rollout', 'frequency']).mean().value.to_numpy()
-        std = df.groupby(['rollout', 'frequency']).std().value.to_numpy()
+        multi_index_series = df.groupby(["label", 'rollout', 'frequency'])
+        mean = multi_index_series.mean().value.reset_index()
+        std = multi_index_series.std().value.reset_index()
         return mean, std
 
     def _get_representation2(self, df):
         # MN sequence whose length is L
-        mean = df.groupby('frequency').mean().value.to_numpy()
-        std = df.groupby('frequency').std().value.to_numpy()
+        multi_index_series = df.groupby(["label", 'frequency'])
+        mean = multi_index_series.mean().value.reset_index()
+        std = multi_index_series.std().value.reset_index()
         return mean, std
 
     def _get_representation3(self, df):
         # M sequence which are averaged sequence (length L) across N
-        n_averaged = df.groupby(['frequency', 'seed']).mean()
+        n_averaged = df.groupby(['label', 'frequency', 'seed']).mean().value
         # now n_averaged looks like:
         """
                             value  rollout
@@ -101,8 +103,8 @@ class FFTWorker(object):
                   2    -5.088004        2
         [150 rows x 2 columns]
         """
-        mean = n_averaged.value.mean(level='frequency').to_numpy()
-        std = n_averaged.value.std(level='frequency').to_numpy()
+        mean = n_averaged.mean(level=['label', 'frequency']).reset_index()
+        std = n_averaged.std(level=['label', 'frequency']).reset_index()
         return mean, std
 
     def _rollout(self, env):
@@ -163,20 +165,20 @@ class FFTWorker(object):
             "M_N_sequenceL": self._get_representation3
         }
 
-        label_list = data_frame.label.unique()
-        result_dict = {}
-        for label in label_list:
-            df = data_frame[data_frame.label==label]
-            if stack:
-                rep = representation_form['M_sequenceNL'](df)
-                result_dict[label] = {"M_sequenceNL": rep}
-            else:
-                result = {}
-                for key in ['MN_sequenceL', "M_N_sequenceL"]:
-                    rep = representation_form[key](df)
-                    result[key] = rep
-                result_dict[label] = result
-        return result_dict
+        # label_list = data_frame.label.unique()
+        # result_dict = {}
+        # for label in label_list:
+        #     df = data_frame[data_frame.label==label]
+        if stack:
+            rep = representation_form['M_sequenceNL'](data_frame)
+            return {"M_sequenceNL": rep}
+        else:
+            result = {}
+            for key in ['MN_sequenceL', "M_N_sequenceL"]:
+                rep = representation_form[key](data_frame)
+                result[key] = rep
+            return result
+        # return result_dict
 
     @ray.method(num_return_vals=2)
     def fft(
@@ -190,6 +192,27 @@ class FFTWorker(object):
             fillna=0,
             _num_steps=None
     ):
+        """
+
+        :param num_seeds:
+        :param num_rollouts:
+        :param stack:
+        :param clip:
+        :param normalize:
+        :param log:
+        :param fillna:
+        :param _num_steps:
+        :return:
+        The representation form:
+
+        {
+            method1: DataFrame(
+                    col=[label, agent, value, frequency, seed]
+                ),
+            method2: DataFrame()
+        }
+
+        """
         if _num_steps:
             # For testing purpose
             self._num_steps = _num_steps
@@ -209,6 +232,54 @@ class FFTWorker(object):
         data_frame.fillna(fillna, inplace=True)
         return data_frame, self._get_representation(data_frame, stack)
 
+def parse_MN_sequenceL_result(representation_dict):
+    method_name = "MN_sequenceL"
+    data_frame = None
+    for agent_name, rep_dict in representation_dict.items():
+        df = rep_dict[method_name][0]
+        df['agent'] = agent_name
+        if data_frame is None:
+            data_frame = df
+        else:
+            data_frame = data_frame.append(df, ignore_index=True)
+
+    agent_list = data_frame.agent.unique()
+    label_list = data_frame.label.unique()
+
+    label_list = sorted(
+        label_list,
+        key=lambda s: int(s[4:]) + (-1e6 if s.startswith('Obs') else +1e6)
+    )
+    # ['Obs 0', 'Obs 1', 'Obs 2', 'Obs 3', 'Obs 4', 'Obs 5', 'Obs 6',
+    # 'Obs 7', 'Obs 8', 'Obs 9', 'Obs 10', 'Obs 11', 'Obs 12', 'Obs 13',
+    # 'Obs 14', 'Obs 15', 'Obs 16', 'Obs 17', 'Obs 18', 'Obs 19', 'Obs 20',
+    # 'Obs 21', 'Obs 22', 'Obs 23', 'Act 0', 'Act 1', 'Act 2', 'Act 3']
+
+    filled_dict = {}
+    filled_flat_dict = {}
+
+    def pad(vec, length, val=0):
+        vec = np.asarray(vec)
+        assert vec.ndim == 1
+        vec[np.isnan(vec)] = val
+        back = np.empty((length,))
+        back.fill(val)
+        end = min(len(vec), length)
+        back[:end] = vec[:end]
+        return back
+
+    for agent in agent_list:
+        arr_list = []
+        for label in label_list:
+            mask = (data_frame.agent == agent) & (data_frame.label == label)
+            array = data_frame.value[mask].to_numpy()
+            array = pad(array, 500)
+            arr_list.append(array)
+        filled_dict[agent] = arr_list
+        filled_flat_dict[agent] = np.concatenate(arr_list)
+
+    cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
+    return cluster_df
 
 if __name__ == '__main__':
     from gym.envs.box2d import BipedalWalker

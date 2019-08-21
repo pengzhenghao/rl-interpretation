@@ -38,6 +38,7 @@ Example Usage via executable:
 # ModelCatalog.register_custom_model("pa_model", ParametricActionsModel)
 # register_env("pa_cartpole", lambda _: ParametricActionCartpole(10))
 
+LOG_INTERVAL_STEPS = 500
 
 def create_parser(parser_creator=None):
     parser_creator = parser_creator or argparse.ArgumentParser
@@ -193,12 +194,13 @@ def rollout(
         done = False
         reward_total = 0.0
         while not done and steps < (num_steps or steps + 1):
-            if steps % 100 == 99:
+            if steps % LOG_INTERVAL_STEPS == (LOG_INTERVAL_STEPS - 1):
                 print(
                     "Current Steps: {}, Time Elapsed: {:.2f}s, "
-                    "Last 100 Steps Time: {:.2f}s".format(
+                    "Last {} Steps Time: {:.2f}s".format(
                         steps,
                         time.time() - start,
+                        LOG_INTERVAL_STEPS,
                         time.time() - now
                     )
                 )
