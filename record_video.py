@@ -12,7 +12,6 @@ import argparse
 import json
 import logging
 
-
 import ray
 import yaml
 from ray.rllib.agents.registry import get_agent_class

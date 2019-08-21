@@ -529,13 +529,16 @@ class OpencvViewer(object):
 def scale_color(color_in_1):
     return tuple(int(c * 255) for c in color_in_1)
 
+
 def restore_agent(run_name, ckpt, env_name, config=None):
     cls = get_agent_class(run_name)
     if config is None:
         config = build_config(ckpt, {})
+    ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
     agent = cls(env=env_name, config=config)
     agent.restore(ckpt)
     return agent
+
 
 class BipedalWalkerWrapper(BipedalWalker):
     def render(self, mode='rgb_array'):
