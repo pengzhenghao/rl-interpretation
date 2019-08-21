@@ -75,14 +75,14 @@ class FFTWorker(object):
         multi_index_series = df.groupby(["label", 'rollout', 'frequency'])
         mean = multi_index_series.mean().value.reset_index()
         std = multi_index_series.std().value.reset_index()
-        return mean, std
+        return mean.copy(), std.copy()
 
     def _get_representation2(self, df):
         # MN sequence whose length is L
         multi_index_series = df.groupby(["label", 'frequency'])
         mean = multi_index_series.mean().value.reset_index()
         std = multi_index_series.std().value.reset_index()
-        return mean, std
+        return mean.copy(), std.copy()
 
     def _get_representation3(self, df):
         # M sequence which are averaged sequence (length L) across N
@@ -106,7 +106,7 @@ class FFTWorker(object):
         """
         mean = n_averaged.mean(level=['label', 'frequency']).reset_index()
         std = n_averaged.std(level=['label', 'frequency']).reset_index()
-        return mean, std
+        return mean.copy(), std.copy()
 
     def _rollout(self, env):
         ret = rollout(
@@ -139,7 +139,7 @@ class FFTWorker(object):
             print(
                 "Agent <{}>, Seed {}, Rollout {}/{}".format(
                     self.agent_name, seed if _num_seeds is None else
-                    "{}/{}".format(seed, _num_seeds), i, num_rollouts
+                    "No.{}/{} (Real: {})".format(seed+1, _num_seeds, seed), i, num_rollouts
                 )
             )
             obs, act = self._rollout(env)
@@ -243,7 +243,7 @@ class FFTWorker(object):
             pass
             # TODO
         data_frame.fillna(fillna, inplace=True)
-        return data_frame, self._get_representation(data_frame, stack)
+        return data_frame.copy(), self._get_representation(data_frame, stack)
 
 
 def parse_result_single_method(
@@ -298,7 +298,7 @@ def parse_result_single_method(
         filled_flat_dict[agent] = np.concatenate(arr_list)
 
     cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
-    return cluster_df
+    return cluster_df.copy()
 
 
 def parse_result_all_method(representation_dict, padding='up'):
