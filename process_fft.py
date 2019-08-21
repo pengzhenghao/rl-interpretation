@@ -121,7 +121,13 @@ class FFTWorker(object):
         return obs, act
 
     def _rollout_multiple(
-            self, num_rollouts, seed, stack=False, normalize=True, log=True
+            self,
+            num_rollouts,
+            seed,
+            stack=False,
+            normalize=True,
+            log=True,
+            _num_seeds=None
     ):
         # One seed, N rollouts.
         env = self.env_maker()
@@ -132,7 +138,8 @@ class FFTWorker(object):
         for i in range(num_rollouts):
             print(
                 "Agent {}, Seed {}, Rollout {}/{}".format(
-                    self.agent_name, seed, i, num_rollouts
+                    self.agent_name, seed if _num_seeds is None else
+                    "{}/{}".format(seed, _num_seeds), i, num_rollouts
                 )
             )
             obs, act = self._rollout(env)
@@ -220,7 +227,12 @@ class FFTWorker(object):
         data_frame = None
         for seed in range(num_seeds):
             df = self._rollout_multiple(
-                num_rollouts, seed, stack, normalize, log
+                num_rollouts,
+                seed,
+                stack,
+                normalize,
+                log,
+                _num_seeds=num_seeds
             )
             if data_frame is None:
                 data_frame = df
@@ -234,9 +246,9 @@ class FFTWorker(object):
         return data_frame, self._get_representation(data_frame, stack)
 
 
-def parse_result_single_method(representation_dict,
-                               method_name="MN_sequenceL",
-                               padding="up"):
+def parse_result_single_method(
+        representation_dict, method_name="MN_sequenceL", padding="up"
+):
     data_frame = None
     for agent_name, rep_dict in representation_dict.items():
         df = rep_dict[method_name][0]
@@ -262,11 +274,12 @@ def parse_result_single_method(representation_dict,
     filled_flat_dict = {}
 
     if padding == 'up':
+
         def pad(vec, length, val=0):
             vec = np.asarray(vec)
             assert vec.ndim == 1
             vec[np.isnan(vec)] = val
-            back = np.empty((length,))
+            back = np.empty((length, ))
             back.fill(val)
             end = min(len(vec), length)
             back[:end] = vec[:end]
@@ -292,7 +305,9 @@ def parse_result_all_method(representation_dict, padding='up'):
     method_names = list(next(iter(representation_dict.values())).keys())
     ret = {}
     for method in method_names:
-        cluster_df = parse_result_single_method(representation_dict, method, padding)
+        cluster_df = parse_result_single_method(
+            representation_dict, method, padding
+        )
         ret[method] = cluster_df
     return ret
 
