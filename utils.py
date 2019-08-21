@@ -16,7 +16,6 @@ import subprocess
 import tempfile
 from math import floor
 
-from collections import OrderedDict
 import cv2
 import numpy as np
 from gym import logger, error
@@ -157,25 +156,29 @@ class VideoRecorder(object):
     def _build_background(self, frames_dict):
         assert self.frames_per_sec is not None
         self.extra_num_frames = 5 * int(self.frames_per_sec)
-        video_length = max([len(frames) for frames in frames_dict.values()]) \
-                       + self.extra_num_frames
+        video_length = max([len(frames_info['frames'])
+                            for frames_info in
+                            frames_dict.values()]) + self.extra_num_frames
         self.background = np.zeros(
             (video_length, VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8'
         )
-        self._add_things_on_backgaround()
+        self._add_things_on_backgaround(frames_dict)
 
-    def _add_things_on_backgaround(self):
+    def _add_things_on_backgaround(self, frames_dict):
         # TODO can add title and names of each row or column.
+        # We can add all row / col name here!!!!
         return self.background
 
     def _build_grid_of_frames(self, frames_dict, extra_info_dict):
         # background = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8')
 
-        for rang, (title, frames) in zip(self.frame_range,
+        for rang, (title, frames_info) in zip(self.frame_range,
                                          frames_dict.items()):
             # TODO we can add async execution here
             height = rang["height"]
             width = rang["width"]
+
+            frames = frames_info['frames']
 
             def get_pos(left_ratio, bottom_ratio):
                 assert 0 <= left_ratio <= 1
@@ -201,14 +204,17 @@ class VideoRecorder(object):
                 frames = np.concatenate(frames)
 
             self.background[:len(frames), height[0]:height[1], width[0]:
-                            width[1], 2::-1] = frames
+            width[1], 2::-1] = frames
 
             # filled the extra number of frames
             self.background[len(frames):len(frames) +
-                            self.extra_num_frames, height[0]:height[1],
-                            width[0]:width[1], 2::-1] = frames[-1]
+                                        self.extra_num_frames,
+            height[0]:height[1],
+            width[0]:width[1], 2::-1] = frames[-1]
 
             for information in extra_info_dict.values():
+                if 'pos_ratio' not in information:
+                    continue
                 pos = get_pos(*information['pos_ratio'])
                 value = information[title]
                 if isinstance(value, list):
@@ -231,7 +237,6 @@ class VideoRecorder(object):
         """Render the given `env` and add the resulting frame to the video."""
         logger.debug('Capturing video frame: path=%s', self.path)
 
-
         # assert isinstance(frames_dict, OrderedDict)
         # first_row = next(iter(frames_dict.values()))
         # assert isinstance(first_row, OrderedDict)
@@ -250,7 +255,7 @@ class VideoRecorder(object):
 
 
         if not self.initialized:
-            info = frames_dict['frame_info']
+            info = extra_info_dict['frame_info']
             # tmp_frame = list(frames_dict.values())[0][0]
             self.width = info['width']
             self.height = info['height']
@@ -402,15 +407,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-            self.backend,
+                self.backend,
             'version':
-            str(
-                subprocess.check_output(
-                    [self.backend, '-version'], stderr=subprocess.STDOUT
-                )
-            ),
+                str(
+                    subprocess.check_output(
+                        [self.backend, '-version'], stderr=subprocess.STDOUT
+                    )
+                ),
             'cmdline':
-            self.cmdline
+                self.cmdline
         }
 
     def start(self):
@@ -459,7 +464,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                format(type(frame), frame)
+                    format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(
@@ -568,7 +573,7 @@ class BipedalWalkerWrapper(BipedalWalker):
             self.viewer = OpencvViewer(VIEWPORT_W, VIEWPORT_H)
         self.viewer.set_bounds(
             self.scroll, VIEWPORT_W / SCALE + self.scroll, 0,
-            VIEWPORT_H / SCALE
+                         VIEWPORT_H / SCALE
         )
 
         self.viewer.draw_polygon(

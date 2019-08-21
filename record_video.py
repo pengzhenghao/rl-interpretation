@@ -161,6 +161,8 @@ class GridVideoRecorder(object):
             num_steps=int(1e10),
             num_iters=1,
             seed=0,
+            name_row_mapping=None,
+            name_column_mapping=None,
             args_config=None,
             num_workers=10
     ):
@@ -180,7 +182,6 @@ class GridVideoRecorder(object):
         extra_info_dict = PRESET_INFORMATION_DICT
 
         for iteration in range(num_iteration):
-            print("We should stop here and wait!")
             idx_start = iteration * num_workers
             idx_end = min((iteration + 1) * num_workers, num_agent)
 
@@ -206,7 +207,15 @@ class GridVideoRecorder(object):
 
             for incre, (name, object_id) in enumerate(object_id_dict.items()):
                 frames, extra_info = ray.get(object_id)
-                frames_dict[name] = frames
+
+                frames_info = {
+                    "frames": frames,
+                    "column": None if name_column_mapping is None
+                    else name_column_mapping[name],
+                    "row": None if name_row_mapping is None
+                    else name_row_mapping[name]}
+
+                frames_dict[name] = frames_info
                 for key, val in extra_info.items():
                     extra_info_dict[key][name] = val
                 extra_info_dict['title'][name] = name
@@ -226,6 +235,8 @@ class GridVideoRecorder(object):
         new_extra_info_dict = PRESET_INFORMATION_DICT
         for key in PRESET_INFORMATION_DICT.keys():
             new_extra_info_dict[key].update(extra_info_dict[key])
+        new_extra_info_dict['frame_info'] = {"width": frames[0].shape[1],
+                                             "height": frames[0].shape[0]}
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):
