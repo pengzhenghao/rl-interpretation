@@ -17,7 +17,7 @@ def compute_fft(y, normalize=True, normalize_max=None, normalize_min=None):
             normalize_min = y.min()
         if normalize_max is None:
             normalize_max = y.max()
-        y = (y - normalize_min) / (normalize_max - normalize_min)
+        y = (y - normalize_min) / (normalize_max - normalize_min + 1e-9)
 
     yy = fft(y)
     yf = np.abs(yy)
@@ -137,7 +137,7 @@ class FFTWorker(object):
         act_list = []
         for i in range(num_rollouts):
             print(
-                "Agent {}, Seed {}, Rollout {}/{}".format(
+                "Agent <{}>, Seed {}, Rollout {}/{}".format(
                     self.agent_name, seed if _num_seeds is None else
                     "{}/{}".format(seed, _num_seeds), i, num_rollouts
                 )

@@ -23,11 +23,17 @@ def predict(cluster_df, kmeans):
 
 def display(search_range, cost, log=True):
     process = np.log if log else lambda x: x
+    plt.figure(figsize=(max(search_range), 10))
     # search_range = range(1, max_num_cluster)
     plt.plot(search_range, process(cost))
     plt.xlabel('Number of Clusters')
     plt.ylabel('Score')
-    plt.title('Cost [Elbow Curve] (Processed by log(x))')
+    plt.xticks(list(search_range), [str(t) for t in search_range])
+    if log:
+        plt.title('Cost [Elbow Curve] (Processed by log(x))')
+    else:
+        plt.title('Cost [Elbow Curve]')
+    plt.grid()
     plt.show()
 
 
@@ -37,7 +43,7 @@ class ClusterFinder(object):
         self.cluster_df = cluster_df
         self.best_k = None
         self.max_num_cluster = max_num_cluster
-        self.search_range = range(1, self.max_num_cluster)
+        self.search_range = range(1, self.max_num_cluster + 1)
         self.fits = cluster(self.cluster_df, self.search_range)
         print(
             "Clustering Finished! Call ClusterFinder.display to see "
@@ -52,6 +58,6 @@ class ClusterFinder(object):
     def set(self, k):
         self.best_k = k
 
-    def display(self):
+    def display(self, log=False):
         cost = score(self.cluster_df, self.fits)
-        display(self.search_range, cost)
+        display(self.search_range, cost, log)
