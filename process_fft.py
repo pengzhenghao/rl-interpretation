@@ -162,15 +162,21 @@ class FFTWorker(object):
             # M sequence which are averaged sequence (length L) across N
             "M_N_sequenceL": self._get_representation3
         }
-        if stack:
-            rep = representation_form['M_sequenceNL'](data_frame)
-            return {"M_sequenceNL": rep}
-        else:
-            result = {}
-            for key in ['MN_sequenceL', "M_N_sequenceL"]:
-                rep = representation_form[key](data_frame)
-                result[key] = rep
-            return result
+
+        label_list = data_frame.label.unique()
+        result_dict = {}
+        for label in label_list:
+            df = data_frame[data_frame.label==label]
+            if stack:
+                rep = representation_form['M_sequenceNL'](df)
+                result_dict[label] = {"M_sequenceNL": rep}
+            else:
+                result = {}
+                for key in ['MN_sequenceL', "M_N_sequenceL"]:
+                    rep = representation_form[key](df)
+                    result[key] = rep
+                result_dict[label] = result
+        return result_dict
 
     @ray.method(num_return_vals=2)
     def fft(
@@ -216,7 +222,7 @@ if __name__ == '__main__':
         "BipedalWalker-v2", BipedalWalker, "TEST_AGENT"
     )
 
-    oid1, oid2 = fft_worker.fft.remote(3, 5, False)
+    oid1, oid2 = fft_worker.fft.remote(2, 2, False)
 
     df = ray.get(oid1)
     rep = ray.get(oid2)
