@@ -3,6 +3,7 @@ import pandas
 import ray
 from scipy.fftpack import fft
 
+from math import ceil
 from rollout import rollout
 from utils import restore_agent
 
@@ -126,7 +127,8 @@ class FFTWorker(object):
             stack=False,
             normalize=True,
             log=True,
-            _num_seeds=None
+            _num_seeds=None,
+            _extra_name=""
     ):
         # One seed, N rollouts.
         env = self.env_maker()
@@ -136,7 +138,8 @@ class FFTWorker(object):
         act_list = []
         for i in range(num_rollouts):
             print(
-                "Agent <{}>, Seed {}, Rollout {}/{}".format(
+                "Agent {}<{}>, Seed {}, Rollout {}/{}".format(
+                    _extra_name,
                     self.agent_name, seed if _num_seeds is None else
                     "No.{}/{} (Real: {})".format(seed + 1, _num_seeds, seed),
                     i, num_rollouts
@@ -198,7 +201,8 @@ class FFTWorker(object):
             normalize=True,
             log=True,
             fillna=0,
-            _num_steps=None
+            _num_steps=None,
+            _extra_name=""
     ):
         """
 
@@ -210,6 +214,7 @@ class FFTWorker(object):
         :param log:
         :param fillna:
         :param _num_steps:
+        :param _extra_name:
         :return:
         The representation form:
 
@@ -232,7 +237,8 @@ class FFTWorker(object):
                 stack,
                 normalize,
                 log,
-                _num_seeds=num_seeds
+                _num_seeds=num_seeds,
+                _extra_name=_extra_name
             )
             if data_frame is None:
                 data_frame = df
@@ -262,10 +268,10 @@ def get_fft_representation(
 
     num_agent = len(agent_ckpt_dict)
 
-    from math import ceil
     num_iteration = int(ceil(num_agent / num_worker))
 
     agent_ckpt_dict_range = list(agent_ckpt_dict.items())
+    agent_count = 1
     for iteration in range(num_iteration):
         start = iteration * num_worker
         end = min((iteration + 1) * num_worker, num_agent)
@@ -281,8 +287,11 @@ def get_fft_representation(
             )
 
             df_obj_id, rep_obj_id = fft_worker.fft.remote(
-                num_seeds, num_rollouts, stack, normalize=normalize
+                num_seeds, num_rollouts, stack, normalize=normalize,
+                _extra_name="[{}/{}] ".format(agent_count, num_agent)
             )
+
+            agent_count += 1
 
             df_obj_ids.append(df_obj_id)
             rep_obj_ids.append(rep_obj_id)
