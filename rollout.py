@@ -40,6 +40,7 @@ Example Usage via executable:
 
 LOG_INTERVAL_STEPS = 500
 
+
 def create_parser(parser_creator=None):
     parser_creator = parser_creator or argparse.ArgumentParser
     parser = parser_creator(
@@ -199,8 +200,7 @@ def rollout(
                     "Current Steps: {}, Time Elapsed: {:.2f}s, "
                     "Last {} Steps Time: {:.2f}s".format(
                         steps,
-                        time.time() - start,
-                        LOG_INTERVAL_STEPS,
+                        time.time() - start, LOG_INTERVAL_STEPS,
                         time.time() - now
                     )
                 )

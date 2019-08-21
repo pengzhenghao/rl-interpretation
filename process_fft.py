@@ -232,6 +232,7 @@ class FFTWorker(object):
         data_frame.fillna(fillna, inplace=True)
         return data_frame, self._get_representation(data_frame, stack)
 
+
 def parse_MN_sequenceL_result(representation_dict):
     method_name = "MN_sequenceL"
     data_frame = None
@@ -262,7 +263,7 @@ def parse_MN_sequenceL_result(representation_dict):
         vec = np.asarray(vec)
         assert vec.ndim == 1
         vec[np.isnan(vec)] = val
-        back = np.empty((length,))
+        back = np.empty((length, ))
         back.fill(val)
         end = min(len(vec), length)
         back[:end] = vec[:end]
@@ -280,6 +281,7 @@ def parse_MN_sequenceL_result(representation_dict):
 
     cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
     return cluster_df
+
 
 if __name__ == '__main__':
     from gym.envs.box2d import BipedalWalker
