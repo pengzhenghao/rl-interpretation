@@ -13,6 +13,7 @@ import json
 import time
 import os
 import pickle
+import logging
 
 import gym
 import ray
@@ -37,6 +38,8 @@ Example Usage via executable:
 #
 # ModelCatalog.register_custom_model("pa_model", ParametricActionsModel)
 # register_env("pa_cartpole", lambda _: ParametricActionCartpole(10))
+
+LOG_INTERVAL_STEPS = 500
 
 
 def create_parser(parser_creator=None):
@@ -193,12 +196,12 @@ def rollout(
         done = False
         reward_total = 0.0
         while not done and steps < (num_steps or steps + 1):
-            if steps % 100 == 99:
-                print(
+            if steps % LOG_INTERVAL_STEPS == (LOG_INTERVAL_STEPS - 1):
+                logging.info(
                     "Current Steps: {}, Time Elapsed: {:.2f}s, "
-                    "Last 100 Steps Time: {:.2f}s".format(
+                    "Last {} Steps Time: {:.2f}s".format(
                         steps,
-                        time.time() - start,
+                        time.time() - start, LOG_INTERVAL_STEPS,
                         time.time() - now
                     )
                 )
@@ -233,17 +236,17 @@ def rollout(
                     action_dict[agent_id] = a_action
                     prev_actions[agent_id] = a_action
                     value_functions[agent_id] = a_info["vf_preds"]
-
-            extra_info['value_function'].append(
-                value_functions[_DUMMY_AGENT_ID]
-            )
+            if require_frame:
+                extra_info['value_function'].append(
+                    value_functions[_DUMMY_AGENT_ID]
+                )
             action = action_dict[_DUMMY_AGENT_ID]
 
             next_obs, reward, done, _ = env.step(action)
-
-            extra_info["done"].append(done)
-            extra_info["reward"].append(reward)
-            extra_info["step"] += 1
+            if require_frame:
+                extra_info["done"].append(done)
+                extra_info["reward"].append(reward)
+                extra_info["step"] += 1
 
             if multiagent:
                 for agent_id, r in reward.items():
@@ -266,7 +269,7 @@ def rollout(
                 trajectory.append([obs, action, next_obs, reward, done])
             steps += 1
             obs = next_obs
-        print("Episode reward", reward_total)
+        logging.info("Episode reward", reward_total)
     result = {}
     if require_frame:
         result['frames'] = frames
