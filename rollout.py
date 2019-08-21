@@ -197,7 +197,7 @@ def rollout(
         reward_total = 0.0
         while not done and steps < (num_steps or steps + 1):
             if steps % LOG_INTERVAL_STEPS == (LOG_INTERVAL_STEPS - 1):
-                print(
+                logging.info(
                     "Current Steps: {}, Time Elapsed: {:.2f}s, "
                     "Last {} Steps Time: {:.2f}s".format(
                         steps,

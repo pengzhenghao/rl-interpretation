@@ -130,9 +130,9 @@ class FFTWorker(object):
         obs_list = []
         act_list = []
         for i in range(num_rollouts):
-            logging.info(
-                "Agent {}, Rollout {}/{}".format(
-                    self.agent_name, i, num_rollouts
+            print(
+                "Agent {}, Seed {}, Rollout {}/{}".format(
+                    self.agent_name, seed, i, num_rollouts
                 )
             )
             obs, act = self._rollout(env)
