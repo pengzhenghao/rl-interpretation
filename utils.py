@@ -137,15 +137,45 @@ class VideoRecorder(object):
         logger.info('Starting new video recorder writing to %s', self.path)
         self.initialized = False
 
-    def _put_text(self, timestep, text, pos, thickness=1):
+    def _put_text(
+            self,
+            timestep,
+            text,
+            pos,
+            thickness=1,
+            color=(0, 0, 0),
+            rotate=False,
+            not_scale=False
+    ):
         # print("put text {} at pos {} at time {}".format(text, pos, timestep))
         if not text:
             return
-        cv2.putText(
-            self.background[timestep], text, pos, cv2.FONT_HERSHEY_SIMPLEX,
-            0.5 * self.scale + 0.15, (0, 0, 0), thickness
-            # , cv2.LINE_AA # Unable the anti-aliasing
-        )
+        if timestep is None:
+            timestep = list(range(len(self.background)))
+        elif isinstance(timestep, int):
+            timestep = [timestep]
+        assert isinstance(timestep, list)
+
+        if not rotate:
+            for t in timestep:
+                cv2.putText(
+                    self.background[t], text, pos, cv2.FONT_HERSHEY_SIMPLEX,
+                    1 if not_scale else 0.5 * self.scale + 0.15, color,
+                    thickness
+                )
+        else:
+            text_img = np.zeros(
+                (self.background[0].shape[1], self.background[0].shape[0], 4),
+                dtype='uint8'
+            )
+            new_pos = ORIGINAL_VIDEO_HEIGHT - pos[1], pos[0]
+            cv2.putText(
+                text_img, text, new_pos, cv2.FONT_HERSHEY_SIMPLEX,
+                1 if not_scale else 0.5 * self.scale + 0.15, color, thickness
+            )
+            # Only work for black background which is all zeros
+            for t in timestep:
+                self.background[t] += text_img[:, ::-1, :].swapaxes(0, 1)
 
     def _build_background(self, frames_dict):
         assert self.frames_per_sec is not None
@@ -161,14 +191,46 @@ class VideoRecorder(object):
             dtype='uint8'
         )
 
-    def _add_things_on_backgaround(self, frames_dict):
+    def _add_things_on_backgaround(self, frames_dict, extra_info_dict):
         # TODO can add title and names of each row or column.
         # We can add all row / col name here!!!!
-        return self.background
+        drew_col = set()
+        drew_row = set()
+        for rang, (title, frames_info) in \
+                zip(self.frame_range, frames_dict.items()):
+            column_str = frames_info['column']
+            row_str = frames_info['row']
+            if column_str is not None and rang['column'] not in drew_col:
+                assert isinstance(column_str, str)
+                drew_col.add(rang['column'])
+                # DRAW COLUMN
+                pos = rang['width'][0], int(VIDEO_HEIGHT_EDGE * 0.8)
+                self._put_text(
+                    None,
+                    column_str,
+                    pos,
+                    2,
+                    color=(255, 255, 255),
+                    not_scale=True
+                )
+
+            if row_str is not None and rang['row'] not in drew_row:
+                assert isinstance(row_str, str)
+                drew_row.add(rang['row'])
+                # DRAW ROW
+                pos = int(VIDEO_WIDTH_EDGE * 0.6), rang['height'][1]
+                self._put_text(
+                    None,
+                    row_str,
+                    pos,
+                    2,
+                    color=(255, 255, 255),
+                    rotate=True,
+                    not_scale=True
+                )
 
     def _build_grid_of_frames(self, frames_dict, extra_info_dict):
-        # background = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8')
-
+        self._add_things_on_backgaround(frames_dict, extra_info_dict)
         for rang, (title, frames_info) in \
                 zip(self.frame_range, frames_dict.items()):
 
@@ -225,10 +287,9 @@ class VideoRecorder(object):
                         self._put_text(timestep, text, pos)
                 else:
                     text = information['text_function'](value)
-                    for timestep in range(len(self.background)):
-                        self._put_text(timestep, text, pos)
+                    self._put_text(None, text, pos)
 
-        self._add_things_on_backgaround(frames_dict)
+        # self._add_things_on_backgaround(frames_dict)
         return self.background
 
     def generate_video(self, frames_dict, extra_info_dict):
@@ -347,7 +408,13 @@ class VideoRecorder(object):
                         width_margin + VIDEO_WIDTH_EDGE,
                         (width_margin + frame_width) * (col_id + 1) +
                         VIDEO_WIDTH_EDGE
-                    ]
+                    ],
+                    "column":
+                    col_id,
+                    "row":
+                    row_id,
+                    "index":
+                    i
                 }
             )
         self.frame_range = frame_range

@@ -161,8 +161,8 @@ class GridVideoRecorder(object):
             num_steps=int(1e10),
             num_iters=1,
             seed=0,
-            name_row_mapping=None,
             name_column_mapping=None,
+            name_row_mapping=None,
             args_config=None,
             num_workers=10
     ):
@@ -271,8 +271,12 @@ if __name__ == "__main__":
         local_mode=args.local_mode
     )
 
+    name_row_mapping = {key: "TEST" for key in name_ckpt_mapping.keys()}
+    name_col_mapping = {key: "TEST" for key in name_ckpt_mapping.keys()}
+
     frames_dict, extra_info_dict = gvr.generate_frames(
-        name_ckpt_mapping, args.steps, args.iters, args.seed
+        name_ckpt_mapping, args.steps, args.iters, args.seed, name_col_mapping,
+        name_row_mapping
     )
 
     gvr.generate_video(frames_dict, extra_info_dict)
