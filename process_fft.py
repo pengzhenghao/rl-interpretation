@@ -374,7 +374,8 @@ def parse_result_single_method(
             arr_list.append(array)
         filled_dict[agent] = arr_list
         filled_flat_dict[agent] = np.concatenate(arr_list)
-
+        print("Finished parse data of agent <{}> (method {})".format(
+            agent, method_name))
     cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
     return cluster_df.copy()
 

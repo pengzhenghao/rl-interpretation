@@ -51,9 +51,16 @@ class ClusterFinder(object):
         )
 
     def predict(self):
+        """
+        Return a dict whose key are names of agents and values is the cluster
+        indices.
+        :return:
+        """
         assert self.best_k is not None, "Call ClusterFinder.set(k) to set " \
                                         "the best number of cluster."
-        return predict(self.cluster_df, self.fits[self.best_k])
+        indices = predict(self.cluster_df, self.fits[self.best_k])
+        assert len(indices)==len(self.cluster_df)
+        return {key: indices[i] for i, key in enumerate(self.cluster_df.index)}
 
     def set(self, k):
         self.best_k = k
