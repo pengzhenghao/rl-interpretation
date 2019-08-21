@@ -63,12 +63,26 @@ def stack_fft(obs, act, normalize, use_log=True):
 
 @ray.remote
 class FFTWorker(object):
-    def __init__(self, run_name, ckpt, env_name, env_maker, agent_name):
+    def __init__(self):
+    # def __init__(self, run_name, ckpt, env_name, env_maker, agent_name):
         # restore an agent here
+        # self.agent = restore_agent(run_name, ckpt, env_name)
+        # self.env_maker = env_maker
+        # self.agent_name = agent_name
+        self._num_steps = None
+        self.agent = None
+        self.agent_name = None
+        self.env_maker = None
+
+    @ray.method(num_return_vals=0)
+    def reset(self, run_name, ckpt, env_name, env_maker, agent_name, extra_name):
         self.agent = restore_agent(run_name, ckpt, env_name)
         self.env_maker = env_maker
         self.agent_name = agent_name
         self._num_steps = None
+        print("{} is reset!".format(extra_name))
+        # self.agent = None
+        # self.agent_name = None
 
     def _get_representation1(self, df):
         # M sequence whose length is NL
@@ -272,18 +286,25 @@ def get_fft_representation(
 
     agent_ckpt_dict_range = list(agent_ckpt_dict.items())
     agent_count = 1
+
+    workers = [FFTWorker.remote() for _ in range(num_worker)]
+
     for iteration in range(num_iteration):
+        print("We should stop here and wait!")
         start = iteration * num_worker
         end = min((iteration + 1) * num_worker, num_agent)
         df_obj_ids = []
         rep_obj_ids = []
-        for name, ckpt in agent_ckpt_dict_range[start:end]:
-            fft_worker = FFTWorker.remote(
+        for i, (name, ckpt) in enumerate(agent_ckpt_dict_range[start:end]):
+            fft_worker = workers[i]
+
+            fft_worker.reset.remote(
                 run_name=run_name,
                 ckpt=ckpt,
                 env_name=env_name,
                 env_maker=env_maker,
-                agent_name=name
+                agent_name=name,
+                extra_name="Worker{}".format(i)
             )
 
             df_obj_id, rep_obj_id = fft_worker.fft.remote(
@@ -295,7 +316,6 @@ def get_fft_representation(
 
             df_obj_ids.append(df_obj_id)
             rep_obj_ids.append(rep_obj_id)
-
         for df_obj_id, rep_obj_id, (name, _) in zip(
                 df_obj_ids, rep_obj_ids, agent_ckpt_dict_range[start:end]):
             print("Getting data from agent <{}>".format(name))
