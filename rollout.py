@@ -13,6 +13,7 @@ import json
 import time
 import os
 import pickle
+import logging
 
 import gym
 import ray
@@ -268,7 +269,7 @@ def rollout(
                 trajectory.append([obs, action, next_obs, reward, done])
             steps += 1
             obs = next_obs
-        print("Episode reward", reward_total)
+        logging.info("Episode reward", reward_total)
     result = {}
     if require_frame:
         result['frames'] = frames

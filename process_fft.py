@@ -2,6 +2,7 @@ import numpy as np
 import pandas
 import ray
 from scipy.fftpack import fft
+import logging
 
 from rollout import rollout
 from utils import restore_agent
@@ -129,7 +130,7 @@ class FFTWorker(object):
         obs_list = []
         act_list = []
         for i in range(num_rollouts):
-            print(
+            logging.info(
                 "Agent {}, Rollout {}/{}".format(
                     self.agent_name, i, num_rollouts
                 )
