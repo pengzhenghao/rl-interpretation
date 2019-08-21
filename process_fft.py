@@ -2,7 +2,6 @@ import numpy as np
 import pandas
 import ray
 from scipy.fftpack import fft
-import logging
 
 from rollout import rollout
 from utils import restore_agent
@@ -139,7 +138,8 @@ class FFTWorker(object):
             print(
                 "Agent <{}>, Seed {}, Rollout {}/{}".format(
                     self.agent_name, seed if _num_seeds is None else
-                    "No.{}/{} (Real: {})".format(seed+1, _num_seeds, seed), i, num_rollouts
+                    "No.{}/{} (Real: {})".format(seed + 1, _num_seeds, seed),
+                    i, num_rollouts
                 )
             )
             obs, act = self._rollout(env)
@@ -244,6 +244,55 @@ class FFTWorker(object):
             # TODO
         data_frame.fillna(fillna, inplace=True)
         return data_frame.copy(), self._get_representation(data_frame, stack)
+
+
+def get_fft_representation(
+        agent_ckpt_dict,
+        run_name,
+        env_name,
+        env_maker,
+        num_seeds,
+        num_rollouts,
+        stack=False,
+        normalize=True,
+        num_worker=10
+):
+    data_frame_dict = {}
+    representation_dict = {}
+
+    num_agent = len(agent_ckpt_dict)
+
+    from math import ceil
+    num_iteration = int(ceil(num_agent / num_worker))
+
+    agent_ckpt_dict_range = list(agent_ckpt_dict.items())
+    for iteration in range(num_iteration):
+        start = iteration * num_worker
+        end = min((iteration + 1) * num_worker, num_agent)
+        df_obj_ids = []
+        rep_obj_ids = []
+        for name, ckpt in agent_ckpt_dict_range[start:end]:
+            fft_worker = FFTWorker.remote(
+                run_name=run_name,
+                ckpt=ckpt,
+                env_name=env_name,
+                env_maker=env_maker,
+                agent_name=name
+            )
+
+            df_obj_id, rep_obj_id = fft_worker.fft.remote(
+                num_seeds, num_rollouts, stack, normalize=normalize
+            )
+
+            df_obj_ids.append(df_obj_id)
+            rep_obj_ids.append(rep_obj_id)
+
+        for df_obj_id, rep_obj_id, (name, _) in zip(
+                df_obj_ids, rep_obj_ids, agent_ckpt_dict_range[start:end]):
+            print("Getting data from agent <{}>".format(name))
+            data_frame_dict[name] = ray.get(df_obj_id)
+            representation_dict[name] = ray.get(rep_obj_id)
+    return data_frame_dict, representation_dict
 
 
 def parse_result_single_method(
