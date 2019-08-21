@@ -234,7 +234,8 @@ class FFTWorker(object):
 
 
 def parse_result_single_method(representation_dict,
-                               method_name="MN_sequenceL"):
+                               method_name="MN_sequenceL",
+                               padding="up"):
     data_frame = None
     for agent_name, rep_dict in representation_dict.items():
         df = rep_dict[method_name][0]
@@ -259,15 +260,18 @@ def parse_result_single_method(representation_dict,
     filled_dict = {}
     filled_flat_dict = {}
 
-    def pad(vec, length, val=0):
-        vec = np.asarray(vec)
-        assert vec.ndim == 1
-        vec[np.isnan(vec)] = val
-        back = np.empty((length,))
-        back.fill(val)
-        end = min(len(vec), length)
-        back[:end] = vec[:end]
-        return back
+    if padding == 'up':
+        def pad(vec, length, val=0):
+            vec = np.asarray(vec)
+            assert vec.ndim == 1
+            vec[np.isnan(vec)] = val
+            back = np.empty((length,))
+            back.fill(val)
+            end = min(len(vec), length)
+            back[:end] = vec[:end]
+            return back
+    else:
+        raise NotImplementedError("Only support up padding now.")
 
     for agent in agent_list:
         arr_list = []
@@ -283,11 +287,11 @@ def parse_result_single_method(representation_dict,
     return cluster_df
 
 
-def parse_result_all_method(representation_dict):
+def parse_result_all_method(representation_dict, padding='up'):
     method_names = list(next(iter(representation_dict.values())).keys())
     ret = {}
     for method in method_names:
-        cluster_df = parse_result_single_method(representation_dict, method)
+        cluster_df = parse_result_single_method(representation_dict, method, padding)
         ret[method] = cluster_df
     return ret
 
