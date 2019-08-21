@@ -6,18 +6,19 @@ Usage:
     -l 3000 --scene split -rf REWARD_FUNCTION_NAME
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, \
+    absolute_import, division, print_function
 
 import argparse
 import json
 import logging
-
+from math import ceil
 
 import ray
 import yaml
-from ray.rllib.agents.registry import get_agent_class
 
-from utils import build_config, VideoRecorder, BipedalWalkerWrapper, restore_agent
+from utils import build_config, VideoRecorder, BipedalWalkerWrapper, \
+    restore_agent
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -66,7 +67,7 @@ def create_parser(parser_creator=None):
     parser = parser_creator(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-        "given a checkpoint."
+                    "given a checkpoint."
     )
     parser.add_argument(
         "yaml",
@@ -79,9 +80,9 @@ def create_parser(parser_creator=None):
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-        "user-defined trainable function or class registered in the "
-        "tune registry."
+             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+             "user-defined trainable function or class registered in the "
+             "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use.", required=True
@@ -98,7 +99,7 @@ def create_parser(parser_creator=None):
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-        "Surpresses loading of configuration from checkpoint."
+             "Surpresses loading of configuration from checkpoint."
     )
     return parser
 
@@ -168,49 +169,63 @@ class GridVideoRecorder(object):
             "The name-checkpoint dict is not OrderedDict!!! " \
             "We suggest you to use OrderedDict."
 
-        # agents = OrderedDict()
-        now = time.time()
-        start = now
-        object_id_dict = {}
-        for aid, (name, ckpt) in enumerate(name_ckpt_mapping.items()):
-            config = build_config(ckpt, args_config)
-            object_id_dict[name] = collect_frames.remote(
-                self.run_name, ENVIRONMENT_MAPPING[self.env_name],
-                self.env_name, config, ckpt, num_steps, num_iters, seed
-            )
-            print(
-                "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
-                "Restored agent <{}>".format(
-                    aid + 1, len(name_ckpt_mapping),
-                    time.time() - now,
-                    time.time() - start, name
-                )
-            )
-            now = time.time()
+        num_agent = len(name_ckpt_mapping)
+
+        num_iteration = int(ceil(num_agent / num_workers))
+
+        name_ckpt_mapping_range = list(name_ckpt_mapping.items())
+        agent_count = 1
 
         frames_dict = {}
         extra_info_dict = PRESET_INFORMATION_DICT
-        for aid, (name, object_id) in enumerate(object_id_dict.items()):
-            frames, extra_info = ray.get(object_id)
-            frames_dict[name] = frames
-            for key, val in extra_info.items():
-                extra_info_dict[key][name] = val
-            extra_info_dict['title'][name] = name
 
-            print(
-                "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
-                "Get data from agent <{}>".format(
-                    aid + 1, len(name_ckpt_mapping),
-                    time.time() - now,
-                    time.time() - start, name
-                )
-            )
+        for iteration in range(num_iteration):
+            print("We should stop here and wait!")
+            idx_start = iteration * num_workers
+            idx_end = min((iteration + 1) * num_workers, num_agent)
+
             now = time.time()
+            start = now
+            object_id_dict = {}
+            for incre, (name, ckpt) in \
+                    enumerate(name_ckpt_mapping_range[idx_start: idx_end]):
+                config = build_config(ckpt, args_config)
+                object_id_dict[name] = collect_frames.remote(
+                    self.run_name, ENVIRONMENT_MAPPING[self.env_name],
+                    self.env_name, config, ckpt, num_steps, num_iters, seed
+                )
+                print(
+                    "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
+                    "Restored agent <{}>".format(
+                        agent_count + incre, len(name_ckpt_mapping),
+                        time.time() - now,
+                        time.time() - start, name
+                    )
+                )
+                now = time.time()
+
+            for incre, (name, object_id) in enumerate(object_id_dict.items()):
+                frames, extra_info = ray.get(object_id)
+                frames_dict[name] = frames
+                for key, val in extra_info.items():
+                    extra_info_dict[key][name] = val
+                extra_info_dict['title'][name] = name
+
+                print(
+                    "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
+                    "Get data from agent <{}>".format(
+                        incre + agent_count, len(name_ckpt_mapping),
+                        time.time() - now,
+                        time.time() - start, name
+                    )
+                )
+                now = time.time()
+
+            agent_count += num_workers
 
         new_extra_info_dict = PRESET_INFORMATION_DICT
         for key in PRESET_INFORMATION_DICT.keys():
             new_extra_info_dict[key].update(extra_info_dict[key])
-
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):
