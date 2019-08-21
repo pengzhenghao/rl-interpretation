@@ -178,7 +178,7 @@ class FFTWorker(object):
                 rep = representation_form[key](data_frame)
                 result[key] = rep
             return result
-        # return result_dict
+            # return result_dict
 
     @ray.method(num_return_vals=2)
     def fft(
@@ -233,8 +233,8 @@ class FFTWorker(object):
         return data_frame, self._get_representation(data_frame, stack)
 
 
-def parse_MN_sequenceL_result(representation_dict):
-    method_name = "MN_sequenceL"
+def parse_result_single_method(representation_dict,
+                               method_name="MN_sequenceL"):
     data_frame = None
     for agent_name, rep_dict in representation_dict.items():
         df = rep_dict[method_name][0]
@@ -263,7 +263,7 @@ def parse_MN_sequenceL_result(representation_dict):
         vec = np.asarray(vec)
         assert vec.ndim == 1
         vec[np.isnan(vec)] = val
-        back = np.empty((length, ))
+        back = np.empty((length,))
         back.fill(val)
         end = min(len(vec), length)
         back[:end] = vec[:end]
@@ -281,6 +281,15 @@ def parse_MN_sequenceL_result(representation_dict):
 
     cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
     return cluster_df
+
+
+def parse_result_all_method(representation_dict):
+    method_names = list(next(iter(representation_dict.values())).keys())
+    ret = {}
+    for method in method_names:
+        cluster_df = parse_result_single_method(representation_dict, method)
+        ret[method] = cluster_df
+    return ret
 
 
 if __name__ == '__main__':
