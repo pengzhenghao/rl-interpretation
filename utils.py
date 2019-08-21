@@ -16,6 +16,7 @@ import subprocess
 import tempfile
 from math import floor
 
+from collections import OrderedDict
 import cv2
 import numpy as np
 from gym import logger, error
@@ -230,10 +231,29 @@ class VideoRecorder(object):
         """Render the given `env` and add the resulting frame to the video."""
         logger.debug('Capturing video frame: path=%s', self.path)
 
+
+        # assert isinstance(frames_dict, OrderedDict)
+        # first_row = next(iter(frames_dict.values()))
+        # assert isinstance(first_row, OrderedDict)
+
+        # frames_dict = {VIDEO_NAME: {
+        #       'frames': FRAME,
+        #       'pos': (ROW, COL)
+        #   },
+        # ...,
+        #       "row_names": [ROW1, ROW2, ..],
+        #       "col_names": [COL1, COL2, ..],
+        #       "frame_info": {'width':.., "height":.., }
+        # }
+
+
+
+
         if not self.initialized:
-            tmp_frame = list(frames_dict.values())[0][0]
-            self.width = tmp_frame.shape[1]
-            self.height = tmp_frame.shape[0]
+            info = frames_dict['frame_info']
+            # tmp_frame = list(frames_dict.values())[0][0]
+            self.width = info['width']
+            self.height = info['height']
             self._build_frame_range()
             self.initialized = True
 

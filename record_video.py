@@ -160,7 +160,8 @@ class GridVideoRecorder(object):
             num_steps=int(1e10),
             num_iters=1,
             seed=0,
-            args_config=None
+            args_config=None,
+            num_workers=10
     ):
 
         assert isinstance(name_ckpt_mapping, OrderedDict), \
@@ -213,7 +214,8 @@ class GridVideoRecorder(object):
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):
-        self.video_recorder.generate_video(frames_dict, extra_info_dict)
+        vr = VideoRecorder(self.video_path, len(frames_dict))
+        vr.generate_video(frames_dict, extra_info_dict)
 
     def close(self):
         ray.shutdown()
@@ -241,6 +243,6 @@ if __name__ == "__main__":
         name_ckpt_mapping, args.steps, args.iters, args.seed
     )
 
+    gvr.generate_video(frames_dict, extra_info_dict)
+
     gvr.close()
-    vr = VideoRecorder("test_path_just_a_video", len(name_ckpt_mapping))
-    vr.generate_video(frames_dict, extra_info_dict)
