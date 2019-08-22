@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
+
 def cluster(cluster_df, search_range):
     kmeans = [KMeans(n_clusters=i) for i in search_range]
     fit_result = [kmeans[i].fit(cluster_df) for i in range(len(kmeans))]
@@ -32,14 +33,15 @@ def display(search_range, cost, log=True):
 
 
 class ClusterFinder(object):
-    def __init__(self, cluster_df, max_num_cluster, normalize=True):
+    def __init__(self, cluster_df, max_num_cluster, standardize=True):
         assert cluster_df.ndim == 2
-        if normalize:
+        self.keys = cluster_df.index
+        if standardize:
             standardized_df = StandardScaler().fit_transform(cluster_df)
-            self.normalized = True
+            self.standardized = True
         else:
             standardized_df = cluster_df
-            self.normalized = False
+            self.standardized = False
         self.cluster_df = standardized_df
         self.best_k = None
         self.max_num_cluster = max_num_cluster
@@ -61,8 +63,7 @@ class ClusterFinder(object):
         prediction = self.fits[self.best_k].predict(self.cluster_df)
         distances = self.fits[self.best_k].transform(self.cluster_df)
         ret = {}
-        for (index, name), pred in zip(enumerate(self.cluster_df.index),
-                                       prediction):
+        for (index, name), pred in zip(enumerate(self.keys), prediction):
             dis = distances[index, pred]
             info = {"distance": dis, "cluster": pred, "name": name}
             ret[name] = info

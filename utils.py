@@ -210,23 +210,14 @@ class VideoRecorder(object):
                 drew_col.add(column_str)
                 # DRAW COLUMN
                 pos = rang['width'][0], int(VIDEO_HEIGHT_EDGE * 0.8)
-                self._put_text(
-                    None,
-                    column_str,
-                    pos,
-                    color=(255, 255, 255)
-                )
+                self._put_text(None, column_str, pos, color=(255, 255, 255))
 
             if row_str is not None and row_str not in drew_row:
                 drew_row.add(row_str)
                 # DRAW ROW
                 pos = int(VIDEO_WIDTH_EDGE * 0.6), rang['height'][1]
                 self._put_text(
-                    None,
-                    row_str,
-                    pos,
-                    color=(255, 255, 255),
-                    rotate=True
+                    None, row_str, pos, color=(255, 255, 255), rotate=True
                 )
 
     def _get_location(self, index):

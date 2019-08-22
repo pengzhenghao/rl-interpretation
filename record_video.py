@@ -13,6 +13,7 @@ import argparse
 import json
 import logging
 from math import ceil
+import copy
 
 import ray
 import yaml
@@ -108,36 +109,38 @@ from rollout import rollout
 
 
 @ray.remote
-def collect_frames(
-        run_name,
-        env_maker,
-        env_name,
-        config,
-        ckpt,
-        num_steps=0,
-        num_iters=1,
-        seed=0
-):
-    """
-    This function create one agent and return one frame sequence.
-    :param run_name:
-    :param env_name:
-    :param config:
-    :param ckpt:
-    :param num_steps:
-    :param seed:
-    :return:
-    """
-    # TODO allow multiple iters.
+class CollectFramesWorker(object):
+    def __init__(
+            self, run_name, env_maker, env_name, num_steps, num_iters, seed
+    ):
+        self.run_name = run_name
+        self.env_maker = env_maker
+        self.env_name = env_name
+        self.num_steps = num_steps
+        self.num_iters = num_iters
+        self.seed = seed
 
-    agent = restore_agent(run_name, ckpt, env_name, config)
-    env = env_maker()
-    env.seed(seed)
+    def collect_frames(self, config, ckpt):
+        """
+        This function create one agent and return one frame sequence.
+        :param run_name:
+        :param env_name:
+        :param config:
+        :param ckpt:
+        :param num_steps:
+        :param seed:
+        :return:
+        """
+        # TODO allow multiple iters.
 
-    result = rollout(agent, env, num_steps, require_frame=True)
-    frames, extra_info = result['frames'], result['extra_info']
-    env.close()
-    return frames, extra_info
+        agent = restore_agent(self.run_name, ckpt, self.env_name, config)
+        env = self.env_maker()
+        env.seed(self.seed)
+
+        result = rollout(agent, env, self.num_steps, require_frame=True)
+        frames, extra_info = result['frames'], result['extra_info']
+        env.close()
+        return frames, extra_info
 
 
 class GridVideoRecorder(object):
@@ -183,6 +186,13 @@ class GridVideoRecorder(object):
         frames_dict = {}
         extra_info_dict = PRESET_INFORMATION_DICT
 
+        workers = [
+            CollectFramesWorker.remote(
+                self.run_name, ENVIRONMENT_MAPPING[self.env_name],
+                self.env_name, num_steps, num_iters, seed
+            ) for _ in range(num_workers)
+        ]
+
         for iteration in range(num_iteration):
             idx_start = iteration * num_workers
             idx_end = min((iteration + 1) * num_workers, num_agent)
@@ -193,9 +203,8 @@ class GridVideoRecorder(object):
             for incre, (name, ckpt) in \
                     enumerate(name_ckpt_mapping_range[idx_start: idx_end]):
                 config = build_config(ckpt, args_config)
-                object_id_dict[name] = collect_frames.remote(
-                    self.run_name, ENVIRONMENT_MAPPING[self.env_name],
-                    self.env_name, config, ckpt, num_steps, num_iters, seed
+                object_id_dict[name] = workers[incre].collect_frames.remote(
+                    config, ckpt
                 )
                 print(
                     "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
@@ -210,9 +219,15 @@ class GridVideoRecorder(object):
             for incre, (name, object_id) in enumerate(object_id_dict.items()):
                 frames, extra_info = ray.get(object_id)
 
+                # To avoid memory leakage. This part is really important!
+                new_frames = copy.deepcopy(frames)
+                new_extra_info = copy.deepcopy(extra_info)
+                del frames
+                del extra_info
+
                 frames_info = {
                     "frames":
-                    frames,
+                    new_frames,
                     "column":
                     None if name_column_mapping is None else
                     name_column_mapping[name],
@@ -225,7 +240,7 @@ class GridVideoRecorder(object):
                 }
 
                 frames_dict[name] = frames_info
-                for key, val in extra_info.items():
+                for key, val in new_extra_info.items():
                     extra_info_dict[key][name] = val
                 extra_info_dict['title'][name] = name
 
@@ -245,8 +260,8 @@ class GridVideoRecorder(object):
         for key in PRESET_INFORMATION_DICT.keys():
             new_extra_info_dict[key].update(extra_info_dict[key])
         new_extra_info_dict['frame_info'] = {
-            "width": frames[0].shape[1],
-            "height": frames[0].shape[0]
+            "width": new_frames[0].shape[1],
+            "height": new_frames[0].shape[0]
         }
         return frames_dict, new_extra_info_dict
 
