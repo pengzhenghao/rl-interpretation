@@ -253,6 +253,15 @@ class VideoRecorder(object):
             row_id, col_id = frames_info['loc'] if specify_loc \
                 else self._get_location(idx)
 
+            if row_id >= self.num_rows or col_id >= self.num_cols:
+                logger.warn(
+                    "The row {} and col {} is out of the bound of "
+                    "[row={}, col={}]!!".format(
+                        row_id, col_id, self.num_rows, self.num_cols
+                    )
+                )
+                continue
+
             rang = self.frame_range[idx] if not specify_loc \
                 else self.frame_range[row_id * self.num_cols + col_id]
 
