@@ -226,7 +226,7 @@ class GridVideoRecorder(object):
 
                 print(
                     "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
-                    "Get data from agent <{}>".format(
+                    "Got data from agent <{}>".format(
                         incre + agent_count, len(name_ckpt_mapping),
                         time.time() - now,
                         time.time() - start, name
@@ -246,6 +246,7 @@ class GridVideoRecorder(object):
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):
+        print("Start generating video of {} videos.".format(len(frames_dict)))
         vr = VideoRecorder(self.video_path, len(frames_dict))
         vr.generate_video(frames_dict, extra_info_dict)
 
