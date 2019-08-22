@@ -163,6 +163,7 @@ class GridVideoRecorder(object):
             seed=0,
             name_column_mapping=None,
             name_row_mapping=None,
+            name_loc_mapping=None,
             args_config=None,
             num_workers=10
     ):
@@ -216,7 +217,10 @@ class GridVideoRecorder(object):
                     name_column_mapping[name],
                     "row":
                     None
-                    if name_row_mapping is None else name_row_mapping[name]
+                    if name_row_mapping is None else name_row_mapping[name],
+                    "loc":
+                    None
+                    if name_loc_mapping is None else name_loc_mapping[name]
                 }
 
                 frames_dict[name] = frames_info
@@ -246,9 +250,12 @@ class GridVideoRecorder(object):
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):
-        print("Start generating grid of {} videos.".format(len(frames_dict)))
-        vr = VideoRecorder(self.video_path,
-                           {"col": 3, "row": 3})
+        print(
+            "Start generating grid containing {} videos.".format(
+                len(frames_dict)
+            )
+        )
+        vr = VideoRecorder(self.video_path, {"col": 3, "row": 3})
         # vr = VideoRecorder(self.video_path, len(frames_dict))
         vr.generate_video(frames_dict, extra_info_dict)
 
@@ -274,12 +281,16 @@ if __name__ == "__main__":
         local_mode=args.local_mode
     )
 
-    name_row_mapping = {key: "TEST" for key in name_ckpt_mapping.keys()}
-    name_col_mapping = {key: "TEST" for key in name_ckpt_mapping.keys()}
+    name_row_mapping = {key: "TEST ROW" for key in name_ckpt_mapping.keys()}
+    name_col_mapping = {key: "TEST COL" for key in name_ckpt_mapping.keys()}
+    name_loc_mapping = {
+        key: (int((idx + 1) / 3), int((idx + 1) % 3))
+        for idx, key in enumerate(name_ckpt_mapping.keys())
+    }
 
     frames_dict, extra_info_dict = gvr.generate_frames(
         name_ckpt_mapping, args.steps, args.iters, args.seed, name_col_mapping,
-        name_row_mapping
+        name_row_mapping, name_loc_mapping
     )
 
     gvr.generate_video(frames_dict, extra_info_dict)

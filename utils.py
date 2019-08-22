@@ -104,6 +104,8 @@ class VideoRecorder(object):
         self.frame_range = None
         self.scale = None
         self.last_frame = None
+        self.num_cols = None
+        self.num_rows = None
 
         required_ext = '.mp4'
         if base_path is not None:
@@ -230,16 +232,33 @@ class VideoRecorder(object):
                     not_scale=True
                 )
 
+    def _get_location(self, index):
+        assert isinstance(index, int)
+        assert self.num_cols * self.num_rows >= index
+
+        row_id = int(index / self.num_cols)
+        col_id = int(index % self.num_cols)
+
+        return row_id, col_id
+
     def _build_grid_of_frames(self, frames_dict, extra_info_dict):
         self._add_things_on_backgaround(frames_dict, extra_info_dict)
-        for rang, (title, frames_info) in \
-                zip(self.frame_range, frames_dict.items()):
+        for idx, (title, frames_info) in \
+                enumerate(frames_dict.items()):
+
+            frames = frames_info['frames']
+
+            specify_loc = frames_info['loc'] is not None
+
+            row_id, col_id = frames_info['loc'] if specify_loc \
+                else self._get_location(idx)
+
+            rang = self.frame_range[idx] if not specify_loc \
+                else self.frame_range[row_id * self.num_cols + col_id]
 
             # TODO we can add async execution here
             height = rang["height"]
             width = rang["width"]
-
-            frames = frames_info['frames']
 
             def get_pos(left_ratio, bottom_ratio):
                 assert 0 <= left_ratio <= 1
@@ -265,13 +284,12 @@ class VideoRecorder(object):
                 frames = np.stack(frames)
 
             self.background[:len(frames), height[0]:height[1], width[0]:
-            width[1], 2::-1] = frames
+                            width[1], 2::-1] = frames
 
             # filled the extra number of frames
             self.background[len(frames):len(frames) +
-                                        self.extra_num_frames,
-            height[0]:height[1],
-            width[0]:width[1], 2::-1] = frames[-1]
+                            self.extra_num_frames, height[0]:height[1],
+                            width[0]:width[1], 2::-1] = frames[-1]
 
             for information in extra_info_dict.values():
                 if 'pos_ratio' not in information:
@@ -376,9 +394,8 @@ class VideoRecorder(object):
                         and hv_over_hf / potential >= self.grids['col']:
                     break
             else:
-                if (floor(wv_over_wf / potential) * floor(
-                            hv_over_hf / potential
-                ) >= num_envs):
+                if (floor(wv_over_wf / potential) *
+                        floor(hv_over_hf / potential) >= num_envs):
                     break
             if potential == 0:
                 raise ValueError()
@@ -391,6 +408,8 @@ class VideoRecorder(object):
         else:
             num_rows = int(VIDEO_HEIGHT / floor(self.height * scale))
             num_cols = int(VIDEO_WIDTH / floor(self.width * scale))
+        self.num_rows = num_rows
+        self.num_cols = num_cols
         frame_width = int(self.width * scale)
         frame_height = int(self.height * scale)
 
@@ -398,8 +417,7 @@ class VideoRecorder(object):
         assert num_cols * frame_width <= VIDEO_WIDTH
         assert num_rows * frame_height <= VIDEO_HEIGHT
 
-        width_margin = (VIDEO_WIDTH - num_cols * frame_width) / (
-            num_cols + 1)
+        width_margin = (VIDEO_WIDTH - num_cols * frame_width) / (num_cols + 1)
         height_margin = (VIDEO_HEIGHT -
                          num_rows * frame_height) / (num_rows + 1)
         width_margin = int(width_margin)
@@ -428,11 +446,11 @@ class VideoRecorder(object):
                         VIDEO_WIDTH_EDGE
                     ],
                     "column":
-                        col_id,
+                    col_id,
                     "row":
-                        row_id,
+                    row_id,
                     "index":
-                        i
+                    i
                 }
             )
         self.frame_range = frame_range
@@ -490,15 +508,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-                self.backend,
+            self.backend,
             'version':
-                str(
-                    subprocess.check_output(
-                        [self.backend, '-version'], stderr=subprocess.STDOUT
-                    )
-                ),
+            str(
+                subprocess.check_output(
+                    [self.backend, '-version'], stderr=subprocess.STDOUT
+                )
+            ),
             'cmdline':
-                self.cmdline
+            self.cmdline
         }
 
     def start(self):
@@ -547,7 +565,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                    format(type(frame), frame)
+                format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(
@@ -656,7 +674,7 @@ class BipedalWalkerWrapper(BipedalWalker):
             self.viewer = OpencvViewer(VIEWPORT_W, VIEWPORT_H)
         self.viewer.set_bounds(
             self.scroll, VIEWPORT_W / SCALE + self.scroll, 0,
-                         VIEWPORT_H / SCALE
+            VIEWPORT_H / SCALE
         )
 
         self.viewer.draw_polygon(
