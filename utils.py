@@ -3,13 +3,13 @@ from __future__ import absolute_import, division, print_function, \
 
 import collections
 import distutils
+import logging
 import os
 import pickle
 import subprocess
 import tempfile
 import time
 from math import floor
-import logging
 
 import cv2
 import numpy as np
@@ -261,7 +261,9 @@ class VideoRecorder(object):
                 continue
 
             assert row_id * self.num_cols + col_id < len(self.frame_range), \
-            "{}, {} (row={}, col={})".format(row_id * self.num_cols + col_id, len(self.frame_range), self.num_rows, self.num_cols)
+                "{}, {} (row={}, col={})".format(
+                    row_id * self.num_cols + col_id, len(self.frame_range),
+                    self.num_rows, self.num_cols)
 
             rang = self.frame_range[idx] if not specify_loc \
                 else self.frame_range[row_id * self.num_cols + col_id]
@@ -297,9 +299,8 @@ class VideoRecorder(object):
                             width[1], 2::-1] = frames
 
             # filled the extra number of frames
-            self.background[len(frames):len(frames) +
-                            self.extra_num_frames, height[0]:height[1],
-                            width[0]:width[1], 2::-1] = frames[-1]
+            self.background[len(frames):, height[0]:height[1], width[0]:
+                            width[1], 2::-1] = frames[-1]
 
             for information in extra_info_dict.values():
                 if 'pos_ratio' not in information:

@@ -52,7 +52,15 @@ def transform_name_ckpt_mapping(
         row_cluster_dict = dict(pairs)
         for col_id, (name, cls_info) in enumerate(row_cluster_dict.items()):
             loc = (row_id, col_id)
-            new_name = name + "(dis {:.2f})".format(cls_info['distance'])
+
+            components = name.split(" ")
+            new_name = components[0]
+            for com in components:
+                if "=" not in com:
+                    continue
+                new_name += "," + com.split('=')[0][0]+com.split('=')[1]
+
+            new_name = new_name + " d{:.2f}".format(cls_info['distance'])
             new_name_ckpt_mapping[new_name] = name_ckpt_mapping[name]
             name_loc_mapping[new_name] = loc
             if old_row_mapping is not None:

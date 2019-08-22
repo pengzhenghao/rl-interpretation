@@ -10,14 +10,15 @@ from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
 
 import argparse
+import copy
 import json
 import logging
 from math import ceil
-import copy
 
 import ray
 import yaml
 
+from rollout import rollout
 from utils import build_config, VideoRecorder, BipedalWalkerWrapper, \
     restore_agent
 
@@ -103,9 +104,6 @@ def create_parser(parser_creator=None):
         "Surpresses loading of configuration from checkpoint."
     )
     return parser
-
-
-from rollout import rollout
 
 
 @ray.remote
