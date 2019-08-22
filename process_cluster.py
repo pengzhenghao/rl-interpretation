@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 
 def cluster(cluster_df, search_range):
     kmeans = {i: KMeans(n_clusters=i) for i in search_range}
-    fit_result = {i: kmeans[i].fit(cluster_df) for i in range(len(kmeans))}
+    fit_result = {i: kmeans[i].fit(cluster_df) for i in search_range}
     return fit_result
 
 
