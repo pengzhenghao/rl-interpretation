@@ -1,10 +1,11 @@
 import datetime
 import os
-from os.path import join
 from collections import OrderedDict
 from math import floor
+from os.path import join
 
 import pandas
+import yaml
 
 
 def get_trial_name(trial_raw_name):
@@ -26,8 +27,17 @@ def get_trial_data_dict(json_dict):
     for i, (trial_name, json_path) in enumerate(json_dict.items()):
         try:
             dataframe = pandas.read_json(json_path, lines=True)
-        except ValueError:
-            continue
+        except ValueError as err:
+            try:
+                import json
+                ret = []
+                with open(json_path, 'r') as f:
+                    for line in f:
+                        ret.append(json.loads(line))
+                    dataframe = pandas.DataFrame(ret)
+            except Exception as err:
+                print(err)
+                continue
         print(
             "[{}/{}] Trial Name: {}\t(Total Iters {})".format(
                 i, len(json_dict), trial_name, len(dataframe)
@@ -137,3 +147,65 @@ def get_sorted_trial_ckpt_list(
         )
 
     return results
+
+
+def read_yaml(ckpt):
+    with open(ckpt, 'r') as f:
+        name_ckpt_list = yaml.safe_load(f)
+    name_ckpt_mapping = OrderedDict()
+    for d in name_ckpt_list:
+        name_ckpt_mapping[d["name"]] = d["path"]
+    return name_ckpt_mapping
+
+
+def generate_yaml(exp_names, algo_name, output_path):
+    # Get the trial_name-json_path dict.
+    trial_json_dict = {}
+    if isinstance(exp_names, str):
+        exp_names = [exp_names]
+    for exp_name in exp_names:
+        trial_json_dict.update(get_trial_json_dict(exp_name, algo_name))
+    print("Collected trial_json_dict: ", trial_json_dict)
+    # Get the trial_name-trial_data dict. This is not ordered.
+    trial_data_dict = get_trial_data_dict(trial_json_dict)
+    print("Collected trial_data_dict: ", trial_data_dict)
+    K = 3
+
+    trial_performance_list = []
+
+    for i, (trial_name, data) in enumerate(trial_data_dict.items()):
+        avg = data["episode_reward_mean"].tail(K).mean()
+        trial_performance_list.append([trial_name, avg])
+
+    print("Collected trial_performance_list: ", trial_performance_list)
+    sorted_trial_pfm_list = sorted(
+        trial_performance_list, key=lambda pair: pair[1]
+    )
+
+    def get_video_name(trial_name, performance):
+        # trial_name: PPO_BipedalWalker-v2_38_seed=138
+        # result: "PPO seed=139 rew=249.01"
+        components = trial_name.split("_")
+        return "{0} {3} rew={4:.2f}".format(*components, performance)
+
+    results = get_sorted_trial_ckpt_list(
+        sorted_trial_pfm_list, trial_json_dict, get_video_name
+    )
+    with open(output_path, 'w') as f:
+        yaml.safe_dump(results, f)
+
+    return results
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--exp-names", nargs='+', type=str, required=True)
+    parser.add_argument("--algo-name", required=True, type=str)
+    parser.add_argument("--output-path", required=True, type=str)
+    args = parser.parse_args()
+    assert isinstance(args.exp_names, list) or isinstance(args.exp_names, str)
+    assert args.output_path.endswith("yaml")
+    ret = generate_yaml(args.exp_names, args.algo_name, args.output_path)
+    print("Successfully collect {} agents.".format(len(ret)))
