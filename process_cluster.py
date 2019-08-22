@@ -15,12 +15,6 @@ def score(cluster_df, fit_list):
     return cost
 
 
-def predict(cluster_df, kmeans):
-    ret = kmeans.predict(cluster_df)
-    assert len(cluster_df) == len(ret)
-    return ret
-
-
 def display(search_range, cost, log=True):
     process = np.log if log else lambda x: x
     plt.figure(figsize=(max(search_range), 10))
@@ -58,9 +52,15 @@ class ClusterFinder(object):
         """
         assert self.best_k is not None, "Call ClusterFinder.set(k) to set " \
                                         "the best number of cluster."
-        indices = predict(self.cluster_df, self.fits[self.best_k])
-        assert len(indices) == len(self.cluster_df)
-        return {key: indices[i] for i, key in enumerate(self.cluster_df.index)}
+        prediction = self.fits[self.best_k].predict(self.cluster_df)
+        distances = self.fits[self.best_k].transform(self.cluster_df)
+        ret = {}
+        for (index, name), pred in zip(enumerate(self.cluster_df.index),
+                                       prediction):
+            dis = distances[index, pred]
+            info = {"distance": dis, "cluster": pred}
+            ret[name] = info
+        return ret
 
     def set(self, k):
         self.best_k = k
