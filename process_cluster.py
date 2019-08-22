@@ -5,22 +5,25 @@ from sklearn.preprocessing import StandardScaler
 
 
 def cluster(cluster_df, search_range):
-    kmeans = [KMeans(n_clusters=i) for i in search_range]
-    fit_result = [kmeans[i].fit(cluster_df) for i in range(len(kmeans))]
+    kmeans = {i: KMeans(n_clusters=i) for i in search_range}
+    fit_result = {i: kmeans[i].fit(cluster_df) for i in range(len(kmeans))}
     return fit_result
 
 
 def score(cluster_df, fit_list):
-    score = [fit.score(cluster_df) for fit in fit_list]
+    score = [fit.score(cluster_df) for fit in fit_list.values()]
     cost = -np.asarray(score)
+    cost = {k: cost[i] for i, k in enumerate(fit_list.keys())}
     return cost
 
 
 def display(search_range, cost, log=True):
     process = np.log if log else lambda x: x
     plt.figure(figsize=(max(search_range), 10))
-    # search_range = range(1, max_num_cluster)
-    plt.plot(search_range, process(cost))
+
+    cost_list = [cost[i] for i in search_range]
+
+    plt.plot(search_range, process(cost_list))
     plt.xlabel('Number of Clusters')
     plt.ylabel('Score')
     plt.xticks(list(search_range), [str(t) for t in search_range])
