@@ -255,8 +255,18 @@ class GridVideoRecorder(object):
                 len(frames_dict)
             )
         )
-        vr = VideoRecorder(self.video_path, {"col": 3, "row": 3})
-        # vr = VideoRecorder(self.video_path, len(frames_dict))
+        locations = [f_info['loc'] for f_info in frames_dict.values()]
+        assert len(set(locations)) == len(locations)
+
+        max_row = max([row + 1 for row, _ in locations])
+        max_col = max([col + 1 for _, col in locations])
+
+        vr = VideoRecorder(
+            self.video_path, grids={
+                'col': max_col,
+                'row': max_row
+            }
+        )
         vr.generate_video(frames_dict, extra_info_dict)
 
     def close(self):

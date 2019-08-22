@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import time
 from math import floor
+import logging
 
 import cv2
 import numpy as np
@@ -199,37 +200,33 @@ class VideoRecorder(object):
         # We can add all row / col name here!!!!
         drew_col = set()
         drew_row = set()
-        for rang, (title, frames_info) in \
-                zip(self.frame_range, frames_dict.items()):
+        for idx, (title, frames_info) in \
+                enumerate(frames_dict.items()):
             column_str = frames_info['column']
             row_str = frames_info['row']
-            if column_str is not None and rang['column'] not in drew_col:
-                assert isinstance(column_str, str)
-                drew_col.add(rang['column'])
+            rang = self.frame_range[idx] if frames_info['loc'] is None \
+                else self._get_draw_range(*frames_info['loc'])
+            if column_str is not None and column_str not in drew_col:
+                drew_col.add(column_str)
                 # DRAW COLUMN
                 pos = rang['width'][0], int(VIDEO_HEIGHT_EDGE * 0.8)
                 self._put_text(
                     None,
                     column_str,
                     pos,
-                    2,
-                    color=(255, 255, 255),
-                    not_scale=True
+                    color=(255, 255, 255)
                 )
 
-            if row_str is not None and rang['row'] not in drew_row:
-                assert isinstance(row_str, str)
-                drew_row.add(rang['row'])
+            if row_str is not None and row_str not in drew_row:
+                drew_row.add(row_str)
                 # DRAW ROW
                 pos = int(VIDEO_WIDTH_EDGE * 0.6), rang['height'][1]
                 self._put_text(
                     None,
                     row_str,
                     pos,
-                    2,
                     color=(255, 255, 255),
-                    rotate=True,
-                    not_scale=True
+                    rotate=True
                 )
 
     def _get_location(self, index):
@@ -240,6 +237,16 @@ class VideoRecorder(object):
         col_id = int(index % self.num_cols)
 
         return row_id, col_id
+
+    def _get_index(self, row_id, col_id):
+        ret = row_id * self.num_cols + col_id
+        assert ret < self.num_cols * self.num_rows
+        return ret
+
+    def _get_draw_range(self, row_id, col_id):
+        idx = self._get_index(row_id, col_id)
+        assert self.initialized
+        return self.frame_range[idx]
 
     def _build_grid_of_frames(self, frames_dict, extra_info_dict):
         self._add_things_on_backgaround(frames_dict, extra_info_dict)
@@ -254,13 +261,16 @@ class VideoRecorder(object):
                 else self._get_location(idx)
 
             if row_id >= self.num_rows or col_id >= self.num_cols:
-                logger.warn(
+                logging.warning(
                     "The row {} and col {} is out of the bound of "
                     "[row={}, col={}]!!".format(
                         row_id, col_id, self.num_rows, self.num_cols
                     )
                 )
                 continue
+
+            assert row_id * self.num_cols + col_id < len(self.frame_range), \
+            "{}, {} (row={}, col={})".format(row_id * self.num_cols + col_id, len(self.frame_range), self.num_rows, self.num_cols)
 
             rang = self.frame_range[idx] if not specify_loc \
                 else self.frame_range[row_id * self.num_cols + col_id]
@@ -377,7 +387,7 @@ class VideoRecorder(object):
         #     self._encode_image_frame(self.last_frame)
 
         if self.encoder:
-            logger.debug('Closing video encoder: path=%s', self.path)
+            print('Closing video encoder: path={}'.format(self.path))
             self.encoder.close()
             self.encoder = None
         else:
@@ -390,8 +400,6 @@ class VideoRecorder(object):
             return [int(center - rang / 2), int(center + rang / 2)]
 
         specify_grids = not isinstance(self.grids, int)
-        num_envs = self.grids if not specify_grids else \
-            self.grids['row'] * self.grids['col']
 
         # if not specify_grids:
         wv_over_wf = VIDEO_WIDTH / self.width
@@ -400,9 +408,10 @@ class VideoRecorder(object):
             # potential = 1, 0.9, ...
             if specify_grids:
                 if wv_over_wf / potential >= self.grids['col'] \
-                        and hv_over_hf / potential >= self.grids['col']:
+                        and hv_over_hf / potential >= self.grids['row']:
                     break
             else:
+                num_envs = self.grids
                 if (floor(wv_over_wf / potential) *
                         floor(hv_over_hf / potential) >= num_envs):
                     break
@@ -411,18 +420,22 @@ class VideoRecorder(object):
         scale = potential
 
         assert scale != 0
+        # else:
+        num_rows = int(VIDEO_HEIGHT / floor(self.height * scale))
+        num_cols = int(VIDEO_WIDTH / floor(self.width * scale))
+
+        num_envs = num_rows * num_cols
+
         if specify_grids:
-            num_rows = self.grids['row']
-            num_cols = self.grids['col']
-        else:
-            num_rows = int(VIDEO_HEIGHT / floor(self.height * scale))
-            num_cols = int(VIDEO_WIDTH / floor(self.width * scale))
+            assert num_rows >= self.grids['row']
+            assert num_cols >= self.grids['col']
         self.num_rows = num_rows
         self.num_cols = num_cols
         frame_width = int(self.width * scale)
         frame_height = int(self.height * scale)
 
-        assert num_rows * num_cols >= num_envs
+        assert num_rows * num_cols >= num_envs, \
+            "row {}, col {}, envs {}".format(num_rows, num_cols, num_envs)
         assert num_cols * frame_width <= VIDEO_WIDTH
         assert num_rows * frame_height <= VIDEO_HEIGHT
 

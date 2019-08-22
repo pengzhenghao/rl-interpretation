@@ -58,7 +58,7 @@ class ClusterFinder(object):
         for (index, name), pred in zip(enumerate(self.cluster_df.index),
                                        prediction):
             dis = distances[index, pred]
-            info = {"distance": dis, "cluster": pred}
+            info = {"distance": dis, "cluster": pred, "name": name}
             ret[name] = info
         return ret
 
