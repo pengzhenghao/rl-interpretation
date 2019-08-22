@@ -182,7 +182,7 @@ def rollout(
                 "value_function": [],
                 "reward": [],
                 "done": [],
-                "step": 0
+                "step": []
             }
 
         mapping_cache = {}  # in case policy_agent_mapping is stochastic
@@ -247,7 +247,7 @@ def rollout(
             if require_frame:
                 extra_info["done"].append(done)
                 extra_info["reward"].append(reward)
-                extra_info["step"] += 1
+                extra_info["step"].append(steps)
 
             if multiagent:
                 for agent_id, r in reward.items():

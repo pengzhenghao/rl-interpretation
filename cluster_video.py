@@ -1,6 +1,7 @@
 # from process_cluster import ClusterFinder
-from record_video import GridVideoRecorder
 from collections import OrderedDict
+
+from record_video import GridVideoRecorder
 
 
 def _build_name_row_mapping(cluster_dict):
@@ -58,7 +59,7 @@ def transform_name_ckpt_mapping(
             for com in components:
                 if "=" not in com:
                     continue
-                new_name += "," + com.split('=')[0][0]+com.split('=')[1]
+                new_name += "," + com.split('=')[0][0] + com.split('=')[1]
 
             new_name = new_name + " d{:.2f}".format(cls_info['distance'])
             new_name_ckpt_mapping[new_name] = name_ckpt_mapping[name]
@@ -68,7 +69,8 @@ def transform_name_ckpt_mapping(
             if old_col_mapping is not None:
                 name_col_mapping[new_name] = old_col_mapping[name]
 
-    return new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, name_col_mapping
+    return new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
+           name_col_mapping
 
 
 def generate_video_of_cluster(
@@ -77,12 +79,12 @@ def generate_video_of_cluster(
         video_path,
         env_name,
         run_name,
+        max_num_cols=10,
         seed=0,
         local_mode=False,
         steps=int(1e10),
         num_workers=5
 ):
-
     assert isinstance(cluster_dict, dict)
     assert isinstance(name_ckpt_mapping, dict)
     for key, val in cluster_dict.items():
@@ -100,7 +102,7 @@ def generate_video_of_cluster(
     # name_row_mapping = _build_name_row_mapping(cluster_dict)
     new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
     name_col_mapping = transform_name_ckpt_mapping(
-        name_ckpt_mapping, cluster_dict
+        name_ckpt_mapping, cluster_dict, max_num_cols=max_num_cols
     )
 
     assert new_name_ckpt_mapping.keys() == name_row_mapping.keys(
