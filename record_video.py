@@ -246,8 +246,10 @@ class GridVideoRecorder(object):
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):
-        print("Start generating video of {} videos.".format(len(frames_dict)))
-        vr = VideoRecorder(self.video_path, len(frames_dict))
+        print("Start generating grid of {} videos.".format(len(frames_dict)))
+        vr = VideoRecorder(self.video_path,
+                           {"col": 3, "row": 3})
+        # vr = VideoRecorder(self.video_path, len(frames_dict))
         vr.generate_video(frames_dict, extra_info_dict)
 
     def close(self):
