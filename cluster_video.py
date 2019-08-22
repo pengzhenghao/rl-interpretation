@@ -71,7 +71,8 @@ def generate_video_of_cluster(
         run_name,
         seed=0,
         local_mode=False,
-        steps=int(1e10)
+        steps=int(1e10),
+        num_workers=5
 ):
 
     assert isinstance(cluster_dict, dict)
@@ -103,7 +104,8 @@ def generate_video_of_cluster(
         seed=seed,
         name_column_mapping=name_col_mapping,
         name_row_mapping=name_row_mapping,
-        name_loc_mapping=name_loc_mapping
+        name_loc_mapping=name_loc_mapping,
+        num_workers=num_workers
     )
 
     gvr.generate_video(frames_dict, extra_info_dict)

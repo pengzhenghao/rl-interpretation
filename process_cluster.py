@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.cluster import KMeans
-
+from sklearn.preprocessing import StandardScaler
 
 def cluster(cluster_df, search_range):
     kmeans = [KMeans(n_clusters=i) for i in search_range]
@@ -32,9 +32,15 @@ def display(search_range, cost, log=True):
 
 
 class ClusterFinder(object):
-    def __init__(self, cluster_df, max_num_cluster):
+    def __init__(self, cluster_df, max_num_cluster, normalize=True):
         assert cluster_df.ndim == 2
-        self.cluster_df = cluster_df
+        if normalize:
+            standardized_df = StandardScaler().fit_transform(cluster_df)
+            self.normalized = True
+        else:
+            standardized_df = cluster_df
+            self.normalized = False
+        self.cluster_df = standardized_df
         self.best_k = None
         self.max_num_cluster = max_num_cluster
         self.search_range = range(1, self.max_num_cluster + 1)

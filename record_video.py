@@ -146,6 +146,7 @@ class GridVideoRecorder(object):
         ray.init(
             logging_level=logging.ERROR,
             log_to_driver=False,
+            ignore_reinit_error=True,
             local_mode=local_mode
         )
 
