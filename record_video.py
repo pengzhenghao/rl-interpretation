@@ -6,17 +6,19 @@ Usage:
     -l 3000 --scene split -rf REWARD_FUNCTION_NAME
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, \
+    absolute_import, division, print_function
 
 import argparse
 import json
 import logging
+from math import ceil
 
 import ray
 import yaml
-from ray.rllib.agents.registry import get_agent_class
 
-from utils import build_config, VideoRecorder, BipedalWalkerWrapper, restore_agent
+from utils import build_config, VideoRecorder, BipedalWalkerWrapper, \
+    restore_agent
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -159,60 +161,103 @@ class GridVideoRecorder(object):
             num_steps=int(1e10),
             num_iters=1,
             seed=0,
-            args_config=None
+            name_column_mapping=None,
+            name_row_mapping=None,
+            name_loc_mapping=None,
+            args_config=None,
+            num_workers=10
     ):
 
         assert isinstance(name_ckpt_mapping, OrderedDict), \
             "The name-checkpoint dict is not OrderedDict!!! " \
             "We suggest you to use OrderedDict."
 
-        # agents = OrderedDict()
-        now = time.time()
-        start = now
-        object_id_dict = {}
-        for aid, (name, ckpt) in enumerate(name_ckpt_mapping.items()):
-            config = build_config(ckpt, args_config)
-            object_id_dict[name] = collect_frames.remote(
-                self.run_name, ENVIRONMENT_MAPPING[self.env_name],
-                self.env_name, config, ckpt, num_steps, num_iters, seed
-            )
-            print(
-                "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
-                "Restored agent <{}>".format(
-                    aid + 1, len(name_ckpt_mapping),
-                    time.time() - now,
-                    time.time() - start, name
-                )
-            )
-            now = time.time()
+        num_agent = len(name_ckpt_mapping)
+
+        num_iteration = int(ceil(num_agent / num_workers))
+
+        name_ckpt_mapping_range = list(name_ckpt_mapping.items())
+        agent_count = 1
 
         frames_dict = {}
         extra_info_dict = PRESET_INFORMATION_DICT
-        for aid, (name, object_id) in enumerate(object_id_dict.items()):
-            frames, extra_info = ray.get(object_id)
-            frames_dict[name] = frames
-            for key, val in extra_info.items():
-                extra_info_dict[key][name] = val
-            extra_info_dict['title'][name] = name
 
-            print(
-                "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
-                "Get data from agent <{}>".format(
-                    aid + 1, len(name_ckpt_mapping),
-                    time.time() - now,
-                    time.time() - start, name
-                )
-            )
+        for iteration in range(num_iteration):
+            idx_start = iteration * num_workers
+            idx_end = min((iteration + 1) * num_workers, num_agent)
+
             now = time.time()
+            start = now
+            object_id_dict = {}
+            for incre, (name, ckpt) in \
+                    enumerate(name_ckpt_mapping_range[idx_start: idx_end]):
+                config = build_config(ckpt, args_config)
+                object_id_dict[name] = collect_frames.remote(
+                    self.run_name, ENVIRONMENT_MAPPING[self.env_name],
+                    self.env_name, config, ckpt, num_steps, num_iters, seed
+                )
+                print(
+                    "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
+                    "Restored agent <{}>".format(
+                        agent_count + incre, len(name_ckpt_mapping),
+                        time.time() - now,
+                        time.time() - start, name
+                    )
+                )
+                now = time.time()
+
+            for incre, (name, object_id) in enumerate(object_id_dict.items()):
+                frames, extra_info = ray.get(object_id)
+
+                frames_info = {
+                    "frames":
+                    frames,
+                    "column":
+                    None if name_column_mapping is None else
+                    name_column_mapping[name],
+                    "row":
+                    None
+                    if name_row_mapping is None else name_row_mapping[name],
+                    "loc":
+                    None
+                    if name_loc_mapping is None else name_loc_mapping[name]
+                }
+
+                frames_dict[name] = frames_info
+                for key, val in extra_info.items():
+                    extra_info_dict[key][name] = val
+                extra_info_dict['title'][name] = name
+
+                print(
+                    "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
+                    "Got data from agent <{}>".format(
+                        incre + agent_count, len(name_ckpt_mapping),
+                        time.time() - now,
+                        time.time() - start, name
+                    )
+                )
+                now = time.time()
+
+            agent_count += num_workers
 
         new_extra_info_dict = PRESET_INFORMATION_DICT
         for key in PRESET_INFORMATION_DICT.keys():
             new_extra_info_dict[key].update(extra_info_dict[key])
-
+        new_extra_info_dict['frame_info'] = {
+            "width": frames[0].shape[1],
+            "height": frames[0].shape[0]
+        }
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict):
-        self.video_recorder.generate_video(frames_dict, extra_info_dict)
+        print(
+            "Start generating grid containing {} videos.".format(
+                len(frames_dict)
+            )
+        )
+        vr = VideoRecorder(self.video_path, {"col": 3, "row": 3})
+        # vr = VideoRecorder(self.video_path, len(frames_dict))
+        vr.generate_video(frames_dict, extra_info_dict)
 
     def close(self):
         ray.shutdown()
@@ -236,10 +281,18 @@ if __name__ == "__main__":
         local_mode=args.local_mode
     )
 
+    name_row_mapping = {key: "TEST ROW" for key in name_ckpt_mapping.keys()}
+    name_col_mapping = {key: "TEST COL" for key in name_ckpt_mapping.keys()}
+    name_loc_mapping = {
+        key: (int((idx + 1) / 3), int((idx + 1) % 3))
+        for idx, key in enumerate(name_ckpt_mapping.keys())
+    }
+
     frames_dict, extra_info_dict = gvr.generate_frames(
-        name_ckpt_mapping, args.steps, args.iters, args.seed
+        name_ckpt_mapping, args.steps, args.iters, args.seed, name_col_mapping,
+        name_row_mapping, name_loc_mapping
     )
 
+    gvr.generate_video(frames_dict, extra_info_dict)
+
     gvr.close()
-    vr = VideoRecorder("test_path_just_a_video", len(name_ckpt_mapping))
-    vr.generate_video(frames_dict, extra_info_dict)

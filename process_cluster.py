@@ -59,7 +59,7 @@ class ClusterFinder(object):
         assert self.best_k is not None, "Call ClusterFinder.set(k) to set " \
                                         "the best number of cluster."
         indices = predict(self.cluster_df, self.fits[self.best_k])
-        assert len(indices)==len(self.cluster_df)
+        assert len(indices) == len(self.cluster_df)
         return {key: indices[i] for i, key in enumerate(self.cluster_df.index)}
 
     def set(self, k):

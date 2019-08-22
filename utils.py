@@ -1,41 +1,35 @@
-"""
-Record video given a trained PPO model.
-
-Usage:
-    python record_video.py /YOUR_HOME/ray_results/EXP_NAME/TRAIL_NAME \
-    -l 3000 --scene split -rf REWARD_FUNCTION_NAME
-"""
-
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
 
 import collections
 import distutils
 import os
+import pickle
 import subprocess
 import tempfile
+import time
 from math import floor
 
 import cv2
 import numpy as np
+from Box2D.b2 import circleShape
 from gym import logger, error
-from ray.rllib.agents.registry import get_agent_class
-
-VIDEO_WIDTH = 1920
-VIDEO_HEIGHT = 1080
-
 from gym.envs.box2d.bipedal_walker import (
     BipedalWalker, VIEWPORT_H, VIEWPORT_W, SCALE, TERRAIN_HEIGHT, TERRAIN_STEP
 )
-from Box2D.b2 import circleShape
-
-from opencv_wrappers import Surface
-import time
-import pickle
+from ray.rllib.agents.registry import get_agent_class
 from ray.tune.util import merge_dicts
 
-VIDEO_WIDTH = 1920
-VIDEO_HEIGHT = 1080
+from opencv_wrappers import Surface
+
+ORIGINAL_VIDEO_WIDTH = 1920
+ORIGINAL_VIDEO_HEIGHT = 1080
+
+VIDEO_WIDTH_EDGE = 100
+VIDEO_HEIGHT_EDGE = 60
+
+VIDEO_WIDTH = ORIGINAL_VIDEO_WIDTH - 2 * VIDEO_WIDTH_EDGE
+VIDEO_HEIGHT = ORIGINAL_VIDEO_HEIGHT - 2 * VIDEO_HEIGHT_EDGE
 
 
 def build_config(ckpt, args_config):
@@ -101,14 +95,17 @@ class VideoRecorder(object):
             # self, env, path=None, metadata=None, base_path=None
             self,
             base_path,
-            num_envs,
+            grids,
             FPS=50
     ):
         self.frame_shape = None
-        self.num_envs = num_envs
+        assert isinstance(grids, int) or isinstance(grids, dict)
+        self.grids = grids
         self.frame_range = None
         self.scale = None
         self.last_frame = None
+        self.num_cols = None
+        self.num_rows = None
 
         required_ext = '.mp4'
         if base_path is not None:
@@ -143,35 +140,131 @@ class VideoRecorder(object):
         logger.info('Starting new video recorder writing to %s', self.path)
         self.initialized = False
 
-    def _put_text(self, timestep, text, pos, thickness=1):
+    def _put_text(
+            self,
+            timestep,
+            text,
+            pos,
+            thickness=1,
+            color=(0, 0, 0),
+            rotate=False,
+            not_scale=False
+    ):
         # print("put text {} at pos {} at time {}".format(text, pos, timestep))
         if not text:
             return
-        cv2.putText(
-            self.background[timestep], text, pos, cv2.FONT_HERSHEY_SIMPLEX,
-            0.5 * self.scale + 0.15, (0, 0, 0), thickness
-            # , cv2.LINE_AA # Unable the anti-aliasing
-        )
+        if timestep is None:
+            timestep = list(range(len(self.background)))
+        elif isinstance(timestep, int):
+            timestep = [timestep]
+        assert isinstance(timestep, list)
+
+        if not rotate:
+            for t in timestep:
+                cv2.putText(
+                    self.background[t], text, pos, cv2.FONT_HERSHEY_SIMPLEX,
+                    1 if not_scale else 0.5 * self.scale + 0.15, color,
+                    thickness
+                )
+        else:
+            text_img = np.zeros(
+                (self.background[0].shape[1], self.background[0].shape[0], 4),
+                dtype='uint8'
+            )
+            new_pos = ORIGINAL_VIDEO_HEIGHT - pos[1], pos[0]
+            cv2.putText(
+                text_img, text, new_pos, cv2.FONT_HERSHEY_SIMPLEX,
+                1 if not_scale else 0.5 * self.scale + 0.15, color, thickness
+            )
+            # Only work for black background which is all zeros
+            for t in timestep:
+                self.background[t] += text_img[:, ::-1, :].swapaxes(0, 1)
 
     def _build_background(self, frames_dict):
         assert self.frames_per_sec is not None
         self.extra_num_frames = 5 * int(self.frames_per_sec)
-        video_length = max([len(frames) for frames in frames_dict.values()]) \
-                       + self.extra_num_frames
+        video_length = max(
+            [
+                len(frames_info['frames'])
+                for frames_info in frames_dict.values()
+            ]
+        ) + self.extra_num_frames
         self.background = np.zeros(
-            (video_length, VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8'
+            (video_length, ORIGINAL_VIDEO_HEIGHT, ORIGINAL_VIDEO_WIDTH, 4),
+            dtype='uint8'
         )
-        self._add_things_on_backgaround()
 
-    def _add_things_on_backgaround(self):
+    def _add_things_on_backgaround(self, frames_dict, extra_info_dict):
         # TODO can add title and names of each row or column.
-        return self.background
+        # We can add all row / col name here!!!!
+        drew_col = set()
+        drew_row = set()
+        for rang, (title, frames_info) in \
+                zip(self.frame_range, frames_dict.items()):
+            column_str = frames_info['column']
+            row_str = frames_info['row']
+            if column_str is not None and rang['column'] not in drew_col:
+                assert isinstance(column_str, str)
+                drew_col.add(rang['column'])
+                # DRAW COLUMN
+                pos = rang['width'][0], int(VIDEO_HEIGHT_EDGE * 0.8)
+                self._put_text(
+                    None,
+                    column_str,
+                    pos,
+                    2,
+                    color=(255, 255, 255),
+                    not_scale=True
+                )
+
+            if row_str is not None and rang['row'] not in drew_row:
+                assert isinstance(row_str, str)
+                drew_row.add(rang['row'])
+                # DRAW ROW
+                pos = int(VIDEO_WIDTH_EDGE * 0.6), rang['height'][1]
+                self._put_text(
+                    None,
+                    row_str,
+                    pos,
+                    2,
+                    color=(255, 255, 255),
+                    rotate=True,
+                    not_scale=True
+                )
+
+    def _get_location(self, index):
+        assert isinstance(index, int)
+        assert self.num_cols * self.num_rows >= index
+
+        row_id = int(index / self.num_cols)
+        col_id = int(index % self.num_cols)
+
+        return row_id, col_id
 
     def _build_grid_of_frames(self, frames_dict, extra_info_dict):
-        # background = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 4), dtype='uint8')
+        self._add_things_on_backgaround(frames_dict, extra_info_dict)
+        for idx, (title, frames_info) in \
+                enumerate(frames_dict.items()):
 
-        for rang, (title, frames) in zip(self.frame_range,
-                                         frames_dict.items()):
+            frames = frames_info['frames']
+
+            specify_loc = frames_info['loc'] is not None
+
+            row_id, col_id = frames_info['loc'] if specify_loc \
+                else self._get_location(idx)
+
+            if row_id >= self.num_rows or col_id >= self.num_cols:
+                logger.warn(
+                    "The row {} and col {} is out of the bound of "
+                    "[row={}, col={}]!!".format(
+                        row_id, col_id, self.num_rows, self.num_cols
+                    )
+                )
+                continue
+
+            rang = self.frame_range[idx] if not specify_loc \
+                else self.frame_range[row_id * self.num_cols + col_id]
+
             # TODO we can add async execution here
             height = rang["height"]
             width = rang["width"]
@@ -197,7 +290,7 @@ class VideoRecorder(object):
                         interpolation=cv2.INTER_CUBIC
                     ) for frame in frames
                 ]
-                frames = np.concatenate(frames)
+                frames = np.stack(frames)
 
             self.background[:len(frames), height[0]:height[1], width[0]:
                             width[1], 2::-1] = frames
@@ -208,6 +301,8 @@ class VideoRecorder(object):
                             width[0]:width[1], 2::-1] = frames[-1]
 
             for information in extra_info_dict.values():
+                if 'pos_ratio' not in information:
+                    continue
                 pos = get_pos(*information['pos_ratio'])
                 value = information[title]
                 if isinstance(value, list):
@@ -221,19 +316,34 @@ class VideoRecorder(object):
                         self._put_text(timestep, text, pos)
                 else:
                     text = information['text_function'](value)
-                    for timestep in range(len(self.background)):
-                        self._put_text(timestep, text, pos)
+                    self._put_text(None, text, pos)
 
+        # self._add_things_on_backgaround(frames_dict)
         return self.background
 
     def generate_video(self, frames_dict, extra_info_dict):
         """Render the given `env` and add the resulting frame to the video."""
         logger.debug('Capturing video frame: path=%s', self.path)
 
+        # assert isinstance(frames_dict, OrderedDict)
+        # first_row = next(iter(frames_dict.values()))
+        # assert isinstance(first_row, OrderedDict)
+
+        # frames_dict = {VIDEO_NAME: {
+        #       'frames': FRAME,
+        #       'pos': (ROW, COL)
+        #   },
+        # ...,
+        #       "row_names": [ROW1, ROW2, ..],
+        #       "col_names": [COL1, COL2, ..],
+        #       "frame_info": {'width':.., "height":.., }
+        # }
+
         if not self.initialized:
-            tmp_frame = list(frames_dict.values())[0][0]
-            self.width = tmp_frame.shape[1]
-            self.height = tmp_frame.shape[0]
+            info = extra_info_dict['frame_info']
+            # tmp_frame = list(frames_dict.values())[0][0]
+            self.width = info['width']
+            self.height = info['height']
             self._build_frame_range()
             self.initialized = True
 
@@ -279,24 +389,40 @@ class VideoRecorder(object):
         def center_range(center, rang):
             return [int(center - rang / 2), int(center + rang / 2)]
 
+        specify_grids = not isinstance(self.grids, int)
+        num_envs = self.grids if not specify_grids else \
+            self.grids['row'] * self.grids['col']
+
+        # if not specify_grids:
         wv_over_wf = VIDEO_WIDTH / self.width
         hv_over_hf = VIDEO_HEIGHT / self.height
         for potential in np.arange(1, 0, -0.01):
             # potential = 1, 0.9, ...
-            if floor(wv_over_wf / potential) * floor(hv_over_hf / potential
-                                                     ) >= self.num_envs:
-                break
+            if specify_grids:
+                if wv_over_wf / potential >= self.grids['col'] \
+                        and hv_over_hf / potential >= self.grids['col']:
+                    break
+            else:
+                if (floor(wv_over_wf / potential) *
+                        floor(hv_over_hf / potential) >= num_envs):
+                    break
             if potential == 0:
                 raise ValueError()
         scale = potential
 
         assert scale != 0
-        num_rows = int(VIDEO_HEIGHT / floor(self.height * scale))
-        num_cols = int(VIDEO_WIDTH / floor(self.width * scale))
+        if specify_grids:
+            num_rows = self.grids['row']
+            num_cols = self.grids['col']
+        else:
+            num_rows = int(VIDEO_HEIGHT / floor(self.height * scale))
+            num_cols = int(VIDEO_WIDTH / floor(self.width * scale))
+        self.num_rows = num_rows
+        self.num_cols = num_cols
         frame_width = int(self.width * scale)
         frame_height = int(self.height * scale)
 
-        assert num_rows * num_cols >= self.num_envs
+        assert num_rows * num_cols >= num_envs
         assert num_cols * frame_width <= VIDEO_WIDTH
         assert num_rows * frame_height <= VIDEO_HEIGHT
 
@@ -307,7 +433,7 @@ class VideoRecorder(object):
         height_margin = int(height_margin)
 
         frame_range = []
-        for i in range(self.num_envs):
+        for i in range(num_envs):
             row_id = int(i / num_cols)
             col_id = int(i % num_cols)
 
@@ -318,13 +444,22 @@ class VideoRecorder(object):
                 {
                     "height": [
                         (height_margin + frame_height) * row_id +
-                        height_margin,
-                        (height_margin + frame_height) * (row_id + 1)
+                        height_margin + VIDEO_HEIGHT_EDGE,
+                        (height_margin + frame_height) * (row_id + 1) +
+                        VIDEO_HEIGHT_EDGE
                     ],
                     "width": [
-                        (width_margin + frame_width) * col_id + width_margin,
-                        (width_margin + frame_width) * (col_id + 1)
-                    ]
+                        (width_margin + frame_width) * col_id +
+                        width_margin + VIDEO_WIDTH_EDGE,
+                        (width_margin + frame_width) * (col_id + 1) +
+                        VIDEO_WIDTH_EDGE
+                    ],
+                    "column":
+                    col_id,
+                    "row":
+                    row_id,
+                    "index":
+                    i
                 }
             )
         self.frame_range = frame_range

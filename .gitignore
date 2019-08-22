@@ -1,2 +1,5 @@
 .idea
-.data
+data/
+*.mp4
+__pycache__/
+/data/
