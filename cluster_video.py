@@ -28,7 +28,6 @@ def _transform_name_ckpt_mapping(
     # 1. re-order the OrderedDict
     # 2. add distance information in name
     clusters = set([c_info['cluster'] for c_info in prediction.values()])
-    num_clusters = len(clusters)
 
     new_name_ckpt_mapping = OrderedDict()
 
@@ -86,7 +85,6 @@ def generate_video_of_cluster(
         num_workers=5
 ):
     """
-
     :param prediction: dict
             key: agent name,
             val: cluster_dict={"distance":float, "cluster":int, "name":str}
@@ -114,8 +112,6 @@ def generate_video_of_cluster(
         local_mode=local_mode
     )
 
-    # name_col_mapping = _build_name_col_mapping(prediction)
-    # name_row_mapping = _build_name_row_mapping(prediction)
     new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
         name_col_mapping = _transform_name_ckpt_mapping(
             name_ckpt_mapping, prediction, max_num_cols=max_num_cols

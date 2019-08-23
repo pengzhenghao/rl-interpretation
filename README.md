@@ -58,9 +58,9 @@ data_frame_dict, representation_dict = get_fft_representation(
 #### Generate dataframe for clustering
 
 ```python
-from process_fft import parse_result_single_method
+from process_fft import parse_representation_dict
 
-cluster_df = parse_result_single_method(
+cluster_df = parse_representation_dict(
             representation_dict, 
   	        padding="fix",
   			padding_length=500,
@@ -132,6 +132,7 @@ cluster_findr_dict = get_fft_cluster_finder(
         env_name,
         env_maker,
         run_name,
+  			normalize="range"/"std"/False,
         num_agents=None,
         num_seeds=1,
         num_rollouts=100,
@@ -223,6 +224,55 @@ python process_data.py \
 --exp-names 0811-0to50and100to300 0811-50to100 \
 --algo-name PPO \
 --output-path data/300-ppo.yaml
+```
+
+
+
+## FFT-representation Pipeline
+
+```python
+### Useful Variables ###
+NUM_SEEDS = 1 # TODO 应该更大！！！
+NUM_ROLLOUTS = 100 # TODO 应该更大！！！！
+NUM_AGENTS = 300
+SAMPLE_MODE = "top"
+NUM_WORKER = 10
+NORMALIZE = "range"
+ENV_NAME = "BipedalWalker-v2"
+RUN_NAME = "PPO"
+DEFAULT_CONFIG = {}
+YAML_PATH = "data/300-agents-ppo.yaml"
+
+from gym.envs.box2d import BipedalWalker
+from process_fft import get_fft_cluster_finder
+
+env_maker = BipedalWalker
+
+cluster_finder_dict = get_fft_cluster_finder(
+    YAML_PATH,
+    ENV_NAME,
+    env_maker,
+    RUN_NAME,
+  	NORMALIZE,
+    NUM_AGENTS,
+    NUM_SEEDS,
+    NUM_ROLLOUTS,
+    show=True
+)
+
+best_k_dict = {
+    "nostd_cluster_finder": 5,
+    "std_cluster_finder": 5
+}
+
+prediction_dict = {}
+for name, cluster_finder in cluster_finder_dict.items():
+    best_k = best_k_dict[name]
+    cluster_finder.set(best_k)
+    prediction = cluster_finder.predict()
+    prediction_dict[name] = prediction
+    
+
 ```
 
 

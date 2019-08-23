@@ -290,7 +290,7 @@ def get_fft_representation(
         num_seeds,
         num_rollouts,
         stack=False,
-        normalize=True,
+        normalize="range",
         num_worker=10
 ):
     initialize_ray()
@@ -430,6 +430,7 @@ def get_fft_cluster_finder(
         env_name,
         env_maker,
         run_name,
+        normalize,
         num_agents=None,
         num_seeds=1,
         num_rollouts=100,
@@ -453,7 +454,7 @@ def get_fft_cluster_finder(
 
     data_frame_dict, repr_dict = get_fft_representation(
         name_ckpt_mapping, run_name, env_name, env_maker, num_seeds,
-        num_rollouts
+        num_rollouts, normalize=normalize
     )
     print("Successfully get FFT representation!")
 
