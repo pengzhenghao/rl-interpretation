@@ -274,7 +274,7 @@ class FFTWorker(object):
 
 
 def get_fft_representation(
-        agent_ckpt_dict,
+        name_ckpt_mapping,
         run_name,
         env_name,
         env_maker,
@@ -289,11 +289,11 @@ def get_fft_representation(
     data_frame_dict = {}
     representation_dict = {}
 
-    num_agents = len(agent_ckpt_dict)
+    num_agents = len(name_ckpt_mapping)
 
     num_iteration = int(ceil(num_agents / num_worker))
 
-    agent_ckpt_dict_range = list(agent_ckpt_dict.items())
+    agent_ckpt_dict_range = list(name_ckpt_mapping.items())
     agent_count = 1
     agent_count_get = 1
 

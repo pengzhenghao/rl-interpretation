@@ -2,7 +2,57 @@
 
 :fountain_pen: Peng Zhenghao
 
-:spiral_calendar: Aug 22, 2019
+:spiral_calendar: Aug 23, 2019
+
+
+
+## Cheetsheets
+
+#### Generate YAML files from a batch of trained agents
+
+```python
+from process_data import generate_yaml
+generate_yaml(
+  exp_names=["0811-0to50and100to300", "0811-50to100"],
+	algo_name="PPO",
+  output_path="data/300-ppo.yaml"
+)
+```
+
+
+
+#### Read from YAML files
+
+```python
+from process_data import read_yaml, get_name_ckpt_mapping
+read_yaml(ckpt, number=None, mode='top')
+# get_name_ckpt_mapping = read_yaml
+```
+
+
+
+
+
+#### Generate FFT representation
+
+```python
+from process_fft import get_fft_representation
+get_fft_representation(
+        agent_ckpt_dict,
+        run_name,
+        env_name,
+        env_maker,
+        num_seeds,
+        num_rollouts,
+        stack=False,
+        normalize=True,
+        num_worker=10
+)
+```
+
+
+
+### 
 
 
 
@@ -58,6 +108,8 @@ python process_data.py \
 --algo-name PPO \
 --output-path data/300-ppo.yaml
 ```
+
+
 
 
 
