@@ -1,4 +1,5 @@
 import copy
+import time
 from math import ceil
 
 import numpy as np
@@ -297,6 +298,7 @@ def get_fft_representation(
     agent_count_get = 1
 
     workers = [FFTWorker.remote() for _ in range(num_worker)]
+    now_t_get = now_t = start_t = time.time()
 
     for iteration in range(num_iteration):
         start = iteration * num_worker
@@ -320,8 +322,16 @@ def get_fft_representation(
                 normalize=normalize,
                 _extra_name="[{}/{}] ".format(agent_count, num_agents)
             )
-
+            print(
+                "[{}/{}] (+{}s/{}s) Start collecting data from agent <{}>".
+                format(
+                    agent_count_get, num_agents,
+                    time.time() - now_t,
+                    time.time() - start_t, name
+                )
+            )
             agent_count += 1
+            now_t = time.time()
 
             df_obj_ids.append(df_obj_id)
             rep_obj_ids.append(rep_obj_id)
@@ -334,11 +344,14 @@ def get_fft_representation(
             del df
             del rep
             print(
-                "[{}/{}] Got data from agent <{}>".format(
-                    agent_count_get, num_agents, name
+                "[{}/{}] (+{}s/{}s) Got data from agent <{}>".format(
+                    agent_count_get, num_agents,
+                    time.time() - now_t_get,
+                    time.time() - start, name
                 )
             )
             agent_count_get += 1
+            now_t_get = time.time()
     return data_frame_dict, representation_dict
 
 
