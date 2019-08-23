@@ -73,14 +73,15 @@ def stack_fft(obs, act, normalize, use_log=True):
     return pandas.DataFrame(result)
 
 
-def get_representation(data_frame):
+def get_representation(data_frame, label_list, postprocess):
     multi_index_series = data_frame.groupby(["label", 'frequency'])
-    mean = multi_index_series.mean().value.reset_index()
-    std = multi_index_series.std().value.reset_index()
-
-    # mean.groupby("label").get_group(label).value
-
-    return mean.copy(), std.copy()
+    mean = multi_index_series.mean().value
+    groupby = mean.groupby("label")
+    channel_reprs = []
+    for label in label_list:
+        channel_reprs.append(postprocess(groupby.get_group(label).to_numpy()))
+    ret = np.concatenate(channel_reprs)
+    return ret
 
 
 @ray.remote
@@ -92,17 +93,48 @@ class FFTWorker(object):
         self.env_maker = None
         self.worker_name = "Untitled Worker"
         self.initialized = False
+        self.postprocess_func = lambda x: x
+        self.padding_value = None
 
     @ray.method(num_return_vals=0)
     def reset(
-            self, run_name, ckpt, env_name, env_maker, agent_name, worker_name
+            self,
+            run_name,
+            ckpt,
+            env_name,
+            env_maker,
+            agent_name,
+            padding=None,
+            padding_length=None,
+            padding_value=None,
+            worker_name=None,
     ):
         self.initialized = True
         self.agent = restore_agent(run_name, ckpt, env_name)
         self.env_maker = env_maker
         self.agent_name = agent_name
         self._num_steps = None
-        self.worker_name = worker_name
+        self.worker_name = worker_name or "Untitled Worker"
+
+        if padding is not None:
+            assert padding_value is not None
+            assert padding_length is not None
+
+            def pad(vec):
+                vec = np.asarray(vec)
+                assert vec.ndim == 1
+                vec[np.isnan(vec)] = padding_value
+                back = np.empty((padding_length, ))
+                back.fill(padding_value)
+                end = min(len(vec), padding_length)
+                back[:end] = vec[:end]
+                return back
+
+            self.postprocess_func = pad
+        else:
+            self.postprocess_func = lambda x: x
+
+        self.padding_value = padding_value
         print("{} is reset!".format(worker_name))
 
     def _rollout(self, env):
@@ -169,10 +201,8 @@ class FFTWorker(object):
             num_seeds,
             num_rollouts,
             stack=False,
-            clip=None,
             normalize="range",
             log=True,
-            fillna=0,
             _num_steps=None,
             _extra_name=""
     ):
@@ -220,12 +250,18 @@ class FFTWorker(object):
                 data_frame = df
             else:
                 data_frame = data_frame.append(df, ignore_index=True)
-        # print("df shape", data_frame.shape)
-        if clip:
-            pass
-            # TODO
-        data_frame.fillna(fillna, inplace=True)
-        return data_frame.copy(), get_representation(data_frame)
+
+        if self.padding_value is not None:
+            data_frame.fillna(self.padding_value, inplace=True)
+
+        label_list = sorted(
+            data_frame.label.unique(),
+            key=lambda s: int(s[4:]) + (-1e6 if s.startswith('Obs') else +1e6)
+        )
+        repr_dict = get_representation(
+            data_frame, label_list, self.postprocess_func
+        )
+        return data_frame.copy(), repr_dict
 
 
 def get_fft_representation(
@@ -235,6 +271,9 @@ def get_fft_representation(
         env_maker,
         num_seeds,
         num_rollouts,
+        padding="fix",
+        padding_length=500,
+        padding_value=0,
         stack=False,
         normalize="range",
         num_worker=10
@@ -267,6 +306,9 @@ def get_fft_representation(
                 env_name=env_name,
                 env_maker=env_maker,
                 agent_name=name,
+                padding=padding,
+                padding_length=padding_length,
+                padding_value=padding_value,
                 worker_name="Worker{}".format(i)
             )
 
@@ -278,8 +320,8 @@ def get_fft_representation(
                 _extra_name="[{}/{}] ".format(agent_count, num_agents)
             )
             print(
-                "[{}/{}] (+{:.1f}s/{:.1f}s) Start collecting data from agent <{}>".
-                format(
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Start collecting data from agent "
+                "<{}>".format(
                     agent_count_get, num_agents,
                     time.time() - now_t,
                     time.time() - start_t, name
@@ -310,68 +352,9 @@ def get_fft_representation(
     return data_frame_dict, representation_dict
 
 
-def parse_representation_dict(
-        representation_dict,
-        padding="fix",
-        padding_length=None,
-        padding_value=None
-):
-    data_frame = None
-    for agent_name, rep_dict in representation_dict.items():
-        df = rep_dict[0]
-        df['agent'] = agent_name
-        if data_frame is None:
-            data_frame = df
-        else:
-            data_frame = data_frame.append(df, ignore_index=True)
-
-    agent_list = data_frame.agent.unique()
-    label_list = data_frame.label.unique()
-
-    label_list = sorted(
-        label_list,
-        key=lambda s: int(s[4:]) + (-1e6 if s.startswith('Obs') else +1e6)
-    )
-    # ['Obs 0', 'Obs 1', 'Obs 2', 'Obs 3', 'Obs 4', 'Obs 5', 'Obs 6',
-    # 'Obs 7', 'Obs 8', 'Obs 9', 'Obs 10', 'Obs 11', 'Obs 12', 'Obs 13',
-    # 'Obs 14', 'Obs 15', 'Obs 16', 'Obs 17', 'Obs 18', 'Obs 19', 'Obs 20',
-    # 'Obs 21', 'Obs 22', 'Obs 23', 'Act 0', 'Act 1', 'Act 2', 'Act 3']
-
-    filled_dict = {}
-    filled_flat_dict = {}
-
-    if padding == 'fix':
-        assert padding_length is not None
-        assert padding_value is not None
-
-        def pad(vec):
-            vec = np.asarray(vec)
-            assert vec.ndim == 1
-            vec[np.isnan(vec)] = padding_value
-            back = np.empty((padding_length, ))
-            back.fill(padding_value)
-            end = min(len(vec), padding_length)
-            back[:end] = vec[:end]
-            return back
-    else:
-        raise NotImplementedError("Only support fix padding now.")
-
-    for agent in agent_list:
-        arr_list = []
-        for label in label_list:
-            mask = (data_frame.agent == agent) & (data_frame.label == label)
-            array = data_frame.value[mask].to_numpy()
-            array = pad(array)
-            arr_list.append(array)
-        filled_dict[agent] = arr_list
-        filled_flat_dict[agent] = np.concatenate(arr_list)
-        print("Finished parse data of agent <{}>".format(agent))
-
-
-
-    cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
-    # cluster_df means a matrix each row is an agent representation.
-    return cluster_df.copy()
+def parse_representation_dict(representation_dict, *args, **kwargs):
+    cluster_df = pandas.DataFrame.from_dict(representation_dict).T
+    return cluster_df
 
 
 def get_fft_cluster_finder(
@@ -415,7 +398,9 @@ def get_fft_cluster_finder(
     )
     print("Successfully get FFT representation!")
 
-    cluster_df = parse_representation_dict(repr_dict, padding, padding_length, padding_value)
+    cluster_df = parse_representation_dict(
+        repr_dict, padding, padding_length, padding_value
+    )
     print("Successfully get cluster dataframe!")
 
     # Store
@@ -443,9 +428,9 @@ def get_fft_cluster_finder(
 
     ret = {
         "cluster_finder": {
-        'nostd_cluster_finder': nostd_cluster_finder,
-        "std_cluster_finder": std_cluster_finder
-    },
+            'nostd_cluster_finder': nostd_cluster_finder,
+            "std_cluster_finder": std_cluster_finder
+        },
         "prefix": prefix
     }
 
@@ -455,18 +440,21 @@ def get_fft_cluster_finder(
 if __name__ == '__main__':
     from gym.envs.box2d import BipedalWalker
 
-    initialize_ray(True)
+    initialize_ray(False)
 
-    fft_worker = FFTWorker.remote(
+    fft_worker = FFTWorker.remote()
+    fft_worker.reset.remote(
         "PPO",
         "~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08"
         "-10_15-21-164grca382/checkpoint_313/checkpoint-313",
-        "BipedalWalker-v2", BipedalWalker, "TEST_AGENT"
+        "BipedalWalker-v2", BipedalWalker, "TEST_AGENT", "fix", 500, 0
     )
 
-    oid1, oid2 = fft_worker.fft.remote(2, 2, False)
+    oid1, oid2 = fft_worker.fft.remote(2, 2, False, _num_steps=10)
 
     df = ray.get(oid1)
     rep = ray.get(oid2)
+
+    print("Stop")
 
     # ray.shutdown()
