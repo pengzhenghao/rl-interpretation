@@ -21,7 +21,7 @@ def _build_name_col_mapping(cluster_dict):
     return None
 
 
-def transform_name_ckpt_mapping(
+def _transform_name_ckpt_mapping(
         name_ckpt_mapping, cluster_dict, max_num_cols=10
 ):
     # Function:
@@ -101,7 +101,7 @@ def generate_video_of_cluster(
     # name_col_mapping = _build_name_col_mapping(cluster_dict)
     # name_row_mapping = _build_name_row_mapping(cluster_dict)
     new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
-    name_col_mapping = transform_name_ckpt_mapping(
+    name_col_mapping = _transform_name_ckpt_mapping(
         name_ckpt_mapping, cluster_dict, max_num_cols=max_num_cols
     )
 
