@@ -2,6 +2,7 @@
 from collections import OrderedDict
 
 from record_video import GridVideoRecorder
+from process_data import get_name_ckpt_mapping
 
 
 def _build_name_row_mapping(cluster_dict):
@@ -74,12 +75,13 @@ def _transform_name_ckpt_mapping(
 
 def generate_video_of_cluster(
         prediction,
-        name_ckpt_mapping,
-        video_path,
         env_name,
         run_name,
-        max_num_cols=10,
+        num_agents,
+        yaml_path,
+        video_predix,
         seed=0,
+        max_num_cols=8,
         local_mode=False,
         steps=int(1e10),
         num_workers=5
@@ -99,14 +101,18 @@ def generate_video_of_cluster(
     :param num_workers:
     :return:
     """
+    name_ckpt_mapping = get_name_ckpt_mapping(yaml_path, num_agents)
+
     assert isinstance(prediction, dict)
     assert isinstance(name_ckpt_mapping, dict)
     for key, val in prediction.items():
         assert key in name_ckpt_mapping
         assert isinstance(val, dict)
 
+    assert env_name == "BipedalWalker-v2", "We only support BipedalWalker-v2 currently!"
+
     gvr = GridVideoRecorder(
-        video_path=video_path,
+        video_path=video_predix,
         env_name=env_name,
         run_name=run_name,
         local_mode=local_mode

@@ -106,16 +106,17 @@ prediction = cluster_finder.predict()
 from cluster_video import generate_video_of_cluster
 generate_video_of_cluster(
         prediction,
-        name_ckpt_mapping,
-        video_path,
         env_name,
         run_name,
-        max_num_cols=10,
+        num_agents,
+        yaml_path,
+        video_predix,
         seed=0,
+        max_num_cols=8,
         local_mode=False,
         steps=int(1e10),
         num_workers=5
-)		# Return None
+)
 ```
 
 
@@ -245,6 +246,7 @@ YAML_PATH = "data/300-agents-ppo.yaml"
 
 from gym.envs.box2d import BipedalWalker
 from process_fft import get_fft_cluster_finder
+from cluster_video import generate_video_of_cluster
 
 env_maker = BipedalWalker
 
@@ -272,7 +274,15 @@ for name, cluster_finder in cluster_finder_dict.items():
     prediction = cluster_finder.predict()
     prediction_dict[name] = prediction
     
-
+for name, prediction in prediction_dict.items():
+    generate_video_of_cluster(
+        prediction,
+        ENV_NAME,
+        RUN_NAME,
+        NUM_AGENTS,
+        YAML_PATH,
+        video_predix="data/xxx",
+    )
 ```
 
 

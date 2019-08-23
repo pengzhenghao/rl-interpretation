@@ -453,8 +453,13 @@ def get_fft_cluster_finder(
     )
 
     data_frame_dict, repr_dict = get_fft_representation(
-        name_ckpt_mapping, run_name, env_name, env_maker, num_seeds,
-        num_rollouts, normalize=normalize
+        name_ckpt_mapping,
+        run_name,
+        env_name,
+        env_maker,
+        num_seeds,
+        num_rollouts,
+        normalize=normalize
     )
     print("Successfully get FFT representation!")
 

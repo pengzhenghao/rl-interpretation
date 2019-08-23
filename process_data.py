@@ -149,8 +149,8 @@ def get_sorted_trial_ckpt_list(
     return results
 
 
-def read_yaml(ckpt, number=None, mode='top'):
-    with open(ckpt, 'r') as f:
+def read_yaml(yaml_path, number=None, mode='top'):
+    with open(yaml_path, 'r') as f:
         name_ckpt_list = yaml.safe_load(f)
     name_ckpt_mapping = make_ordereddict(name_ckpt_list, number, mode)
     return name_ckpt_mapping
