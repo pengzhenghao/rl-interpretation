@@ -40,10 +40,13 @@ def stack_fft(obs, act, normalize, use_log=True):
             obs = MinMaxScaler().fit_transform(obs)
             act = MinMaxScaler().fit_transform(act)
 
-    parse = lambda x: np.log(x + 1e-12) if use_log else lambda x: x
+    def parse(x):
+        if use_log:
+            return np.log(x + 1e-12)
+        else:
+            return x
 
     result = {}
-
     data_col = []
     label_col = []
     frequency_col = []
@@ -52,7 +55,6 @@ def stack_fft(obs, act, normalize, use_log=True):
     for ind, y in enumerate(obs.T):
         yf2 = compute_fft(y)
         yf2 = parse(yf2)
-
         data_col.append(yf2)
         label_col.extend(["Obs {}".format(ind)] * len(yf2))
         frequency_col.append(np.arange(len(yf2)))
@@ -60,7 +62,6 @@ def stack_fft(obs, act, normalize, use_log=True):
     for ind, y in enumerate(act.T):
         yf2 = compute_fft(y)
         yf2 = parse(yf2)
-
         data_col.append(yf2)
         label_col.extend(["Act {}".format(ind)] * len(yf2))
         frequency_col.append(np.arange(len(yf2)))
@@ -86,16 +87,18 @@ class FFTWorker(object):
         self.agent = None
         self.agent_name = None
         self.env_maker = None
+        self.worker_name = "Untitled Worker"
 
     @ray.method(num_return_vals=0)
     def reset(
-            self, run_name, ckpt, env_name, env_maker, agent_name, extra_name
+            self, run_name, ckpt, env_name, env_maker, agent_name, worker_name
     ):
         self.agent = restore_agent(run_name, ckpt, env_name)
         self.env_maker = env_maker
         self.agent_name = agent_name
         self._num_steps = None
-        print("{} is reset!".format(extra_name))
+        self.worker_name = worker_name
+        print("{} is reset!".format(worker_name))
 
     def _rollout(self, env):
         ret = rollout(
@@ -127,8 +130,8 @@ class FFTWorker(object):
         act_list = []
         for i in range(num_rollouts):
             print(
-                "Agent {}<{}>, Seed {}, Rollout {}/{}".format(
-                    _extra_name, self.agent_name,
+                "({}) Agent {}<{}>, Seed {}, Rollout {}/{}".format(
+                    self.worker_name, _extra_name, self.agent_name,
                     seed if _num_seeds is None else
                     "No.{}/{} (Real: {})".format(seed + 1, _num_seeds, seed),
                     i, num_rollouts
@@ -258,7 +261,7 @@ def get_fft_representation(
                 env_name=env_name,
                 env_maker=env_maker,
                 agent_name=name,
-                extra_name="Worker{}".format(i)
+                worker_name="Worker{}".format(i)
             )
 
             df_obj_id, rep_obj_id = workers[i].fft.remote(
