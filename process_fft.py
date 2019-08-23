@@ -272,7 +272,7 @@ def get_fft_representation(
                 _extra_name="[{}/{}] ".format(agent_count, num_agents)
             )
             print(
-                "[{}/{}] (+{}s/{}s) Start collecting data from agent <{}>".
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Start collecting data from agent <{}>".
                 format(
                     agent_count_get, num_agents,
                     time.time() - now_t,
@@ -293,7 +293,7 @@ def get_fft_representation(
             del df
             del rep
             print(
-                "[{}/{}] (+{}s/{}s) Got data from agent <{}>".format(
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Got data from agent <{}>".format(
                     agent_count_get, num_agents,
                     time.time() - now_t_get,
                     time.time() - start, name
@@ -374,6 +374,9 @@ def get_fft_cluster_finder(
         num_agents=None,
         num_seeds=1,
         num_rollouts=100,
+        padding="fix",
+        padding_length=500,
+        padding_value=0,
         show=False
 ):
     assert yaml_path.endswith('yaml')
@@ -403,7 +406,7 @@ def get_fft_cluster_finder(
     )
     print("Successfully get FFT representation!")
 
-    cluster_df = parse_representation_dict(repr_dict)
+    cluster_df = parse_representation_dict(repr_dict, padding, padding_length, padding_value)
     print("Successfully get cluster dataframe!")
 
     # Store
@@ -429,10 +432,15 @@ def get_fft_cluster_finder(
         format(std_fig_path)
     )
 
-    return {
+    ret = {
+        "cluster_finder": {
         'nostd_cluster_finder': nostd_cluster_finder,
         "std_cluster_finder": std_cluster_finder
+    },
+        "prefix": prefix
     }
+
+    return ret
 
 
 if __name__ == '__main__':

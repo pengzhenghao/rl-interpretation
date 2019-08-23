@@ -19,7 +19,7 @@ def score(cluster_df, fit_list):
 
 def display(search_range, cost, log=True, save=False, show=True):
     process = np.log if log else lambda x: x
-    plt.figure(figsize=(max(search_range), 10))
+    plt.figure(figsize=(np.sqrt(max(search_range))+10, 10))
 
     cost_list = [cost[i] for i in search_range]
 
@@ -39,6 +39,10 @@ def display(search_range, cost, log=True, save=False, show=True):
     if show:
         plt.show()
 
+
+def reduce_dimension(data_frame):
+    assert data_frame.ndim==2
+    return data_frame
 
 class ClusterFinder(object):
     def __init__(self, cluster_df, max_num_cluster=None, standardize=True):
@@ -86,3 +90,13 @@ class ClusterFinder(object):
             assert isinstance(save, str)
             assert save.endswith('png')
         display(self.search_range, cost, log, save, show)
+
+    def visualize(self, three_dimension=False):
+        # Should show the 2D or 3D embedding of the representation.
+        reduced = reduce_dimension(self.cluster_df)
+        assert reduced.ndim == 2
+        assert reduced.shape[1] == (3 if three_dimension else 2)
+
+
+
+
