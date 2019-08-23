@@ -6,12 +6,12 @@ import numpy as np
 import pandas
 import ray
 from scipy.fftpack import fft
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from process_cluster import ClusterFinder
 from process_data import get_name_ckpt_mapping
 from rollout import rollout
 from utils import restore_agent, initialize_ray, get_random_string
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
 def compute_fft(y):
@@ -58,7 +58,7 @@ def stack_fft(obs, act, normalize, use_log=True):
         frequency_col.append(np.arange(len(yf2)))
 
     for ind, y in enumerate(act.T):
-        yf2 = compute_fft(y, normalize)
+        yf2 = compute_fft(y)
         yf2 = parse(yf2)
 
         data_col.append(yf2)
@@ -72,14 +72,16 @@ def stack_fft(obs, act, normalize, use_log=True):
     return pandas.DataFrame(result)
 
 
+def get_representation(data_frame):
+    multi_index_series = data_frame.groupby(["label", 'frequency'])
+    mean = multi_index_series.mean().value.reset_index()
+    std = multi_index_series.std().value.reset_index()
+    return mean.copy(), std.copy()
+
+
 @ray.remote
 class FFTWorker(object):
     def __init__(self):
-        # def __init__(self, run_name, ckpt, env_name, env_maker, agent_name):
-        # restore an agent here
-        # self.agent = restore_agent(run_name, ckpt, env_name)
-        # self.env_maker = env_maker
-        # self.agent_name = agent_name
         self._num_steps = None
         self.agent = None
         self.agent_name = None
@@ -94,46 +96,6 @@ class FFTWorker(object):
         self.agent_name = agent_name
         self._num_steps = None
         print("{} is reset!".format(extra_name))
-        # self.agent = None
-        # self.agent_name = None
-
-    def _get_representation1(self, df):
-        # M sequence whose length is NL
-        multi_index_series = df.groupby(["label", 'rollout', 'frequency'])
-        mean = multi_index_series.mean().value.reset_index()
-        std = multi_index_series.std().value.reset_index()
-        return mean.copy(), std.copy()
-
-    def _get_representation2(self, df):
-        # MN sequence whose length is L
-        multi_index_series = df.groupby(["label", 'frequency'])
-        mean = multi_index_series.mean().value.reset_index()
-        std = multi_index_series.std().value.reset_index()
-        return mean.copy(), std.copy()
-
-    def _get_representation3(self, df):
-        # M sequence which are averaged sequence (length L) across N
-        n_averaged = df.groupby(['label', 'frequency', 'seed']).mean().value
-        # now n_averaged looks like:
-        """
-                            value  rollout
-        frequency seed                   
-        0         0    -0.850097        2
-                  1    -0.812924        2
-                  2    -0.810672        2
-        1         0    -2.704238        2
-                  1    -2.565724        2
-                          ...      ...
-        48        1    -5.055128        2
-                  2    -5.066221        2
-        49        0    -4.989105        2
-                  1    -5.000202        2
-                  2    -5.088004        2
-        [150 rows x 2 columns]
-        """
-        mean = n_averaged.mean(level=['label', 'frequency']).reset_index()
-        std = n_averaged.std(level=['label', 'frequency']).reset_index()
-        return mean.copy(), std.copy()
 
     def _rollout(self, env):
         ret = rollout(
@@ -192,31 +154,6 @@ class FFTWorker(object):
         data_frame.insert(data_frame.shape[1], "agent", self.agent_name)
         data_frame.insert(data_frame.shape[1], "seed", seed)
         return data_frame
-
-    def _get_representation(self, data_frame, stack):
-        representation_form = {
-            # M sequence whose length is NL
-            "M_sequenceNL": self._get_representation1,
-            # MN sequence whose length is L
-            "MN_sequenceL": self._get_representation2,
-            # M sequence which are averaged sequence (length L) across N
-            "M_N_sequenceL": self._get_representation3
-        }
-
-        # label_list = data_frame.label.unique()
-        # result_dict = {}
-        # for label in label_list:
-        #     df = data_frame[data_frame.label==label]
-        if stack:
-            rep = representation_form['M_sequenceNL'](data_frame)
-            return {"M_sequenceNL": rep}
-        else:
-            result = {}
-            for key in ['MN_sequenceL', "M_N_sequenceL"]:
-                rep = representation_form[key](data_frame)
-                result[key] = rep
-            return result
-            # return result_dict
 
     @ray.method(num_return_vals=2)
     def fft(
@@ -279,7 +216,7 @@ class FFTWorker(object):
             pass
             # TODO
         data_frame.fillna(fillna, inplace=True)
-        return data_frame.copy(), self._get_representation(data_frame, stack)
+        return data_frame.copy(), get_representation(data_frame)
 
 
 def get_fft_representation(
