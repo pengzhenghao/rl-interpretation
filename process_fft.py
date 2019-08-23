@@ -11,6 +11,7 @@ from process_data import get_name_ckpt_mapping
 from rollout import rollout
 from utils import restore_agent, initialize_ray, get_random_string
 
+
 def compute_fft(y, normalize=True, normalize_max=None, normalize_min=None):
     y = np.asarray(y)
     assert y.ndim == 1
@@ -371,7 +372,7 @@ def parse_result_single_method(
             vec = np.asarray(vec)
             assert vec.ndim == 1
             vec[np.isnan(vec)] = val
-            back = np.empty((length, ))
+            back = np.empty((length,))
             back.fill(val)
             end = min(len(vec), length)
             back[:end] = vec[:end]
@@ -425,6 +426,13 @@ def get_fft_cluster_finder(
     print("Successfully loaded name_ckpt_mapping!")
 
     num_agents = num_agents or len(name_ckpt_mapping)
+    # prefix: data/XXX_10agent_100rollout_1seed_28sm29sk
+    prefix = "".join([
+        yaml_path.split('.yaml')[0],
+        "_{}agents_{}rollout_{}seed_{}".format(
+            num_agents, num_rollouts, num_seeds, get_random_string())
+    ])
+
     data_frame_dict, repr_dict = get_fft_representation(
         name_ckpt_mapping, run_name, env_name, env_maker, num_seeds,
         num_rollouts
@@ -436,22 +444,17 @@ def get_fft_cluster_finder(
 
     # Store
     assert isinstance(cluster_df, pandas.DataFrame)
-    cluster_df.to_pickle(yaml_path.replace("yaml", 'pkl'))
+    cluster_df.to_pickle(prefix + '.pkl')
     print("Successfully store cluster_df!")
 
     # Cluster
     nostd_cluster_finder = ClusterFinder(cluster_df, standardize=False)
-    nostd_fig_path = "".join([
-        yaml_path.split('.yaml')[0],
-        "_nostd_{}agents_{}rollout_{}seed_{}".format(
-            num_agents, num_rollouts, num_seeds, get_random_string()),
-        ".png"
-        ])
+    nostd_fig_path = prefix + '_nostd.png'
     nostd_cluster_finder.display(save=nostd_fig_path, show=show)
     print("Successfully finish no-standardized clustering!")
 
     std_cluster_finder = ClusterFinder(cluster_df, standardize=True)
-    std_fig_path = yaml_path.split('.yaml')[0] + "_nostd" + ".png"
+    std_fig_path = prefix + "_std.png"
     std_cluster_finder.display(save=std_fig_path, show=show)
     print("Successfully finish standardized clustering!")
 
