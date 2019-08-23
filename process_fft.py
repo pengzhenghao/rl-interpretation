@@ -344,7 +344,7 @@ def get_fft_representation(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Got data from agent <{}>".format(
                     agent_count_get, num_agents,
                     time.time() - now_t_get,
-                    time.time() - start, name
+                    time.time() - start_t, name
                 )
             )
             agent_count_get += 1

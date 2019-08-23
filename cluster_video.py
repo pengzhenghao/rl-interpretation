@@ -161,12 +161,6 @@ if __name__ == '__main__':
         }
 
     generate_video_of_cluster(
-        prediction=fake_prediction,
-        name_ckpt_mapping=name_ckpt_mapping,
-        video_path="data/0811-random-test",
-        env_name="BipedalWalker-v2",
-        run_name="PPO",
-        seed=0,
-        local_mode=False,
-        steps=50
+        fake_prediction, "BipedalWalker-v2", "PPO", 2,
+        "data/0811-random-test.yaml", "data/0811-random-test-TMP"
     )

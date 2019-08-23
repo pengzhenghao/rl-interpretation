@@ -674,7 +674,7 @@ def scale_color(color_in_1):
 def restore_agent(run_name, ckpt, env_name, config=None):
     cls = get_agent_class(run_name)
     if config is None:
-        config = build_config(ckpt, {})
+        config = build_config(ckpt, {"num_gpus": 0.15})
     ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
     agent = cls(env=env_name, config=config)
     agent.restore(ckpt)
