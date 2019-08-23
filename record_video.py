@@ -20,7 +20,7 @@ import yaml
 
 from rollout import rollout
 from utils import build_config, VideoRecorder, BipedalWalkerWrapper, \
-    restore_agent
+    restore_agent, initialize_ray
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -143,13 +143,7 @@ class CollectFramesWorker(object):
 
 class GridVideoRecorder(object):
     def __init__(self, video_path, env_name, run_name, local_mode=False):
-
-        ray.init(
-            logging_level=logging.ERROR,
-            log_to_driver=False,
-            ignore_reinit_error=True,
-            local_mode=local_mode
-        )
+        initialize_ray(local_mode)
 
         # single_env = gym.make(env_name)
         self.env_name = env_name

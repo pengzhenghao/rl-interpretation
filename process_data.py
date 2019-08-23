@@ -149,13 +149,14 @@ def get_sorted_trial_ckpt_list(
     return results
 
 
-def read_yaml(ckpt):
+def read_yaml(ckpt, number=None, mode='top'):
     with open(ckpt, 'r') as f:
         name_ckpt_list = yaml.safe_load(f)
-    name_ckpt_mapping = OrderedDict()
-    for d in name_ckpt_list:
-        name_ckpt_mapping[d["name"]] = d["path"]
+    name_ckpt_mapping = make_ordereddict(name_ckpt_list, number, mode)
     return name_ckpt_mapping
+
+
+get_name_ckpt_mapping = read_yaml
 
 
 def generate_yaml(exp_names, algo_name, output_path):

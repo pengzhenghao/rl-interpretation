@@ -13,6 +13,7 @@ from math import floor
 
 import cv2
 import numpy as np
+import ray
 from Box2D.b2 import circleShape
 from gym import logger, error
 from gym.envs.box2d.bipedal_walker import (
@@ -754,3 +755,13 @@ class BipedalWalkerWrapper(BipedalWalker):
         self.viewer.draw_polyline(f + [f[0]], color=(0, 0, 0), linewidth=2)
 
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+
+
+def initialize_ray(local_mode=False):
+    if not ray.is_initialized():
+        ray.init(
+            logging_level=logging.ERROR,
+            log_to_driver=False,
+            local_mode=local_mode
+        )
+        print("Sucessfully initialize Ray!")

@@ -1,11 +1,15 @@
+import copy
+from math import ceil
+
 import numpy as np
 import pandas
 import ray
 from scipy.fftpack import fft
 
-from math import ceil
+from process_cluster import ClusterFinder
+from process_data import get_name_ckpt_mapping
 from rollout import rollout
-from utils import restore_agent
+from utils import restore_agent, initialize_ray
 
 
 def compute_fft(y, normalize=True, normalize_max=None, normalize_min=None):
@@ -279,6 +283,8 @@ def get_fft_representation(
         normalize=True,
         num_worker=10
 ):
+    initialize_ray()
+
     data_frame_dict = {}
     representation_dict = {}
 
@@ -292,15 +298,12 @@ def get_fft_representation(
     workers = [FFTWorker.remote() for _ in range(num_worker)]
 
     for iteration in range(num_iteration):
-        print("We should stop here and wait!")
         start = iteration * num_worker
         end = min((iteration + 1) * num_worker, num_agent)
         df_obj_ids = []
         rep_obj_ids = []
         for i, (name, ckpt) in enumerate(agent_ckpt_dict_range[start:end]):
-            fft_worker = workers[i]
-
-            fft_worker.reset.remote(
+            workers[i].reset.remote(
                 run_name=run_name,
                 ckpt=ckpt,
                 env_name=env_name,
@@ -309,7 +312,7 @@ def get_fft_representation(
                 extra_name="Worker{}".format(i)
             )
 
-            df_obj_id, rep_obj_id = fft_worker.fft.remote(
+            df_obj_id, rep_obj_id = workers[i].fft.remote(
                 num_seeds,
                 num_rollouts,
                 stack,
@@ -324,8 +327,12 @@ def get_fft_representation(
         for df_obj_id, rep_obj_id, (name, _) in zip(
                 df_obj_ids, rep_obj_ids, agent_ckpt_dict_range[start:end]):
             print("Getting data from agent <{}>".format(name))
-            data_frame_dict[name] = ray.get(df_obj_id)
-            representation_dict[name] = ray.get(rep_obj_id)
+            df = ray.get(df_obj_id)
+            rep = ray.get(rep_obj_id)
+            data_frame_dict[name] = copy.deepcopy(df)
+            representation_dict[name] = copy.deepcopy(rep)
+            del df
+            del rep
     return data_frame_dict, representation_dict
 
 
@@ -385,6 +392,7 @@ def parse_result_single_method(
             )
         )
     cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
+    # cluster_df means a matrix each row is an agent representation.
     return cluster_df.copy()
 
 
@@ -399,10 +407,56 @@ def parse_result_all_method(representation_dict, padding='up'):
     return ret
 
 
+def get_fft_cluster_finder(
+        yaml_path,
+        env_name,
+        env_maker,
+        run_name,
+        num_agents=None,
+        num_seeds=1,
+        num_rollouts=100,
+        show=False
+):
+    assert yaml_path.endswith('yaml')
+
+    name_ckpt_mapping = get_name_ckpt_mapping(yaml_path, num_agents)
+    print("Successfully loaded name_ckpt_mapping!")
+
+    data_frame_dict, repr_dict = get_fft_representation(
+        name_ckpt_mapping, run_name, env_name, env_maker, num_seeds,
+        num_rollouts
+    )
+    print("Successfully get FFT representation!")
+
+    cluster_df = parse_result_single_method(repr_dict)
+    print("Successfully get cluster dataframe!")
+
+    # Store
+    assert isinstance(cluster_df, pandas.DataFrame)
+    cluster_df.to_pickle(yaml_path.replace("yaml", 'pkl'))
+    print("Successfully store cluster_df!")
+
+    # Cluster
+    nostd_cluster_finder = ClusterFinder(cluster_df, standardize=False)
+    nostd_fig_path = yaml_path.split('.yaml')[0] + "_nostd" + ".png"
+    nostd_cluster_finder.display(save=nostd_fig_path, show=show)
+    print("Successfully finish no-standardized clustering!")
+
+    std_cluster_finder = ClusterFinder(cluster_df, standardize=False)
+    std_fig_path = yaml_path.split('.yaml')[0] + "_nostd" + ".png"
+    std_cluster_finder.display(save=std_fig_path, show=show)
+    print("Successfully finish standardized clustering!")
+
+    return {
+        'nostd_cluster_finder': nostd_cluster_finder,
+        "std_cluster_finder": std_cluster_finder
+    }
+
+
 if __name__ == '__main__':
     from gym.envs.box2d import BipedalWalker
 
-    ray.init(local_mode=True)
+    initialize_ray(True)
 
     fft_worker = FFTWorker.remote(
         "PPO",

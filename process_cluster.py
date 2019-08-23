@@ -17,7 +17,7 @@ def score(cluster_df, fit_list):
     return cost
 
 
-def display(search_range, cost, log=True):
+def display(search_range, cost, log=True, save=False, show=True):
     process = np.log if log else lambda x: x
     plt.figure(figsize=(max(search_range), 10))
 
@@ -32,11 +32,16 @@ def display(search_range, cost, log=True):
     else:
         plt.title('Cost [Elbow Curve]')
     plt.grid()
-    plt.show()
+    if save:
+        assert isinstance(save, str)
+        assert save.endswith('png')
+        plt.savefig(save, dpi=300)
+    if show:
+        plt.show()
 
 
 class ClusterFinder(object):
-    def __init__(self, cluster_df, max_num_cluster, standardize=True):
+    def __init__(self, cluster_df, max_num_cluster=None, standardize=True):
         assert cluster_df.ndim == 2
         self.keys = cluster_df.index
         if standardize:
@@ -47,7 +52,7 @@ class ClusterFinder(object):
             self.standardized = False
         self.cluster_df = standardized_df
         self.best_k = None
-        self.max_num_cluster = max_num_cluster
+        self.max_num_cluster = max_num_cluster or len(cluster_df)
         self.search_range = range(1, self.max_num_cluster + 1)
         self.fits = cluster(self.cluster_df, self.search_range)
         print(
@@ -75,6 +80,9 @@ class ClusterFinder(object):
     def set(self, k):
         self.best_k = k
 
-    def display(self, log=False):
+    def display(self, log=False, save=False, show=True):
         cost = score(self.cluster_df, self.fits)
-        display(self.search_range, cost, log)
+        if save:
+            assert isinstance(save, str)
+            assert save.endswith('png')
+        display(self.search_range, cost, log, save, show)
