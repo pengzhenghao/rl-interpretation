@@ -58,23 +58,14 @@ data_frame_dict, representation_dict = get_fft_representation(
 #### Generate dataframe for clustering
 
 ```python
-from process_fft import parse_result_single_method, parse_result_all_method
+from process_fft import parse_result_single_method
 
 cluster_df = parse_result_single_method(
-        representation_dict, 
-  			method_name="MN_sequenceL", 
-  			padding="fix",
+            representation_dict, 
+  	        padding="fix",
   			padding_length=500,
   			padding_value=0
 )
-
-method_cluster_dict = parse_result_all_method(
-  			representation_dict, 
-  			padding="fix",
-  			padding_length=500,
-  			padding_value=0
-)
-# method_cluster_dict = key: method name, val: cluster_df
 ```
 
 

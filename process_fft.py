@@ -17,14 +17,6 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 def compute_fft(y):
     y = np.asarray(y)
     assert y.ndim == 1
-    #
-    # if normalize:
-    #     if normalize_min is None:
-    #         normalize_min = y.min()
-    #     if normalize_max is None:
-    #         normalize_max = y.max()
-    #     y = (y - normalize_min) / (normalize_max - normalize_min + 1e-9)
-
     yy = fft(y)
     yf = np.abs(yy)
     yf1 = yf / len(y)
@@ -372,12 +364,15 @@ def get_fft_representation(
     return data_frame_dict, representation_dict
 
 
-def parse_result_single_method(
-        representation_dict, method_name="MN_sequenceL", padding="fix", padding_length=None, padding_value=None
+def parse_representation_dict(
+        representation_dict,
+        padding="fix",
+        padding_length=None,
+        padding_value=None
 ):
     data_frame = None
     for agent_name, rep_dict in representation_dict.items():
-        df = rep_dict[method_name][0]
+        df = rep_dict[0]
         df['agent'] = agent_name
         if data_frame is None:
             data_frame = df
@@ -424,25 +419,10 @@ def parse_result_single_method(
             arr_list.append(array)
         filled_dict[agent] = arr_list
         filled_flat_dict[agent] = np.concatenate(arr_list)
-        print(
-            "Finished parse data of agent <{}> (method {})".format(
-                agent, method_name
-            )
-        )
+        print("Finished parse data of agent <{}>".format(agent))
     cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
     # cluster_df means a matrix each row is an agent representation.
     return cluster_df.copy()
-
-
-def parse_result_all_method(representation_dict, padding='fix', padding_length=None, padding_value=None):
-    method_names = list(next(iter(representation_dict.values())).keys())
-    method_cluster_dict = {}
-    for method in method_names:
-        cluster_df = parse_result_single_method(
-            representation_dict, method, padding, padding_length, padding_value
-        )
-        method_cluster_dict[method] = cluster_df
-    return method_cluster_dict
 
 
 def get_fft_cluster_finder(
@@ -477,7 +457,7 @@ def get_fft_cluster_finder(
     )
     print("Successfully get FFT representation!")
 
-    cluster_df = parse_result_single_method(repr_dict)
+    cluster_df = parse_representation_dict(repr_dict)
     print("Successfully get cluster dataframe!")
 
     # Store
