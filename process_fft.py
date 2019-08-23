@@ -333,8 +333,11 @@ def get_fft_representation(
             representation_dict[name] = copy.deepcopy(rep)
             del df
             del rep
-            print("[{}/{}] Got data from agent <{}>".format(
-                agent_count_get, num_agents, name))
+            print(
+                "[{}/{}] Got data from agent <{}>".format(
+                    agent_count_get, num_agents, name
+                )
+            )
             agent_count_get += 1
     return data_frame_dict, representation_dict
 
@@ -372,7 +375,7 @@ def parse_result_single_method(
             vec = np.asarray(vec)
             assert vec.ndim == 1
             vec[np.isnan(vec)] = val
-            back = np.empty((length,))
+            back = np.empty((length, ))
             back.fill(val)
             end = min(len(vec), length)
             back[:end] = vec[:end]
@@ -427,11 +430,14 @@ def get_fft_cluster_finder(
 
     num_agents = num_agents or len(name_ckpt_mapping)
     # prefix: data/XXX_10agent_100rollout_1seed_28sm29sk
-    prefix = "".join([
-        yaml_path.split('.yaml')[0],
-        "_{}agents_{}rollout_{}seed_{}".format(
-            num_agents, num_rollouts, num_seeds, get_random_string())
-    ])
+    prefix = "".join(
+        [
+            yaml_path.split('.yaml')[0],
+            "_{}agents_{}rollout_{}seed_{}".format(
+                num_agents, num_rollouts, num_seeds, get_random_string()
+            )
+        ]
+    )
 
     data_frame_dict, repr_dict = get_fft_representation(
         name_ckpt_mapping, run_name, env_name, env_maker, num_seeds,
@@ -444,19 +450,26 @@ def get_fft_cluster_finder(
 
     # Store
     assert isinstance(cluster_df, pandas.DataFrame)
-    cluster_df.to_pickle(prefix + '.pkl')
-    print("Successfully store cluster_df!")
+    pkl_path = prefix + '.pkl'
+    cluster_df.to_pickle(pkl_path)
+    print("Successfully store cluster_df! Save at: {}".format(pkl_path))
 
     # Cluster
     nostd_cluster_finder = ClusterFinder(cluster_df, standardize=False)
     nostd_fig_path = prefix + '_nostd.png'
     nostd_cluster_finder.display(save=nostd_fig_path, show=show)
-    print("Successfully finish no-standardized clustering!")
+    print(
+        "Successfully finish no-standardized clustering! Save at: {}".
+        format(nostd_fig_path)
+    )
 
     std_cluster_finder = ClusterFinder(cluster_df, standardize=True)
     std_fig_path = prefix + "_std.png"
     std_cluster_finder.display(save=std_fig_path, show=show)
-    print("Successfully finish standardized clustering!")
+    print(
+        "Successfully finish standardized clustering! Save at: {}".
+        format(std_fig_path)
+    )
 
     return {
         'nostd_cluster_finder': nostd_cluster_finder,

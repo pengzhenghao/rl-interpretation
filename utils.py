@@ -298,11 +298,11 @@ class VideoRecorder(object):
                 frames = np.stack(frames)
 
             self.background[:len(frames), height[0]:height[1], width[0]:
-            width[1], 2::-1] = frames
+                            width[1], 2::-1] = frames
 
             # filled the extra number of frames
             self.background[len(frames):, height[0]:height[1], width[0]:
-            width[1], 2::-1] = frames[-1]
+                            width[1], 2::-1] = frames[-1]
 
             for information in extra_info_dict.values():
                 if 'pos_ratio' not in information:
@@ -462,11 +462,11 @@ class VideoRecorder(object):
                         VIDEO_WIDTH_EDGE
                     ],
                     "column":
-                        col_id,
+                    col_id,
                     "row":
-                        row_id,
+                    row_id,
                     "index":
-                        i
+                    i
                 }
             )
         self.frame_range = frame_range
@@ -524,15 +524,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-                self.backend,
+            self.backend,
             'version':
-                str(
-                    subprocess.check_output(
-                        [self.backend, '-version'], stderr=subprocess.STDOUT
-                    )
-                ),
+            str(
+                subprocess.check_output(
+                    [self.backend, '-version'], stderr=subprocess.STDOUT
+                )
+            ),
             'cmdline':
-                self.cmdline
+            self.cmdline
         }
 
     def start(self):
@@ -581,7 +581,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                    format(type(frame), frame)
+                format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(
@@ -690,7 +690,7 @@ class BipedalWalkerWrapper(BipedalWalker):
             self.viewer = OpencvViewer(VIEWPORT_W, VIEWPORT_H)
         self.viewer.set_bounds(
             self.scroll, VIEWPORT_W / SCALE + self.scroll, 0,
-                         VIEWPORT_H / SCALE
+            VIEWPORT_H / SCALE
         )
 
         self.viewer.draw_polygon(
