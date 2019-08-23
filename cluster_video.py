@@ -22,18 +22,18 @@ def _build_name_col_mapping(cluster_dict):
 
 
 def _transform_name_ckpt_mapping(
-        name_ckpt_mapping, cluster_dict, max_num_cols=10
+        name_ckpt_mapping, prediction, max_num_cols=10
 ):
     # Function:
     # 1. re-order the OrderedDict
     # 2. add distance information in name
-    clusters = set([c_info['cluster'] for c_info in cluster_dict.values()])
+    clusters = set([c_info['cluster'] for c_info in prediction.values()])
     num_clusters = len(clusters)
 
     new_name_ckpt_mapping = OrderedDict()
 
-    old_row_mapping = _build_name_row_mapping(cluster_dict)
-    old_col_mapping = _build_name_col_mapping(cluster_dict)
+    old_row_mapping = _build_name_row_mapping(prediction)
+    old_col_mapping = _build_name_col_mapping(prediction)
 
     name_loc_mapping = {}
     name_row_mapping = {} if old_row_mapping is not None else None
@@ -42,7 +42,7 @@ def _transform_name_ckpt_mapping(
     for row_id, cls in enumerate(clusters):
         within_one_cluster = {
             k: v
-            for k, v in cluster_dict.items() if v['cluster'] == cls
+            for k, v in prediction.items() if v['cluster'] == cls
         }
         pairs = sorted(
             within_one_cluster.items(), key=lambda kv: kv[1]['distance']
@@ -74,7 +74,7 @@ def _transform_name_ckpt_mapping(
 
 
 def generate_video_of_cluster(
-        cluster_dict,
+        prediction,
         name_ckpt_mapping,
         video_path,
         env_name,
@@ -85,9 +85,25 @@ def generate_video_of_cluster(
         steps=int(1e10),
         num_workers=5
 ):
-    assert isinstance(cluster_dict, dict)
+    """
+
+    :param prediction: dict
+            key: agent name,
+            val: cluster_dict={"distance":float, "cluster":int, "name":str}
+    :param name_ckpt_mapping:
+    :param video_path:
+    :param env_name:
+    :param run_name:
+    :param max_num_cols:
+    :param seed:
+    :param local_mode:
+    :param steps:
+    :param num_workers:
+    :return:
+    """
+    assert isinstance(prediction, dict)
     assert isinstance(name_ckpt_mapping, dict)
-    for key, val in cluster_dict.items():
+    for key, val in prediction.items():
         assert key in name_ckpt_mapping
         assert isinstance(val, dict)
 
@@ -98,12 +114,12 @@ def generate_video_of_cluster(
         local_mode=local_mode
     )
 
-    # name_col_mapping = _build_name_col_mapping(cluster_dict)
-    # name_row_mapping = _build_name_row_mapping(cluster_dict)
+    # name_col_mapping = _build_name_col_mapping(prediction)
+    # name_row_mapping = _build_name_row_mapping(prediction)
     new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
-    name_col_mapping = _transform_name_ckpt_mapping(
-        name_ckpt_mapping, cluster_dict, max_num_cols=max_num_cols
-    )
+        name_col_mapping = _transform_name_ckpt_mapping(
+            name_ckpt_mapping, prediction, max_num_cols=max_num_cols
+        )
 
     assert new_name_ckpt_mapping.keys() == name_row_mapping.keys(
     ) == name_loc_mapping.keys()
@@ -134,16 +150,16 @@ if __name__ == '__main__':
     for d in name_ckpt_list:
         name_ckpt_mapping[d["name"]] = d["path"]
 
-    fake_cluster_dict = {}
+    fake_prediction = {}
     for i, name in enumerate(name_ckpt_mapping.keys()):
-        fake_cluster_dict[name] = {
+        fake_prediction[name] = {
             "name": name,
             "distance": np.random.random(),
             "cluster": int(i / 2)
         }
 
     generate_video_of_cluster(
-        cluster_dict=fake_cluster_dict,
+        prediction=fake_prediction,
         name_ckpt_mapping=name_ckpt_mapping,
         video_path="data/0811-random-test",
         env_name="BipedalWalker-v2",
