@@ -417,13 +417,13 @@ def parse_result_single_method(
 
 def parse_result_all_method(representation_dict, padding='up'):
     method_names = list(next(iter(representation_dict.values())).keys())
-    ret = {}
+    method_cluster_dict = {}
     for method in method_names:
         cluster_df = parse_result_single_method(
             representation_dict, method, padding
         )
-        ret[method] = cluster_df
-    return ret
+        method_cluster_dict[method] = cluster_df
+    return method_cluster_dict
 
 
 def get_fft_cluster_finder(
