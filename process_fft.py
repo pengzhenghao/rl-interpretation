@@ -77,6 +77,9 @@ def get_representation(data_frame):
     multi_index_series = data_frame.groupby(["label", 'frequency'])
     mean = multi_index_series.mean().value.reset_index()
     std = multi_index_series.std().value.reset_index()
+
+    # mean.groupby("label").get_group(label).value
+
     return mean.copy(), std.copy()
 
 
@@ -88,11 +91,13 @@ class FFTWorker(object):
         self.agent_name = None
         self.env_maker = None
         self.worker_name = "Untitled Worker"
+        self.initialized = False
 
     @ray.method(num_return_vals=0)
     def reset(
             self, run_name, ckpt, env_name, env_maker, agent_name, worker_name
     ):
+        self.initialized = True
         self.agent = restore_agent(run_name, ckpt, env_name)
         self.env_maker = env_maker
         self.agent_name = agent_name
@@ -193,6 +198,7 @@ class FFTWorker(object):
         }
 
         """
+        assert self.initialized, "You should reset the worker first!"
         if _num_steps:
             # For testing purpose
             self._num_steps = _num_steps
@@ -360,6 +366,9 @@ def parse_representation_dict(
         filled_dict[agent] = arr_list
         filled_flat_dict[agent] = np.concatenate(arr_list)
         print("Finished parse data of agent <{}>".format(agent))
+
+
+
     cluster_df = pandas.DataFrame.from_dict(filled_flat_dict).T
     # cluster_df means a matrix each row is an agent representation.
     return cluster_df.copy()

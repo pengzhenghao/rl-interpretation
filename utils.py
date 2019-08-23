@@ -198,7 +198,6 @@ class VideoRecorder(object):
         )
 
     def _add_things_on_backgaround(self, frames_dict, extra_info_dict):
-        # TODO can add title and names of each row or column.
         # We can add all row / col name here!!!!
         drew_col = set()
         drew_row = set()
