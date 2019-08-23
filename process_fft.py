@@ -9,8 +9,7 @@ from scipy.fftpack import fft
 from process_cluster import ClusterFinder
 from process_data import get_name_ckpt_mapping
 from rollout import rollout
-from utils import restore_agent, initialize_ray
-
+from utils import restore_agent, initialize_ray, get_random_string
 
 def compute_fft(y, normalize=True, normalize_max=None, normalize_min=None):
     y = np.asarray(y)
@@ -288,18 +287,19 @@ def get_fft_representation(
     data_frame_dict = {}
     representation_dict = {}
 
-    num_agent = len(agent_ckpt_dict)
+    num_agents = len(agent_ckpt_dict)
 
-    num_iteration = int(ceil(num_agent / num_worker))
+    num_iteration = int(ceil(num_agents / num_worker))
 
     agent_ckpt_dict_range = list(agent_ckpt_dict.items())
     agent_count = 1
+    agent_count_get = 1
 
     workers = [FFTWorker.remote() for _ in range(num_worker)]
 
     for iteration in range(num_iteration):
         start = iteration * num_worker
-        end = min((iteration + 1) * num_worker, num_agent)
+        end = min((iteration + 1) * num_worker, num_agents)
         df_obj_ids = []
         rep_obj_ids = []
         for i, (name, ckpt) in enumerate(agent_ckpt_dict_range[start:end]):
@@ -317,7 +317,7 @@ def get_fft_representation(
                 num_rollouts,
                 stack,
                 normalize=normalize,
-                _extra_name="[{}/{}] ".format(agent_count, num_agent)
+                _extra_name="[{}/{}] ".format(agent_count, num_agents)
             )
 
             agent_count += 1
@@ -326,13 +326,15 @@ def get_fft_representation(
             rep_obj_ids.append(rep_obj_id)
         for df_obj_id, rep_obj_id, (name, _) in zip(
                 df_obj_ids, rep_obj_ids, agent_ckpt_dict_range[start:end]):
-            print("Getting data from agent <{}>".format(name))
             df = ray.get(df_obj_id)
             rep = ray.get(rep_obj_id)
             data_frame_dict[name] = copy.deepcopy(df)
             representation_dict[name] = copy.deepcopy(rep)
             del df
             del rep
+            print("[{}/{}] Got data from agent <{}>".format(
+                agent_count_get, num_agents, name))
+            agent_count_get += 1
     return data_frame_dict, representation_dict
 
 
@@ -422,6 +424,7 @@ def get_fft_cluster_finder(
     name_ckpt_mapping = get_name_ckpt_mapping(yaml_path, num_agents)
     print("Successfully loaded name_ckpt_mapping!")
 
+    num_agents = num_agents or len(name_ckpt_mapping)
     data_frame_dict, repr_dict = get_fft_representation(
         name_ckpt_mapping, run_name, env_name, env_maker, num_seeds,
         num_rollouts
@@ -438,11 +441,16 @@ def get_fft_cluster_finder(
 
     # Cluster
     nostd_cluster_finder = ClusterFinder(cluster_df, standardize=False)
-    nostd_fig_path = yaml_path.split('.yaml')[0] + "_nostd" + ".png"
+    nostd_fig_path = "".join([
+        yaml_path.split('.yaml')[0],
+        "_nostd_{}agents_{}rollout_{}seed_{}".format(
+            num_agents, num_rollouts, num_seeds, get_random_string()),
+        ".png"
+        ])
     nostd_cluster_finder.display(save=nostd_fig_path, show=show)
     print("Successfully finish no-standardized clustering!")
 
-    std_cluster_finder = ClusterFinder(cluster_df, standardize=False)
+    std_cluster_finder = ClusterFinder(cluster_df, standardize=True)
     std_fig_path = yaml_path.split('.yaml')[0] + "_nostd" + ".png"
     std_cluster_finder.display(save=std_fig_path, show=show)
     print("Successfully finish standardized clustering!")
