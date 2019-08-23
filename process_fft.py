@@ -11,18 +11,19 @@ from process_cluster import ClusterFinder
 from process_data import get_name_ckpt_mapping
 from rollout import rollout
 from utils import restore_agent, initialize_ray, get_random_string
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
-def compute_fft(y, normalize=True, normalize_max=None, normalize_min=None):
+def compute_fft(y):
     y = np.asarray(y)
     assert y.ndim == 1
-
-    if normalize:
-        if normalize_min is None:
-            normalize_min = y.min()
-        if normalize_max is None:
-            normalize_max = y.max()
-        y = (y - normalize_min) / (normalize_max - normalize_min + 1e-9)
+    #
+    # if normalize:
+    #     if normalize_min is None:
+    #         normalize_min = y.min()
+    #     if normalize_max is None:
+    #         normalize_max = y.max()
+    #     y = (y - normalize_min) / (normalize_max - normalize_min + 1e-9)
 
     yy = fft(y)
     yf = np.abs(yy)
@@ -35,6 +36,18 @@ def stack_fft(obs, act, normalize, use_log=True):
     obs = np.asarray(obs)
     act = np.asarray(act)
 
+    if normalize:
+        if normalize is True:
+            normalize = "range"
+        assert isinstance(normalize, str)
+        assert normalize in ["std", "range"]
+        if normalize == "std":
+            obs = StandardScaler().fit_transform(obs)
+            act = StandardScaler().fit_transform(act)
+        elif normalize == "range":
+            obs = MinMaxScaler().fit_transform(obs)
+            act = MinMaxScaler().fit_transform(act)
+
     parse = lambda x: np.log(x + 1e-12) if use_log else lambda x: x
 
     result = {}
@@ -43,8 +56,9 @@ def stack_fft(obs, act, normalize, use_log=True):
     label_col = []
     frequency_col = []
 
+    # obs = [total timesteps, num of channels]
     for ind, y in enumerate(obs.T):
-        yf2 = compute_fft(y, normalize)
+        yf2 = compute_fft(y)
         yf2 = parse(yf2)
 
         data_col.append(yf2)
@@ -146,7 +160,7 @@ class FFTWorker(object):
             num_rollouts,
             seed,
             stack=False,
-            normalize=True,
+            normalize="range",
             log=True,
             _num_seeds=None,
             _extra_name=""
@@ -219,7 +233,7 @@ class FFTWorker(object):
             num_rollouts,
             stack=False,
             clip=None,
-            normalize=True,
+            normalize="range",
             log=True,
             fillna=0,
             _num_steps=None,
@@ -250,6 +264,9 @@ class FFTWorker(object):
         if _num_steps:
             # For testing purpose
             self._num_steps = _num_steps
+        if normalize:
+            assert isinstance(normalize, str)
+            assert normalize in ['range', 'std']
         data_frame = None
         for seed in range(num_seeds):
             df = self._rollout_multiple(
@@ -356,7 +373,7 @@ def get_fft_representation(
 
 
 def parse_result_single_method(
-        representation_dict, method_name="MN_sequenceL", padding="up"
+        representation_dict, method_name="MN_sequenceL", padding="fix", padding_length=None, padding_value=None
 ):
     data_frame = None
     for agent_name, rep_dict in representation_dict.items():
@@ -382,26 +399,28 @@ def parse_result_single_method(
     filled_dict = {}
     filled_flat_dict = {}
 
-    if padding == 'up':
+    if padding == 'fix':
+        assert padding_length is not None
+        assert padding_value is not None
 
-        def pad(vec, length, val=0):
+        def pad(vec):
             vec = np.asarray(vec)
             assert vec.ndim == 1
-            vec[np.isnan(vec)] = val
-            back = np.empty((length, ))
-            back.fill(val)
-            end = min(len(vec), length)
+            vec[np.isnan(vec)] = padding_value
+            back = np.empty((padding_length, ))
+            back.fill(padding_value)
+            end = min(len(vec), padding_length)
             back[:end] = vec[:end]
             return back
     else:
-        raise NotImplementedError("Only support up padding now.")
+        raise NotImplementedError("Only support fix padding now.")
 
     for agent in agent_list:
         arr_list = []
         for label in label_list:
             mask = (data_frame.agent == agent) & (data_frame.label == label)
             array = data_frame.value[mask].to_numpy()
-            array = pad(array, 500)
+            array = pad(array)
             arr_list.append(array)
         filled_dict[agent] = arr_list
         filled_flat_dict[agent] = np.concatenate(arr_list)
@@ -415,12 +434,12 @@ def parse_result_single_method(
     return cluster_df.copy()
 
 
-def parse_result_all_method(representation_dict, padding='up'):
+def parse_result_all_method(representation_dict, padding='fix', padding_length=None, padding_value=None):
     method_names = list(next(iter(representation_dict.values())).keys())
     method_cluster_dict = {}
     for method in method_names:
         cluster_df = parse_result_single_method(
-            representation_dict, method, padding
+            representation_dict, method, padding, padding_length, padding_value
         )
         method_cluster_dict[method] = cluster_df
     return method_cluster_dict

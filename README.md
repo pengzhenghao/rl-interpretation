@@ -47,7 +47,7 @@ data_frame_dict, representation_dict = get_fft_representation(
         num_seeds,
         num_rollouts,
         stack=False,
-        normalize=True,
+        normalize="range",
         num_worker=10
 )
 # dict = key: agent name, val: data_frame / representation vector
@@ -63,12 +63,16 @@ from process_fft import parse_result_single_method, parse_result_all_method
 cluster_df = parse_result_single_method(
         representation_dict, 
   			method_name="MN_sequenceL", 
-  			padding="up"
+  			padding="fix",
+  			padding_length=500,
+  			padding_value=0
 )
 
 method_cluster_dict = parse_result_all_method(
   			representation_dict, 
-  			padding='up'
+  			padding="fix",
+  			padding_length=500,
+  			padding_value=0
 )
 # method_cluster_dict = key: method name, val: cluster_df
 ```
