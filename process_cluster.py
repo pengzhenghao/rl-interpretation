@@ -46,7 +46,7 @@ def reduce_dimension(data_frame):
 
 
 class ClusterFinder(object):
-    def __init__(self, cluster_df, max_num_cluster=None, standardize=True):
+    def __init__(self, cluster_df, max_num_cluster=None, standardize=False):
         assert cluster_df.ndim == 2
         self.keys = cluster_df.index
         if standardize:

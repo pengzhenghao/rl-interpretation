@@ -16,3 +16,4 @@ ray[debug]
 mujoco-py<2.1,>=2.0
 gym[mujoco]
 gym[box2d]
+pandas

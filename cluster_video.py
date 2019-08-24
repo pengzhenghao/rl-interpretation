@@ -154,9 +154,13 @@ if __name__ == '__main__':
     import argparse
     import os.path as osp
 
+    import pandas
+
+    from process_fft import ClusterFinder
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=str, required=True)
-    # parser.add_argument("--pkl-path", type=str, required=True)
+    parser.add_argument("--num-clusters", "-k", type=str, required=True)
     parser.add_argument("--run-name", type=str, default="PPO")
     parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
     parser.add_argument("--num-rollouts", type=int, default=100)
@@ -171,10 +175,18 @@ if __name__ == '__main__':
     assert osp.exists(osp.dirname(args.root))
     assert osp.exists(yaml_path)
     assert osp.exists(cluster_df_path)
+    assert 1 <= args.num_clusters <= args.num_agents
     prefix = args.root
 
+    # load cluster_df
+    cluster_df = pandas.read_pickle(cluster_df_path)
+
+    cluster_finder = ClusterFinder(cluster_df)
+    cluster_finder.set(args.num_clusters)
+    prediction = cluster_finder.predict()
+
     generate_video_of_cluster(
-        prediction=None,
+        prediction=prediction,
         env_name=args.env_name,
         run_name=args.run_name,
         num_agents=args.num_agents,
