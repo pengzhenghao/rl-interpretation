@@ -445,22 +445,28 @@ def get_fft_cluster_finder(
 
 if __name__ == '__main__':
     from gym.envs.box2d import BipedalWalker
+    import argparse
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--yaml-path", type=str, required=True)
+    parser.add_argument("--run-name", type=str, default="PPO")
+    parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
+    parser.add_argument("--num-rollouts", type=int, default=100)
+    parser.add_argument("--num-agents", type=int, default=-1)
+    parser.add_argument("--show", action="store_true", default=False)
+    args = parser.parse_args()
     initialize_ray(False)
 
-    fft_worker = FFTWorker.remote()
-    fft_worker.reset.remote(
-        "PPO",
-        "~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08"
-        "-10_15-21-164grca382/checkpoint_313/checkpoint-313",
-        "BipedalWalker-v2", BipedalWalker, "TEST_AGENT", "fix", 500, 0
+    assert args.env_name == "BipedalWalker-v2", \
+        "We currently only support BipedalWalker-v2 environment."
+
+    get_fft_cluster_finder(
+        yaml_path=args.yaml_path,
+        env_name=args.env_name,
+        env_maker=BipedalWalker,
+        run_name=args.run_name,
+        normalize="std",
+        num_agents=None if args.num_agents == -1 else args.num_agents,
+        num_rollouts=args.num_rollouts,
+        show=args.show
     )
-
-    oid1, oid2 = fft_worker.fft.remote(2, 2, False, _num_steps=10)
-
-    df = ray.get(oid1)
-    rep = ray.get(oid2)
-
-    print("Stop")
-
-    # ray.shutdown()
