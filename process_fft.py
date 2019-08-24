@@ -384,8 +384,7 @@ def get_fft_cluster_finder(
     base = osp.basename(yaml_path)
     prefix = "".join(
         [
-            base.split('.yaml')[0],
-            "_{}agents_{}rollout_{}seed_{}".format(
+            base.split('.yaml')[0], "_{}agents_{}rollout_{}seed_{}".format(
                 num_agents, num_rollouts, num_seeds, get_random_string()
             )
         ]

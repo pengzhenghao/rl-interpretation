@@ -150,6 +150,7 @@ def test():
         "data/0811-random-test.yaml", "data/0811-random-test-TMP"
     )
 
+
 if __name__ == '__main__':
     import argparse
     import os.path as osp
@@ -160,7 +161,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=str, required=True)
-    parser.add_argument("--num-clusters", "-k", type=str, required=True)
+    parser.add_argument("--yaml-path", type=str, required=True)
+    parser.add_argument("--num-clusters", "-k", type=int, required=True)
     parser.add_argument("--run-name", type=str, default="PPO")
     parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
     parser.add_argument("--num-rollouts", type=int, default=100)
@@ -170,21 +172,37 @@ if __name__ == '__main__':
     parser.add_argument("--num-workers", type=int, default=5)
     args = parser.parse_args()
 
-    yaml_path = osp.join(args.root, ".yaml")
-    cluster_df_path = osp.join(args.root, ".pkl")
-    assert osp.exists(osp.dirname(args.root))
-    assert osp.exists(yaml_path)
-    assert osp.exists(cluster_df_path)
-    assert 1 <= args.num_clusters <= args.num_agents
+    yaml_path = args.yaml_path
+    cluster_df_path = args.root + ".pkl"
+    assert osp.exists(osp.dirname(args.root)), osp.dirname(args.root)
+    assert yaml_path.endswith(".yaml")
+    assert osp.exists(yaml_path), yaml_path
+    assert osp.exists(cluster_df_path), cluster_df_path
     prefix = args.root
 
     # load cluster_df
     cluster_df = pandas.read_pickle(cluster_df_path)
+    print(
+        "Loaded cluster data frame from <{}> whose shape is {}.".format(
+            cluster_df_path, cluster_df.shape
+        )
+    )
 
+    assert 1 <= args.num_clusters <= len(cluster_df), (
+        args.num_clusters, len(cluster_df)
+    )
+
+    # get clustering result
     cluster_finder = ClusterFinder(cluster_df)
     cluster_finder.set(args.num_clusters)
     prediction = cluster_finder.predict()
+    print(
+        "Collected clustering results for {} agents, {} clusters.".format(
+            len(prediction), args.num_clusters
+        )
+    )
 
+    # generate grid of videos with shape (k, max_num_cols)
     generate_video_of_cluster(
         prediction=prediction,
         env_name=args.env_name,
@@ -195,3 +213,4 @@ if __name__ == '__main__':
         max_num_cols=args.max_num_cols,
         num_workers=args.num_workers
     )
+    print("Finished generating videos.")
