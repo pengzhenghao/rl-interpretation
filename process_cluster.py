@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from reduce_dimension import reduce_dimension
+import pandas
+import os.path as osp
 
 
 def score(cluster_df, fit_list):
@@ -32,11 +35,6 @@ def display(search_range, cost, log=True, save=False, show=True):
         plt.savefig(save, dpi=300)
     if show:
         plt.show()
-
-
-def reduce_dimension(data_frame):
-    assert data_frame.ndim == 2
-    return data_frame
 
 
 class ClusterFinder(object):
@@ -114,3 +112,10 @@ class ClusterFinder(object):
         reduced = reduce_dimension(self.cluster_df)
         assert reduced.ndim == 2
         assert reduced.shape[1] == (3 if three_dimension else 2)
+
+
+def load_cluster_df(pkl_path):
+    assert pkl_path.endswith(".pkl")
+    assert osp.exists(pkl_path)
+    cluster_df = pandas.read_pickle(pkl_path)
+    return cluster_df
