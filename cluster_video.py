@@ -188,7 +188,8 @@ if __name__ == '__main__':
         )
     )
 
-    assert 1 <= args.num_clusters <= len(cluster_df), (
+    num_agents = args.num_agents if args.num_agents != -1 else len(cluster_df)
+    assert 1 <= args.num_clusters <= num_agents, (
         args.num_clusters, len(cluster_df)
     )
 
@@ -207,7 +208,7 @@ if __name__ == '__main__':
         prediction=prediction,
         env_name=args.env_name,
         run_name=args.run_name,
-        num_agents=args.num_agents,
+        num_agents=num_agents,
         yaml_path=yaml_path,
         video_prefix=prefix,
         max_num_cols=args.max_num_cols,

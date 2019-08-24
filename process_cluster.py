@@ -4,12 +4,6 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
 
-def cluster(cluster_df, search_range):
-    kmeans = {i: KMeans(n_clusters=i) for i in search_range}
-    fit_result = {i: kmeans[i].fit(cluster_df) for i in search_range}
-    return fit_result
-
-
 def score(cluster_df, fit_list):
     score = [fit.score(cluster_df) for fit in fit_list.values()]
     cost = -np.asarray(score)
@@ -59,11 +53,25 @@ class ClusterFinder(object):
         self.best_k = None
         self.max_num_cluster = max_num_cluster or len(cluster_df)
         self.search_range = range(1, self.max_num_cluster + 1)
-        self.fits = cluster(self.cluster_df, self.search_range)
+        self.initialized = False
+        self.fits = None
+
+    def _fit_all(self):
+        if self.initialized:
+            assert self.fits is not None
+            return self.fits
+        kmeans = {i: KMeans(n_clusters=i) for i in self.search_range}
+        fit_result = {
+            i: kmeans[i].fit(self.cluster_df)
+            for i in self.search_range
+        }
+        self.fits = fit_result
         print(
             "Clustering Finished! Call ClusterFinder.display to see "
             "the elbow curve."
         )
+        self.initialized = True
+        return self.fits
 
     def predict(self):
         """
@@ -73,6 +81,13 @@ class ClusterFinder(object):
         """
         assert self.best_k is not None, "Call ClusterFinder.set(k) to set " \
                                         "the best number of cluster."
+        if not self.initialized:
+            assert self.fits is None
+            self.fits = dict()
+            self.fits[self.best_k] = KMeans(n_clusters=self.best_k
+                                            ).fit(self.cluster_df)
+
+        assert self.best_k in self.fits
         prediction = self.fits[self.best_k].predict(self.cluster_df)
         distances = self.fits[self.best_k].transform(self.cluster_df)
         ret = {}
@@ -86,6 +101,7 @@ class ClusterFinder(object):
         self.best_k = k
 
     def display(self, log=False, save=False, show=True):
+        self._fit_all()
         cost = score(self.cluster_df, self.fits)
         if save:
             assert isinstance(save, str)
@@ -93,6 +109,7 @@ class ClusterFinder(object):
         display(self.search_range, cost, log, save, show)
 
     def visualize(self, three_dimension=False):
+        # TODO
         # Should show the 2D or 3D embedding of the representation.
         reduced = reduce_dimension(self.cluster_df)
         assert reduced.ndim == 2
