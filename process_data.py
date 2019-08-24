@@ -93,6 +93,9 @@ def get_latest_checkpoint(trial_dir):
         } for ckpt in os.listdir(trial_dir) if ckpt.startswith("checkpoint")
     ]
 
+    if len(ckpt_paths) == 0:
+        return None
+
     sorted_ckpt_paths = sorted(ckpt_paths, key=lambda pair: pair["iter"])
     return sorted_ckpt_paths[-1]["path"]
 
@@ -137,6 +140,9 @@ def get_sorted_trial_ckpt_list(
         trial_path = os.path.dirname(json_path)
         ckpt = get_latest_checkpoint(trial_path)
 
+        if ckpt is None:
+            continue
+
         cool_name = get_video_name(trial_name, performance)
         results.append(
             {
@@ -145,7 +151,6 @@ def get_sorted_trial_ckpt_list(
                 "performance": float(performance)
             }
         )
-
     return results
 
 
