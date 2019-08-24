@@ -9,10 +9,12 @@ import pickle
 import subprocess
 import tempfile
 import time
+import uuid
 from math import floor
 
 import cv2
 import numpy as np
+import ray
 from Box2D.b2 import circleShape
 from gym import logger, error
 from gym.envs.box2d.bipedal_walker import (
@@ -196,7 +198,6 @@ class VideoRecorder(object):
         )
 
     def _add_things_on_backgaround(self, frames_dict, extra_info_dict):
-        # TODO can add title and names of each row or column.
         # We can add all row / col name here!!!!
         drew_col = set()
         drew_row = set()
@@ -673,7 +674,7 @@ def scale_color(color_in_1):
 def restore_agent(run_name, ckpt, env_name, config=None):
     cls = get_agent_class(run_name)
     if config is None:
-        config = build_config(ckpt, {})
+        config = build_config(ckpt, {"num_gpus": 0.15})
     ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
     agent = cls(env=env_name, config=config)
     agent.restore(ckpt)
@@ -754,3 +755,17 @@ class BipedalWalkerWrapper(BipedalWalker):
         self.viewer.draw_polyline(f + [f[0]], color=(0, 0, 0), linewidth=2)
 
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+
+
+def initialize_ray(local_mode=False):
+    if not ray.is_initialized():
+        ray.init(
+            logging_level=logging.ERROR,
+            log_to_driver=False,
+            local_mode=local_mode
+        )
+        print("Sucessfully initialize Ray!")
+
+
+def get_random_string():
+    return str(uuid.uuid4())[:8]
