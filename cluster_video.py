@@ -79,28 +79,13 @@ def generate_video_of_cluster(
         run_name,
         num_agents,
         yaml_path,
-        video_predix,
+        video_prefix,
         seed=0,
         max_num_cols=8,
         local_mode=False,
         steps=int(1e10),
         num_workers=5
 ):
-    """
-    :param prediction: dict
-            key: agent name,
-            val: cluster_dict={"distance":float, "cluster":int, "name":str}
-    :param name_ckpt_mapping:
-    :param video_path:
-    :param env_name:
-    :param run_name:
-    :param max_num_cols:
-    :param seed:
-    :param local_mode:
-    :param steps:
-    :param num_workers:
-    :return:
-    """
     name_ckpt_mapping = get_name_ckpt_mapping(yaml_path, num_agents)
 
     assert isinstance(prediction, dict)
@@ -112,7 +97,7 @@ def generate_video_of_cluster(
     assert env_name == "BipedalWalker-v2", "We only support BipedalWalker-v2 currently!"
 
     gvr = GridVideoRecorder(
-        video_path=video_predix,
+        video_path=video_prefix,
         env_name=env_name,
         run_name=run_name,
         local_mode=local_mode
@@ -141,7 +126,7 @@ def generate_video_of_cluster(
     gvr.close()
 
 
-if __name__ == '__main__':
+def test():
     import yaml
     import numpy as np
 
@@ -163,4 +148,38 @@ if __name__ == '__main__':
     generate_video_of_cluster(
         fake_prediction, "BipedalWalker-v2", "PPO", 2,
         "data/0811-random-test.yaml", "data/0811-random-test-TMP"
+    )
+
+if __name__ == '__main__':
+    import argparse
+    import os.path as osp
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", type=str, required=True)
+    # parser.add_argument("--pkl-path", type=str, required=True)
+    parser.add_argument("--run-name", type=str, default="PPO")
+    parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
+    parser.add_argument("--num-rollouts", type=int, default=100)
+    parser.add_argument("--num-agents", type=int, default=-1)
+    parser.add_argument("--show", action="store_true", default=False)
+    parser.add_argument("--max-num-cols", type=int, default=11)
+    parser.add_argument("--num-workers", type=int, default=5)
+    args = parser.parse_args()
+
+    yaml_path = osp.join(args.root, ".yaml")
+    cluster_df_path = osp.join(args.root, ".pkl")
+    assert osp.exists(osp.dirname(args.root))
+    assert osp.exists(yaml_path)
+    assert osp.exists(cluster_df_path)
+    prefix = args.root
+
+    generate_video_of_cluster(
+        prediction=None,
+        env_name=args.env_name,
+        run_name=args.run_name,
+        num_agents=args.num_agents,
+        yaml_path=yaml_path,
+        video_prefix=prefix,
+        max_num_cols=args.max_num_cols,
+        num_workers=args.num_workers
     )
