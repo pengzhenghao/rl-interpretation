@@ -103,7 +103,7 @@ prediction = cluster_finder.predict()
 #### Generate video from cluster prediction
 
 ```python
-from cluster_video import generate_video_of_cluster
+from process_cluster import generate_video_of_cluster
 generate_video_of_cluster(
         prediction,
         env_name,
@@ -231,61 +231,36 @@ python process_data.py \
 
 ## FFT-representation Pipeline
 
-```python
-### Useful Variables ###
-NUM_SEEDS = 1 # TODO 应该更大！！！
-NUM_ROLLOUTS = 100 # TODO 应该更大！！！！
-NUM_AGENTS = 300
-SAMPLE_MODE = "top"
-NUM_WORKER = 10
-NORMALIZE = "range"
-ENV_NAME = "BipedalWalker-v2"
-RUN_NAME = "PPO"
-DEFAULT_CONFIG = {}
-YAML_PATH = "data/300-agents-ppo.yaml"
+### Step 1
 
-from gym.envs.box2d import BipedalWalker
-from process_fft import get_fft_cluster_finder
-from cluster_video import generate_video_of_cluster
+1. Collect Experiences
+2. Generate  FFT Representation
+3. Store FFT Representation
+4. Generate Elbow Curve
 
-env_maker = BipedalWalker
-
-cluster_finder_dict = get_fft_cluster_finder(
-    YAML_PATH,
-    ENV_NAME,
-    env_maker,
-    RUN_NAME,
-  	NORMALIZE,
-    NUM_AGENTS,
-    NUM_SEEDS,
-    NUM_ROLLOUTS,
-    show=True
-)
-
-best_k_dict = {
-    "nostd_cluster_finder": 5,
-    "std_cluster_finder": 5
-}
-
-prediction_dict = {}
-for name, cluster_finder in cluster_finder_dict.items():
-    best_k = best_k_dict[name]
-    cluster_finder.set(best_k)
-    prediction = cluster_finder.predict()
-    prediction_dict[name] = prediction
-    
-for name, prediction in prediction_dict.items():
-    generate_video_of_cluster(
-        prediction,
-        ENV_NAME,
-        RUN_NAME,
-        NUM_AGENTS,
-        YAML_PATH,
-        video_predix="data/xxx",
-    )
+```bash
+python process_fft.py \
+--yaml-path data/300-agents-ppo.yaml \
+--num-agents 300
 ```
 
 
 
+### Step 2
+
+You must give the K (`--num-clusters`)
+
+1. Generate Videos
+2. Generate Visualization Results
+
+```bash
+python process_cluster.py \
+--yaml-path data/300-agents-ppo.yaml \
+--root data/PREFIX/PREFIX \
+--num-agents 300 \
+-k 9 \
+--num-workers 11 \
+--seed 1997
+```
 
 
