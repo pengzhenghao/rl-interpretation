@@ -1,6 +1,8 @@
 import copy
 import time
 from math import ceil
+import os.path as osp
+import os
 
 import numpy as np
 import pandas
@@ -377,15 +379,19 @@ def get_fft_cluster_finder(
     print("Successfully loaded name_ckpt_mapping!")
 
     num_agents = num_agents or len(name_ckpt_mapping)
-    # prefix: data/XXX_10agent_100rollout_1seed_28sm29sk
+    # prefix: data/XXX_10agent_100rollout_1seed_28sm29sk/XXX_10agent_100rollout_1seed_28sm29sk
+    dir = osp.dirname(yaml_path)
+    base = osp.basename(yaml_path)
     prefix = "".join(
         [
-            yaml_path.split('.yaml')[0],
+            base.split('.yaml')[0],
             "_{}agents_{}rollout_{}seed_{}".format(
                 num_agents, num_rollouts, num_seeds, get_random_string()
             )
         ]
     )
+    os.mkdir(osp.join(dir, prefix))
+    prefix = osp.join(dir, prefix, prefix)
 
     data_frame_dict, repr_dict = get_fft_representation(
         name_ckpt_mapping,
