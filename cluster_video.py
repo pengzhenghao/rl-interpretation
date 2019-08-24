@@ -170,6 +170,7 @@ if __name__ == '__main__':
     parser.add_argument("--show", action="store_true", default=False)
     parser.add_argument("--max-num-cols", type=int, default=11)
     parser.add_argument("--num-workers", type=int, default=5)
+    parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
     yaml_path = args.yaml_path
@@ -211,6 +212,7 @@ if __name__ == '__main__':
         num_agents=num_agents,
         yaml_path=yaml_path,
         video_prefix=prefix,
+        seed=args.seed,
         max_num_cols=args.max_num_cols,
         num_workers=args.num_workers
     )
