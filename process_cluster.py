@@ -1,10 +1,14 @@
+import argparse
+import os.path as osp
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from reduce_dimension import reduce_dimension
-import pandas
-import os.path as osp
+
+from record_video import generate_video_of_cluster
+from reduce_dimension import reduce_dimension, draw
 
 
 def score(cluster_df, fit_list):
@@ -122,14 +126,10 @@ def load_cluster_df(pkl_path):
 
 
 if __name__ == '__main__':
-    import argparse
-    import os.path as osp
-
-    import pandas
-
-    from process_fft import ClusterFinder
-    from record_video import generate_video_of_cluster
-
+    """
+    Must given the number of cluster (--num-clusters or -k).
+    Generate videos, visualization figures for the clustering results.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=str, required=True)
     parser.add_argument("--yaml-path", type=str, required=True)
@@ -153,7 +153,7 @@ if __name__ == '__main__':
     prefix = args.root
 
     # load cluster_df
-    cluster_df = pandas.read_pickle(cluster_df_path)
+    cluster_df = load_cluster_df(cluster_df_path)
     print(
         "Loaded cluster data frame from <{}> whose shape is {}.".format(
             cluster_df_path, cluster_df.shape
@@ -174,6 +174,13 @@ if __name__ == '__main__':
             len(prediction), args.num_clusters
         )
     )
+
+    df_2d, _ = reduce_dimension(cluster_df, prediction, False)
+    draw(df_2d, show=False, save=prefix + "_2d.png")
+
+    df_3d, _ = reduce_dimension(cluster_df, prediction, True)
+    draw(df_3d, show=False, save=prefix + "_3d.png")
+    print("Figures have been saved at {}_**.png".format(prefix))
 
     # generate grid of videos with shape (k, max_num_cols)
     generate_video_of_cluster(
