@@ -139,9 +139,15 @@ Modification:
 
 
 def rollout(
-        agent, env, num_steps=0, require_frame=False, require_trajectory=False
+        agent,
+        env,
+        num_steps=0,
+        require_frame=False,
+        require_trajectory=False,
+        require_extra_info=False
 ):
-    assert require_frame or require_trajectory, "You must ask for some output!"
+    assert require_frame or require_trajectory or require_extra_info,\
+        "You must ask for some output!"
 
     policy_agent_mapping = default_policy_agent_mapping
 
@@ -174,12 +180,14 @@ def rollout(
             trajectory = []
         if require_frame:
             frames = []
-            extra_info = {
+            frame_extra_info = {
                 "value_function": [],
                 "reward": [],
                 "done": [],
                 "step": []
             }
+        if require_extra_info:
+            extra_infos = []
 
         mapping_cache = {}  # in case policy_agent_mapping is stochastic
         obs = env.reset()
@@ -232,18 +240,20 @@ def rollout(
                     a_action = _flatten_action(a_action)  # tuple actions
                     action_dict[agent_id] = a_action
                     prev_actions[agent_id] = a_action
+                    if require_extra_info:
+                        extra_infos.append(a_info)
                     value_functions[agent_id] = a_info["vf_preds"]
             if require_frame:
-                extra_info['value_function'].append(
+                frame_extra_info['value_function'].append(
                     value_functions[_DUMMY_AGENT_ID]
                 )
             action = action_dict[_DUMMY_AGENT_ID]
 
             next_obs, reward, done, _ = env.step(action)
             if require_frame:
-                extra_info["done"].append(done)
-                extra_info["reward"].append(reward)
-                extra_info["step"].append(steps)
+                frame_extra_info["done"].append(done)
+                frame_extra_info["reward"].append(reward)
+                frame_extra_info["step"].append(steps)
 
             if multiagent:
                 for agent_id, r in reward.items():
@@ -270,20 +280,38 @@ def rollout(
     result = {}
     if require_frame:
         result['frames'] = np.stack(frames)
-        result['extra_info'] = extra_info
+        result['frame_extra_info'] = frame_extra_info
     if require_trajectory:
         result['trajectory'] = trajectory
+    if require_extra_info:
+        extra_info_dict = {k: [] for k in extra_infos[0].keys()}
+        for item in extra_infos:
+            for k, v in item.items():
+                extra_info_dict[k].append(v)
+        result["extra_info"] = extra_info_dict
     return result
 
 
 def replay(trajectory, agent):
     policy = agent.get_policy(DEFAULT_POLICY_ID)
-    obs_batch = np.asarray([tansition[0] for tansition in trajectory])
+    obs_batch = [tansition[0] for tansition in trajectory]
+    obs_batch = np.asarray(obs_batch)
     actions, _, infos = policy.compute_actions(obs_batch)
     return actions, infos
 
 
 if __name__ == "__main__":
-    parser = create_parser()
-    args = parser.parse_args()
-    run(args, parser)
+    from utils import restore_agent, initialize_ray
+    import gym
+
+    initialize_ray(True)
+    env = gym.make("CartPole-v0")
+    ret = rollout(
+        restore_agent("PPO", None, "CartPole-v0"),
+        env,
+        100,
+        require_extra_info=True,
+        require_trajectory=True,
+        require_frame=True
+    )
+    print(ret)

@@ -136,7 +136,7 @@ class CollectFramesWorker(object):
         env.seed(self.seed)
 
         result = rollout(agent, env, self.num_steps, require_frame=True)
-        frames, extra_info = result['frames'], result['extra_info']
+        frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
         return frames, extra_info
 
@@ -214,8 +214,8 @@ class GridVideoRecorder(object):
                 # To avoid memory leakage. This part is really important!
                 new_frames = copy.deepcopy(frames)
                 new_extra_info = copy.deepcopy(extra_info)
-                del frames
-                del extra_info
+                # del frames
+                # del extra_info
 
                 frames_info = {
                     "frames":
@@ -233,7 +233,10 @@ class GridVideoRecorder(object):
 
                 frames_dict[name] = frames_info
                 for key, val in new_extra_info.items():
-                    extra_info_dict[key][name] = val
+                    if key in extra_info_dict:
+                        extra_info_dict[key][name] = val
+                    elif key == "vf_preds":
+                        extra_info_dict["value_function"][name] = val
                 extra_info_dict['title'][name] = name
 
                 print(
