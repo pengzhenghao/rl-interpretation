@@ -1,7 +1,9 @@
 import logging
 import os.path as osp
 import time
+from math import ceil
 
+import copy
 import numpy as np
 import ray
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
@@ -17,6 +19,11 @@ ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
 # "default_policy/default_model/fc2",
 # "default_policy/default_model/fc_out"
 # ]
+
+
+def _get_unit_name(layer_name, unit_index):
+    assert isinstance(unit_index, int)
+    return osp.join(layer_name, "unit{}".format(unit_index))
 
 
 def ablate_unit(agent, layer_name, index, _test=False):
@@ -99,6 +106,7 @@ class AblationWorker(object):
             self,
             # num_seeds,
             num_rollouts,
+            layer_name,
             unit_index,
             # stack=False,
             # normalize="range",
@@ -107,8 +115,6 @@ class AblationWorker(object):
             # _extra_name=""
     ):
         assert self.initialized
-
-        layer_name = ABLATE_LAYER_NAME
 
         # self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
         ablated_agent = restore_agent(self.run_name, self.ckpt, self.env_name)
@@ -167,6 +173,92 @@ class AblationWorker(object):
         return result
 
 
+ABLATE_LAYER_NAME_DIMENSION_DICT = {"default_policy/default_model/fc_out": 256}
+
+
+def _parse_result_dict(result_dict):
+    # TODO
+    return result_dict
+
+
+def get_ablation_result(
+        ckpt,
+        run_name,
+        env_name,
+        env_maker,
+        # num_seeds,
+        num_rollouts,
+        layer_name,
+        num_units,
+        # padding="fix",
+        # padding_length=500,
+        # padding_value=0,
+        # stack=False,
+        # normalize="range",
+        agent_name,
+        num_worker=10
+):
+
+    initialize_ray()
+    workers = [AblationWorker.remote() for _ in range(num_worker)]
+    now_t_get = now_t = start_t = time.time()
+    agent_count = 1
+    agent_count_get = 1
+    num_iteration = int(ceil(num_units / num_worker))
+
+    result_dict = {}
+
+    for iteration in range(num_iteration):
+        start = iteration * num_worker
+        end = min((iteration + 1) * num_worker, num_units)
+        result_obj_ids = []
+
+        for worker_index, unit_index in enumerate(range(start, end)):
+            workers[worker_index].reset(
+                run_name=run_name,
+                ckpt=ckpt,
+                env_name=env_name,
+                env_maker=env_maker,
+                agent_name=agent_name,
+                worker_name="Worker{}".format(worker_index)
+            )
+
+            obj_id = worker.ablate.remote(
+                num_rollouts=num_rollouts,
+                layer_name=layer_name,
+                unit_index=unit_index
+            )
+            result_obj_ids.append(obj_id)
+            print(
+                "Unit {}/{} (+{:.1f}s/{:.1f}s) Start collecting data.".format(
+                    unit_index,
+                    num_units,
+                    time.time() - now_t,
+                    time.time() - start_t,
+                )
+            )
+            agent_count += 1
+            now_t = time.time()
+        for obj_id in result_obj_ids:
+            result = copy.deepcopy(ray.get(obj_id))
+            layer_name = result["layer_name"]
+            unit_index = result["ablated_unit_index"]
+            unit_name = _get_unit_name(layer_name, unit_index)
+            result_dict[unit_name] = result
+
+            print(
+                "Unit {}/{} (+{:.1f}s/{:.1f}s) Start collecting data.".format(
+                    unit_index, num_units,
+                    time.time() - now_t_get,
+                    time.time() - start_t
+                )
+            )
+            agent_count_get += 1
+            now_t_get = time.time()
+    ret = _parse_result_dict(result_dict)
+    return ret
+
+
 def parse_representation_dict(representation_dict, *args, **kwargs):
     raise NotImplementedError
 
@@ -204,7 +296,9 @@ if __name__ == '__main__':
         worker_name="TEST_WORKER"
     )
 
-    obj_id = worker.ablate.remote(num_rollouts=10, unit_index=0)
+    obj_id = worker.ablate.remote(
+        num_rollouts=10, layer_name=ABLATE_LAYER_NAME, unit_index=0
+    )
     print(ray.wait([obj_id]))
     result = ray.get(obj_id)
     print(
