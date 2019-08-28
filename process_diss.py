@@ -10,7 +10,7 @@ from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
 from process_cluster import ClusterFinder
 from rollout import rollout
-from utils import restore_agent
+from utils import restore_agent, initialize_ray
 
 ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
 
@@ -214,7 +214,7 @@ def get_ablation_result(
         result_obj_ids = []
 
         for worker_index, unit_index in enumerate(range(start, end)):
-            workers[worker_index].reset(
+            workers[worker_index].reset.remote(
                 run_name=run_name,
                 ckpt=ckpt,
                 env_name=env_name,
@@ -223,7 +223,7 @@ def get_ablation_result(
                 worker_name="Worker{}".format(worker_index)
             )
 
-            obj_id = worker.ablate.remote(
+            obj_id = workers[worker_index].ablate.remote(
                 num_rollouts=num_rollouts,
                 layer_name=layer_name,
                 unit_index=unit_index
@@ -280,29 +280,47 @@ def get_dissect_cluster_finder():
 if __name__ == '__main__':
     # test codes here.
     from gym.envs.box2d import BipedalWalker
-    from utils import initialize_ray
+    # from utils import initialize_ray
+    #
+    # initialize_ray(True)
+    #
+    # worker = AblationWorker.remote()
+    #
+    # worker.reset.remote(
+    #     run_name="PPO",
+    #     ckpt="~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_"
+    #     "2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313",
+    #     env_name="BipedalWalker-v2",
+    #     env_maker=BipedalWalker,
+    #     agent_name="TEST",
+    #     worker_name="TEST_WORKER"
+    # )
+    #
+    # obj_id = worker.ablate.remote(
+    #     num_rollouts=10, layer_name=ABLATE_LAYER_NAME, unit_index=0
+    # )
+    # print(ray.wait([obj_id]))
+    # result = ray.get(obj_id)
+    # print(
+    #     "Result: reward {}, length {}.".format(
+    #         result['episode_reward_mean'], result['episode_length_mean']
+    #     )
+    # )
 
-    initialize_ray(True)
+    def env_maker():
+        env = BipedalWalker()
+        env.seed(0)
+        return env
 
-    worker = AblationWorker.remote()
-
-    worker.reset.remote(
+    result = get_ablation_result(
+        ckpt="~/ray_results/0811-0to50and100to300/"
+             "PPO_BipedalWalker-v2_21_seed=121_2019-08-11_20-50-59_g4ab4_j/"
+             "checkpoint_782/checkpoint-782",
         run_name="PPO",
-        ckpt="~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_"
-        "2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313",
         env_name="BipedalWalker-v2",
-        env_maker=BipedalWalker,
-        agent_name="TEST",
-        worker_name="TEST_WORKER"
-    )
-
-    obj_id = worker.ablate.remote(
-        num_rollouts=10, layer_name=ABLATE_LAYER_NAME, unit_index=0
-    )
-    print(ray.wait([obj_id]))
-    result = ray.get(obj_id)
-    print(
-        "Result: reward {}, length {}.".format(
-            result['episode_reward_mean'], result['episode_length_mean']
-        )
+        env_maker=env_maker,
+        num_rollouts=10,
+        layer_name=ABLATE_LAYER_NAME,
+        num_units=ABLATE_LAYER_NAME_DIMENSION_DICT[ABLATE_LAYER_NAME],
+        agent_name="PPO seed=121 rew=299.35"
     )
