@@ -1,22 +1,19 @@
 """
 This filed is copied from ray.rllib.rollout but with little modification.
 """
-#!/usr/bin/env python
+# !/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import argparse
 import collections
 import json
-import time
+import logging
 import os
 import pickle
-import logging
-import numpy as np
+import time
 
-import gym
+import numpy as np
 import ray
 from ray.rllib.agents.registry import get_agent_class
 from ray.rllib.env import MultiAgentEnv
@@ -144,7 +141,6 @@ Modification:
 def rollout(
         agent, env, num_steps=0, require_frame=False, require_trajectory=False
 ):
-
     assert require_frame or require_trajectory, "You must ask for some output!"
 
     policy_agent_mapping = default_policy_agent_mapping
@@ -278,6 +274,13 @@ def rollout(
     if require_trajectory:
         result['trajectory'] = trajectory
     return result
+
+
+def replay(trajectory, agent):
+    policy = agent.get_policy(DEFAULT_POLICY_ID)
+    obs_batch = np.asarray([tansition[0] for tansition in trajectory])
+    actions, _, infos = policy.compute_actions(obs_batch)
+    return actions, infos
 
 
 if __name__ == "__main__":

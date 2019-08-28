@@ -3,23 +3,25 @@ from process_cluster import ClusterFinder
 import ray
 import pandas
 
+
 @ray.remote
 class DissectWorker(object):
     def __init__(self):
         pass
 
     @ray.method(num_return_vals=0)
-    def reset(self,
-              run_name,
-              ckpt,
-              env_name,
-              env_maker,
-              agent_name,
-              padding=None,
-              padding_length=None,
-              padding_value=None,
-              worker_name=None,
-              ):
+    def reset(
+            self,
+            run_name,
+            ckpt,
+            env_name,
+            env_maker,
+            agent_name,
+            padding=None,
+            padding_length=None,
+            padding_value=None,
+            worker_name=None,
+    ):
         pass
 
     @ray.method(num_return_vals=2)
@@ -40,6 +42,7 @@ def get_diss_representation(
     # Input: a batch of agent, Output: a batch of representation
     pass
 
+
 def get_dissect_cluster_finder():
     cluster_df = None
     cf = ClusterFinder(cluster_df)
@@ -48,3 +51,4 @@ def get_dissect_cluster_finder():
 
 if __name__ == '__main__':
     # test codes here.
+    pass
