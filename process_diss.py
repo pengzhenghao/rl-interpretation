@@ -171,8 +171,7 @@ class AblationWorker(object):
 
 
 def parse_representation_dict(representation_dict, *args, **kwargs):
-    cluster_df = pandas.DataFrame.from_dict(representation_dict).T
-    return cluster_df
+    raise NotImplementedError
 
 
 def get_diss_representation(
@@ -180,13 +179,13 @@ def get_diss_representation(
         num_rollouts, *args, **kwargs
 ):
     # Input: a batch of agent, Output: a batch of representation
-    pass
+    raise NotImplementedError
 
 
 def get_dissect_cluster_finder():
     cluster_df = None
     cf = ClusterFinder(cluster_df)
-    return cf
+    raise NotImplementedError
 
 
 if __name__ == '__main__':
@@ -200,13 +199,17 @@ if __name__ == '__main__':
 
     worker.reset.remote(
         run_name="PPO",
-        ckpt=None,
+        ckpt="~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_"
+             "2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313",
         env_name="BipedalWalker-v2",
         env_maker=BipedalWalker,
         agent_name="TEST",
         worker_name="TEST_WORKER"
     )
 
-    obj_id = worker.ablate.remote(num_rollouts=2, unit_index=0)
+    obj_id = worker.ablate.remote(num_rollouts=10, unit_index=0)
     print(ray.wait([obj_id]))
     result = ray.get(obj_id)
+    print("Result: reward {}, length {}.".format(
+        result['episode_reward_mean'], result['episode_length_mean'])
+    )
