@@ -9,7 +9,7 @@ import ray
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
 from process_cluster import ClusterFinder
-from rollout import rollout
+from rollout import rollout, replay
 from utils import restore_agent, initialize_ray
 
 ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
@@ -73,6 +73,7 @@ class AblationWorker(object):
     def __init__(self):
         self._num_steps = None
         # self.agent = None
+        self.agent = None
         self.agent_name = None
         self.env_maker = None
         self.worker_name = "Untitled Worker"
@@ -105,6 +106,16 @@ class AblationWorker(object):
         print("{} is reset!".format(worker_name))
 
     @ray.method(num_return_vals=1)
+    def replay(self, trajectory_list_obj_id):
+        trajectory_list = ray.get(trajectory_list_obj_id)
+        for trajectory in trajectory_list:
+            actions, infos = replay(trajectory)
+            print("please stop here.")
+        # compute the KL divergence
+
+
+
+    @ray.method(num_return_vals=1)
     def ablate(
             self,
             # num_seeds,
@@ -120,10 +131,10 @@ class AblationWorker(object):
         assert self.initialized
 
         # self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
-        ablated_agent = restore_agent(self.run_name, self.ckpt, self.env_name)
+        self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
         assert (isinstance(unit_index, int)) or (unit_index is None)
         if unit_index is not None:
-            ablated_agent = ablate_unit(ablated_agent, layer_name, unit_index)
+            self.agent = ablate_unit(self.agent, layer_name, unit_index)
 
         trajectory_batch = []
         episode_reward_batch = []
@@ -144,7 +155,7 @@ class AblationWorker(object):
 
             # collect trajectory
             trajectory = rollout(
-                ablated_agent, env, require_trajectory=True
+                self.agent, env, require_trajectory=True
             )['trajectory']
             trajectory_batch.append(trajectory)
             episode_reward_batch.append(
