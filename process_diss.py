@@ -1,18 +1,23 @@
+import logging
 import os.path as osp
+import time
 
 import numpy as np
-from process_cluster import ClusterFinder
-
+import pandas
 import ray
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
-import pandas
+from process_cluster import ClusterFinder
+from rollout import rollout
+from utils import restore_agent
 
-ABLATE_LAYER_NAMES = [
-    # "default_policy/default_model/fc1",
-    # "default_policy/default_model/fc2",
-    "default_policy/default_model/fc_out"
-]
+ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
+
+# [
+# "default_policy/default_model/fc1",
+# "default_policy/default_model/fc2",
+# "default_policy/default_model/fc_out"
+# ]
 
 
 def ablate_unit(agent, layer_name, index, _test=False):
@@ -34,6 +39,7 @@ def ablate_unit(agent, layer_name, index, _test=False):
     assert matrix.ndim == 2
 
     # ablate
+    assert index < matrix.shape[0]
     matrix[index, :] = 0
     weight_dict[weight_name] = matrix
     ablated_weight = weight_dict
@@ -44,16 +50,29 @@ def ablate_unit(agent, layer_name, index, _test=False):
 
     if _test:
         new_weight = agent.get_policy(DEFAULT_POLICY_ID).get_weigths().copy()
-        assert not np.all(old_weight==new_weight)
+        assert not np.all(old_weight == new_weight)
 
     return agent
 
 
-
 @ray.remote
-class DissectWorker(object):
+class AblationWorker(object):
+    """
+    This worker only conduct the ablation of ONE unit of a given agent!
+    """
+
     def __init__(self):
-        pass
+        self._num_steps = None
+        self.agent = None
+        self.agent_name = None
+        self.env_maker = None
+        self.worker_name = "Untitled Worker"
+        self.initialized = False
+        self.run_name = None
+        self.ckpt = None
+        self.env_name = None
+        # self.postprocess_func = lambda x: x
+        # self.padding_value = None
 
     @ray.method(num_return_vals=0)
     def reset(
@@ -63,17 +82,92 @@ class DissectWorker(object):
             env_name,
             env_maker,
             agent_name,
-            padding=None,
-            padding_length=None,
-            padding_value=None,
+            # unit_index,
             worker_name=None,
     ):
-        pass
+        self.initialized = True
+        self.env_name = env_name
+        self.ckpt = ckpt
+        self.run_name = run_name
+        self.env_maker = env_maker
+        self.env = env_maker()
+        self.agent_name = agent_name
+        self._num_steps = None
+        self.worker_name = worker_name or "Untitled Worker"
+        print("{} is reset!".format(worker_name))
 
-    @ray.method(num_return_vals=2)
-    def dissect(self):
-        pass
-        return None, None
+    @ray.method(num_return_vals=1)
+    def ablate(
+            self,
+            # num_seeds,
+            num_rollouts,
+            unit_index,
+            # stack=False,
+            # normalize="range",
+            # log=True,
+            # _num_steps=None,
+            # _extra_name=""
+    ):
+        assert self.initialized
+
+        layer_name = ABLATE_LAYER_NAME
+
+        self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
+        ablated_agent = restore_agent(self.run_name, self.ckpt, self.env_name)
+        assert isinstance(unit_index, int)
+        ablated_agent = ablate_unit(
+            ablated_agent, layer_name, unit_index
+        )
+
+        trajectory_batch = []
+        episode_reward_batch = []
+        episode_length_batch = []
+        now = start = time.time()
+        for rollout_index in range(num_rollouts):
+            # print some running information
+            logging.info(
+                "({}) Agent {}, Rollout [{}/{}], Time [+{}s/{}s]".format(
+                    self.worker_name, self.agent_name, rollout_index,
+                    num_rollouts,
+                    time.time() - now,
+                    time.time() - start
+                )
+            )
+            now = time.time()
+
+            # collect trajectory
+            trajectory = \
+            rollout(ablated_agent, self.env, require_trajectory=True)[
+                'trajectory']
+            trajectory_batch.append(trajectory)
+            episode_reward_batch.append(
+                sum([transition[3] for transition in trajectory])
+            )
+            episode_length_batch.append(len(trajectory))
+
+        episode_reward_mean = np.mean(episode_reward_batch)
+        episdoe_lenth_mean = np.mean(episode_length_batch)
+        result = {
+            "trajectory": trajectory_batch,
+            "episode_reward_mean": np.mean(episode_reward_batch),
+            "episode_reward_min": min(episode_reward_batch),
+            "episode_reward_max": max(episode_reward_batch),
+            "episode_length_mean": np.mean(episode_length_batch),
+            "episode_length_min": min(episode_length_batch),
+            "episode_length_max": max(episode_length_batch),
+            "num_rollouts": num_rollouts,
+            "ablated_unit_index": unit_index,
+            "layer_name": layer_name,
+            "agent_name": self.agent_name
+            # "KL_divergence": None,  # some metric for similarity
+        }
+        print(
+            "Successfully collect {} rollouts. Averaged episode reward {}."
+            "Averaged episode lenth {}.".format(
+                num_rollouts, episode_reward_mean, episdoe_lenth_mean
+            )
+        )
+        return result
 
 
 def parse_representation_dict(representation_dict, *args, **kwargs):
@@ -97,10 +191,22 @@ def get_dissect_cluster_finder():
 
 if __name__ == '__main__':
     # test codes here.
-    from ray.rllib.agents.ppo import PPOAgent
+    from gym.envs.box2d import BipedalWalker
     from utils import initialize_ray
-    initialize_ray()
-    a = PPOAgent(env="BipedalWalker-v2")
-    ow = a.get_policy(DEFAULT_POLICY_ID).get_weights().copy()
-    na = ablate_unit(a, ABLATE_LAYER_NAMES[0], 10)
-    nw = na.get_policy(DEFAULT_POLICY_ID).get_weights().copy()
+
+    initialize_ray(True)
+
+    worker = AblationWorker.remote()
+
+    worker.reset.remote(
+        run_name="PPO",
+        ckpt=None,
+        env_name="BipedalWalker-v2",
+        env_maker=BipedalWalker,
+        agent_name="TEST",
+        worker_name="TEST_WORKER"
+    )
+
+    obj_id = worker.ablate.remote(num_rollouts=2, unit_index=0)
+    print(ray.wait([obj_id]))
+    result = ray.get(obj_id)

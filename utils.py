@@ -36,27 +36,29 @@ VIDEO_HEIGHT = ORIGINAL_VIDEO_HEIGHT - 2 * VIDEO_HEIGHT_EDGE
 
 
 def build_config(ckpt, args_config):
-    ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
-    config = {"log_level": "ERROR"}
-    # Load configuration from file
-    config_dir = os.path.dirname(ckpt)
-    config_path = os.path.join(config_dir, "params.pkl")
-    if not os.path.exists(config_path):
-        config_path = os.path.join(config_dir, "../params.pkl")
-    if not os.path.exists(config_path):
-        if not args_config:
-            raise ValueError(
-                "Could not find params.pkl in either the checkpoint "
-                "dir "
-                "or "
-                "its parent directory."
-            )
+    if ckpt is not None:
+        ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
+        config = {"log_level": "ERROR"}
+        # Load configuration from file
+        config_dir = os.path.dirname(ckpt)
+        config_path = os.path.join(config_dir, "params.pkl")
+        if not os.path.exists(config_path):
+            config_path = os.path.join(config_dir, "../params.pkl")
+        if not os.path.exists(config_path):
+            if not args_config:
+                raise ValueError(
+                    "Could not find params.pkl in either the checkpoint "
+                    "dir "
+                    "or "
+                    "its parent directory."
+                )
+        else:
+            with open(config_path, "rb") as f:
+                config = pickle.load(f)
     else:
-        with open(config_path, "rb") as f:
-            config = pickle.load(f)
+        config = {}
     if "num_workers" in config:
         config["num_workers"] = min(1, config["num_workers"])
-
     config["log_level"] = "ERROR"
     config = merge_dicts(config, args_config or {})
     return config
@@ -675,9 +677,10 @@ def restore_agent(run_name, ckpt, env_name, config=None):
     cls = get_agent_class(run_name)
     if config is None:
         config = build_config(ckpt, {"num_gpus": 0.15})
-    ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
     agent = cls(env=env_name, config=config)
-    agent.restore(ckpt)
+    if ckpt is not None:
+        ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
+        agent.restore(ckpt)
     return agent
 
 
