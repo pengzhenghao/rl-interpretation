@@ -13,6 +13,7 @@ from rollout import rollout
 from utils import restore_agent, initialize_ray
 
 ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
+NO_ABLATION_UNIT_NAME = "no_ablation"
 
 # [
 # "default_policy/default_model/fc1",
@@ -22,6 +23,8 @@ ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
 
 
 def _get_unit_name(layer_name, unit_index):
+    if unit_index is None:
+        return osp.join(layer_name, NO_ABLATION_UNIT_NAME)
     assert isinstance(unit_index, int)
     return osp.join(layer_name, "unit{}".format(unit_index))
 
@@ -118,8 +121,9 @@ class AblationWorker(object):
 
         # self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
         ablated_agent = restore_agent(self.run_name, self.ckpt, self.env_name)
-        assert isinstance(unit_index, int)
-        ablated_agent = ablate_unit(ablated_agent, layer_name, unit_index)
+        assert (isinstance(unit_index, int)) or (unit_index is None)
+        if unit_index is not None:
+            ablated_agent = ablate_unit(ablated_agent, layer_name, unit_index)
 
         trajectory_batch = []
         episode_reward_batch = []
@@ -186,15 +190,9 @@ def get_ablation_result(
         run_name,
         env_name,
         env_maker,
-        # num_seeds,
         num_rollouts,
         layer_name,
         num_units,
-        # padding="fix",
-        # padding_length=500,
-        # padding_value=0,
-        # stack=False,
-        # normalize="range",
         agent_name,
         num_worker=10
 ):
@@ -208,10 +206,28 @@ def get_ablation_result(
 
     result_dict = {}
 
+    # run the baseline
+    base_line_worker = AblationWorker.remote()
+    base_line_worker.reset.remote(
+        run_name=run_name,
+        ckpt=ckpt,
+        env_name=env_name,
+        env_maker=env_maker,
+        agent_name=agent_name,
+        worker_name="Worker{}".format(0)
+    )
+
+    obj_id = base_line_worker.ablate.remote(
+        num_rollouts=num_rollouts,
+        layer_name=layer_name,
+        unit_index=None
+    )
+
+    result_obj_ids = [obj_id]
+
     for iteration in range(num_iteration):
         start = iteration * num_worker
         end = min((iteration + 1) * num_worker, num_units)
-        result_obj_ids = []
 
         for worker_index, unit_index in enumerate(range(start, end)):
             workers[worker_index].reset.remote(
@@ -255,6 +271,9 @@ def get_ablation_result(
             )
             agent_count_get += 1
             now_t_get = time.time()
+        result_obj_ids.clear()
+    ray.get(obj_id)
+
     ret = _parse_result_dict(result_dict)
     return ret
 
