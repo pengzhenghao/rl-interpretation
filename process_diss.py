@@ -3,7 +3,6 @@ import os.path as osp
 import time
 
 import numpy as np
-import pandas
 import ray
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
@@ -63,7 +62,7 @@ class AblationWorker(object):
 
     def __init__(self):
         self._num_steps = None
-        self.agent = None
+        # self.agent = None
         self.agent_name = None
         self.env_maker = None
         self.worker_name = "Untitled Worker"
@@ -90,7 +89,6 @@ class AblationWorker(object):
         self.ckpt = ckpt
         self.run_name = run_name
         self.env_maker = env_maker
-        self.env = env_maker()
         self.agent_name = agent_name
         self._num_steps = None
         self.worker_name = worker_name or "Untitled Worker"
@@ -112,17 +110,16 @@ class AblationWorker(object):
 
         layer_name = ABLATE_LAYER_NAME
 
-        self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
+        # self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
         ablated_agent = restore_agent(self.run_name, self.ckpt, self.env_name)
         assert isinstance(unit_index, int)
-        ablated_agent = ablate_unit(
-            ablated_agent, layer_name, unit_index
-        )
+        ablated_agent = ablate_unit(ablated_agent, layer_name, unit_index)
 
         trajectory_batch = []
         episode_reward_batch = []
         episode_length_batch = []
         now = start = time.time()
+        env = self.env_maker()
         for rollout_index in range(num_rollouts):
             # print some running information
             logging.info(
@@ -136,9 +133,9 @@ class AblationWorker(object):
             now = time.time()
 
             # collect trajectory
-            trajectory = \
-            rollout(ablated_agent, self.env, require_trajectory=True)[
-                'trajectory']
+            trajectory = rollout(
+                ablated_agent, env, require_trajectory=True
+            )['trajectory']
             trajectory_batch.append(trajectory)
             episode_reward_batch.append(
                 sum([transition[3] for transition in trajectory])
@@ -200,7 +197,7 @@ if __name__ == '__main__':
     worker.reset.remote(
         run_name="PPO",
         ckpt="~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_"
-             "2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313",
+        "2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313",
         env_name="BipedalWalker-v2",
         env_maker=BipedalWalker,
         agent_name="TEST",
@@ -210,6 +207,8 @@ if __name__ == '__main__':
     obj_id = worker.ablate.remote(num_rollouts=10, unit_index=0)
     print(ray.wait([obj_id]))
     result = ray.get(obj_id)
-    print("Result: reward {}, length {}.".format(
-        result['episode_reward_mean'], result['episode_length_mean'])
+    print(
+        "Result: reward {}, length {}.".format(
+            result['episode_reward_mean'], result['episode_length_mean']
+        )
     )
