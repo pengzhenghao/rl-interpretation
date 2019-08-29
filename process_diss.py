@@ -12,9 +12,13 @@ from process_cluster import ClusterFinder
 from rollout import rollout, replay
 from utils import restore_agent, initialize_ray
 
-ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
+ABLATE_LAYER_NAME = "default_policy/default_model/fc2"
 NO_ABLATION_UNIT_NAME = "no_ablation"
-ABLATE_LAYER_NAME_DIMENSION_DICT = {"default_policy/default_model/fc_out": 256}
+ABLATE_LAYER_NAME_DIMENSION_DICT = {
+    "default_policy/default_model/fc1": 24,
+    "default_policy/default_model/fc2": 256,
+    "default_policy/default_model/fc_out": 256,
+}
 
 # [
 # "default_policy/default_model/fc1": 24,
@@ -456,9 +460,11 @@ if __name__ == '__main__':
         agent_name="PPO seed=121 rew=299.35",
         # local_mode=False,
         num_worker=30,
-        save="data/ppo121_ablation/"
+        save="data/ppo121_ablation_last2_layer/"
     )
-    with open("ablation_result_0829.pkl", 'wb') as f:
+    with open("ablation_result_last2_layer_0830.pkl", 'wb') as f:
         pickle.dump(result, f)
 
-    generate_yaml_of_ablated_agents(result, "data/ppo121_ablation/result.yaml")
+    generate_yaml_of_ablated_agents(
+        result, "data/ppo121_ablation_last2_layer/result.yaml"
+    )
