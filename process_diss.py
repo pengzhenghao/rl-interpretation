@@ -14,11 +14,14 @@ from utils import restore_agent, initialize_ray
 
 ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
 NO_ABLATION_UNIT_NAME = "no_ablation"
+ABLATE_LAYER_NAME_DIMENSION_DICT = {
+    "default_policy/default_model/fc_out": 256
+}
 
 # [
-# "default_policy/default_model/fc1",
-# "default_policy/default_model/fc2",
-# "default_policy/default_model/fc_out"
+# "default_policy/default_model/fc1": 24,
+# "default_policy/default_model/fc2": 256,
+# "default_policy/default_model/fc_out": 256,
 # ]
 
 
@@ -219,7 +222,7 @@ class AblationWorker(object):
             "agent_name": self.agent_name
         }
         if save:
-            save_path = osp.join(save, unit_name)
+            save_path = osp.join(save, unit_name.replace("/", "-"))
             ckpt_path = self.agent.save(save_path)
             result["checkpoint"] = ckpt_path
         if return_trajectory:
@@ -232,8 +235,6 @@ class AblationWorker(object):
         )
         return result
 
-
-ABLATE_LAYER_NAME_DIMENSION_DICT = {"default_policy/default_model/fc_out": 256}
 
 
 def _parse_result_dict(result_dict):
@@ -284,7 +285,8 @@ def get_ablation_result(
                 layer_name=layer_name,
                 unit_index=None,  # None stand for no ablation
                 return_trajectory=True,
-                _num_steps=_num_steps
+                _num_steps=_num_steps,
+                save=save,
             )
         )
     )
@@ -374,7 +376,8 @@ def generate_yaml_of_ablated_agents(
     Otherwise we will build the ablated agent.
     """
     assert isinstance(ablation_result, dict)
-    assert output_path.endswith(".yaml")
+    if not output_path.endswith(".yaml"):
+        output_path = osp.join(output_path, ".yaml")
 
     results = []
     for unit_name, info in ablation_result.items():
@@ -387,7 +390,7 @@ def generate_yaml_of_ablated_agents(
             agent = ablate_unit(agent, layer_name, unit_index)
 
             dir_name = osp.dirname(output_path)
-            save_path = osp.join(dir_name, unit_name)
+            save_path = osp.join(dir_name, unit_name.replace("/", "-"))
 
             ckpt_path = agent.save(save_path)
             info["checkpoint"] = ckpt_path
@@ -396,7 +399,15 @@ def generate_yaml_of_ablated_agents(
         info["name"] = ablated_agent_name
         info["path"] = info["checkpoint"]
         info["performance"] = info["episode_reward_mean"]
-        results.append(info)
+
+        # A strange error. The np.mean() of sth can not be saved by yaml...
+        # So here is the workaround.
+        result = {}
+        for k, v in info.items():
+            if isinstance(v, np.generic):
+                v = v.item()
+            result[k] = v
+        results.append(result)
 
     results = sorted(results, key=lambda d: d["performance"])
 
@@ -435,11 +446,11 @@ if __name__ == '__main__':
         env.seed(0)
         return env
 
+
     result = get_ablation_result(
         ckpt="~/ray_results/0811-0to50and100to300/"
         "PPO_BipedalWalker-v2_21_seed=121_2019-08-11_20-50-59_g4ab4_j/"
         "checkpoint_782/checkpoint-782",
-        # ckpt=None,
         run_name="PPO",
         env_name="BipedalWalker-v2",
         env_maker=env_maker,
@@ -447,9 +458,12 @@ if __name__ == '__main__':
         layer_name=ABLATE_LAYER_NAME,
         num_units=ABLATE_LAYER_NAME_DIMENSION_DICT[ABLATE_LAYER_NAME],
         agent_name="PPO seed=121 rew=299.35",
-        local_mode=False,
+        # local_mode=False,
         num_worker=30,
-        save="data/ppo121_ablation/"
+        save="data/ppo121_ablation/",
+        _num_steps=10
     )
     with open("ablation_result_0829.pkl", 'wb') as f:
         pickle.dump(result, f)
+
+    generate_yaml_of_ablated_agents(result, "data/ppo121_ablation/result.yaml")
