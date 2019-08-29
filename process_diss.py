@@ -14,9 +14,7 @@ from utils import restore_agent, initialize_ray
 
 ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
 NO_ABLATION_UNIT_NAME = "no_ablation"
-ABLATE_LAYER_NAME_DIMENSION_DICT = {
-    "default_policy/default_model/fc_out": 256
-}
+ABLATE_LAYER_NAME_DIMENSION_DICT = {"default_policy/default_model/fc_out": 256}
 
 # [
 # "default_policy/default_model/fc1": 24,
@@ -236,7 +234,6 @@ class AblationWorker(object):
         return result
 
 
-
 def _parse_result_dict(result_dict):
     # TODO
     return result_dict
@@ -445,7 +442,6 @@ if __name__ == '__main__':
         env = BipedalWalker()
         env.seed(0)
         return env
-
 
     result = get_ablation_result(
         ckpt="~/ray_results/0811-0to50and100to300/"

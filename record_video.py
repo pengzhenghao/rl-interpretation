@@ -338,6 +338,8 @@ def _transform_name_ckpt_mapping(
             for com in components:
                 if "=" not in com:
                     continue
+                # We expect com to be like "seed=10" or "rew=201"
+                # Then we transform it to "s10" or "r201"
                 new_name += "," + com.split('=')[0][0] + com.split('=')[1]
 
             new_name = new_name + " d{:.2f}".format(cls_info['distance'])

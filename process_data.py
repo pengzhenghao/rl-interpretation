@@ -103,7 +103,8 @@ def get_latest_checkpoint(trial_dir):
 def make_ordereddict(list_of_dict, number=None, mode="uniform"):
     assert mode in ['uniform', 'top']
     ret = OrderedDict()
-
+    if number is None:
+        number = len(list_of_dict)
     assert number <= len(list_of_dict)
 
     if mode == 'uniform':
