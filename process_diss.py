@@ -460,8 +460,7 @@ if __name__ == '__main__':
         agent_name="PPO seed=121 rew=299.35",
         # local_mode=False,
         num_worker=30,
-        save="data/ppo121_ablation/",
-        _num_steps=10
+        save="data/ppo121_ablation/"
     )
     with open("ablation_result_0829.pkl", 'wb') as f:
         pickle.dump(result, f)
