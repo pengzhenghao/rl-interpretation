@@ -15,7 +15,6 @@ from utils import restore_agent, initialize_ray
 ABLATE_LAYER_NAME = "default_policy/default_model/fc_out"
 NO_ABLATION_UNIT_NAME = "no_ablation"
 
-
 # [
 # "default_policy/default_model/fc1",
 # "default_policy/default_model/fc2",
@@ -107,9 +106,7 @@ class AblationWorker(object):
         print("{} is reset!".format(worker_name))
 
     @ray.method(num_return_vals=1)
-    def compute_kl_divergence(
-            self, trajectory_list
-    ):
+    def compute_kl_divergence(self, trajectory_list):
         target_logit_list = []
         for trajectory in trajectory_list:
             actions, infos = replay(trajectory, self.agent)
@@ -118,7 +115,8 @@ class AblationWorker(object):
         # compute the KL divergence
         source_logit_list = [
             [transition[-1] for transition in trajectory]
-            for trajectory in trajectory_list]
+            for trajectory in trajectory_list
+        ]
         source_mean, source_log_std = np.split(
             np.concatenate(source_logit_list), 2, axis=1
         )
@@ -132,7 +130,7 @@ class AblationWorker(object):
             (np.square(source_log_std) + np.square(source_mean - target_mean))
             / (2.0 * np.square(target_log_std)) - 0.5,
             axis=1
-        ) # An array with shape (num_samples,)
+        )  # An array with shape (num_samples,)
 
         kl_divergence = np.clip(kl_divergence, 0, None)
         averaged_kl_divergence = np.mean(kl_divergence)
@@ -157,16 +155,16 @@ class AblationWorker(object):
             # normalize="range",
             # log=True,
             _num_steps=None,
+            save=None,
             # _extra_name=""
     ):
         assert self.initialized
+        assert (save is None) or (isinstance(save, str))
+        assert (isinstance(unit_index, int)) or (unit_index is None)
 
         self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
-        assert (isinstance(unit_index, int)) or (unit_index is None)
         if unit_index is not None:
-            self.agent = ablate_unit(
-                self.agent, layer_name, unit_index, _test=True
-            )
+            self.agent = ablate_unit(self.agent, layer_name, unit_index)
 
         trajectory_batch = []
         episode_reward_batch = []
@@ -203,10 +201,10 @@ class AblationWorker(object):
                 # append the raw neural network output to trajectory
                 for timestep, logit in enumerate(behaviour_logits):
                     trajectory[timestep].append(logit)
-                # trajectory.append(extra_info['behaviour_logits'])
                 trajectory_batch.append(trajectory)
         episode_reward_mean = np.mean(episode_reward_batch)
         episdoe_lenth_mean = np.mean(episode_length_batch)
+        unit_name = _get_unit_name(layer_name, unit_index)
         result = {
             "episode_reward_mean": np.mean(episode_reward_batch),
             "episode_reward_min": min(episode_reward_batch),
@@ -216,9 +214,14 @@ class AblationWorker(object):
             "episode_length_max": max(episode_length_batch),
             "num_rollouts": num_rollouts,
             "ablated_unit_index": unit_index,
+            "unit_name": unit_name,
             "layer_name": layer_name,
             "agent_name": self.agent_name
         }
+        if save:
+            save_path = osp.join(save, unit_name)
+            ckpt_path = self.agent.save(save_path)
+            result["checkpoint"] = ckpt_path
         if return_trajectory:
             result["trajectory"] = trajectory_batch
         print(
@@ -249,6 +252,7 @@ def get_ablation_result(
         agent_name,
         num_worker=10,
         local_mode=False,
+        save=None,
         _num_steps=None
 ):
     initialize_ray(local_mode)
@@ -273,15 +277,17 @@ def get_ablation_result(
         worker_name="Baseline Worker"
     )
 
-    baseline_result = copy.deepcopy(ray.get(
-        baseline_worker.ablate.remote(
-            num_rollouts=num_rollouts,
-            layer_name=layer_name,
-            unit_index=None,  # None stand for no ablation
-            return_trajectory=True,
-            _num_steps=_num_steps
+    baseline_result = copy.deepcopy(
+        ray.get(
+            baseline_worker.ablate.remote(
+                num_rollouts=num_rollouts,
+                layer_name=layer_name,
+                unit_index=None,  # None stand for no ablation
+                return_trajectory=True,
+                _num_steps=_num_steps
+            )
         )
-    ))
+    )
 
     baseline_trajectory_list = copy.deepcopy(baseline_result.pop("trajectory"))
     baseline_result["kl_divergence"] = 0.0
@@ -307,6 +313,7 @@ def get_ablation_result(
                 num_rollouts=num_rollouts,
                 layer_name=layer_name,
                 unit_index=unit_index,
+                save=save,
                 _num_steps=_num_steps
             )
             result_obj_ids.append(obj_id)
@@ -318,7 +325,7 @@ def get_ablation_result(
 
             print(
                 "{}/{} (Unit {}) (+{:.1f}s/{:.1f}s) Start collecting data.".
-                    format(
+                format(
                     agent_count,
                     len(unit_index_list),
                     unit_index,
@@ -337,7 +344,7 @@ def get_ablation_result(
             result_dict[unit_name] = result
             print(
                 "{}/{} (Unit {}) (+{:.1f}s/{:.1f}s) Start collecting data.".
-                    format(
+                format(
                     agent_count_get, len(unit_index_list), unit_index,
                     time.time() - now_t_get,
                     time.time() - start_t
@@ -347,10 +354,57 @@ def get_ablation_result(
             now_t_get = time.time()
         result_obj_ids.clear()
         kl_obj_ids.clear()
-    # ray.get(obj_id)
 
     ret = _parse_result_dict(result_dict)
     return ret
+
+
+def generate_yaml_of_ablated_agents(
+        ablation_result,
+        output_path,
+        run_name=None,
+        ckpt=None,
+        env_name=None,
+):
+    """
+    This is an alternative function which simply parse the ablation_result
+    into a yaml.
+    If the ablation_result include the checkpoint information of each ablated
+    agents, then we simply record those information.
+    Otherwise we will build the ablated agent.
+    """
+    assert isinstance(ablation_result, dict)
+    assert output_path.endswith(".yaml")
+
+    results = []
+    for unit_name, info in ablation_result.items():
+        assert isinstance(info, dict)
+        unit_index = info["ablated_unit_index"]
+        if "checkpoint" not in info:
+            assert run_name and ckpt and env_name and output_path
+            layer_name = info["layer_name"]
+            agent = restore_agent(run_name, ckpt, env_name)
+            agent = ablate_unit(agent, layer_name, unit_index)
+
+            dir_name = osp.dirname(output_path)
+            save_path = osp.join(dir_name, unit_name)
+
+            ckpt_path = agent.save(save_path)
+            info["checkpoint"] = ckpt_path
+
+        ablated_agent_name = "{} {}".format(info["agent_name"], unit_name)
+        info["name"] = ablated_agent_name
+        info["path"] = info["checkpoint"]
+        info["performance"] = info["episode_reward_mean"]
+        results.append(info)
+
+    results = sorted(results, key=lambda d: d["performance"])
+
+    import yaml
+    with open(output_path, 'w') as f:
+        yaml.safe_dump(results, f)
+
+    return results
 
 
 def parse_representation_dict(representation_dict, *args, **kwargs):
@@ -381,23 +435,21 @@ if __name__ == '__main__':
         env.seed(0)
         return env
 
-
     result = get_ablation_result(
         ckpt="~/ray_results/0811-0to50and100to300/"
-             "PPO_BipedalWalker-v2_21_seed=121_2019-08-11_20-50-59_g4ab4_j/"
-             "checkpoint_782/checkpoint-782",
+        "PPO_BipedalWalker-v2_21_seed=121_2019-08-11_20-50-59_g4ab4_j/"
+        "checkpoint_782/checkpoint-782",
         # ckpt=None,
         run_name="PPO",
         env_name="BipedalWalker-v2",
         env_maker=env_maker,
-        num_rollouts=50,
+        num_rollouts=100,
         layer_name=ABLATE_LAYER_NAME,
         num_units=ABLATE_LAYER_NAME_DIMENSION_DICT[ABLATE_LAYER_NAME],
-        # num_units=1,
         agent_name="PPO seed=121 rew=299.35",
         local_mode=False,
-        num_worker=16,
-        # _num_steps=50
+        num_worker=30,
+        save="data/ppo121_ablation/"
     )
-    with open("ablation_result_0828.pkl", 'w') as f:
+    with open("ablation_result_0829.pkl", 'wb') as f:
         pickle.dump(result, f)
