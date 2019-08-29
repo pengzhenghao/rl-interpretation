@@ -346,6 +346,7 @@ def get_ablation_result(
             agent_count_get += 1
             now_t_get = time.time()
         result_obj_ids.clear()
+        kl_obj_ids.clear()
     # ray.get(obj_id)
 
     ret = _parse_result_dict(result_dict)
@@ -395,6 +396,7 @@ if __name__ == '__main__':
         # num_units=1,
         agent_name="PPO seed=121 rew=299.35",
         local_mode=False,
+        num_worker=16,
         # _num_steps=50
     )
     with open("ablation_result_0828.pkl", 'w') as f:
