@@ -165,6 +165,16 @@ def read_yaml(yaml_path, number=None, mode='top'):
 get_name_ckpt_mapping = read_yaml
 
 
+def read_batch_yaml(yaml_path_number_dict, mode="top"):
+    name_ckpt_mapping = None
+    for yaml_path, number in yaml_path_number_dict.items():
+        if name_ckpt_mapping is None:
+            name_ckpt_mapping = read_yaml(yaml_path, number, mode)
+        else:
+            name_ckpt_mapping.update(read_yaml(yaml_path, number, mode))
+    return name_ckpt_mapping
+
+
 def generate_yaml(exp_names, algo_name, output_path):
     # Get the trial_name-json_path dict.
     trial_json_dict = {}
