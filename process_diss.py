@@ -133,7 +133,7 @@ class AblationWorker(object):
         kl_divergence = np.sum(
             target_log_std - source_log_std +
             (np.square(source_log_std) + np.square(source_mean - target_mean))
-            / (2.0 * np.square(target_log_std)) - 0.5,
+            / (2.0 * np.square(target_log_std) + 1e-9) - 0.5,
             axis=1
         )  # An array with shape (num_samples,)
 
@@ -454,12 +454,12 @@ if __name__ == '__main__':
         run_name="PPO",
         env_name="BipedalWalker-v2",
         env_maker=env_maker,
-        num_rollouts=100,
+        num_rollouts=500,
         layer_name=ABLATE_LAYER_NAME,
         num_units=ABLATE_LAYER_NAME_DIMENSION_DICT[ABLATE_LAYER_NAME],
         agent_name="PPO seed=121 rew=299.35",
         # local_mode=False,
-        num_worker=30,
+        num_worker=24,
         save="data/ppo121_ablation_last2_layer/"
     )
     with open("ablation_result_last2_layer_0830.pkl", 'wb') as f:
