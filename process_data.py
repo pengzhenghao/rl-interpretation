@@ -167,9 +167,13 @@ def read_yaml(yaml_path, number=None, mode='top'):
 get_name_ckpt_mapping = read_yaml
 
 
-def read_batch_yaml(yaml_path_number_dict, mode="top"):
+def read_batch_yaml(yaml_path_dict_list):
+    # input: [dict, dict, dict] wherein dict's key="path", "number", "mode".
     name_ckpt_mapping = None
-    for yaml_path, number in yaml_path_number_dict.items():
+    for yaml_dict in yaml_path_dict_list:
+        yaml_path = yaml_dict["path"]
+        number = yaml_dict["path"]
+        mode = yaml_dict["path"]
         if name_ckpt_mapping is None:
             name_ckpt_mapping = read_yaml(yaml_path, number, mode)
         else:
