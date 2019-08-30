@@ -372,6 +372,7 @@ class VideoRecorder(object):
             self._encode_image_frame(frame)
 
         self._close()
+        return self.path
 
     def _close(self):
         """Make sure to manually close, or else you'll leak the encoder

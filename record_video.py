@@ -276,7 +276,8 @@ class GridVideoRecorder(object):
                 'row': max_row
             }
         )
-        vr.generate_video(frames_dict, extra_info_dict)
+        path = vr.generate_video(frames_dict, extra_info_dict)
+        return path
 
     def close(self):
         ray.shutdown()
@@ -394,15 +395,8 @@ def generate_video_of_cluster(
         assert key in name_ckpt_mapping
         assert isinstance(val, dict)
 
-    assert env_name == "BipedalWalker-v2", "We only support BipedalWalker-v2 " \
-                                           "currently!"
-
-    gvr = GridVideoRecorder(
-        video_path=video_prefix,
-        env_name=env_name,
-        run_name=run_name,
-        local_mode=local_mode
-    )
+    assert env_name == "BipedalWalker-v2", \
+        "We only support BipedalWalker-v2 currently!"
 
     new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
     name_col_mapping = _transform_name_ckpt_mapping(
@@ -412,9 +406,38 @@ def generate_video_of_cluster(
 
     assert new_name_ckpt_mapping.keys() == name_row_mapping.keys(
     ) == name_loc_mapping.keys()
+    generate_grid_of_videos(
+        new_name_ckpt_mapping, env_name, run_name, video_prefix, seed, None,
+        local_mode, steps, num_workers
+    )
 
+
+def generate_grid_of_videos(
+        name_ckpt_mapping,
+        env_name,
+        run_name,
+        video_prefix,
+        seed=0,
+        name_callback=None,
+        local_mode=False,
+        steps=int(1e10),
+        num_workers=5
+):
+    if name_callback is not None:
+        assert callable(name_callback)
+        new_name_ckpt_mapping = OrderedDict()
+        for old_name, val in name_ckpt_mapping:
+            new_name = name_callback(old_name)
+            new_name_ckpt_mapping[new_name] = val
+        name_ckpt_mapping = new_name_ckpt_mapping
+    gvr = GridVideoRecorder(
+        video_path=video_prefix,
+        env_name=env_name,
+        run_name=run_name,
+        local_mode=local_mode
+    )
     frames_dict, extra_info_dict = gvr.generate_frames(
-        new_name_ckpt_mapping,
+        name_ckpt_mapping,
         num_steps=steps,
         seed=seed,
         name_column_mapping=name_col_mapping,
@@ -422,10 +445,10 @@ def generate_video_of_cluster(
         name_loc_mapping=name_loc_mapping,
         num_workers=num_workers
     )
-
-    gvr.generate_video(frames_dict, extra_info_dict)
-
+    path = gvr.generate_video(frames_dict, extra_info_dict)
     gvr.close()
+    print("Video has been saved at: <{}>".format(path))
+    return path
 
 
 if __name__ == "__main__":
