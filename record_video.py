@@ -59,7 +59,10 @@ PRESET_INFORMATION_DICT = {
         "pos_ratio": (0.95, 0.05)
     }
 }
-ENVIRONMENT_MAPPING = {"BipedalWalker-v2": BipedalWalkerWrapper}
+
+ENV_NAME_ENV_MAKER_MAPPING = {
+    "BipedalWalker-v2": BipedalWalkerWrapper
+}
 
 
 def create_parser(parser_creator=None):
@@ -107,16 +110,18 @@ def create_parser(parser_creator=None):
 @ray.remote
 class CollectFramesWorker(object):
     def __init__(
-            self, run_name, env_maker, env_name, num_steps, num_iters, seed
+            self,
+            # run_name, env_maker, env_name,
+            num_steps, num_iters, seed
     ):
-        self.run_name = run_name
-        self.env_maker = env_maker
-        self.env_name = env_name
+        # self.run_name = run_name
+        # self.env_maker = env_maker
+        # self.env_name = env_name
         self.num_steps = num_steps
         self.num_iters = num_iters
         self.seed = seed
 
-    def collect_frames(self, config, ckpt):
+    def collect_frames(self, run_name, env_name, env_maker, config, ckpt):
         """
         This function create one agent and return one frame sequence.
         :param run_name:
@@ -129,8 +134,8 @@ class CollectFramesWorker(object):
         """
         # TODO allow multiple iters.
 
-        agent = restore_agent(self.run_name, ckpt, self.env_name, config)
-        env = self.env_maker()
+        agent = restore_agent(run_name, ckpt, env_name, config)
+        env = env_maker()
         env.seed(self.seed)
 
         result = rollout(agent, env, self.num_steps, require_frame=True)
@@ -140,12 +145,14 @@ class CollectFramesWorker(object):
 
 
 class GridVideoRecorder(object):
-    def __init__(self, video_path, env_name, run_name, local_mode=False):
+    def __init__(self, video_path,
+                 # env_name, run_name,
+                 local_mode=False):
         initialize_ray(local_mode)
 
         # single_env = gym.make(env_name)
-        self.env_name = env_name
-        self.run_name = run_name
+        # self.env_name = env_name
+        # self.run_name = run_name
         self.video_path = video_path
         # self.video_recorder = VideoRecorder(video_path)
 
@@ -178,8 +185,9 @@ class GridVideoRecorder(object):
 
         workers = [
             CollectFramesWorker.remote(
-                self.run_name, ENVIRONMENT_MAPPING[self.env_name],
-                self.env_name, num_steps, num_iters, seed
+                # self.run_name, ENVIRONMENT_MAPPING[self.env_name],
+                # self.env_name,
+                num_steps, num_iters, seed
             ) for _ in range(num_workers)
         ]
 
@@ -190,11 +198,16 @@ class GridVideoRecorder(object):
             now = time.time()
             start = now
             object_id_dict = {}
-            for incre, (name, ckpt) in \
+            for incre, (name, ckpt_dict) in \
                     enumerate(name_ckpt_mapping_range[idx_start: idx_end]):
+                assert isinstance(ckpt_dict, dict)
+                ckpt = ckpt_dict["path"]
+                run_name = ckpt_dict["run_name"]
+                env_name = ckpt_dict["env_name"]
+                env_maker = ENV_NAME_ENV_MAKER_MAPPING[env_name]
                 config = build_config(ckpt, args_config)
                 object_id_dict[name] = workers[incre].collect_frames.remote(
-                    config, ckpt
+                    run_name, env_name, env_maker, config, ckpt
                 )
                 print(
                     "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
@@ -376,8 +389,8 @@ def rename_agent(old_name, info=None):
 
 def generate_video_of_cluster(
         prediction,
-        env_name,
-        run_name,
+        # env_name,
+        # run_name,
         num_agents,
         yaml_path,
         video_prefix,
@@ -395,8 +408,8 @@ def generate_video_of_cluster(
         assert key in name_ckpt_mapping
         assert isinstance(val, dict)
 
-    assert env_name == "BipedalWalker-v2", \
-        "We only support BipedalWalker-v2 currently!"
+    # assert env_name == "BipedalWalker-v2", \
+    #     "We only support BipedalWalker-v2 currently!"
 
     new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
     name_col_mapping = _transform_name_ckpt_mapping(
@@ -404,18 +417,20 @@ def generate_video_of_cluster(
         max_num_cols=max_num_cols
     )
 
-    assert new_name_ckpt_mapping.keys() == name_row_mapping.keys(
-    ) == name_loc_mapping.keys()
+    assert new_name_ckpt_mapping.keys() == \
+           name_row_mapping.keys() == name_loc_mapping.keys()
     generate_grid_of_videos(
-        new_name_ckpt_mapping, env_name, run_name, video_prefix, seed, None,
+        new_name_ckpt_mapping,
+        # env_name, run_name,
+        video_prefix, seed, None,
         local_mode, steps, num_workers
     )
 
 
 def generate_grid_of_videos(
         name_ckpt_mapping,
-        env_name,
-        run_name,
+        # env_name,
+        # run_name,
         video_prefix,
         seed=0,
         name_callback=None,
@@ -432,8 +447,8 @@ def generate_grid_of_videos(
         name_ckpt_mapping = new_name_ckpt_mapping
     gvr = GridVideoRecorder(
         video_path=video_prefix,
-        env_name=env_name,
-        run_name=run_name,
+        # env_name=env_name,
+        # run_name=run_name,
         local_mode=local_mode
     )
     frames_dict, extra_info_dict = gvr.generate_frames(
@@ -464,8 +479,8 @@ if __name__ == "__main__":
 
     gvr = GridVideoRecorder(
         video_path=args.yaml[:-5],
-        env_name=args.env,
-        run_name=args.run,
+        # env_name=args.env,
+        # run_name=args.run,
         local_mode=args.local_mode
     )
 

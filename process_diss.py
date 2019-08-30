@@ -399,6 +399,8 @@ def generate_yaml_of_ablated_agents(
         info["name"] = ablated_agent_name
         info["path"] = info["checkpoint"]
         info["performance"] = info["episode_reward_mean"]
+        info["run_name"] = run_name
+        info["env_name"] = env_name
 
         # A strange error. The np.mean() of sth can not be saved by yaml...
         # So here is the workaround.

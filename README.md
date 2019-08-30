@@ -16,7 +16,7 @@
 from process_data import generate_yaml
 generate_yaml(
   exp_names=["0811-0to50and100to300", "0811-50to100"],
-	algo_name="PPO",
+	run_name="PPO",
   output_path="data/300-ppo.yaml"
 )
 ```
@@ -211,7 +211,7 @@ How we generate it? Just call:
 from process_data import generate_yaml
 generate_yaml(
   exp_names=["0811-0to50and100to300", "0811-50to100"],
-	algo_name="PPO",
+	run_name="PPO",
   output_path="data/300-ppo.yaml"
 )
 ```

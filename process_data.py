@@ -6,6 +6,7 @@ from os.path import join
 
 import pandas
 import yaml
+from gym.envs import spec
 
 
 def get_trial_name(trial_raw_name):
@@ -60,7 +61,7 @@ def get_trial_json_dict(exp_name, algo_name, root_dir="~/ray_results"):
     json_dict should stores:
     {'PPO_seed=xx': '~/ray_results/exp-name/PPO_seed10/result.json'}
 
-    The user should specified the exp_name, algo_name and root_dir
+    The user should specified the exp_name, run_name and root_dir
     """
     input_dir = os.path.abspath(os.path.expanduser(join(root_dir, exp_name)))
 
@@ -128,7 +129,8 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
 
 
 def get_sorted_trial_ckpt_list(
-        sorted_trial_pfm_list, trial_json_dict, get_video_name
+        sorted_trial_pfm_list, trial_json_dict, get_video_name, run_name,
+        env_name
 ):
     """
     Return: [{"name": NAME, "path": CKPT_PATH, ...}, {...}, ...]
@@ -151,7 +153,9 @@ def get_sorted_trial_ckpt_list(
             {
                 "name": cool_name,
                 "path": ckpt,
-                "performance": float(performance)
+                "performance": float(performance),
+                "run_name": run_name,
+                "env_name": env_name
             }
         )
     return results
@@ -172,8 +176,8 @@ def read_batch_yaml(yaml_path_dict_list):
     name_ckpt_mapping = None
     for yaml_dict in yaml_path_dict_list:
         yaml_path = yaml_dict["path"]
-        number = yaml_dict["path"]
-        mode = yaml_dict["path"]
+        number = yaml_dict["number"]
+        mode = yaml_dict["mode"]
         if name_ckpt_mapping is None:
             name_ckpt_mapping = read_yaml(yaml_path, number, mode)
         else:
@@ -181,13 +185,15 @@ def read_batch_yaml(yaml_path_dict_list):
     return name_ckpt_mapping
 
 
-def generate_yaml(exp_names, algo_name, output_path):
+def generate_yaml(exp_names, run_name, output_path, env_name):
     # Get the trial_name-json_path dict.
+
+    assert spec(args.env_name) # make sure no typo in env_name
     trial_json_dict = {}
     if isinstance(exp_names, str):
         exp_names = [exp_names]
     for exp_name in exp_names:
-        trial_json_dict.update(get_trial_json_dict(exp_name, algo_name))
+        trial_json_dict.update(get_trial_json_dict(exp_name, run_name))
     print("Collected trial_json_dict: ", trial_json_dict)
     # Get the trial_name-trial_data dict. This is not ordered.
     trial_data_dict = get_trial_data_dict(trial_json_dict)
@@ -212,7 +218,8 @@ def generate_yaml(exp_names, algo_name, output_path):
         return "{0} {3} rew={4:.2f}".format(*components, performance)
 
     results = get_sorted_trial_ckpt_list(
-        sorted_trial_pfm_list, trial_json_dict, get_video_name
+        sorted_trial_pfm_list, trial_json_dict, get_video_name, run_name,
+        env_name
     )
     with open(output_path, 'w') as f:
         yaml.safe_dump(results, f)
@@ -225,10 +232,13 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-names", nargs='+', type=str, required=True)
-    parser.add_argument("--algo-name", required=True, type=str)
+    parser.add_argument("--run-name", required=True, type=str)
     parser.add_argument("--output-path", required=True, type=str)
+    parser.add_argument("--env-name", default="BipedalWalker-v2", type=str)
     args = parser.parse_args()
     assert isinstance(args.exp_names, list) or isinstance(args.exp_names, str)
     assert args.output_path.endswith("yaml")
-    ret = generate_yaml(args.exp_names, args.algo_name, args.output_path)
+
+    ret = generate_yaml(args.exp_names, args.run_name, args.output_path,
+                        args.env_name)
     print("Successfully collect {} agents.".format(len(ret)))
