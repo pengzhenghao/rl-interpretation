@@ -136,8 +136,7 @@ class AblationWorker(object):
             / (2.0 * np.square(target_log_std) + 1e-9) - 0.5,
             axis=1
         )  # An array with shape (num_samples,)
-
-        kl_divergence = np.clip(kl_divergence, 0, None)
+        kl_divergence = np.clip(kl_divergence, 0.0, 1e38) # to avoid inf
         averaged_kl_divergence = np.mean(kl_divergence)
 
         print(
