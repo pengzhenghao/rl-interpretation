@@ -101,7 +101,7 @@ def get_latest_checkpoint(trial_dir):
 
 
 def make_ordereddict(list_of_dict, number=None, mode="uniform"):
-    assert mode in ['uniform', 'top']
+    assert mode in ['uniform', 'top', "bottom"]
     ret = OrderedDict()
     if number is None:
         number = len(list_of_dict)
@@ -116,8 +116,10 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
         indices = reversed(list_of_dict[:start_index:-interval])
     elif mode == 'top':
         indices = list_of_dict[-number:]
+    elif mode == 'bottom':
+        indices = list_of_dict[:number]
     else:
-        raise ValueError()
+        raise NotImplementedError
 
     for d in indices:
         ret[d['name']] = d['path']
