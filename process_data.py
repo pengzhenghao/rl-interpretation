@@ -123,7 +123,8 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
         raise NotImplementedError
 
     for d in indices:
-        ret[d['name']] = d['path']
+        # ret[d['name']] = d['path']
+        ret[d['name']] = d
     assert len(ret) == number
     return ret
 

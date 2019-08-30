@@ -60,8 +60,13 @@ PRESET_INFORMATION_DICT = {
     }
 }
 
-ENV_NAME_ENV_MAKER_MAPPING = {
-    "BipedalWalker-v2": BipedalWalkerWrapper
+def build_env_maker(seed):
+    env = BipedalWalkerWrapper()
+    env.seed(seed)
+    return lambda: env
+
+BUILD_ENV_MAKER = {
+    "BipedalWalker-v2": build_env_maker
 }
 
 
@@ -136,7 +141,7 @@ class CollectFramesWorker(object):
 
         agent = restore_agent(run_name, ckpt, env_name, config)
         env = env_maker()
-        env.seed(self.seed)
+        # env.seed(self.seed)
 
         result = rollout(agent, env, self.num_steps, require_frame=True)
         frames, extra_info = result['frames'], result['frame_extra_info']
@@ -204,7 +209,7 @@ class GridVideoRecorder(object):
                 ckpt = ckpt_dict["path"]
                 run_name = ckpt_dict["run_name"]
                 env_name = ckpt_dict["env_name"]
-                env_maker = ENV_NAME_ENV_MAKER_MAPPING[env_name]
+                env_maker = BUILD_ENV_MAKER[env_name](seed)
                 config = build_config(ckpt, args_config)
                 object_id_dict[name] = workers[incre].collect_frames.remote(
                     run_name, env_name, env_maker, config, ckpt
@@ -225,21 +230,12 @@ class GridVideoRecorder(object):
                 # To avoid memory leakage. This part is really important!
                 new_frames = copy.deepcopy(frames)
                 new_extra_info = copy.deepcopy(extra_info)
-                # del frames
-                # del extra_info
 
                 frames_info = {
-                    "frames":
-                    new_frames,
-                    "column":
-                    None if name_column_mapping is None else
-                    name_column_mapping[name],
-                    "row":
-                    None
-                    if name_row_mapping is None else name_row_mapping[name],
-                    "loc":
-                    None
-                    if name_loc_mapping is None else name_loc_mapping[name]
+                    "frames": new_frames,
+                    "column": None if name_column_mapping is None else name_column_mapping[name],
+                    "row": None if name_row_mapping is None else name_row_mapping[name],
+                    "loc": None if name_loc_mapping is None else name_loc_mapping[name]
                 }
 
                 frames_dict[name] = frames_info
@@ -421,17 +417,21 @@ def generate_video_of_cluster(
            name_row_mapping.keys() == name_loc_mapping.keys()
     generate_grid_of_videos(
         new_name_ckpt_mapping,
-        # env_name, run_name,
-        video_prefix, seed, None,
+        video_prefix,
+        name_row_mapping,
+        name_col_mapping,
+        name_loc_mapping,
+        seed, None,
         local_mode, steps, num_workers
     )
 
 
 def generate_grid_of_videos(
         name_ckpt_mapping,
-        # env_name,
-        # run_name,
         video_prefix,
+        name_row_mapping=None,
+        name_col_mapping=None,
+        name_loc_mapping=None,
         seed=0,
         name_callback=None,
         local_mode=False,

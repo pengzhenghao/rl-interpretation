@@ -156,7 +156,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-                                                ]["policy_mapping_fn"]
+            ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -168,7 +168,10 @@ def rollout(
     else:
         # env = gym.make(env_name)
         multiagent = False
-        use_lstm = {DEFAULT_POLICY_ID: False}
+        policy = agent.policy
+        state_init = {DEFAULT_POLICY_ID: None}
+        use_lstm = {p: None for p, s in state_init.items()}
+        action_init = {DEFAULT_POLICY_ID: policy.action_space.sample()}
 
     steps = 0
     now = time.time()
@@ -230,20 +233,29 @@ def rollout(
                         )
                         agent_states[agent_id] = p_state
                     else:
-                        a_action, _, a_info = agent.compute_action(
-                            a_obs,
-                            prev_action=prev_actions[agent_id],
-                            prev_reward=prev_rewards[agent_id],
-                            policy_id=policy_id,
-                            full_fetch=True
-                        )
+                        # This is a workaround
+                        if agent._name=="ES":
+                            a_action = agent.compute_action(
+                                a_obs
+                            )
+                        else:
+                            a_action, _, a_info = agent.compute_action(
+                                a_obs,
+                                prev_action=prev_actions[agent_id],
+                                prev_reward=prev_rewards[agent_id],
+                                policy_id=policy_id,
+                                full_fetch=True
+                            )
                     a_action = _flatten_action(a_action)  # tuple actions
                     action_dict[agent_id] = a_action
                     prev_actions[agent_id] = a_action
                     if require_extra_info:
                         extra_infos.append(a_info)
-                    value_functions[agent_id] = a_info["vf_preds"]
-            if require_frame:
+                    # This is a work around
+                    if agent._name != "ES":
+                        value_functions[agent_id] = a_info["vf_preds"]
+            # This is a work around
+            if require_frame and agent._name != "ES":
                 frame_extra_info['value_function'].append(
                     value_functions[_DUMMY_AGENT_ID]
                 )
@@ -299,12 +311,20 @@ def replay(trajectory, agent):
     actions, _, infos = policy.compute_actions(obs_batch)
     return actions, infos
 
+def _test_es_agent_compatibility():
+    from ray.rllib.agents.es import ESTrainer
+    es = ESTrainer(env="BipedalWalker-v2")
+    env = gym.make("BipedalWalker-v2")
+    rollout(es, env, num_steps=100, require_frame=True)
+
 
 if __name__ == "__main__":
+    # This part is used for test only!
+    # Don't call python rollout.py for any other purpose.
     from utils import restore_agent, initialize_ray
     import gym
 
-    initialize_ray(True)
+    initialize_ray(False)
     env = gym.make("CartPole-v0")
     ret = rollout(
         restore_agent("PPO", None, "CartPole-v0"),
@@ -315,3 +335,5 @@ if __name__ == "__main__":
         require_frame=True
     )
     print(ret)
+
+    _test_es_agent_compatibility()

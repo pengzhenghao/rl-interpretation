@@ -36,30 +36,20 @@ VIDEO_HEIGHT = ORIGINAL_VIDEO_HEIGHT - 2 * VIDEO_HEIGHT_EDGE
 
 
 def build_config(ckpt, args_config):
+    config = {"log_level": "ERROR"}
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
-        config = {"log_level": "ERROR"}
+        # config = {"log_level": "ERROR"}
         # Load configuration from file
         config_dir = os.path.dirname(ckpt)
         config_path = os.path.join(config_dir, "params.pkl")
         if not os.path.exists(config_path):
             config_path = os.path.join(config_dir, "../params.pkl")
-        if not os.path.exists(config_path):
-            if not args_config:
-                raise ValueError(
-                    "Could not find params.pkl in either the checkpoint "
-                    "dir "
-                    "or "
-                    "its parent directory."
-                )
-        else:
+        if os.path.exists(config_path):
             with open(config_path, "rb") as f:
-                config = pickle.load(f)
-    else:
-        config = {}
+                config.update(pickle.load(f))
     if "num_workers" in config:
         config["num_workers"] = min(1, config["num_workers"])
-    config["log_level"] = "ERROR"
     config = merge_dicts(config, args_config or {})
     return config
 
