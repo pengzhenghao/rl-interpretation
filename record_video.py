@@ -59,8 +59,6 @@ PRESET_INFORMATION_DICT = {
         "pos_ratio": (0.95, 0.05)
     }
 }
-# from gym.envs.box2d import BipedalWalker
-# ENVIRONMENT_MAPPING = {"BipedalWalker-v2": BipedalWalker}
 ENVIRONMENT_MAPPING = {"BipedalWalker-v2": BipedalWalkerWrapper}
 
 
@@ -302,13 +300,15 @@ def _build_name_col_mapping(cluster_dict):
 
 
 def _transform_name_ckpt_mapping(
-        name_ckpt_mapping, prediction, max_num_cols=10
+        name_ckpt_mapping, prediction, name_callback=None, max_num_cols=10
 ):
     # Function:
     # 1. re-order the OrderedDict
     # 2. add distance information in name
     clusters = set([c_info['cluster'] for c_info in prediction.values()])
-
+    if name_callback is None:
+        name_callback = lambda x: x
+    assert callable(name_callback)
     new_name_ckpt_mapping = OrderedDict()
 
     old_row_mapping = _build_name_row_mapping(prediction)
@@ -333,16 +333,8 @@ def _transform_name_ckpt_mapping(
         for col_id, (name, cls_info) in enumerate(row_cluster_dict.items()):
             loc = (row_id, col_id)
 
-            components = name.split(" ")
-            new_name = components[0]
-            for com in components:
-                if "=" not in com:
-                    continue
-                # We expect com to be like "seed=10" or "rew=201"
-                # Then we transform it to "s10" or "r201"
-                new_name += "," + com.split('=')[0][0] + com.split('=')[1]
+            new_name = name_callback(name)
 
-            new_name = new_name + " d{:.2f}".format(cls_info['distance'])
             new_name_ckpt_mapping[new_name] = name_ckpt_mapping[name]
             name_loc_mapping[new_name] = loc
             if old_row_mapping is not None:
@@ -352,6 +344,33 @@ def _transform_name_ckpt_mapping(
 
     return new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
            name_col_mapping
+
+
+def rename_agent(old_name, info=None):
+    # old_name look like: <PPO seed=10 rew=10.1>
+    # or for ablation study: <PPO seed=1 rew=29.35 policy/model/fc_out/unit34>
+    components = old_name.split(" ")
+    new_name = components[0]
+    for com in components:
+        if "=" in com:
+            # We expect com to be like "seed=10" or "rew=201"
+            # Then we transform it to "s10" or "r201"
+            new_name += "," + com.split('=')[0][0] + com.split('=')[1]
+        else:
+            layer_name, unit_name = com.split("/")[-2:]
+
+            # layer_name should be like: fc_out or fc2
+            assert layer_name.startswith("fc")
+            layer_name = "out" if layer_name.endswith("out") else layer_name
+
+            # unit_name should be like: no_ablation or unit32
+            assert unit_name.startswith("unit") or unit_name.startswith("no")
+            unit_name = unit_name[4:] if unit_name.startswith("unit") else "no"
+
+            new_name += "," + layer_name + unit_name
+    if info is not None and "distance" in info:
+        new_name += ",d{:.2f}".format(info['distance'])
+    return new_name
 
 
 def generate_video_of_cluster(
@@ -387,7 +406,8 @@ def generate_video_of_cluster(
 
     new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
     name_col_mapping = _transform_name_ckpt_mapping(
-        name_ckpt_mapping, prediction, max_num_cols=max_num_cols
+        name_ckpt_mapping, prediction, name_callback=rename_agent,
+        max_num_cols=max_num_cols
     )
 
     assert new_name_ckpt_mapping.keys() == name_row_mapping.keys(
