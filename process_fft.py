@@ -9,12 +9,21 @@ import pandas
 import ray
 from scipy.fftpack import fft
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from gym.envs.box2d.bipedal_walker import BipedalWalker
 
 from process_cluster import ClusterFinder
 from process_data import get_name_ckpt_mapping
 from rollout import rollout
 from utils import restore_agent, initialize_ray, get_random_string
 
+def build_env():
+    env = BipedalWalker()
+    env.seed(0)
+    return env
+
+FFT_ENV_MAKER_LOOKUP = {
+    "BipedalWalker-v2": build_env
+}
 
 def compute_fft(y):
     y = np.asarray(y)
@@ -92,6 +101,9 @@ class FFTWorker(object):
         self._num_steps = None
         self.agent = None
         self.agent_name = None
+        self.run_name = None
+        self.env_name = None
+        self.ckpt = None
         self.env_maker = None
         self.worker_name = "Untitled Worker"
         self.initialized = False
@@ -112,7 +124,9 @@ class FFTWorker(object):
             worker_name=None,
     ):
         self.initialized = True
-        self.agent = restore_agent(run_name, ckpt, env_name)
+        self.run_name = run_name
+        self.ckpt = ckpt
+        self.env_name = env_name
         self.env_maker = env_maker
         self.agent_name = agent_name
         self._num_steps = None
@@ -230,6 +244,7 @@ class FFTWorker(object):
         }
 
         """
+        self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
         assert self.initialized, "You should reset the worker first!"
         if _num_steps:
             # For testing purpose
@@ -268,9 +283,6 @@ class FFTWorker(object):
 
 def get_fft_representation(
         name_ckpt_mapping,
-        run_name,
-        env_name,
-        env_maker,
         num_seeds,
         num_rollouts,
         padding="fix",
@@ -301,7 +313,11 @@ def get_fft_representation(
         end = min((iteration + 1) * num_worker, num_agents)
         df_obj_ids = []
         rep_obj_ids = []
-        for i, (name, ckpt) in enumerate(agent_ckpt_dict_range[start:end]):
+        for i, (name, ckpt_dict) in enumerate(agent_ckpt_dict_range[start:end]):
+            ckpt = ckpt_dict["path"]
+            env_name = ckpt_dict["env_name"]
+            run_name = ckpt_dict["run_name"]
+            env_maker = FFT_ENV_MAKER_LOOKUP[env_name]
             workers[i].reset.remote(
                 run_name=run_name,
                 ckpt=ckpt,
@@ -361,9 +377,6 @@ def parse_representation_dict(representation_dict, *args, **kwargs):
 
 def get_fft_cluster_finder(
         yaml_path,
-        env_name,
-        env_maker,
-        run_name,
         normalize,
         num_agents=None,
         num_seeds=1,
@@ -394,9 +407,6 @@ def get_fft_cluster_finder(
 
     data_frame_dict, repr_dict = get_fft_representation(
         name_ckpt_mapping,
-        run_name,
-        env_name,
-        env_maker,
         num_seeds,
         num_rollouts,
         normalize=normalize
@@ -448,22 +458,14 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--yaml-path", type=str, required=True)
-    parser.add_argument("--run-name", type=str, default="PPO")
-    parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
     parser.add_argument("--num-rollouts", type=int, default=100)
     parser.add_argument("--num-agents", type=int, default=-1)
     parser.add_argument("--show", action="store_true", default=False)
     args = parser.parse_args()
     initialize_ray(False)
 
-    assert args.env_name == "BipedalWalker-v2", \
-        "We currently only support BipedalWalker-v2 environment."
-
     get_fft_cluster_finder(
         yaml_path=args.yaml_path,
-        env_name=args.env_name,
-        env_maker=BipedalWalker,
-        run_name=args.run_name,
         normalize="std",
         num_agents=None if args.num_agents == -1 else args.num_agents,
         num_rollouts=args.num_rollouts,
