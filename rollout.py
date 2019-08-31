@@ -144,7 +144,8 @@ def rollout(
         num_steps=0,
         require_frame=False,
         require_trajectory=False,
-        require_extra_info=False
+        require_extra_info=False,
+        require_full_frame=False
 ):
     assert require_frame or require_trajectory or require_extra_info,\
         "You must ask for some output!"
@@ -276,7 +277,7 @@ def rollout(
                 reward_total += sum(reward.values())
             else:
                 reward_total += reward
-            kwargs = {"mode": "rgb_array"}
+            kwargs = {"mode": "rgb_array" if require_full_frame else "cropped"}
             # This copy() is really important!
             # Otherwise see error: pyarrow.lib.ArrowInvalid
             if require_frame:

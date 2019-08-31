@@ -19,8 +19,9 @@ import yaml
 
 from process_data import get_name_ckpt_mapping
 from rollout import rollout
-from utils import build_config, VideoRecorder, BipedalWalkerWrapper, \
+from utils import build_config, VideoRecorder, \
     restore_agent, initialize_ray
+from env_wrapper import BipedalWalkerWrapper
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -238,6 +239,9 @@ class GridVideoRecorder(object):
                 new_frames = copy.deepcopy(frames)
                 new_extra_info = copy.deepcopy(extra_info)
 
+                del frames
+                del extra_info
+
                 frames_info = {
                     "frames":
                     new_frames,
@@ -382,19 +386,20 @@ def rename_agent(old_name, info=None):
         if "=" in com:
             # We expect com to be like "seed=10" or "rew=201"
             # Then we transform it to "s10" or "r201"
-            new_name += "," + com.split('=')[0][0] + com.split('=')[1]
+            figure = eval(com.split('=')[1])
+            new_name += "{}{:.0f}".format(com.split('=')[0][0], figure)
         else:
             layer_name, unit_name = com.split("/")[-2:]
 
             # layer_name should be like: fc_out or fc2
             assert layer_name.startswith("fc")
-            layer_name = "out" if layer_name.endswith("out") else layer_name
+            layer_name = "o" if layer_name.endswith("out") else layer_name[2:]
 
             # unit_name should be like: no_ablation or unit32
             assert unit_name.startswith("unit") or unit_name.startswith("no")
             unit_name = unit_name[4:] if unit_name.startswith("unit") else "no"
 
-            new_name += "," + layer_name + unit_name
+            new_name += ",{}l{}".format(layer_name, unit_name)
     if info is not None and "distance" in info:
         new_name += ",d{:.2f}".format(info['distance'])
     return new_name
@@ -446,7 +451,7 @@ def generate_grid_of_videos(
         name_col_mapping=None,
         name_loc_mapping=None,
         seed=0,
-        name_callback=None,
+        name_callback=rename_agent,
         local_mode=False,
         steps=int(1e10),
         num_workers=5

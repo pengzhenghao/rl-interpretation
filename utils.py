@@ -155,7 +155,7 @@ class VideoRecorder(object):
             for t in timestep:
                 cv2.putText(
                     self.background[t], text, pos, cv2.FONT_HERSHEY_SIMPLEX,
-                    1 if not_scale else 0.5 * self.scale + 0.15, color,
+                    1 if not_scale else 0.38 * self.scale + 0.1, color,
                     thickness
                 )
         else:
