@@ -176,15 +176,29 @@ def read_batch_yaml(yaml_path_dict_list):
     # input: [dict, dict, dict] wherein dict's key="path", "number", "mode".
     name_ckpt_mapping = None
     for yaml_dict in yaml_path_dict_list:
+        assert "path" in yaml_dict
         yaml_path = yaml_dict["path"]
-        number = yaml_dict["number"]
-        mode = yaml_dict["mode"]
+        number = yaml_dict["number"] if "number" in yaml_dict else None
+        mode = yaml_dict["mode"] if "mode" in yaml_dict else "top"
         if name_ckpt_mapping is None:
             name_ckpt_mapping = read_yaml(yaml_path, number, mode)
         else:
             name_ckpt_mapping.update(read_yaml(yaml_path, number, mode))
     return name_ckpt_mapping
 
+def generate_batch_yaml(yaml_path_dict_list, output_path):
+    # This function allow generate a super-yaml file to aggregate
+    # informations from different yaml files.
+    if not isinstance(yaml_path_dict_list, list):
+        yaml_path_dict_list = [yaml_path_dict_list]
+    name_ckpt_mapping = read_batch_yaml(yaml_path_dict_list)
+    assert isinstance(name_ckpt_mapping, OrderedDict)
+    assert output_path.endswith(".yaml")
+    # A list of dict, that's what we need.
+    result = list(name_ckpt_mapping.values())
+    with open(output_path, "w") as f:
+        yaml.safe_dump(result, f)
+    return result
 
 def generate_yaml(exp_names, run_name, output_path, env_name):
     # Get the trial_name-json_path dict.
