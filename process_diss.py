@@ -220,6 +220,7 @@ class AblationWorker(object):
             "ablated_unit_index": unit_index,
             "unit_name": unit_name,
             "layer_name": layer_name,
+            # This should be the original agent name
             "agent_name": self.agent_name
         }
         if save:
@@ -395,7 +396,22 @@ def generate_yaml_of_ablated_agents(
             ckpt_path = agent.save(save_path)
             info["checkpoint"] = ckpt_path
 
-        ablated_agent_name = "{} {}".format(info["agent_name"], unit_name)
+        # We should update the agent name
+        # Since in old name, reward is part of the name.
+        # But the ablated agent has different reward.
+        agent_name = info["agent_name"]
+        reward = info["episode_reward_mean"]
+        components = []
+        for comp in agent_name.split(" "):
+            if comp.startswith("rew"):
+                assert comp.startswith("rew=")
+                components.append("rew={:.2f}".format(reward))
+            else:
+                components.append(comp)
+            components.append(" ")
+        components.append(unit_name)
+        ablated_agent_name = "".join(components)
+
         info["name"] = ablated_agent_name
         info["path"] = info["checkpoint"]
         info["performance"] = info["episode_reward_mean"]

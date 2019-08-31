@@ -46,7 +46,7 @@ PRESET_INFORMATION_DICT = {
     },
     "done": {
         "default_value": False,
-        "text_function": lambda val: "Done" if val else "",
+        "text_function": lambda val: "X" if val else "",
         "pos_ratio": (0.25, 0.9)
     },
     "value_function": {
