@@ -186,6 +186,7 @@ def read_batch_yaml(yaml_path_dict_list):
             name_ckpt_mapping.update(read_yaml(yaml_path, number, mode))
     return name_ckpt_mapping
 
+
 def generate_batch_yaml(yaml_path_dict_list, output_path):
     # This function allow generate a super-yaml file to aggregate
     # informations from different yaml files.
@@ -199,6 +200,7 @@ def generate_batch_yaml(yaml_path_dict_list, output_path):
     with open(output_path, "w") as f:
         yaml.safe_dump(result, f)
     return result
+
 
 def generate_yaml(exp_names, run_name, output_path, env_name):
     # Get the trial_name-json_path dict.

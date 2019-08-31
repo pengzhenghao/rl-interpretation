@@ -84,7 +84,7 @@ def _draw_2d(plot_df, show=True, save=None):
     )
     ax.set_title(_get_title(plot_df))
     if save is not None:
-        assert save.endswith('pnd')
+        assert save.endswith('png')
         plt.savefig(save, dpi=300)
     if show:
         plt.show()
@@ -112,7 +112,7 @@ def _draw_3d(plot_df, show=True, save=None):
 
     ax.set_title(_get_title(plot_df))
     if save is not None:
-        assert save.endswith('pnd')
+        assert save.endswith('png')
         plt.savefig(save, dpi=300)
     if show:
         plt.show()

@@ -11,36 +11,6 @@ from record_video import generate_video_of_cluster
 from reduce_dimension import reduce_dimension, draw
 
 
-def score(cluster_df, fit_list):
-    score = [fit.score(cluster_df) for fit in fit_list.values()]
-    cost = -np.asarray(score)
-    cost = {k: cost[i] for i, k in enumerate(fit_list.keys())}
-    return cost
-
-
-def display(search_range, cost, log=True, save=False, show=True):
-    process = np.log if log else lambda x: x
-    plt.figure(figsize=(np.sqrt(max(search_range)) + 10, 10))
-
-    cost_list = [cost[i] for i in search_range]
-
-    plt.plot(search_range, process(cost_list))
-    plt.xlabel('Number of Clusters')
-    plt.ylabel('Score')
-    plt.xticks(list(search_range), [str(t) for t in search_range])
-    if log:
-        plt.title('Cost [Elbow Curve] (Processed by log(x))')
-    else:
-        plt.title('Cost [Elbow Curve]')
-    plt.grid()
-    if save:
-        assert isinstance(save, str)
-        assert save.endswith('png')
-        plt.savefig(save, dpi=300)
-    if show:
-        plt.show()
-
-
 class ClusterFinder(object):
     def __init__(self, cluster_df, max_num_cluster=None, standardize=False):
         assert cluster_df.ndim == 2
@@ -104,18 +74,36 @@ class ClusterFinder(object):
 
     def display(self, log=False, save=False, show=True):
         self._fit_all()
-        cost = score(self.cluster_df, self.fits)
+
+        score = [fit.score(self.cluster_df) for fit in self.fits.values()]
+        cost = -np.asarray(score)
+        cost = {k: cost[i] for i, k in enumerate(self.fits.keys())}
+
         if save:
             assert isinstance(save, str)
             assert save.endswith('png')
-        display(self.search_range, cost, log, save, show)
+        process = np.log if log else lambda x: x
+        plt.figure(figsize=(np.sqrt(max(self.search_range)) + 10, 10))
 
-    def visualize(self, three_dimension=False):
-        # TODO
-        # Should show the 2D or 3D embedding of the representation.
-        reduced = reduce_dimension(self.cluster_df)
-        assert reduced.ndim == 2
-        assert reduced.shape[1] == (3 if three_dimension else 2)
+        cost_list = [cost[i] for i in self.search_range]
+
+        plt.plot(self.search_range, process(cost_list))
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('Score')
+        plt.xticks(
+            list(self.search_range), [str(t) for t in self.search_range]
+        )
+        if log:
+            plt.title('Cost [Elbow Curve] (Processed by log(x))')
+        else:
+            plt.title('Cost [Elbow Curve]')
+        plt.grid()
+        if save:
+            assert isinstance(save, str)
+            assert save.endswith('png')
+            plt.savefig(save, dpi=300)
+        if show:
+            plt.show()
 
 
 def load_cluster_df(pkl_path):
@@ -185,8 +173,6 @@ if __name__ == '__main__':
     # generate grid of videos with shape (k, max_num_cols)
     generate_video_of_cluster(
         prediction=prediction,
-        env_name=args.env_name,
-        run_name=args.run_name,
         num_agents=num_agents,
         yaml_path=yaml_path,
         video_prefix=prefix,

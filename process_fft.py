@@ -16,14 +16,15 @@ from process_data import get_name_ckpt_mapping
 from rollout import rollout
 from utils import restore_agent, initialize_ray, get_random_string
 
+
 def build_env():
     env = BipedalWalker()
     env.seed(0)
     return env
 
-FFT_ENV_MAKER_LOOKUP = {
-    "BipedalWalker-v2": build_env
-}
+
+FFT_ENV_MAKER_LOOKUP = {"BipedalWalker-v2": build_env}
+
 
 def compute_fft(y):
     y = np.asarray(y)
@@ -313,7 +314,8 @@ def get_fft_representation(
         end = min((iteration + 1) * num_workers, num_agents)
         df_obj_ids = []
         rep_obj_ids = []
-        for i, (name, ckpt_dict) in enumerate(agent_ckpt_dict_range[start:end]):
+        for i, (name, ckpt_dict) in enumerate(agent_ckpt_dict_range[start:end]
+                                              ):
             ckpt = ckpt_dict["path"]
             env_name = ckpt_dict["env_name"]
             run_name = ckpt_dict["run_name"]

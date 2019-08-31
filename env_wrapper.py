@@ -5,7 +5,7 @@ import numpy as np
 from Box2D.b2 import circleShape
 from gym.envs.box2d.bipedal_walker import (
     BipedalWalker, VIEWPORT_H, VIEWPORT_W, SCALE, TERRAIN_HEIGHT, TERRAIN_STEP,
-FPS
+    FPS
 )
 
 from opencv_wrappers import Surface
@@ -21,6 +21,7 @@ VIDEO_HEIGHT = ORIGINAL_VIDEO_HEIGHT - 2 * VIDEO_HEIGHT_EDGE
 
 # VIEWPORT_H = 400
 # VIEWPORT_W = 400
+
 
 class OpencvViewer(object):
     def __init__(self, width, height):
@@ -90,18 +91,19 @@ RIGHT_DISPLACEMENT = 380
 # VIEWPORT_H = VIEWPORT_H - TOP_DISPLACEMENT - BOTTOM_DISPLACEMENT
 # VIEWPORT_W = VIEWPORT_W - LEFT_DISPLACEMENT - RIGHT_DISPLACEMENT
 
+
 class BipedalWalkerWrapper(BipedalWalker):
     metadata = {
         'render.modes': ['human', 'rgb_array', 'cropped', 'human_cropped'],
-        'video.frames_per_second' : FPS
+        'video.frames_per_second': FPS
     }
 
     def render(self, mode='cropped'):
         # This function is almost identical to the original one but the
         # importing of pyglet is avoided.
-        crop = (mode=='cropped') or (mode=='human_cropped')
-        scroll = self.scroll + LEFT_DISPLACEMENT/SCALE if crop else self.scroll
-        scroll_v = BOTTOM_DISPLACEMENT/SCALE if crop else 0
+        crop = (mode == 'cropped') or (mode == 'human_cropped')
+        scroll = self.scroll + LEFT_DISPLACEMENT / SCALE if crop else self.scroll
+        scroll_v = BOTTOM_DISPLACEMENT / SCALE if crop else 0
         viewport_w = VIEWPORT_W - LEFT_DISPLACEMENT - RIGHT_DISPLACEMENT if crop else VIEWPORT_W
         viewport_h = VIEWPORT_H - TOP_DISPLACEMENT - BOTTOM_DISPLACEMENT if crop else VIEWPORT_H
 
@@ -109,16 +111,14 @@ class BipedalWalkerWrapper(BipedalWalker):
             self.viewer = OpencvViewer(viewport_w, viewport_h)
 
         self.viewer.set_bounds(
-            scroll,
-            scroll + viewport_w / SCALE,
-            scroll_v,
+            scroll, scroll + viewport_w / SCALE, scroll_v,
             scroll_v + viewport_h / SCALE
         )
 
         self.viewer.draw_polygon(
             [
                 (scroll, scroll_v),
-                (scroll+ viewport_w / SCALE, scroll_v),
+                (scroll + viewport_w / SCALE, scroll_v),
                 (scroll + viewport_w / SCALE, viewport_h / SCALE + scroll_v),
                 (scroll, viewport_h / SCALE + scroll_v),
             ],
@@ -128,8 +128,7 @@ class BipedalWalkerWrapper(BipedalWalker):
             if x2 < scroll / 2: continue
             if x1 > scroll / 2 + viewport_w / SCALE: continue
             self.viewer.draw_polygon(
-                [(p[0] + scroll / 2, p[1]) for p in poly],
-                color=(1, 1, 1)
+                [(p[0] + scroll / 2, p[1]) for p in poly], color=(1, 1, 1)
             )
         for poly, color in self.terrain_poly:
             if poly[1][0] < scroll: continue
@@ -176,7 +175,8 @@ class BipedalWalkerWrapper(BipedalWalker):
         self.viewer.draw_polygon(f, color=(0.9, 0.2, 0))
         self.viewer.draw_polyline(f + [f[0]], color=(0, 0, 0), linewidth=2)
 
-        return self.viewer.render(mode=='human' or mode=='human_cropped')
+        return self.viewer.render(mode == 'human' or mode == 'human_cropped')
+
 
 if __name__ == '__main__':
     # this is the test codes
@@ -186,8 +186,10 @@ if __name__ == '__main__':
         act = env.action_space.sample()
         _, _, done, _ = env.step(act)
         ret = env.render("human_cropped")
-        print("Return type: {}. Shape: {}".format(
-            type(ret), ret.shape if isinstance(ret, np.ndarray) else None)
+        print(
+            "Return type: {}. Shape: {}".format(
+                type(ret), ret.shape if isinstance(ret, np.ndarray) else None
+            )
         )
         if done:
             env.reset()
