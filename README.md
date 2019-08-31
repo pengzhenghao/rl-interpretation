@@ -48,7 +48,7 @@ data_frame_dict, representation_dict = get_fft_representation(
         num_rollouts,
         stack=False,
         normalize="range",
-        num_worker=10
+        num_workers=10
 )
 # dict = key: agent name, val: data_frame / representation vector
 ```

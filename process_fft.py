@@ -290,7 +290,7 @@ def get_fft_representation(
         padding_value=0,
         stack=False,
         normalize="range",
-        num_worker=10
+        num_workers=10
 ):
     initialize_ray()
 
@@ -299,18 +299,18 @@ def get_fft_representation(
 
     num_agents = len(name_ckpt_mapping)
 
-    num_iteration = int(ceil(num_agents / num_worker))
+    num_iteration = int(ceil(num_agents / num_workers))
 
     agent_ckpt_dict_range = list(name_ckpt_mapping.items())
     agent_count = 1
     agent_count_get = 1
 
-    workers = [FFTWorker.remote() for _ in range(num_worker)]
+    workers = [FFTWorker.remote() for _ in range(num_workers)]
     now_t_get = now_t = start_t = time.time()
 
     for iteration in range(num_iteration):
-        start = iteration * num_worker
-        end = min((iteration + 1) * num_worker, num_agents)
+        start = iteration * num_workers
+        end = min((iteration + 1) * num_workers, num_agents)
         df_obj_ids = []
         rep_obj_ids = []
         for i, (name, ckpt_dict) in enumerate(agent_ckpt_dict_range[start:end]):
@@ -340,7 +340,7 @@ def get_fft_representation(
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Start collecting data from agent "
                 "<{}>".format(
-                    agent_count_get, num_agents,
+                    agent_count, num_agents,
                     time.time() - now_t,
                     time.time() - start_t, name
                 )
@@ -381,6 +381,7 @@ def get_fft_cluster_finder(
         num_agents=None,
         num_seeds=1,
         num_rollouts=100,
+        num_workers=10,
         padding="fix",
         padding_length=500,
         padding_value=0,
@@ -409,7 +410,8 @@ def get_fft_cluster_finder(
         name_ckpt_mapping,
         num_seeds,
         num_rollouts,
-        normalize=normalize
+        normalize=normalize,
+        num_workers=num_workers
     )
     print("Successfully get FFT representation!")
 
@@ -460,6 +462,7 @@ if __name__ == '__main__':
     parser.add_argument("--yaml-path", type=str, required=True)
     parser.add_argument("--num-rollouts", type=int, default=100)
     parser.add_argument("--num-agents", type=int, default=-1)
+    parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--show", action="store_true", default=False)
     args = parser.parse_args()
     initialize_ray(False)
@@ -469,5 +472,6 @@ if __name__ == '__main__':
         normalize="std",
         num_agents=None if args.num_agents == -1 else args.num_agents,
         num_rollouts=args.num_rollouts,
+        num_workers=args.num_workers,
         show=args.show
     )
