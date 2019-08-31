@@ -145,10 +145,10 @@ class CollectFramesWorker(object):
         agent = restore_agent(run_name, ckpt, env_name, config)
         env = env_maker()
         # env.seed(self.seed)
-
         result = rollout(agent, env, self.num_steps, require_frame=True)
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
+        agent.stop()
         return frames, extra_info
 
 

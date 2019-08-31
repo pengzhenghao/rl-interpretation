@@ -177,7 +177,6 @@ class FFTWorker(object):
     ):
         # One seed, N rollouts.
         env = self.env_maker()
-        env.seed(seed)
         data_frame = None
         obs_list = []
         act_list = []
@@ -278,6 +277,7 @@ class FFTWorker(object):
         repr_dict = get_representation(
             data_frame, label_list, self.postprocess_func
         )
+        self.agent.stop()
         return data_frame.copy(), repr_dict
 
 
