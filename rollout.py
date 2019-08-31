@@ -156,7 +156,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-            ]["policy_mapping_fn"]
+                                                ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -234,10 +234,8 @@ def rollout(
                         agent_states[agent_id] = p_state
                     else:
                         # This is a workaround
-                        if agent._name=="ES":
-                            a_action = agent.compute_action(
-                                a_obs
-                            )
+                        if agent._name == "ES":
+                            a_action = agent.compute_action(a_obs)
                         else:
                             a_action, _, a_info = agent.compute_action(
                                 a_obs,
@@ -310,6 +308,7 @@ def replay(trajectory, agent):
     obs_batch = np.asarray(obs_batch)
     actions, _, infos = policy.compute_actions(obs_batch)
     return actions, infos
+
 
 def _test_es_agent_compatibility():
     from ray.rllib.agents.es import ESTrainer

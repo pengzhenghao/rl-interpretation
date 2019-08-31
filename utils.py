@@ -93,6 +93,9 @@ class VideoRecorder(object):
             grids,
             FPS=50
     ):
+        # self.grids = int | dict
+        # if int, then it represent the number of videos
+        # if dict, then it should be like {agent_name: (row, col)}
         self.frame_shape = None
         assert isinstance(grids, int) or isinstance(grids, dict)
         self.grids = grids
@@ -301,6 +304,9 @@ class VideoRecorder(object):
                 pos = get_pos(*information['pos_ratio'])
                 value = information[title]
                 if isinstance(value, list):
+                    # filter out the empty list if any.
+                    if not value:
+                        continue
                     value_sequence = value
                     for timestep, value in enumerate(value_sequence):
                         text = information['text_function'](value)
@@ -382,8 +388,8 @@ class VideoRecorder(object):
             os.remove(self.path)
 
     def _build_frame_range(self):
-        def center_range(center, rang):
-            return [int(center - rang / 2), int(center + rang / 2)]
+        # def center_range(center, rang):
+        #     return [int(center - rang / 2), int(center + rang / 2)]
 
         specify_grids = not isinstance(self.grids, int)
 

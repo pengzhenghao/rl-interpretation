@@ -189,7 +189,7 @@ def read_batch_yaml(yaml_path_dict_list):
 def generate_yaml(exp_names, run_name, output_path, env_name):
     # Get the trial_name-json_path dict.
 
-    assert spec(args.env_name) # make sure no typo in env_name
+    assert spec(args.env_name)  # make sure no typo in env_name
     trial_json_dict = {}
     if isinstance(exp_names, str):
         exp_names = [exp_names]
@@ -240,6 +240,7 @@ if __name__ == '__main__':
     assert isinstance(args.exp_names, list) or isinstance(args.exp_names, str)
     assert args.output_path.endswith("yaml")
 
-    ret = generate_yaml(args.exp_names, args.run_name, args.output_path,
-                        args.env_name)
+    ret = generate_yaml(
+        args.exp_names, args.run_name, args.output_path, args.env_name
+    )
     print("Successfully collect {} agents.".format(len(ret)))

@@ -60,14 +60,14 @@ PRESET_INFORMATION_DICT = {
     }
 }
 
+
 def build_env_maker(seed):
     env = BipedalWalkerWrapper()
     env.seed(seed)
     return lambda: env
 
-BUILD_ENV_MAKER = {
-    "BipedalWalker-v2": build_env_maker
-}
+
+BUILD_ENV_MAKER = {"BipedalWalker-v2": build_env_maker}
 
 
 def create_parser(parser_creator=None):
@@ -117,7 +117,9 @@ class CollectFramesWorker(object):
     def __init__(
             self,
             # run_name, env_maker, env_name,
-            num_steps, num_iters, seed
+            num_steps,
+            num_iters,
+            seed
     ):
         # self.run_name = run_name
         # self.env_maker = env_maker
@@ -150,9 +152,12 @@ class CollectFramesWorker(object):
 
 
 class GridVideoRecorder(object):
-    def __init__(self, video_path,
-                 # env_name, run_name,
-                 local_mode=False):
+    def __init__(
+            self,
+            video_path,
+            # env_name, run_name,
+            local_mode=False
+    ):
         initialize_ray(local_mode)
 
         # single_env = gym.make(env_name)
@@ -192,7 +197,9 @@ class GridVideoRecorder(object):
             CollectFramesWorker.remote(
                 # self.run_name, ENVIRONMENT_MAPPING[self.env_name],
                 # self.env_name,
-                num_steps, num_iters, seed
+                num_steps,
+                num_iters,
+                seed
             ) for _ in range(num_workers)
         ]
 
@@ -232,10 +239,17 @@ class GridVideoRecorder(object):
                 new_extra_info = copy.deepcopy(extra_info)
 
                 frames_info = {
-                    "frames": new_frames,
-                    "column": None if name_column_mapping is None else name_column_mapping[name],
-                    "row": None if name_row_mapping is None else name_row_mapping[name],
-                    "loc": None if name_loc_mapping is None else name_loc_mapping[name]
+                    "frames":
+                    new_frames,
+                    "column":
+                    None if name_column_mapping is None else
+                    name_column_mapping[name],
+                    "row":
+                    None
+                    if name_row_mapping is None else name_row_mapping[name],
+                    "loc":
+                    None
+                    if name_loc_mapping is None else name_loc_mapping[name]
                 }
 
                 frames_dict[name] = frames_info
@@ -274,17 +288,19 @@ class GridVideoRecorder(object):
             )
         )
         locations = [f_info['loc'] for f_info in frames_dict.values()]
-        assert len(set(locations)) == len(locations)
 
-        max_row = max([row + 1 for row, _ in locations])
-        max_col = max([col + 1 for _, col in locations])
-
-        vr = VideoRecorder(
-            self.video_path, grids={
-                'col': max_col,
-                'row': max_row
-            }
-        )
+        unique_locations = set(locations)
+        no_specify_location = len(unique_locations) == 1 and next(
+            iter(unique_locations)
+        ) is None
+        assert len(unique_locations) == len(locations) or no_specify_location
+        if no_specify_location:
+            grids = len(frames_dict)
+        else:
+            max_row = max([row + 1 for row, _ in locations])
+            max_col = max([col + 1 for _, col in locations])
+            grids = {"col": max_col, "row": max_row}
+        vr = VideoRecorder(self.video_path, grids=grids)
         path = vr.generate_video(frames_dict, extra_info_dict)
         return path
 
@@ -359,9 +375,10 @@ def _transform_name_ckpt_mapping(
 def rename_agent(old_name, info=None):
     # old_name look like: <PPO seed=10 rew=10.1>
     # or for ablation study: <PPO seed=1 rew=29.35 policy/model/fc_out/unit34>
+    # new name look like: <PPO,s10,r10.1> or <PPO,s1,r29.35,out34>
     components = old_name.split(" ")
     new_name = components[0]
-    for com in components:
+    for com in components[1:]:
         if "=" in com:
             # We expect com to be like "seed=10" or "rew=201"
             # Then we transform it to "s10" or "r201"
@@ -416,13 +433,9 @@ def generate_video_of_cluster(
     assert new_name_ckpt_mapping.keys() == \
            name_row_mapping.keys() == name_loc_mapping.keys()
     generate_grid_of_videos(
-        new_name_ckpt_mapping,
-        video_prefix,
-        name_row_mapping,
-        name_col_mapping,
-        name_loc_mapping,
-        seed, None,
-        local_mode, steps, num_workers
+        new_name_ckpt_mapping, video_prefix, name_row_mapping,
+        name_col_mapping, name_loc_mapping, seed, None, local_mode, steps,
+        num_workers
     )
 
 
@@ -441,7 +454,7 @@ def generate_grid_of_videos(
     if name_callback is not None:
         assert callable(name_callback)
         new_name_ckpt_mapping = OrderedDict()
-        for old_name, val in name_ckpt_mapping:
+        for old_name, val in name_ckpt_mapping.items():
             new_name = name_callback(old_name)
             new_name_ckpt_mapping[new_name] = val
         name_ckpt_mapping = new_name_ckpt_mapping
@@ -466,22 +479,15 @@ def generate_grid_of_videos(
     return path
 
 
-if __name__ == "__main__":
+def test_cluster_video_generation():
+
     parser = create_parser()
     args = parser.parse_args()
 
-    with open(args.yaml, 'r') as f:
-        name_ckpt_list = yaml.safe_load(f)
-
-    name_ckpt_mapping = OrderedDict()
-    for d in name_ckpt_list:
-        name_ckpt_mapping[d["name"]] = d["path"]
+    name_ckpt_mapping = get_name_ckpt_mapping(args.yaml, number=2)
 
     gvr = GridVideoRecorder(
-        video_path=args.yaml[:-5],
-        # env_name=args.env,
-        # run_name=args.run,
-        local_mode=args.local_mode
+        video_path=args.yaml[:-5], local_mode=args.local_mode
     )
 
     name_row_mapping = {key: "TEST ROW" for key in name_ckpt_mapping.keys()}
@@ -499,3 +505,20 @@ if __name__ == "__main__":
     gvr.generate_video(frames_dict, extra_info_dict)
 
     gvr.close()
+
+
+def test_es_compatibility():
+    name_ckpt_mapping = get_name_ckpt_mapping(
+        "data/es-30-agents-0818.yaml", 10
+    )
+    generate_grid_of_videos(
+        name_ckpt_mapping,
+        "data/tmp_test_es_compatibility",
+        steps=50,
+        name_callback=rename_agent,
+        num_workers=10
+    )
+
+
+if __name__ == "__main__":
+    test_es_compatibility()
