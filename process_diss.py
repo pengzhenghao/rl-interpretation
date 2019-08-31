@@ -365,9 +365,9 @@ def get_ablation_result(
 def generate_yaml_of_ablated_agents(
         ablation_result,
         output_path,
-        run_name=None,
+        run_name,
+        env_name,
         ckpt=None,
-        env_name=None,
 ):
     """
     This is an alternative function which simply parse the ablation_result
