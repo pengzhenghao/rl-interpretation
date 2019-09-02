@@ -307,9 +307,6 @@ class BipedalWalkerWrapper(BipedalWalker):
         return self.viewer.render(mode == 'human' or mode == 'human_cropped')
 
 
-
-
-
 class InverseFFTRendered(object):
     metadata = {
         'render.modes': ['human', 'rgb_array', 'cropped', 'human_cropped'],
@@ -327,39 +324,49 @@ class InverseFFTRendered(object):
 
         pass
 
-
     def obs_to_state(self):
-
         def step(self, action):
             # self.hull.ApplyForceToCenter((0, 20), True) -- Uncomment this
             # to receive a bit of stability help
             control_speed = False  # Should be easier as well
             if control_speed:
                 self.joints[0].motorSpeed = float(
-                    SPEED_HIP * np.clip(action[0], -1, 1))
+                    SPEED_HIP * np.clip(action[0], -1, 1)
+                )
                 self.joints[1].motorSpeed = float(
-                    SPEED_KNEE * np.clip(action[1], -1, 1))
+                    SPEED_KNEE * np.clip(action[1], -1, 1)
+                )
                 self.joints[2].motorSpeed = float(
-                    SPEED_HIP * np.clip(action[2], -1, 1))
+                    SPEED_HIP * np.clip(action[2], -1, 1)
+                )
                 self.joints[3].motorSpeed = float(
-                    SPEED_KNEE * np.clip(action[3], -1, 1))
+                    SPEED_KNEE * np.clip(action[3], -1, 1)
+                )
             else:
                 self.joints[0].motorSpeed = float(
-                    SPEED_HIP * np.sign(action[0]))
+                    SPEED_HIP * np.sign(action[0])
+                )
                 self.joints[0].maxMotorTorque = float(
-                    MOTORS_TORQUE * np.clip(np.abs(action[0]), 0, 1))
+                    MOTORS_TORQUE * np.clip(np.abs(action[0]), 0, 1)
+                )
                 self.joints[1].motorSpeed = float(
-                    SPEED_KNEE * np.sign(action[1]))
+                    SPEED_KNEE * np.sign(action[1])
+                )
                 self.joints[1].maxMotorTorque = float(
-                    MOTORS_TORQUE * np.clip(np.abs(action[1]), 0, 1))
+                    MOTORS_TORQUE * np.clip(np.abs(action[1]), 0, 1)
+                )
                 self.joints[2].motorSpeed = float(
-                    SPEED_HIP * np.sign(action[2]))
+                    SPEED_HIP * np.sign(action[2])
+                )
                 self.joints[2].maxMotorTorque = float(
-                    MOTORS_TORQUE * np.clip(np.abs(action[2]), 0, 1))
+                    MOTORS_TORQUE * np.clip(np.abs(action[2]), 0, 1)
+                )
                 self.joints[3].motorSpeed = float(
-                    SPEED_KNEE * np.sign(action[3]))
+                    SPEED_KNEE * np.sign(action[3])
+                )
                 self.joints[3].maxMotorTorque = float(
-                    MOTORS_TORQUE * np.clip(np.abs(action[3]), 0, 1))
+                    MOTORS_TORQUE * np.clip(np.abs(action[3]), 0, 1)
+                )
 
             self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
 
@@ -371,9 +378,11 @@ class InverseFFTRendered(object):
                 self.lidar[i].p1 = pos
                 self.lidar[i].p2 = (
                     pos[0] + math.sin(1.5 * i / 10.0) * LIDAR_RANGE,
-                    pos[1] - math.cos(1.5 * i / 10.0) * LIDAR_RANGE)
-                self.world.RayCast(self.lidar[i], self.lidar[i].p1,
-                                   self.lidar[i].p2)
+                    pos[1] - math.cos(1.5 * i / 10.0) * LIDAR_RANGE
+                )
+                self.world.RayCast(
+                    self.lidar[i], self.lidar[i].p1, self.lidar[i].p2
+                )
 
             state = [
                 self.hull.angle,
@@ -411,7 +420,7 @@ class InverseFFTRendered(object):
 
             # for a in action:
             #     reward -= 0.00035 * MOTORS_TORQUE * np.clip(np.abs(a), 0, 1)
-                # normalized to about -50.0 using heuristic, more optimal agent should spend less
+            # normalized to about -50.0 using heuristic, more optimal agent should spend less
 
             # done = False
             # if self.game_over or pos[0] < 0:
@@ -420,9 +429,6 @@ class InverseFFTRendered(object):
             # if pos[0] > (TERRAIN_LENGTH - TERRAIN_GRASS) * TERRAIN_STEP:
             #     done = True
             return np.array(state), reward, done, {}
-
-
-
 
     def render(self, mode='cropped'):
         # This function is almost identical to the original one but the

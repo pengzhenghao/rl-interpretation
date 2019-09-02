@@ -52,7 +52,7 @@ target_list = []
 
 if args.env == "BipedalWalker-v2":
     algo_specify_config_dict = {
-        "PPO":{
+        "PPO": {
             "config": {
                 "seed": tune.grid_search(list(range(20))),
                 "observation_filter": "MeanStdFilter",

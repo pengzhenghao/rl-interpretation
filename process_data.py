@@ -8,6 +8,8 @@ import pandas
 import yaml
 from gym.envs import spec
 
+PERFORMANCE_METRIC = "episode_reward_mean"
+
 
 def get_trial_name(trial_raw_name):
     # The raw name is ugly,
@@ -92,7 +94,7 @@ def get_trial_json_dict(exp_name, root_dir="~/ray_results"):
     return json_dict
 
 
-def get_latest_checkpoint(trial_dir):
+def get_checkpoint(trial_dir, index=None):
     # Input: /home/../ray_results/exp/PPO_xx_xxx/
 
     ckpt_paths = [
@@ -106,7 +108,18 @@ def get_latest_checkpoint(trial_dir):
         return None
 
     sorted_ckpt_paths = sorted(ckpt_paths, key=lambda pair: pair["iter"])
-    return sorted_ckpt_paths[-1]["path"]
+    if index is None:
+        return sorted_ckpt_paths[-1]
+    else:
+        ret_list = [pair for pair in ckpt_paths if pair['iter'] == index]
+        assert len(ret_list) == 1, "You ask index: {} \nbut we collect: {}" \
+            .format(index, ckpt_paths)
+        return ret_list[0]
+
+
+def get_latest_checkpoint(trial_dir):
+    # Input: /home/../ray_results/exp/PPO_xx_xxx/
+    return get_checkpoint(trial_dir)
 
 
 def make_ordereddict(list_of_dict, number=None, mode="uniform"):
@@ -135,43 +148,6 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
         ret[d['name']] = d
     assert len(ret) == number
     return ret
-
-
-def get_sorted_trial_ckpt_list(
-        sorted_trial_pfm_list, trial_json_dict, get_video_name
-        # , run_name=None,
-        # env_name=None
-):
-    """
-    Return: [{"name": NAME, "path": CKPT_PATH, ...}, {...}, ...]
-    """
-    results = []
-    for (trial_name, performance) in sorted_trial_pfm_list:
-        # varibales show here:
-        #    trial_name: PPO_xx_seed=199
-        #    json_path: xxx/xxx/trial/result.json
-        #    trial_path: xxx/xxx/trial
-        json_path = trial_json_dict[trial_name]
-        trial_path = os.path.dirname(json_path)
-        ckpt = get_latest_checkpoint(trial_path)
-
-        if ckpt is None:
-            continue
-
-        run_name = trial_name.split("_")[0]
-        env_name = trial_name.split("_")[1]
-
-        cool_name = get_video_name(trial_name, performance)
-        results.append(
-            {
-                "name": cool_name,
-                "path": ckpt,
-                "performance": float(performance),
-                "run_name": run_name,
-                "env_name": env_name
-            }
-        )
-    return results
 
 
 def read_yaml(yaml_path, number=None, mode='top'):
@@ -214,7 +190,7 @@ def generate_batch_yaml(yaml_path_dict_list, output_path):
     return result
 
 
-def generate_progress_yaml(exp_names, ouput_path, number=None):
+def generate_progress_yaml(exp_names, output_path, number=None):
     # The meaning of number: if None, extract all checkpoints from all trials
     # if is an integer, then extract N checkpoints for each trials.
     assert (number is None) or (isinstance(number, int))
@@ -227,15 +203,6 @@ def generate_progress_yaml(exp_names, ouput_path, number=None):
         trial_json_dict.update(get_trial_json_dict(exp_name))
     # Get the trial_name-trial_data dict. This is not ordered.
     trial_data_dict = get_trial_data_dict(trial_json_dict)
-    K = 3
-    trial_performance_list = []
-    for i, (trial_name, data) in enumerate(trial_data_dict.items()):
-        avg = data["episode_reward_mean"].tail(K).mean()
-        trial_performance_list.append([trial_name, avg])
-
-    sorted_trial_pfm_list = sorted(
-        trial_performance_list, key=lambda pair: pair[1]
-    )
 
     def get_video_name(trial_name, performance):
         # trial_name: PPO_BipedalWalker-v2_38_seed=138
@@ -243,17 +210,48 @@ def generate_progress_yaml(exp_names, ouput_path, number=None):
         components = trial_name.split("_")
         return "{0} {3} rew={4:.2f}".format(*components, performance)
 
-    results = get_sorted_trial_ckpt_list(
-        sorted_trial_pfm_list, trial_json_dict, get_video_name
-        # , run_name,
-        # env_name
-    )
+    # Return: [{"name": NAME, "path": CKPT_PATH, ...}, {...}, ...]
+    results = []
+    for (trial_name, dataframe) in trial_data_dict.items():
+
+        # We assume all iteration have stored the checkpoints.
+        # But sometimes we store checkpoint in some interval.
+        if number is None:
+            data_list = dataframe
+        else:
+            interval = int(floor(len(dataframe) / number))
+            start_index = len(dataframe) % number
+            data_list = dataframe[:start_index:-interval][::-1]
+        assert (number is None) or (len(data_list) == number)
+        for num_iters, series in data_list.iterrows():
+            # varibales show here:
+            #    trial_name: PPO_xx_seed=199
+            #    json_path: xxx/xxx/trial/result.json
+            #    trial_path: xxx/xxx/trial
+            json_path = trial_json_dict[trial_name]
+            trial_path = os.path.dirname(json_path)
+            # Todo you sure the index of this dataframe is that of iteration?
+            ckpt = get_checkpoint(trial_path, num_iters)
+            if ckpt is None:
+                continue
+            run_name = trial_name.split("_")[0]
+            env_name = trial_name.split("_")[1]
+            performance = series[PERFORMANCE_METRIC]
+            cool_name = get_video_name(trial_name, performance)
+            results.append(
+                {
+                    "name": cool_name,
+                    "path": ckpt,
+                    "performance": float(performance),
+                    "run_name": run_name,
+                    "env_name": env_name,
+                    "iter": num_iters
+                }
+            )
     with open(output_path, 'w') as f:
         yaml.safe_dump(results, f)
 
     return results
-
-
 
 
 def generate_yaml(exp_names, run_name, output_path, env_name):
@@ -265,18 +263,13 @@ def generate_yaml(exp_names, run_name, output_path, env_name):
         exp_names = [exp_names]
     for exp_name in exp_names:
         trial_json_dict.update(get_trial_json_dict(exp_name))
-    # print("Collected trial_json_dict: ", trial_json_dict)
     # Get the trial_name-trial_data dict. This is not ordered.
     trial_data_dict = get_trial_data_dict(trial_json_dict)
-    # print("Collected trial_data_dict: ", trial_data_dict)
     K = 3
-
     trial_performance_list = []
-
     for i, (trial_name, data) in enumerate(trial_data_dict.items()):
-        avg = data["episode_reward_mean"].tail(K).mean()
+        avg = data[PERFORMANCE_METRIC].tail(K).mean()
         trial_performance_list.append([trial_name, avg])
-
     # print("Collected trial_performance_list: ", trial_performance_list)
     sorted_trial_pfm_list = sorted(
         trial_performance_list, key=lambda pair: pair[1]
@@ -288,14 +281,32 @@ def generate_yaml(exp_names, run_name, output_path, env_name):
         components = trial_name.split("_")
         return "{0} {3} rew={4:.2f}".format(*components, performance)
 
-    results = get_sorted_trial_ckpt_list(
-        sorted_trial_pfm_list, trial_json_dict, get_video_name
-        # , run_name,
-        # env_name
-    )
+    # Return: [{"name": NAME, "path": CKPT_PATH, ...}, {...}, ...]
+    results = []
+    for (trial_name, performance) in sorted_trial_pfm_list:
+        json_path = trial_json_dict[trial_name]
+        trial_path = os.path.dirname(json_path)
+        ckpt = get_latest_checkpoint(trial_path)
+        if ckpt is None:
+            continue
+        run_name = trial_name.split("_")[0]
+        env_name = trial_name.split("_")[1]
+        cool_name = get_video_name(trial_name, performance)
+        results.append(
+            {
+                "name": cool_name,
+                "path": ckpt["path"],
+                "performance": float(performance),
+                "run_name": run_name,
+                "env_name": env_name,
+                "iter": ckpt["iter"]
+                # Todo check if the other place to generate yaml also has
+                #  "iter" property
+            }
+        )
+
     with open(output_path, 'w') as f:
         yaml.safe_dump(results, f)
-
     return results
 
 
@@ -311,7 +322,10 @@ if __name__ == '__main__':
     assert isinstance(args.exp_names, list) or isinstance(args.exp_names, str)
     assert args.output_path.endswith("yaml")
 
-    ret = generate_yaml(
-        args.exp_names, args.run_name, args.output_path, args.env_name
-    )
-    print("Successfully collect {} agents.".format(len(ret)))
+    # ret = generate_yaml(
+    #     args.exp_names, args.run_name, args.output_path, args.env_name
+    # )
+    # print("Successfully collect {} agents.".format(len(ret)))
+
+    # test purpose
+    ret = generate_progress_yaml(args.exp_names, args.output_path)
