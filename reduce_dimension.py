@@ -71,6 +71,7 @@ def draw(plot_df, show=True, save=None):
 
 
 def _draw_2d(plot_df, show=True, save=None):
+
     plt.figure(figsize=(12, 10), dpi=300)
     num_clusters = len(plot_df.cluster.unique())
     palette = sns.color_palette(n_colors=num_clusters)

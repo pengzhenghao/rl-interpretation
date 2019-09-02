@@ -9,6 +9,17 @@ the magnitude pattern of the representative agent. Now we have both magnitude
 and phase pattern, we can conduct the inverse fft to get the trial.
 
 By modifying the environment, we can generate the videos from the trial.
+
+The algorithm procedure:
+
+For each cluster:
+    1. get the closest agent "a"
+    2. collect the frequency pattern of a (by rollout N times)
+    3. replace the magnitude pattern by the centroid representation.
+    4. split the representation into 24 + 4 channels and generate the sequences
+    5. generate the videos based on the regenerated obs / act sequence.
+
+
 """
 
 import copy
