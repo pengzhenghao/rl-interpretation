@@ -235,6 +235,7 @@ class AblationWorker(object):
                 num_rollouts, episode_reward_mean, episdoe_lenth_mean
             )
         )
+        self.agent.stop()
         return result
 
 
@@ -395,6 +396,7 @@ def generate_yaml_of_ablated_agents(
 
             ckpt_path = agent.save(save_path)
             info["checkpoint"] = ckpt_path
+            agent.stop()
 
         # We should update the agent name
         # Since in old name, reward is part of the name.
@@ -426,7 +428,6 @@ def generate_yaml_of_ablated_agents(
                 v = v.item()
             result[k] = v
         results.append(result)
-
     results = sorted(results, key=lambda d: d["performance"])
 
     import yaml

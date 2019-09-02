@@ -16,14 +16,15 @@ from process_data import get_name_ckpt_mapping
 from rollout import rollout
 from utils import restore_agent, initialize_ray, get_random_string
 
+
 def build_env():
     env = BipedalWalker()
     env.seed(0)
     return env
 
-FFT_ENV_MAKER_LOOKUP = {
-    "BipedalWalker-v2": build_env
-}
+
+FFT_ENV_MAKER_LOOKUP = {"BipedalWalker-v2": build_env}
+
 
 def compute_fft(y):
     y = np.asarray(y)
@@ -177,7 +178,6 @@ class FFTWorker(object):
     ):
         # One seed, N rollouts.
         env = self.env_maker()
-        env.seed(seed)
         data_frame = None
         obs_list = []
         act_list = []
@@ -278,6 +278,7 @@ class FFTWorker(object):
         repr_dict = get_representation(
             data_frame, label_list, self.postprocess_func
         )
+        self.agent.stop()
         return data_frame.copy(), repr_dict
 
 
@@ -313,7 +314,8 @@ def get_fft_representation(
         end = min((iteration + 1) * num_workers, num_agents)
         df_obj_ids = []
         rep_obj_ids = []
-        for i, (name, ckpt_dict) in enumerate(agent_ckpt_dict_range[start:end]):
+        for i, (name, ckpt_dict) in enumerate(agent_ckpt_dict_range[start:end]
+                                              ):
             ckpt = ckpt_dict["path"]
             env_name = ckpt_dict["env_name"]
             run_name = ckpt_dict["run_name"]
@@ -377,7 +379,8 @@ def parse_representation_dict(representation_dict, *args, **kwargs):
 
 def get_fft_cluster_finder(
         yaml_path,
-        normalize,
+        normalize="std",
+        try_standardize=False,
         num_agents=None,
         num_seeds=1,
         num_rollouts=100,
@@ -435,21 +438,22 @@ def get_fft_cluster_finder(
         format(nostd_fig_path)
     )
 
-    std_cluster_finder = ClusterFinder(cluster_df, standardize=True)
-    std_fig_path = prefix + "_std.png"
-    std_cluster_finder.display(save=std_fig_path, show=show)
-    print(
-        "Successfully finish standardized clustering! Save at: {}".
-        format(std_fig_path)
-    )
-
     ret = {
         "cluster_finder": {
-            'nostd_cluster_finder': nostd_cluster_finder,
-            "std_cluster_finder": std_cluster_finder
+            'nostd_cluster_finder': nostd_cluster_finder
         },
         "prefix": prefix
     }
+
+    if try_standardize:
+        std_cluster_finder = ClusterFinder(cluster_df, standardize=True)
+        std_fig_path = prefix + "_std.png"
+        std_cluster_finder.display(save=std_fig_path, show=show)
+        print(
+            "Successfully finish standardized clustering! Save at: {}".
+            format(std_fig_path)
+        )
+        ret['cluster_finder']["std_cluster_finder"] = std_cluster_finder
 
     return ret
 
@@ -463,15 +467,86 @@ if __name__ == '__main__':
     parser.add_argument("--num-rollouts", type=int, default=100)
     parser.add_argument("--num-agents", type=int, default=-1)
     parser.add_argument("--num-workers", type=int, default=10)
-    parser.add_argument("--show", action="store_true", default=False)
+    # parser.add_argument("--show", action="store_true", default=False)
     args = parser.parse_args()
     initialize_ray(False)
 
-    get_fft_cluster_finder(
+    ret = get_fft_cluster_finder(
         yaml_path=args.yaml_path,
-        normalize="std",
         num_agents=None if args.num_agents == -1 else args.num_agents,
         num_rollouts=args.num_rollouts,
         num_workers=args.num_workers,
-        show=args.show
+        # show=args.show
     )
+    cluster_finder = ret['cluster_finder']['nostd_cluster_finder']
+    prefix = ret['prefix']
+    num_clusters = 10
+    cluster_finder.set(num_clusters)
+    prediction = cluster_finder.predict()
+    print(
+        "Collected clustering results for {} agents, {} clusters.".format(
+            len(prediction), num_clusters
+        )
+    )
+
+    from process_cluster import load_cluster_df, generate_video_of_cluster
+    from reduce_dimension import reduce_dimension
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    cluster_df = load_cluster_df(prefix + ".pkl")
+    plot_df, _ = reduce_dimension(cluster_df, prediction, False)
+
+    def get_label(name):
+        if name.startswith("ES"):
+            return "ES"
+        if "fc2" in name:
+            return "fc2"
+        if "fc_out" in name:
+            return "fc_out"
+        else:
+            return "PPO"
+
+    plot_df.insert(
+        4, "label", [get_label(name) for name in plot_df.agent], True
+    )
+
+    save = prefix + "_2d.png"
+    show = None
+
+    def _get_title(plot_df):
+        num_clusters = len(plot_df.cluster.unique())
+        num_agents = len(plot_df.agent.unique())
+        return "Clustering Result of {} Clusters, " \
+               "{} Agents (Dimensions Reduced by PCA-TSNE)".format(
+            num_clusters, num_agents)
+
+    plt.figure(figsize=(12, 10), dpi=300)
+    num_clusters = len(plot_df.cluster.unique())
+    palette = sns.color_palette(n_colors=num_clusters)
+    ax = sns.scatterplot(
+        x="x",
+        y="y",
+        hue="cluster",
+        style="label",
+        palette=palette,
+        data=plot_df,
+        legend="full"
+    )
+    ax.set_title(_get_title(plot_df))
+    if save is not None:
+        assert save.endswith('png')
+        plt.savefig(save, dpi=300)
+    if show:
+        plt.show()
+
+    # generate grid of videos with shape (k, max_num_cols)
+    generate_video_of_cluster(
+        prediction=prediction,
+        num_agents=None,
+        yaml_path=args.yaml_path,
+        video_prefix=prefix,
+        max_num_cols=18,
+        num_workers=args.num_workers
+    )
+    print("Finished generating videos.")

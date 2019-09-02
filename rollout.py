@@ -261,9 +261,16 @@ def rollout(
             action = action_dict[_DUMMY_AGENT_ID]
 
             next_obs, reward, done, _ = env.step(action)
+
+            if multiagent:
+                done = done["__all__"]
+                reward_total += sum(reward.values())
+            else:
+                reward_total += reward
+
             if require_frame:
                 frame_extra_info["done"].append(done)
-                frame_extra_info["reward"].append(reward)
+                frame_extra_info["reward"].append(reward_total)
                 frame_extra_info["step"].append(steps)
 
             if multiagent:
@@ -272,11 +279,6 @@ def rollout(
             else:
                 prev_rewards[_DUMMY_AGENT_ID] = reward
 
-            if multiagent:
-                done = done["__all__"]
-                reward_total += sum(reward.values())
-            else:
-                reward_total += reward
             kwargs = {"mode": "rgb_array" if require_full_frame else "cropped"}
             # This copy() is really important!
             # Otherwise see error: pyarrow.lib.ArrowInvalid

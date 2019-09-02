@@ -145,27 +145,17 @@ class CollectFramesWorker(object):
         agent = restore_agent(run_name, ckpt, env_name, config)
         env = env_maker()
         # env.seed(self.seed)
-
         result = rollout(agent, env, self.num_steps, require_frame=True)
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
+        agent.stop()
         return frames, extra_info
 
 
 class GridVideoRecorder(object):
-    def __init__(
-            self,
-            video_path,
-            # env_name, run_name,
-            local_mode=False
-    ):
+    def __init__(self, video_path, local_mode=False):
         initialize_ray(local_mode)
-
-        # single_env = gym.make(env_name)
-        # self.env_name = env_name
-        # self.run_name = run_name
         self.video_path = video_path
-        # self.video_recorder = VideoRecorder(video_path)
 
     def generate_frames(
             self,
@@ -195,13 +185,8 @@ class GridVideoRecorder(object):
         extra_info_dict = PRESET_INFORMATION_DICT
 
         workers = [
-            CollectFramesWorker.remote(
-                # self.run_name, ENVIRONMENT_MAPPING[self.env_name],
-                # self.env_name,
-                num_steps,
-                num_iters,
-                seed
-            ) for _ in range(num_workers)
+            CollectFramesWorker.remote(num_steps, num_iters, seed)
+            for _ in range(num_workers)
         ]
 
         for iteration in range(num_iteration):
@@ -407,8 +392,6 @@ def rename_agent(old_name, info=None):
 
 def generate_video_of_cluster(
         prediction,
-        # env_name,
-        # run_name,
         num_agents,
         yaml_path,
         video_prefix,
@@ -425,9 +408,6 @@ def generate_video_of_cluster(
     for key, val in prediction.items():
         assert key in name_ckpt_mapping
         assert isinstance(val, dict)
-
-    # assert env_name == "BipedalWalker-v2", \
-    #     "We only support BipedalWalker-v2 currently!"
 
     new_name_ckpt_mapping, name_loc_mapping, name_row_mapping, \
     name_col_mapping = _transform_name_ckpt_mapping(
@@ -463,12 +443,7 @@ def generate_grid_of_videos(
             new_name = name_callback(old_name)
             new_name_ckpt_mapping[new_name] = val
         name_ckpt_mapping = new_name_ckpt_mapping
-    gvr = GridVideoRecorder(
-        video_path=video_prefix,
-        # env_name=env_name,
-        # run_name=run_name,
-        local_mode=local_mode
-    )
+    gvr = GridVideoRecorder(video_path=video_prefix, local_mode=local_mode)
     frames_dict, extra_info_dict = gvr.generate_frames(
         name_ckpt_mapping,
         num_steps=steps,
