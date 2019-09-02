@@ -326,16 +326,18 @@ if __name__ == '__main__':
     parser.add_argument("--exp-names", nargs='+', type=str, required=True)
     parser.add_argument("--run-name", required=True, type=str)
     parser.add_argument("--output-path", required=True, type=str)
+    parser.add_argument("--progress", type=bool, action="store_true")
+    parser.add_argument("--number", type=int, default=-1)
     parser.add_argument("--env-name", default="BipedalWalker-v2", type=str)
     args = parser.parse_args()
     assert isinstance(args.exp_names, list) or isinstance(args.exp_names, str)
     assert args.output_path.endswith("yaml")
 
-    ret = generate_yaml(
-        args.exp_names, args.run_name, args.output_path, args.env_name
-    )
-    print("Successfully collect {} agents.".format(len(ret)))
-
-    # test purpose
-    ret1 = generate_progress_yaml(args.exp_names, args.output_path, number=100)
-    ret2 = generate_progress_yaml(args.exp_names, args.output_path)
+    if not args.progress:
+        ret = generate_yaml(
+            args.exp_names, args.run_name, args.output_path, args.env_name
+        )
+    else:
+        number = args.number if args.number != -1 else None
+        ret = generate_progress_yaml(args.exp_names, args.output_path, number)
+    print("Successfully collect {} records.".format(len(ret)))
