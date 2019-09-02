@@ -12,7 +12,8 @@ from reduce_dimension import reduce_dimension, draw
 
 
 class ClusterFinder(object):
-    def __init__(self, cluster_df, max_num_cluster=None, standardize=False):
+    def __init__(self, cluster_df, max_num_cluster=100, standardize=False):
+        # We argue that the max cluster num larger than 100 is meaningless
         assert cluster_df.ndim == 2
         self.keys = cluster_df.index
         if standardize:
