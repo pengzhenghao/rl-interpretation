@@ -160,7 +160,7 @@ class GridVideoRecorder(object):
     def generate_frames(
             self,
             name_ckpt_mapping,
-            num_steps=int(1e10),
+            num_steps=None,
             num_iters=1,
             seed=0,
             name_column_mapping=None,

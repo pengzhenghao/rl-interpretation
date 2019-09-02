@@ -159,7 +159,7 @@ class FFTWorker(object):
             self.agent,
             env,
             require_trajectory=True,
-            num_steps=self._num_steps or 0
+            num_steps=self._num_steps or None
         )
         ret = ret["trajectory"]
         obs = np.array([a[0] for a in ret])
@@ -388,9 +388,11 @@ def get_fft_cluster_finder(
         padding="fix",
         padding_length=500,
         padding_value=0,
-        show=False
+        show=False,
+        num_gpus=0
 ):
     assert yaml_path.endswith('yaml')
+    initialize_ray(num_gpus=num_gpus)
 
     name_ckpt_mapping = get_name_ckpt_mapping(yaml_path, num_agents)
     print("Successfully loaded name_ckpt_mapping!")

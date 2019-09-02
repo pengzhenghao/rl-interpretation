@@ -617,12 +617,13 @@ def restore_agent(run_name, ckpt, env_name, config=None):
     return agent
 
 
-def initialize_ray(local_mode=False):
+def initialize_ray(local_mode=False, num_gpus=0):
     if not ray.is_initialized():
         ray.init(
             logging_level=logging.ERROR,
             log_to_driver=False,
-            local_mode=local_mode
+            local_mode=local_mode,
+            num_gpus=num_gpus
         )
         print("Sucessfully initialize Ray!")
 

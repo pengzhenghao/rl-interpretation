@@ -245,7 +245,7 @@ def generate_progress_yaml(exp_names, output_path, number=None):
             results.append(
                 {
                     "name": cool_name,
-                    "path": ckpt,
+                    "path": ckpt['path'],
                     "performance": float(performance),
                     "run_name": run_name,
                     "env_name": env_name,
@@ -329,6 +329,7 @@ if __name__ == '__main__':
     parser.add_argument("--output-path", required=True, type=str)
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--number", type=int, default=-1)
+    parser.add_argument("--num-gpus", '-g', type=int, default=0)
     parser.add_argument("--env-name", default="BipedalWalker-v2", type=str)
     args = parser.parse_args()
     assert isinstance(args.exp_names, list) or isinstance(args.exp_names, str)

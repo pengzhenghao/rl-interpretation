@@ -141,7 +141,7 @@ Modification:
 def rollout(
         agent,
         env,
-        num_steps=0,
+        num_steps=None,
         require_frame=False,
         require_trajectory=False,
         require_extra_info=False,
@@ -149,6 +149,9 @@ def rollout(
 ):
     assert require_frame or require_trajectory or require_extra_info,\
         "You must ask for some output!"
+
+    if num_steps is None:
+        num_steps = 3000
 
     policy_agent_mapping = default_policy_agent_mapping
 
