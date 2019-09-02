@@ -24,6 +24,12 @@ def get_trial_name(trial_raw_name):
 
 # read data from all json files
 def get_trial_data_dict(json_dict):
+    """
+    json_dict: key=trial name, val=the path to result.json
+    :param json_dict:
+    :return: key=trial name, val=dataframe[episode_reward_mean, ..,
+    episodes_this_iter]
+    """
     trial_data_dict = {}
     for i, (trial_name, json_path) in enumerate(json_dict.items()):
         try:
@@ -49,7 +55,7 @@ def get_trial_data_dict(json_dict):
 
 
 # parse the hierarchy structure of data, clear out the potential EXP
-def get_trial_json_dict(exp_name, algo_name, root_dir="~/ray_results"):
+def get_trial_json_dict(exp_name, root_dir="~/ray_results"):
     """
     suppose the files looks like:
         - exp-name (e.g. 0811-0to50)
@@ -67,12 +73,14 @@ def get_trial_json_dict(exp_name, algo_name, root_dir="~/ray_results"):
 
     trial_dict = {
         get_trial_name(trial): join(input_dir, trial)
-        for trial in os.listdir(input_dir) if trial.startswith(algo_name)
+        for trial in os.listdir(input_dir)
+        if os.path.isdir(join(input_dir, trial))
+        # if trial.startswith(run_name)
     }
 
     print(
-        "Exp name {}, Algo name {}, Root dir {}. Found {} trials.".format(
-            exp_name, algo_name, root_dir, len(trial_dict)
+        "Exp name {}, Root dir {}. Found {} trials.".format(
+            exp_name, root_dir, len(trial_dict)
         )
     )
 
@@ -130,8 +138,9 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
 
 
 def get_sorted_trial_ckpt_list(
-        sorted_trial_pfm_list, trial_json_dict, get_video_name, run_name,
-        env_name
+        sorted_trial_pfm_list, trial_json_dict, get_video_name
+        # , run_name=None,
+        # env_name=None
 ):
     """
     Return: [{"name": NAME, "path": CKPT_PATH, ...}, {...}, ...]
@@ -148,6 +157,9 @@ def get_sorted_trial_ckpt_list(
 
         if ckpt is None:
             continue
+
+        run_name = trial_name.split("_")[0]
+        env_name = trial_name.split("_")[1]
 
         cool_name = get_video_name(trial_name, performance)
         results.append(
@@ -202,28 +214,25 @@ def generate_batch_yaml(yaml_path_dict_list, output_path):
     return result
 
 
-def generate_yaml(exp_names, run_name, output_path, env_name):
-    # Get the trial_name-json_path dict.
-
+def generate_progress_yaml(exp_names, ouput_path, number=None):
+    # The meaning of number: if None, extract all checkpoints from all trials
+    # if is an integer, then extract N checkpoints for each trials.
+    assert (number is None) or (isinstance(number, int))
     assert spec(args.env_name)  # make sure no typo in env_name
     trial_json_dict = {}
     if isinstance(exp_names, str):
         exp_names = [exp_names]
+
     for exp_name in exp_names:
-        trial_json_dict.update(get_trial_json_dict(exp_name, run_name))
-    print("Collected trial_json_dict: ", trial_json_dict)
+        trial_json_dict.update(get_trial_json_dict(exp_name))
     # Get the trial_name-trial_data dict. This is not ordered.
     trial_data_dict = get_trial_data_dict(trial_json_dict)
-    print("Collected trial_data_dict: ", trial_data_dict)
     K = 3
-
     trial_performance_list = []
-
     for i, (trial_name, data) in enumerate(trial_data_dict.items()):
         avg = data["episode_reward_mean"].tail(K).mean()
         trial_performance_list.append([trial_name, avg])
 
-    print("Collected trial_performance_list: ", trial_performance_list)
     sorted_trial_pfm_list = sorted(
         trial_performance_list, key=lambda pair: pair[1]
     )
@@ -235,8 +244,54 @@ def generate_yaml(exp_names, run_name, output_path, env_name):
         return "{0} {3} rew={4:.2f}".format(*components, performance)
 
     results = get_sorted_trial_ckpt_list(
-        sorted_trial_pfm_list, trial_json_dict, get_video_name, run_name,
-        env_name
+        sorted_trial_pfm_list, trial_json_dict, get_video_name
+        # , run_name,
+        # env_name
+    )
+    with open(output_path, 'w') as f:
+        yaml.safe_dump(results, f)
+
+    return results
+
+
+
+
+def generate_yaml(exp_names, run_name, output_path, env_name):
+    # Get the trial_name-json_path dict.
+
+    assert spec(args.env_name)  # make sure no typo in env_name
+    trial_json_dict = {}
+    if isinstance(exp_names, str):
+        exp_names = [exp_names]
+    for exp_name in exp_names:
+        trial_json_dict.update(get_trial_json_dict(exp_name))
+    # print("Collected trial_json_dict: ", trial_json_dict)
+    # Get the trial_name-trial_data dict. This is not ordered.
+    trial_data_dict = get_trial_data_dict(trial_json_dict)
+    # print("Collected trial_data_dict: ", trial_data_dict)
+    K = 3
+
+    trial_performance_list = []
+
+    for i, (trial_name, data) in enumerate(trial_data_dict.items()):
+        avg = data["episode_reward_mean"].tail(K).mean()
+        trial_performance_list.append([trial_name, avg])
+
+    # print("Collected trial_performance_list: ", trial_performance_list)
+    sorted_trial_pfm_list = sorted(
+        trial_performance_list, key=lambda pair: pair[1]
+    )
+
+    def get_video_name(trial_name, performance):
+        # trial_name: PPO_BipedalWalker-v2_38_seed=138
+        # result: "PPO seed=139 rew=249.01"
+        components = trial_name.split("_")
+        return "{0} {3} rew={4:.2f}".format(*components, performance)
+
+    results = get_sorted_trial_ckpt_list(
+        sorted_trial_pfm_list, trial_json_dict, get_video_name
+        # , run_name,
+        # env_name
     )
     with open(output_path, 'w') as f:
         yaml.safe_dump(results, f)
