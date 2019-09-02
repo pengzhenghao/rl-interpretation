@@ -49,7 +49,7 @@ def get_trial_data_dict(json_dict):
                 continue
         print(
             "[{}/{}] Trial Name: {}\t(Total Iters {})".format(
-                i, len(json_dict), trial_name, len(dataframe)
+                i + 1, len(json_dict), trial_name, len(dataframe)
             )
         )
         trial_data_dict[trial_name] = dataframe
@@ -113,7 +113,7 @@ def get_checkpoint(trial_dir, index=None):
     else:
         ret_list = [pair for pair in ckpt_paths if pair['iter'] == index]
         assert len(ret_list) == 1, "You ask index: {} \nbut we collect: {}" \
-            .format(index, ckpt_paths)
+            .format(index, sorted([c["iter"] for c in ckpt_paths]))
         return ret_list[0]
 
 
@@ -134,7 +134,7 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
         # list_of_dict[::interval][-number:]
         # list_of_dict - interval * number
 
-        start_index = len(list_of_dict) % number
+        start_index = len(list_of_dict) % number - 1
         indices = reversed(list_of_dict[:start_index:-interval])
     elif mode == 'top':
         indices = list_of_dict[-number:]
@@ -204,11 +204,13 @@ def generate_progress_yaml(exp_names, output_path, number=None):
     # Get the trial_name-trial_data dict. This is not ordered.
     trial_data_dict = get_trial_data_dict(trial_json_dict)
 
-    def get_video_name(trial_name, performance):
+    def get_video_name(trial_name, performance, num_iters):
         # trial_name: PPO_BipedalWalker-v2_38_seed=138
         # result: "PPO seed=139 rew=249.01"
         components = trial_name.split("_")
-        return "{0} {3} rew={4:.2f}".format(*components, performance)
+        assert len(components) == 4
+        return "{0} {3} rew={4:.2f} iter={5:}" \
+            .format(*components, performance, num_iters)
 
     # Return: [{"name": NAME, "path": CKPT_PATH, ...}, {...}, ...]
     results = []
@@ -220,14 +222,15 @@ def generate_progress_yaml(exp_names, output_path, number=None):
             data_list = dataframe
         else:
             interval = int(floor(len(dataframe) / number))
-            start_index = len(dataframe) % number
+            start_index = len(dataframe) % number - 1
             data_list = dataframe[:start_index:-interval][::-1]
-        assert (number is None) or (len(data_list) == number)
-        for num_iters, series in data_list.iterrows():
+        assert (number is None) or (len(data_list) == number), len(data_list)
+        for _, series in data_list.iterrows():
             # varibales show here:
             #    trial_name: PPO_xx_seed=199
             #    json_path: xxx/xxx/trial/result.json
             #    trial_path: xxx/xxx/trial
+            num_iters = series["training_iteration"]
             json_path = trial_json_dict[trial_name]
             trial_path = os.path.dirname(json_path)
             # Todo you sure the index of this dataframe is that of iteration?
@@ -237,7 +240,7 @@ def generate_progress_yaml(exp_names, output_path, number=None):
             run_name = trial_name.split("_")[0]
             env_name = trial_name.split("_")[1]
             performance = series[PERFORMANCE_METRIC]
-            cool_name = get_video_name(trial_name, performance)
+            cool_name = get_video_name(trial_name, performance, num_iters)
             results.append(
                 {
                     "name": cool_name,
@@ -250,7 +253,11 @@ def generate_progress_yaml(exp_names, output_path, number=None):
             )
     with open(output_path, 'w') as f:
         yaml.safe_dump(results, f)
-
+    print(
+        "Successfully collect yaml file containing {} checkpoints.".format(
+            len(results)
+        )
+    )
     return results
 
 
@@ -300,13 +307,15 @@ def generate_yaml(exp_names, run_name, output_path, env_name):
                 "run_name": run_name,
                 "env_name": env_name,
                 "iter": ckpt["iter"]
-                # Todo check if the other place to generate yaml also has
-                #  "iter" property
             }
         )
-
     with open(output_path, 'w') as f:
         yaml.safe_dump(results, f)
+    print(
+        "Successfully collect yaml file containing {} checkpoints.".format(
+            len(results)
+        )
+    )
     return results
 
 
@@ -322,10 +331,11 @@ if __name__ == '__main__':
     assert isinstance(args.exp_names, list) or isinstance(args.exp_names, str)
     assert args.output_path.endswith("yaml")
 
-    # ret = generate_yaml(
-    #     args.exp_names, args.run_name, args.output_path, args.env_name
-    # )
-    # print("Successfully collect {} agents.".format(len(ret)))
+    ret = generate_yaml(
+        args.exp_names, args.run_name, args.output_path, args.env_name
+    )
+    print("Successfully collect {} agents.".format(len(ret)))
 
     # test purpose
-    ret = generate_progress_yaml(args.exp_names, args.output_path)
+    ret1 = generate_progress_yaml(args.exp_names, args.output_path, number=100)
+    ret2 = generate_progress_yaml(args.exp_names, args.output_path)
