@@ -218,13 +218,14 @@ def generate_progress_yaml(exp_names, output_path, number=None):
 
         # We assume all iteration have stored the checkpoints.
         # But sometimes we store checkpoint in some interval.
-        if number is None:
+        if number is None or number < 2 * len(dataframe):
             data_list = dataframe
         else:
             interval = int(floor(len(dataframe) / number))
             start_index = len(dataframe) % number - 1
             data_list = dataframe[:start_index:-interval][::-1]
-        assert (number is None) or (len(data_list) == number), len(data_list)
+        assert (len(data_list) == number) or (len(dataframe)==len(data_list)),\
+            len(data_list)
         for _, series in data_list.iterrows():
             # varibales show here:
             #    trial_name: PPO_xx_seed=199
@@ -326,7 +327,7 @@ if __name__ == '__main__':
     parser.add_argument("--exp-names", nargs='+', type=str, required=True)
     parser.add_argument("--run-name", required=True, type=str)
     parser.add_argument("--output-path", required=True, type=str)
-    parser.add_argument("--progress", type=bool, action="store_true")
+    parser.add_argument("--progress", action="store_true")
     parser.add_argument("--number", type=int, default=-1)
     parser.add_argument("--env-name", default="BipedalWalker-v2", type=str)
     args = parser.parse_args()
@@ -340,4 +341,5 @@ if __name__ == '__main__':
     else:
         number = args.number if args.number != -1 else None
         ret = generate_progress_yaml(args.exp_names, args.output_path, number)
-    print("Successfully collect {} records.".format(len(ret)))
+    print("Successfully collect {} records and save at: {}"
+          .format(len(ret), args.output_path))
