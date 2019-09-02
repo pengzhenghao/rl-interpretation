@@ -218,7 +218,7 @@ def generate_progress_yaml(exp_names, output_path, number=None):
 
         # We assume all iteration have stored the checkpoints.
         # But sometimes we store checkpoint in some interval.
-        if number is None or number < 2 * len(dataframe):
+        if number is None or number * 2 > len(dataframe):
             data_list = dataframe
         else:
             interval = int(floor(len(dataframe) / number))
