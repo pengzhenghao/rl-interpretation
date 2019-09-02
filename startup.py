@@ -63,7 +63,7 @@ if args.env == "BipedalWalker-v2":
                 "lambda": 0.95,
                 "lr": 2.5e-4,
             },
-            "timesteps_total": 5e6
+            "timesteps_total": 1e7
         },
         "ES": {
             "config": {

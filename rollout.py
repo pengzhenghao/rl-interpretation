@@ -147,19 +147,17 @@ def test_efficient_rollout():
     initialize_ray()
     agent = PPOAgent(env="BipedalWalker-v2")
     env = gym.make("BipedalWalker-v2")
-    return efficient_rollout(agent, env, 3)
 
+    w = make_worker(lambda _:env, agent, 0)
+    set_weight(w, agent)
+    ret = efficient_rollout(w, 7)
+    return ret
+    # return efficient_rollout(agent, env, 3)
 
-def efficient_rollout(
-        agent,
-        env_maker,
-        num_rollouts,
-        seed=0
-):
+def make_worker(env_maker, agent, seed):
     assert agent._name == "PPO", "We only support ppo agent now!"
     policy = PPOTFPolicy
-
-    worker = RolloutWorker(
+    worker = RolloutWorker.as_remote().remote(
         env_creator=env_maker,
         policy=policy,
         batch_mode="complete_episodes",
@@ -168,7 +166,26 @@ def efficient_rollout(
         sample_async=True,
         seed=seed
     )
-    worker.set_weights({DEFAULT_POLICY_ID: agent.get_policy().get_weights()})
+    return worker
+
+def set_weight(worker, agent):
+    # assert agent._name == "PPO", "We only support ppo agent now!"
+    # policy = PPOTFPolicy
+    worker.set_weights.remote(
+        {DEFAULT_POLICY_ID: agent.get_policy().get_weights()})
+
+def efficient_rollout(
+        worker,
+        # agent,
+        # env_maker,
+        num_rollouts,
+        # seed=0
+):
+    # assert agent._name == "PPO", "We only support ppo agent now!"
+    # policy = PPOTFPolicy
+
+
+    # worker.set_weights({DEFAULT_POLICY_ID: agent.get_policy().get_weights()})
     trajctory_list = []
     t = time.time()
     for num in range(num_rollouts):
@@ -177,7 +194,7 @@ def efficient_rollout(
         # 'rewards', 'prev_actions', 'prev_rewards', 'dones', 'infos',
         # 'new_obs', 'action_prob', 'vf_preds', 'behaviour_logits',
         # 'unroll_id', 'advantages', 'value_targets'])
-        data = worker.sample().data
+        data = ray.get(worker.sample.remote()).data
         obs = data['obs']
         act = data['actions']
         rew = data['rewards']
