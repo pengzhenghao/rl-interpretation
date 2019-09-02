@@ -15,8 +15,6 @@ Usage:
     --scene merge \
     --seed -1 \
     -g 8 \
-
-Take a look at /scripts/XXXX.sh for example using cluster to train RL agent.
 """
 
 from __future__ import absolute_import

@@ -52,6 +52,19 @@ target_list = []
 
 if args.env == "BipedalWalker-v2":
     algo_specify_config_dict = {
+        "PPO":{
+            "config": {
+                "seed": tune.grid_search(list(range(20))),
+                "observation_filter": "MeanStdFilter",
+                "num_sgd_iter": 10,
+                "num_envs_per_worker": 16,
+                "gamma": 0.99,
+                "entropy_coeff": 0.001,
+                "lambda": 0.95,
+                "lr": 2.5e-4,
+            },
+            "timesteps_total": 1e6
+        },
         "ES": {
             "config": {
                 "seed": tune.grid_search(list(range(50)))
@@ -141,7 +154,7 @@ tune.run(
     args.run,
     name=args.exp_name,
     verbose=1,
-    checkpoint_freq=100,
+    checkpoint_freq=1,
     checkpoint_at_end=True,
     stop={"timesteps_total": algo_specify_config['timesteps_total']},
     config=run_config,
