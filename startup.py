@@ -63,7 +63,7 @@ if args.env == "BipedalWalker-v2":
                 "lambda": 0.95,
                 "lr": 2.5e-4,
             },
-            "timesteps_total": 1e6
+            "timesteps_total": 5e6
         },
         "ES": {
             "config": {
@@ -144,7 +144,8 @@ algo_specify_config = algo_specify_config_dict[args.run]
 general_config = {
     "env": args.env,
     "num_gpus": 0.15,
-    "num_cpus_for_driver": 0.2
+    "num_cpus_for_driver": 0.2,
+    "num_cpus_per_worker": 0.75
 }
 
 run_config = merge_dicts(general_config, algo_specify_config['config'])
