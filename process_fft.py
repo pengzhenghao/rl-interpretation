@@ -497,7 +497,6 @@ if __name__ == '__main__':
     cluster_df = load_cluster_df(prefix + ".pkl")
     plot_df, _ = reduce_dimension(cluster_df, prediction, False)
 
-
     def get_label(name):
         if name.startswith("ES"):
             return "ES"
@@ -508,13 +507,12 @@ if __name__ == '__main__':
         else:
             return "PPO"
 
-
-    plot_df.insert(4, "label", [get_label(name) for name in plot_df.agent],
-                   True)
+    plot_df.insert(
+        4, "label", [get_label(name) for name in plot_df.agent], True
+    )
 
     save = prefix + "_2d.png"
     show = None
-
 
     def _get_title(plot_df):
         num_clusters = len(plot_df.cluster.unique())
@@ -522,7 +520,6 @@ if __name__ == '__main__':
         return "Clustering Result of {} Clusters, " \
                "{} Agents (Dimensions Reduced by PCA-TSNE)".format(
             num_clusters, num_agents)
-
 
     plt.figure(figsize=(12, 10), dpi=300)
     num_clusters = len(plot_df.cluster.unique())
@@ -553,6 +550,3 @@ if __name__ == '__main__':
         num_workers=args.num_workers
     )
     print("Finished generating videos.")
-
-
-
