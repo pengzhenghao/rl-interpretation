@@ -152,19 +152,21 @@ def test_efficient_rollout():
 
 def efficient_rollout(
         agent,
-        env,
+        env_maker,
         num_rollouts,
+        seed=0
 ):
     assert agent._name == "PPO", "We only support ppo agent now!"
     policy = PPOTFPolicy
 
     worker = RolloutWorker(
-        env_creator=lambda _: env,
+        env_creator=env_maker,
         policy=policy,
         batch_mode="complete_episodes",
         batch_steps=1,
+        episode_horizon=3000,
         sample_async=True,
-        seed=0
+        seed=seed
     )
     worker.set_weights({DEFAULT_POLICY_ID: agent.get_policy().get_weights()})
     trajctory_list = []
@@ -184,8 +186,8 @@ def efficient_rollout(
         done = data['dones']
 
         print("Finish collect {}/{} rollouts. The latest rollout contain {}"
-              " steps. {} dones is True.".format(num + 1, num_rollouts, len(obs),
-                                                 sum(done)))
+              " steps.".format(num + 1, num_rollouts, len(obs),
+                               ))
         trajectory = [obs, act, next_obs, rew, done]
         trajctory_list.append(trajectory)
     print("Cost: ", time.time()-t, "s")

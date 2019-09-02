@@ -606,7 +606,7 @@ class ImageEncoder(object):
 def restore_agent(run_name, ckpt, env_name, config=None):
     cls = get_agent_class(run_name)
     if config is None:
-        config = build_config(ckpt, {"num_gpus": 0.15})
+        config = build_config(ckpt, {"num_gpus_per_worker": 0.1})
     # This is a workaround
     if run_name == "ES":
         config["num_workers"] = 1
@@ -617,16 +617,16 @@ def restore_agent(run_name, ckpt, env_name, config=None):
     return agent
 
 
-def initialize_ray(local_mode=False, num_gpus=0):
+def initialize_ray(local_mode=False, num_gpus=0, test_mode=False):
     if not ray.is_initialized():
         ray.init(
-            logging_level=logging.ERROR,
-            log_to_driver=False,
+            logging_level=logging.ERROR if not test_mode else logging.INFO,
+            log_to_driver=test_mode,
             local_mode=local_mode,
             num_gpus=num_gpus
         )
         print("Sucessfully initialize Ray!")
-
+    print("Available resources: ", ray.available_resources())
 
 def get_random_string():
     return str(uuid.uuid4())[:8]
