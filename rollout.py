@@ -12,6 +12,7 @@ import logging
 import os
 import pickle
 import time
+from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 
 import numpy as np
 import ray
@@ -136,6 +137,59 @@ Modification:
     1. use iteration as the termination criterion
     2. pass an environment object which can be different from env_name
 """
+from ray.rllib.evaluation.rollout_worker import RolloutWorker
+import gym
+
+def test_efficient_rollout():
+    from ray.rllib.agents.ppo import PPOAgent
+    import gym
+    from utils import initialize_ray
+    initialize_ray()
+    agent = PPOAgent(env="BipedalWalker-v2")
+    env = gym.make("BipedalWalker-v2")
+    return efficient_rollout(agent, env, 3)
+
+
+def efficient_rollout(
+        agent,
+        env,
+        num_rollouts,
+):
+    assert agent._name == "PPO", "We only support ppo agent now!"
+    policy = PPOTFPolicy
+
+    worker = RolloutWorker(
+        env_creator=lambda _: env,
+        policy=policy,
+        batch_mode="complete_episodes",
+        batch_steps=1,
+        sample_async=True,
+        seed=0
+    )
+    worker.set_weights({DEFAULT_POLICY_ID: agent.get_policy().get_weights()})
+    trajctory_list = []
+    t = time.time()
+    for num in range(num_rollouts):
+        # We have so many information:
+        # dict_keys(['t', 'eps_id', 'agent_index', 'obs', 'actions',
+        # 'rewards', 'prev_actions', 'prev_rewards', 'dones', 'infos',
+        # 'new_obs', 'action_prob', 'vf_preds', 'behaviour_logits',
+        # 'unroll_id', 'advantages', 'value_targets'])
+        data = worker.sample().data
+        obs = data['obs']
+        act = data['actions']
+        rew = data['rewards']
+        next_obs = data['new_obs']
+        # value_function = data['vf_preds']
+        done = data['dones']
+
+        print("Finish collect {}/{} rollouts. The latest rollout contain {}"
+              " steps. {} dones is True.".format(num + 1, num_rollouts, len(obs),
+                                                 sum(done)))
+        trajectory = [obs, act, next_obs, rew, done]
+        trajctory_list.append(trajectory)
+    print("Cost: ", time.time()-t, "s")
+    return trajctory_list
 
 
 def rollout(
