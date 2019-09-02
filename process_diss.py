@@ -10,7 +10,7 @@ from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
 from process_cluster import ClusterFinder
 from rollout import rollout, replay
-from utils import restore_agent, initialize_ray
+from utils import restore_agent, initialize_ray, _get_num_iters_from_ckpt_name
 
 ABLATE_LAYER_NAME = "default_policy/default_model/fc2"
 NO_ABLATION_UNIT_NAME = "no_ablation"
@@ -85,6 +85,7 @@ class AblationWorker(object):
         self.initialized = False
         self.run_name = None
         self.ckpt = None
+        self.iter = None
         self.env_name = None
         # self.postprocess_func = lambda x: x
         # self.padding_value = None
@@ -97,12 +98,12 @@ class AblationWorker(object):
             env_name,
             env_maker,
             agent_name,
-            # unit_index,
             worker_name=None,
     ):
         self.initialized = True
         self.env_name = env_name
         self.ckpt = ckpt
+        self.iter = _get_num_iters_from_ckpt_name(self.ckpt)
         self.run_name = run_name
         self.env_maker = env_maker
         self.agent_name = agent_name
@@ -221,7 +222,8 @@ class AblationWorker(object):
             "unit_name": unit_name,
             "layer_name": layer_name,
             # This should be the original agent name
-            "agent_name": self.agent_name
+            "agent_name": self.agent_name,
+            "iter": self.iter
         }
         if save:
             save_path = osp.join(save, unit_name.replace("/", "-"))
@@ -396,6 +398,7 @@ def generate_yaml_of_ablated_agents(
 
             ckpt_path = agent.save(save_path)
             info["checkpoint"] = ckpt_path
+            info["iter"] = _get_num_iters_from_ckpt_name(ckpt_path)
             agent.stop()
 
         # We should update the agent name
@@ -419,6 +422,9 @@ def generate_yaml_of_ablated_agents(
         info["performance"] = info["episode_reward_mean"]
         info["run_name"] = run_name
         info["env_name"] = env_name
+        # info["iter"] = env_name
+
+        assert "iter" in info
 
         # A strange error. The np.mean() of sth can not be saved by yaml...
         # So here is the workaround.

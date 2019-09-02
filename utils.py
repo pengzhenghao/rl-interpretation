@@ -629,3 +629,12 @@ def initialize_ray(local_mode=False):
 
 def get_random_string():
     return str(uuid.uuid4())[:8]
+
+
+def _get_num_iters_from_ckpt_name(ckpt):
+    base_name = os.path.basename(ckpt)
+    assert "-" in base_name
+    assert base_name.startswith("checkpoint")
+    num_iters = eval(base_name.split("-")[1])
+    assert isinstance(num_iters, int)
+    return num_iters
