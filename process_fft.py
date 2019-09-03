@@ -165,6 +165,7 @@ class FFTWorker(object):
             assert self.initialized
             self.rollout_worker = \
                 make_worker(self.env_maker, self.agent, self.seed)
+        set_weight(self.rollout_worker, self.agent)
 
     def _efficient_rollout(
             self,
@@ -199,7 +200,6 @@ class FFTWorker(object):
         # TODO good if we can restore the weight but not create the agent
         self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
         self._make_rollout_worker()
-        set_weight(self.rollout_worker, self.agent)
 
         assert self.initialized, "You should reset the worker first!"
         if _num_steps:
@@ -356,6 +356,7 @@ def get_fft_representation(
                 normalize=normalize,
                 _extra_name="[{}/{}] ".format(agent_count, num_agents)
             )
+
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Start collecting data from agent "
                 "<{}>".format(
@@ -364,11 +365,13 @@ def get_fft_representation(
                     time.time() - start_t, name
                 )
             )
+
             agent_count += 1
             now_t = time.time()
 
             df_obj_ids.append(df_obj_id)
             rep_obj_ids.append(rep_obj_id)
+
         for df_obj_id, rep_obj_id, (name, _) in zip(
                 df_obj_ids, rep_obj_ids, agent_ckpt_dict_range[start:end]):
             df = ray.get(df_obj_id)
@@ -377,6 +380,7 @@ def get_fft_representation(
             representation_dict[name] = copy.deepcopy(rep)
             del df
             del rep
+
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Got data from agent <{}>".format(
                     agent_count_get, num_agents,
@@ -384,6 +388,7 @@ def get_fft_representation(
                     time.time() - start_t, name
                 )
             )
+
             agent_count_get += 1
             now_t_get = time.time()
     return data_frame_dict, representation_dict
