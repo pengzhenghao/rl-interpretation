@@ -606,7 +606,11 @@ class ImageEncoder(object):
 def restore_agent(run_name, ckpt, env_name, config=None):
     cls = get_agent_class(run_name)
     if config is None:
-        config = build_config(ckpt, {"num_gpus_per_worker": 0.1})
+        if 'gpu' not in ray.available_resources():
+            args_config = {}
+        else:
+            args_config = {"num_gpus_per_worker": 0.1}
+        config = build_config(ckpt, args_config)
     # This is a workaround
     if run_name == "ES":
         config["num_workers"] = 1
@@ -627,6 +631,7 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False):
         )
         print("Sucessfully initialize Ray!")
     print("Available resources: ", ray.available_resources())
+
 
 def get_random_string():
     return str(uuid.uuid4())[:8]

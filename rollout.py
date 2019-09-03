@@ -12,16 +12,21 @@ import logging
 import os
 import pickle
 import time
-from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 
+import gym
 import numpy as np
 import ray
+from ray.rllib.agents.ppo import PPOAgent
+from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 from ray.rllib.agents.registry import get_agent_class
 from ray.rllib.env import MultiAgentEnv
 from ray.rllib.env.base_env import _DUMMY_AGENT_ID
 from ray.rllib.evaluation.episode import _flatten_action
+from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
+
+from utils import restore_agent, initialize_ray
 
 EXAMPLE_USAGE = """
 Example Usage via RLlib CLI:
@@ -137,22 +142,20 @@ Modification:
     1. use iteration as the termination criterion
     2. pass an environment object which can be different from env_name
 """
-from ray.rllib.evaluation.rollout_worker import RolloutWorker
-import gym
+
 
 def test_efficient_rollout():
-    from ray.rllib.agents.ppo import PPOAgent
-    import gym
-    from utils import initialize_ray
     initialize_ray()
     agent = PPOAgent(env="BipedalWalker-v2")
     env = gym.make("BipedalWalker-v2")
-
-    w = make_worker(lambda _:env, agent, 0)
+    w = make_worker(lambda _: env, agent, 0)
     set_weight(w, agent)
+    ret = efficient_rollout(w, 7)
+    print("start for another time!")
     ret = efficient_rollout(w, 7)
     return ret
     # return efficient_rollout(agent, env, 3)
+
 
 def make_worker(env_maker, agent, seed):
     assert agent._name == "PPO", "We only support ppo agent now!"
@@ -168,46 +171,50 @@ def make_worker(env_maker, agent, seed):
     )
     return worker
 
+
 def set_weight(worker, agent):
     # assert agent._name == "PPO", "We only support ppo agent now!"
     # policy = PPOTFPolicy
     worker.set_weights.remote(
-        {DEFAULT_POLICY_ID: agent.get_policy().get_weights()})
-
-def efficient_rollout(
-        worker,
-        # agent,
-        # env_maker,
-        num_rollouts,
-        # seed=0
-):
-    # assert agent._name == "PPO", "We only support ppo agent now!"
-    # policy = PPOTFPolicy
+        {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
+    )
 
 
-    # worker.set_weights({DEFAULT_POLICY_ID: agent.get_policy().get_weights()})
+def efficient_rollout(worker, num_rollouts):
     trajctory_list = []
+    obj_ids = []
     t = time.time()
     for num in range(num_rollouts):
+        obj_ids.append(worker.sample.remote())
+    for num, obj in enumerate(obj_ids):
         # We have so many information:
         # dict_keys(['t', 'eps_id', 'agent_index', 'obs', 'actions',
         # 'rewards', 'prev_actions', 'prev_rewards', 'dones', 'infos',
         # 'new_obs', 'action_prob', 'vf_preds', 'behaviour_logits',
         # 'unroll_id', 'advantages', 'value_targets'])
-        data = ray.get(worker.sample.remote()).data
+        data = ray.get(obj).data
         obs = data['obs']
         act = data['actions']
         rew = data['rewards']
         next_obs = data['new_obs']
         # value_function = data['vf_preds']
         done = data['dones']
-
-        print("Finish collect {}/{} rollouts. The latest rollout contain {}"
-              " steps.".format(num + 1, num_rollouts, len(obs),
-                               ))
+        logging.info(
+            "Finish collect {}/{} rollouts. The latest rollout contain {}"
+            " steps.".format(
+                num + 1,
+                num_rollouts,
+                len(obs),
+            )
+        )
         trajectory = [obs, act, next_obs, rew, done]
         trajctory_list.append(trajectory)
-    print("Cost: ", time.time()-t, "s")
+    logging.info(
+        "Finish {} Rollouts. Cost: {} s.".format(
+            num_rollouts,
+            time.time() - t
+        )
+    )
     return trajctory_list
 
 
@@ -220,7 +227,7 @@ def rollout(
         require_extra_info=False,
         require_full_frame=False
 ):
-    assert require_frame or require_trajectory or require_extra_info,\
+    assert require_frame or require_trajectory or require_extra_info, \
         "You must ask for some output!"
 
     if num_steps is None:
@@ -399,8 +406,6 @@ def _test_es_agent_compatibility():
 if __name__ == "__main__":
     # This part is used for test only!
     # Don't call python rollout.py for any other purpose.
-    from utils import restore_agent, initialize_ray
-    import gym
 
     initialize_ray(False)
     env = gym.make("CartPole-v0")

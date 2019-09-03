@@ -342,5 +342,8 @@ if __name__ == '__main__':
     else:
         number = args.number if args.number != -1 else None
         ret = generate_progress_yaml(args.exp_names, args.output_path, number)
-    print("Successfully collect {} records and save at: {}"
-          .format(len(ret), args.output_path))
+    print(
+        "Successfully collect {} records and save at: {}".format(
+            len(ret), args.output_path
+        )
+    )

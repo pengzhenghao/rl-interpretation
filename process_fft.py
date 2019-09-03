@@ -4,19 +4,19 @@ import os.path as osp
 import time
 from math import ceil
 
-import argparse
-
 import numpy as np
 import pandas
 import ray
+from gym.envs.box2d.bipedal_walker import BipedalWalker
 from scipy.fftpack import fft
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-from gym.envs.box2d.bipedal_walker import BipedalWalker
 from process_cluster import ClusterFinder
 from process_data import get_name_ckpt_mapping
-from rollout import rollout, efficient_rollout
+from rollout import rollout, efficient_rollout, make_worker, set_weight
 from utils import restore_agent, initialize_ray, get_random_string
+
+# has_gpu =
 
 
 def build_env(useless=None):
@@ -110,8 +110,10 @@ class FFTWorker(object):
         self.env_maker = None
         self.worker_name = "Untitled Worker"
         self.initialized = False
+        self.rollout_worker = None
         self.postprocess_func = lambda x: x
         self.padding_value = None
+        self.seed = 0
 
     @ray.method(num_return_vals=0)
     def reset(
@@ -125,6 +127,7 @@ class FFTWorker(object):
             padding_length=None,
             padding_value=None,
             worker_name=None,
+            seed=0,
     ):
         self.initialized = True
         self.run_name = run_name
@@ -132,6 +135,7 @@ class FFTWorker(object):
         self.env_name = env_name
         self.env_maker = env_maker
         self.agent_name = agent_name
+        self.seed = seed
         self._num_steps = None
         self.worker_name = worker_name or "Untitled Worker"
 
@@ -143,7 +147,7 @@ class FFTWorker(object):
                 vec = np.asarray(vec)
                 assert vec.ndim == 1
                 vec[np.isnan(vec)] = padding_value
-                back = np.empty((padding_length,))
+                back = np.empty((padding_length, ))
                 back.fill(padding_value)
                 end = min(len(vec), padding_length)
                 back[:end] = vec[:end]
@@ -156,25 +160,18 @@ class FFTWorker(object):
         self.padding_value = padding_value
         print("{} is reset!".format(worker_name))
 
-    def _rollout(self, env):
-        ret = rollout(
-            self.agent,
-            env,
-            require_trajectory=True,
-            num_steps=self._num_steps or None
-        )
-        ret = ret["trajectory"]
-        obs = np.array([a[0] for a in ret])
-        act = np.array([a[1] for a in ret])
-        return obs, act
+    def _make_rollout_worker(self):
+        if self.rollout_worker is None:
+            assert self.initialized
+            self.rollout_worker = \
+                make_worker(self.env_maker, self.agent, self.seed)
 
     def _efficient_rollout(
             self,
             num_rollouts,
             seed,
     ):
-        rollout_result = \
-            efficient_rollout(self.agent, self.env_maker, num_rollouts, seed)
+        rollout_result = efficient_rollout(self.rollout_worker, num_rollouts)
         data_frame = None
 
         for i, roll in enumerate(rollout_result):
@@ -188,6 +185,72 @@ class FFTWorker(object):
         data_frame.insert(data_frame.shape[1], "seed", seed)
         return data_frame
 
+    @ray.method(num_return_vals=2)
+    def fft(
+            self,
+            num_seeds,
+            num_rollouts,
+            stack=False,
+            normalize="range",
+            log=True,
+            _num_steps=None,
+            _extra_name=""
+    ):
+        # TODO good if we can restore the weight but not create the agent
+        self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
+        self._make_rollout_worker()
+        set_weight(self.rollout_worker, self.agent)
+
+        assert self.initialized, "You should reset the worker first!"
+        if _num_steps:
+            # For testing purpose
+            self._num_steps = _num_steps
+        if normalize:
+            assert isinstance(normalize, str)
+            assert normalize in ['range', 'std']
+        data_frame = None
+        for seed in range(num_seeds):
+            # Deprecated!
+            # df = self._rollout_multiple(
+            #     num_rollouts,
+            #     seed,
+            #     stack,
+            #     normalize,
+            #     log,
+            #     _num_seeds=num_seeds,
+            #     _extra_name=_extra_name
+            # )
+            df = self._efficient_rollout(num_rollouts, seed)
+            if data_frame is None:
+                data_frame = df
+            else:
+                data_frame = data_frame.append(df, ignore_index=True)
+
+        if self.padding_value is not None:
+            data_frame.fillna(self.padding_value, inplace=True)
+
+        label_list = sorted(
+            data_frame.label.unique(),
+            key=lambda s: int(s[4:]) + (-1e6 if s.startswith('Obs') else +1e6)
+        )
+        repr_dict = get_representation(
+            data_frame, label_list, self.postprocess_func
+        )
+        self.agent.stop()
+        return data_frame.copy(), repr_dict
+
+    def _rollout(self, env):
+        # Deprecated!
+        ret = rollout(
+            self.agent,
+            env,
+            require_trajectory=True,
+            num_steps=self._num_steps or None
+        )
+        ret = ret["trajectory"]
+        obs = np.array([a[0] for a in ret])
+        act = np.array([a[1] for a in ret])
+        return obs, act
 
     def _rollout_multiple(
             self,
@@ -199,6 +262,7 @@ class FFTWorker(object):
             _num_seeds=None,
             _extra_name=""
     ):
+        # Deprecated!
         # One seed, N rollouts.
         env = self.env_maker()
         data_frame = None
@@ -233,77 +297,6 @@ class FFTWorker(object):
         data_frame.insert(data_frame.shape[1], "agent", self.agent_name)
         data_frame.insert(data_frame.shape[1], "seed", seed)
         return data_frame
-
-    @ray.method(num_return_vals=2)
-    def fft(
-            self,
-            num_seeds,
-            num_rollouts,
-            stack=False,
-            normalize="range",
-            log=True,
-            _num_steps=None,
-            _extra_name=""
-    ):
-        """
-
-        :param num_seeds:
-        :param num_rollouts:
-        :param stack:
-        :param clip:
-        :param normalize:
-        :param log:
-        :param fillna:
-        :param _num_steps:
-        :param _extra_name:
-        :return:
-        The representation form:
-
-        {
-            method1: DataFrame(
-                    col=[label, agent, value, frequency, seed]
-                ),
-            method2: DataFrame()
-        }
-
-        """
-        self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
-        assert self.initialized, "You should reset the worker first!"
-        if _num_steps:
-            # For testing purpose
-            self._num_steps = _num_steps
-        if normalize:
-            assert isinstance(normalize, str)
-            assert normalize in ['range', 'std']
-        data_frame = None
-        for seed in range(num_seeds):
-            # df = self._rollout_multiple(
-            #     num_rollouts,
-            #     seed,
-            #     stack,
-            #     normalize,
-            #     log,
-            #     _num_seeds=num_seeds,
-            #     _extra_name=_extra_name
-            # )
-            df = self._efficient_rollout(num_rollouts, seed)
-            if data_frame is None:
-                data_frame = df
-            else:
-                data_frame = data_frame.append(df, ignore_index=True)
-
-        if self.padding_value is not None:
-            data_frame.fillna(self.padding_value, inplace=True)
-
-        label_list = sorted(
-            data_frame.label.unique(),
-            key=lambda s: int(s[4:]) + (-1e6 if s.startswith('Obs') else +1e6)
-        )
-        repr_dict = get_representation(
-            data_frame, label_list, self.postprocess_func
-        )
-        self.agent.stop()
-        return data_frame.copy(), repr_dict
 
 
 def get_fft_representation(
@@ -429,8 +422,8 @@ def get_fft_cluster_finder(
     prefix = "".join(
         [
             base.split('.yaml')[0], "_{}agents_{}rollout_{}seed_{}".format(
-            num_agents, num_rollouts, num_seeds, get_random_string()
-        )
+                num_agents, num_rollouts, num_seeds, get_random_string()
+            )
         ]
     )
     os.mkdir(osp.join(dir, prefix))
@@ -462,7 +455,7 @@ def get_fft_cluster_finder(
     nostd_cluster_finder.display(save=nostd_fig_path, show=show)
     print(
         "Successfully finish no-standardized clustering! Save at: {}".
-            format(nostd_fig_path)
+        format(nostd_fig_path)
     )
 
     ret = {
@@ -478,7 +471,7 @@ def get_fft_cluster_finder(
         std_cluster_finder.display(save=std_fig_path, show=show)
         print(
             "Successfully finish standardized clustering! Save at: {}".
-                format(std_fig_path)
+            format(std_fig_path)
         )
         ret['cluster_finder']["std_cluster_finder"] = std_cluster_finder
 
@@ -497,6 +490,7 @@ def test_efficient_rollout():
         num_gpus=4
     )
     return ret
+
 
 if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
