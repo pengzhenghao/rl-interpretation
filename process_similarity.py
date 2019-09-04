@@ -6,6 +6,7 @@ https://github.com/google-research/google-research/tree/master
 
 """
 import numpy as np
+from rollout import several_agent_rollout
 
 
 def gram_linear(x):
@@ -254,6 +255,60 @@ def test_origin():
     np.testing.assert_almost_equal(
         feature_space_linear_cka(X, Y), feature_space_linear_cka(X * 1.337, Y)
     )
+
+
+from rollout import RolloutWorkerWrapper
+from rollout import efficient_rollout_from_worker, parse_rllib_trajectory_list
+from process_data import read_yaml
+import pickle
+
+
+def build_agent_dataset(
+        yaml_path, num_rollouts=100, seed=0, num_workers=10, output_path=None
+):
+    data_dict = several_agent_rollout(
+        yaml_path, num_rollouts, seed, num_workers, return_data=True
+    )
+    name_ckpt_mapping = read_yaml(yaml_path)
+    agent_dataset = {}
+    traj_count = 0
+    for name, traj_list in data_dict.items():
+        obs_list = [traj['obs'] for traj in traj_list]
+        act_list = [traj['actions'] for traj in traj_list]
+        rew_list = [traj['rewards'] for traj in traj_list]
+        traj_count += sum([len(obs) for obs in obs_list])
+        agent_dataset[name] = {
+            "obs": obs_list,
+            "act": act_list,
+            "rew": rew_list,
+            "agent_info": name_ckpt_mapping[name]
+        }
+    print(
+        "Successfully collect {} trajectories from {} agents!".format(
+            traj_count, len(data_dict)
+        )
+    )
+
+    if output_path is not None:
+        if not output_path.endswith(".pkl"):
+            output_path = output_path + ".pkl"
+            print(
+                "WARNING! The output path is not ends with '.pkl'!!"
+                " We add it for you and it's <{}> now!".format(output_path)
+            )
+        with open(output_path, "wb") as f:
+            pickle.dump(agent_dataset, f)
+        print("agent_dataset is successfully saved at {}.".format(output_path))
+    return agent_dataset
+
+
+def sample_from_agent_dataset(agent_dataset, num_sample_per_agent):
+    # agent_data_mappin = {agent: [[traj1:[t0], [t1], ..], [traj2], ...}
+    # build a POOL of Observation
+    # Our guide line is, concatenate all traj of a agent and
+    # sample 100 (or maybe 1000) observations from each agent's obs pool.
+    # so that we have 30,000 obs given 300 agents.
+    pass
 
 
 if __name__ == '__main__':

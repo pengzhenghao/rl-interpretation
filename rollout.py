@@ -157,6 +157,19 @@ def get_dataset_path(ckpt, num_rollout, seed):
     return "{}_rollout{}_seed{}.pkl".format(ckpt, num_rollout, seed)
 
 
+def on_episode_start(info):
+    # print(info.keys())  # -> "env", 'episode"
+    episode = info["episode"]
+    # print("episode {} started".format(episode.episode_id))
+    episode.user_data["last_layer_activation"] = []
+
+
+def on_episode_step(info):
+    episode = info["episode"]
+    pole_angle = abs(episode.last_observation_for()[2])
+    episode.user_data["last_layer_activation"].append(pole_angle)
+
+
 class RolloutWorkerWrapper(object):
     @classmethod
     def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
@@ -562,7 +575,11 @@ def test_RolloutWorkerWrapper():
 
 
 def several_agent_rollout(
-        yaml_path, num_rollouts, seed=0, num_workers=10, force_rewrite=False,
+        yaml_path,
+        num_rollouts,
+        seed=0,
+        num_workers=10,
+        force_rewrite=False,
         return_data=False
 ):
     name_ckpt_mapping = read_yaml(yaml_path)
