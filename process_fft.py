@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from process_cluster import ClusterFinder
 from process_data import get_name_ckpt_mapping
-from rollout import rollout, efficient_rollout, make_worker, set_weight
+from rollout import efficient_rollout, make_worker, set_weight
 from utils import restore_agent, initialize_ray, get_random_string
 
 # has_gpu =
@@ -210,16 +210,6 @@ class FFTWorker(object):
             assert normalize in ['range', 'std']
         data_frame = None
         for seed in range(num_seeds):
-            # Deprecated!
-            # df = self._rollout_multiple(
-            #     num_rollouts,
-            #     seed,
-            #     stack,
-            #     normalize,
-            #     log,
-            #     _num_seeds=num_seeds,
-            #     _extra_name=_extra_name
-            # )
             df = self._efficient_rollout(num_rollouts, seed)
             if data_frame is None:
                 data_frame = df
@@ -238,65 +228,6 @@ class FFTWorker(object):
         )
         self.agent.stop()
         return data_frame.copy(), repr_dict
-
-    def _rollout(self, env):
-        # Deprecated!
-        ret = rollout(
-            self.agent,
-            env,
-            require_trajectory=True,
-            num_steps=self._num_steps or None
-        )
-        ret = ret["trajectory"]
-        obs = np.array([a[0] for a in ret])
-        act = np.array([a[1] for a in ret])
-        return obs, act
-
-    def _rollout_multiple(
-            self,
-            num_rollouts,
-            seed,
-            stack=False,
-            normalize="range",
-            log=True,
-            _num_seeds=None,
-            _extra_name=""
-    ):
-        # Deprecated!
-        # One seed, N rollouts.
-        env = self.env_maker()
-        data_frame = None
-        obs_list = []
-        act_list = []
-        for i in range(num_rollouts):
-            print(
-                "({}) Agent {}<{}>, Seed {}, Rollout {}/{}".format(
-                    self.worker_name, _extra_name, self.agent_name,
-                    seed if _num_seeds is None else
-                    "No.{}/{} (Real: {})".format(seed + 1, _num_seeds, seed),
-                    i, num_rollouts
-                )
-            )
-            obs, act = self._rollout(env)
-            if not stack:
-                df = stack_fft(obs, act, normalize=normalize, use_log=log)
-                df.insert(df.shape[1], "rollout", i)
-                data_frame = df if data_frame is None else \
-                    data_frame.append(df, ignore_index=True)
-            else:
-                obs_list.append(obs)
-                act_list.append(act)
-        if stack:
-            data_frame = stack_fft(
-                np.concatenate(obs_list),
-                np.concatenate(act_list),
-                normalize=normalize,
-                use_log=log
-            )
-            data_frame.insert(data_frame.shape[1], "rollout", 0)
-        data_frame.insert(data_frame.shape[1], "agent", self.agent_name)
-        data_frame.insert(data_frame.shape[1], "seed", seed)
-        return data_frame
 
 
 def get_fft_representation(

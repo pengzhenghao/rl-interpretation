@@ -18,6 +18,13 @@ DEFAULT_METHOD = {
 
 
 def reduce_dimension(data, prediction, three_dimensional=False):
+    """
+
+    :param data: dataframe with shape [num_agents, num_features]
+    :param prediction: {name: {cluster: int, ..}, ..}
+    :param three_dimensional:
+    :return:
+    """
     method = DEFAULT_METHOD
     perplexity = method['perplexity']
     n_iter = method['n_iter']
@@ -52,13 +59,13 @@ def reduce_dimension(data, prediction, three_dimensional=False):
             ret['z'] = coordinates[2]
         return ret
 
-    result_df = pandas.DataFrame(
+    plot_df = pandas.DataFrame(
         [
             get_row(name, coord)
             for name, coord in zip(prediction.keys(), result)
         ]
     )
-    return result_df, result
+    return plot_df, result
 
 
 def draw(plot_df, show=True, save=None):
@@ -71,7 +78,6 @@ def draw(plot_df, show=True, save=None):
 
 
 def _draw_2d(plot_df, show=True, save=None):
-
     plt.figure(figsize=(12, 10), dpi=300)
     num_clusters = len(plot_df.cluster.unique())
     palette = sns.color_palette(n_colors=num_clusters)
