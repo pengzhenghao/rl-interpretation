@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from process_cluster import ClusterFinder
 from process_data import get_name_ckpt_mapping
-from rollout import efficient_rollout, make_worker, set_weight
+from rollout import efficient_rollout_from_worker, make_worker, set_weight
 from utils import restore_agent, initialize_ray, get_random_string, ENV_MAKER_LOOKUP
 
 
@@ -162,7 +162,7 @@ class FFTWorker(object):
             self,
             seed,
     ):
-        rollout_result = efficient_rollout(
+        rollout_result = efficient_rollout_from_worker(
             self.rollout_worker, self.num_rollouts
         )
         # self.rollout_worker.close.remote()

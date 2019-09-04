@@ -289,7 +289,7 @@ def make_worker(env_maker, ckpt, num_rollout, seed, run_name, env_name):
     return worker
 
 
-def efficient_rollout(worker, num_rollouts):
+def efficient_rollout_from_worker(worker, num_rollouts):
     trajctory_list = []
     obj_ids = []
     t = time.time()
@@ -302,21 +302,15 @@ def efficient_rollout(worker, num_rollouts):
         # 'new_obs', 'action_prob', 'vf_preds', 'behaviour_logits',
         # 'unroll_id', 'advantages', 'value_targets'])
         data = ray.get(obj).data
-        obs = data['obs']
-        act = data['actions']
-        rew = data['rewards']
-        next_obs = data['new_obs']
-        # value_function = data['vf_preds']
-        done = data['dones']
+        trajectory = parse_single_rollout(data)
         logging.info(
             "Finish collect {}/{} rollouts. The latest rollout contain {}"
             " steps.".format(
                 num + 1,
                 num_rollouts,
-                len(obs),
+                len(trajectory[0]),
             )
         )
-        trajectory = [obs, act, next_obs, rew, done]
         trajctory_list.append(trajectory)
     logging.info(
         "Finish {} Rollouts. Cost: {} s.".format(
@@ -326,6 +320,25 @@ def efficient_rollout(worker, num_rollouts):
     )
     worker.close.remote()
     return trajctory_list
+
+
+def parse_rllib_trajectory_list(trajectory_list):
+    return_list = []
+    for num, trajectory in enumerate(trajectory_list):
+        parsed_trajectory = parse_single_rollout(trajectory)
+        return_list.append(parsed_trajectory)
+    return trajectory_list
+
+
+def parse_single_rollout(data):
+    obs = data['obs']
+    act = data['actions']
+    rew = data['rewards']
+    next_obs = data['new_obs']
+    # value_function = data['vf_preds']
+    done = data['dones']
+    trajectory = [obs, act, next_obs, rew, done]
+    return trajectory
 
 
 """
@@ -561,7 +574,7 @@ def several_agent_rollout(
     agent_count_get = 1
 
     workers = [
-        RolloutWorkerWrapper.as_remote(num_gpus=0.3).remote(force_rewrite)
+        RolloutWorkerWrapper.as_remote(num_gpus=0.2).remote(force_rewrite)
         for _ in range(num_workers)
     ]
 
