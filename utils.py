@@ -607,7 +607,7 @@ class ImageEncoder(object):
 # from tf_model import model_config
 def restore_agent_with_activation(run_name, ckpt, env_name, config=None):
     if config is None:
-        if 'gpu' not in ray.available_resources():
+        if 'GPU' not in ray.available_resources():
             args_config = {}
         else:
             args_config = {"num_gpus_per_worker": 0.1}

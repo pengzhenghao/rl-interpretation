@@ -620,10 +620,9 @@ def several_agent_rollout(
     agent_count = 1
     agent_count_get = 1
 
-    have_gpu = "gpu" in ray.available_resources()
+    have_gpu = "GPU" in ray.available_resources()
     workers = [
-        RolloutWorkerWrapper.as_remote(num_gpus=0.2 if have_gpu else 0
-                                       ).remote(force_rewrite)
+        RolloutWorkerWrapper.as_remote(num_gpus=0.2 if have_gpu else 0).remote(force_rewrite)
         for _ in range(num_workers)
     ]
 
@@ -638,9 +637,9 @@ def several_agent_rollout(
         for i, (name, ckpt_dict) in \
                 enumerate(agent_ckpt_dict_range[start:end]):
             ckpt = ckpt_dict["path"]
-            env_name = ckpt_dict["env_name"]
+            env_name = ckpt_dict["env_name"] if "env_name" in ckpt_dict else "BipedalWalker-v2"
             env_maker = ENV_MAKER_LOOKUP[env_name]
-            run_name = ckpt_dict["run_name"]
+            run_name = ckpt_dict["run_name"] if "run_name" in ckpt_dict else "PPO"
             assert run_name == "PPO"
 
             # TODO Only support PPO now.
@@ -661,8 +660,8 @@ def several_agent_rollout(
                 )
             )
 
-            if ray.get(workers[i].get_dataset.remote()):
-                print("Dataset is detected! We will load data from file.")
+            # if ray.get(workers[i].get_dataset.remote()):
+            #     print("Dataset is detected! We will load data from file.")
 
             agent_count += 1
             now_t = time.time()
@@ -690,7 +689,7 @@ def test_RolloutWorkerWrapper_with_activation():
     initialize_ray(test_mode=True)
     env_maker = lambda _: gym.make("BipedalWalker-v2")
     ckpt = "test/fake-ckpt1/checkpoint-313"
-    rww_new = RolloutWorkerWrapper.as_remote().remote()
+    rww_new = RolloutWorkerWrapper.as_remote().remote(True)
     rww_new.reset.remote(
         ckpt, 2, 0, env_maker, "PPO", "BipedalWalker-v2", True
     )
@@ -714,7 +713,8 @@ def test_serveral_agent_rollout(force=False):
 
 
 if __name__ == "__main__":
-    # test_RolloutWorkerWrapper_with_activation()
+    # test_serveral_agent_rollout(True)
+    # exit(0)
     # _test_es_agent_compatibility()
     parser = argparse.ArgumentParser()
     parser.add_argument("--yaml-path", required=True, type=str)
@@ -730,4 +730,4 @@ if __name__ == "__main__":
     several_agent_rollout(
         args.yaml_path, args.num_rollouts, args.seed, args.num_workers,
         args.force_rewrite
-    )1
+    )
