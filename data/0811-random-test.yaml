@@ -3,7 +3,10 @@
   run_name: PPO
   name: same file seed 0
   path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
-#-
+- env_name: BipedalWalker-v2
+  run_name: PPO
+  name: sfsad 1
+  path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=20_2019-08-10_16-54-37xaa2muqm/checkpoint_469/checkpoint-469
 #  name: same file seed 1
 #  path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
 #-

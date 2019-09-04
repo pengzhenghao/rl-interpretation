@@ -157,7 +157,7 @@ def get_dataset_path(ckpt, num_rollout, seed):
     return "{}_rollout{}_seed{}.pkl".format(ckpt, num_rollout, seed)
 
 
-class RolloutWorkerWrapper(RolloutWorker):
+class RolloutWorkerWrapper(object):
     @classmethod
     def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
         return ray.remote(
@@ -166,16 +166,27 @@ class RolloutWorkerWrapper(RolloutWorker):
 
     def __init__(
             self,
-            ckpt,
-            num_rollouts,
-            seed,
-            env_creater,
-            policy,
-            batch_mode="complete_episodes",
-            batch_steps=1,
-            episode_horizon=3000,
-            sample_async=True
     ):
+        self.initialized = False
+        self.path = None
+        self.num_rollouts = None
+        self.index = None
+        self.dataset = False
+        self.data = None
+        self.worker = None
+
+    def reset(self,
+              ckpt,
+              num_rollouts,
+              seed,
+              env_creater,
+              policy,
+              batch_mode="complete_episodes",
+              batch_steps=1,
+              episode_horizon=3000,
+              sample_async=True
+              ):
+        self.initialized = True
         self.path = get_dataset_path(ckpt, num_rollouts, seed)
         self.num_rollouts = num_rollouts
         self.index = 0
@@ -186,9 +197,9 @@ class RolloutWorkerWrapper(RolloutWorker):
             )
             with open(self.path, "rb") as f:
                 self.data = pickle.load(f)
-                self.dataset = True
+            self.dataset = True
         else:
-            super(RolloutWorkerWrapper, self).__init__(
+            self.worker = RolloutWorker(
                 env_creator=env_creater,
                 policy=policy,
                 batch_mode=batch_mode,
@@ -201,20 +212,33 @@ class RolloutWorkerWrapper(RolloutWorker):
             self.dataset = False
             self.data = []
 
+    def set_weights_from_ckpt(self, run_name, ckpt, env_name):
+        assert self.initialized
+        if self.dataset:
+            return
+        agent = restore_agent(run_name, ckpt, env_name)
+        self.worker.set_weights(
+            {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
+        )
+        print("Successfully set weigths from agent.")
+
     def wrap_sample(self):
+        assert self.initialized
         assert self.index < self.num_rollouts
         if self.dataset:
             result = self.data[self.index]
         else:
-            result = self.sample()
+            result = self.worker.sample()
             self.data.append(result)
         self.index += 1
         return result
 
     def get_dataset(self):
+        assert self.initialized
         return self.dataset
 
     def close(self):
+        assert self.initialized
         if self.dataset:
             print(
                 "Data is already saved at: {} with len {}.".format(
@@ -230,6 +254,7 @@ class RolloutWorkerWrapper(RolloutWorker):
                 )
             )
             self.dataset = len(self.data) >= self.num_rollouts
+        return self.path
 
 def make_worker(env_maker, ckpt, num_rollout, seed):
     # assert agent._name == "PPO", "We only support ppo agent now!"
@@ -237,21 +262,24 @@ def make_worker(env_maker, ckpt, num_rollout, seed):
     # if os.path.exists(path):
     #     return DataLoader(ckpt, num_rollout, seed)
     policy = PPOTFPolicy
-    worker = RolloutWorkerWrapper.as_remote().remote(
+    worker = RolloutWorkerWrapper.as_remote().remote()
+    worker.reset.remote(
         ckpt, num_rollout, seed, env_maker, policy
     )
     return worker
 
 
 def set_weight(worker, agent):
-    assert agent._name == "PPO", "We only support ppo agent now!"
-    if ray.get(worker.get_dataset.remote()):
-        return
+    # Deprecated!
+    raise ValueError("Deprecated function!")
+    # assert agent._name == "PPO", "We only support ppo agent now!"
+    # if ray.get(worker.get_dataset.remote()):
+    #     return
     # assert agent._name == "PPO", "We only support ppo agent now!"
     # policy = PPOTFPolicy
-    worker.set_weights.remote(
-        {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
-    )
+    # worker.set_weights.remote(
+    #     {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
+    # )
 
 
 def efficient_rollout(worker, num_rollouts):
@@ -505,18 +533,22 @@ def test_RolloutWorkerWrapper():
     print("After close")
 
 
-def serveral_agent_rollout(yaml_path, num_rollouts, seed, num_workers):
+def serveral_agent_rollout(yaml_path, num_rollouts, seed=0, num_workers=10):
     name_ckpt_mapping = read_yaml(yaml_path)
     now_t = start_t = time.time()
     num_agents = len(name_ckpt_mapping)
     num_iteration = int(ceil(num_agents / num_workers))
     agent_ckpt_dict_range = list(name_ckpt_mapping.items())
     agent_count = 1
+
+    workers = [RolloutWorkerWrapper.as_remote().remote()
+               for _ in range(num_workers)]
+
     for iteration in range(num_iteration):
         start = iteration * num_workers
         end = min((iteration + 1) * num_workers, num_agents)
         # obj_ids = []
-        workers = []
+        # workers = []
         obj_ids_dict = {}
         for i, (name, ckpt_dict) in \
                 enumerate(agent_ckpt_dict_range[start:end]):
@@ -525,14 +557,19 @@ def serveral_agent_rollout(yaml_path, num_rollouts, seed, num_workers):
             env_maker = ENV_MAKER_LOOKUP[env_name]
             run_name = ckpt_dict["run_name"]
             assert run_name == "PPO"
-            # TODO Only support PPO now.
 
-            worker = make_worker(env_maker, ckpt, num_rollouts, seed)
-            if ray.get(worker.get_dataset.remote()):
+            # TODO Only support PPO now.
+            worker = workers[i]
+            workers[i].reset.remote(
+                    ckpt, num_rollouts, seed, env_maker, PPOTFPolicy
+                )
+            if ray.get(workers[i].get_dataset.remote()):
                 print("Dataset is detected! We will load data from file.")
-            agent = restore_agent(run_name, ckpt, env_name)
-            set_weight(worker, agent)
-            workers.append(worker)
+            # agent = restore_agent(run_name, ckpt, env_name)
+            # worker.set_weights_from_agent.remote(agent)
+            workers[i].set_weights_from_ckpt.remote(run_name, ckpt, env_name)
+            # set_weight(worker, agent)
+            # workers.append(workers[i])
 
             obj_ids = []
 
@@ -556,6 +593,13 @@ def serveral_agent_rollout(yaml_path, num_rollouts, seed, num_workers):
             agent_count += 1
             now_t = time.time()
     return None
+
+
+def test_serveral_agent_rollout():
+    yaml_path = "data/0811-random-test.yaml"
+    num_rollouts = 2
+    initialize_ray()
+    serveral_agent_rollout(yaml_path, num_rollouts)
 
 
 if __name__ == "__main__":
