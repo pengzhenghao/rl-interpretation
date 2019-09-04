@@ -604,6 +604,23 @@ class ImageEncoder(object):
             )
 
 
+# from tf_model import model_config
+def restore_agent_with_activation(run_name, ckpt, env_name, config=None):
+    if config is None:
+        if 'gpu' not in ray.available_resources():
+            args_config = {}
+        else:
+            args_config = {"num_gpus_per_worker": 0.1}
+        config = build_config(ckpt, args_config)
+    # config.update(model_config)
+    from tf_model import PPOAgentWithActivation
+    agent = PPOAgentWithActivation(env=env_name, config=config)
+    if ckpt is not None:
+        ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
+        agent.restore(ckpt)
+    return agent
+
+
 def restore_agent(run_name, ckpt, env_name, config=None):
     cls = get_agent_class(run_name)
     if config is None:

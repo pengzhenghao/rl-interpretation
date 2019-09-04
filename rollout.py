@@ -27,8 +27,9 @@ from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from utils import restore_agent, initialize_ray, ENV_MAKER_LOOKUP
+from utils import restore_agent, initialize_ray, ENV_MAKER_LOOKUP, restore_agent_with_activation
 from process_data import read_yaml
+from tf_model import PPOTFPolicyWithActivation
 
 EXAMPLE_USAGE = """
 Example Usage via RLlib CLI:
@@ -170,6 +171,9 @@ def on_episode_step(info):
     episode.user_data["last_layer_activation"].append(pole_angle)
 
 
+from tf_model import model_config, register
+
+
 class RolloutWorkerWrapper(object):
     @classmethod
     def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
@@ -179,7 +183,7 @@ class RolloutWorkerWrapper(object):
 
     def __init__(self, force_rewrite=False):
         self.initialized = False
-        self.reset_weight = False
+        self.already_reset = False
         self.path = None
         self.num_rollouts = None
         self.index = None
@@ -190,6 +194,10 @@ class RolloutWorkerWrapper(object):
         self.run_name = None
         self.env_name = None
         self.ckpt = None
+        self.seed = None
+        self.policy_type = None
+        self.env_creater = None
+        self.require_activation = None
 
     def reset(
             self,
@@ -197,19 +205,29 @@ class RolloutWorkerWrapper(object):
             num_rollouts,
             seed,
             env_creater,
-            policy,
+            # policy_type,
             run_name,
             env_name,
-            batch_mode="complete_episodes",
-            batch_steps=1,
-            episode_horizon=3000,
-            sample_async=True
+            require_activation=False,
     ):
-        self.reset_weight = False
+        self.already_reset = False
         self.initialized = True
         self.path = get_dataset_path(ckpt, num_rollouts, seed)
         self.num_rollouts = num_rollouts
+        self.require_activation = require_activation
         self.index = 0
+        # assert self.initialized
+        # if self.dataset:
+        #     return
+        self.run_name = run_name
+        self.ckpt = ckpt
+        self.env_name = env_name
+        self.env_creater = env_creater
+        # self.policy = policy
+        self.seed = seed
+
+    def _lazy_reset(self):
+        assert self.initialized
         if os.path.exists(self.path) and (not self.force_rewrite):
             print(
                 "Dataset is detected! It's at {}."
@@ -219,42 +237,54 @@ class RolloutWorkerWrapper(object):
                 self.data = pickle.load(f)
             self.dataset = True
         else:
+
+            if self.require_activation:
+                agent = restore_agent_with_activation(
+                    self.run_name, self.ckpt, self.env_name
+                )
+                self.policy_type = PPOTFPolicyWithActivation
+            else:
+                agent = restore_agent(self.run_name, self.ckpt, self.env_name)
+                self.policy_type = PPOTFPolicy
+            policy = agent.get_policy()
+            if self.require_activation:
+                assert "layer0" in policy.extra_compute_action_fetches(), \
+                "This policy is not we modified policy. Please use policy we " \
+                "reimplemented."
+
+            batch_mode = "complete_episodes"
+            batch_steps = 1
+            episode_horizon = 3000
+            sample_async = True
+
+            register()
             self.worker = RolloutWorker(
-                env_creator=env_creater,
-                policy=policy,
+                env_creator=self.env_creater,
+                policy=self.policy_type,
                 batch_mode=batch_mode,
                 batch_steps=batch_steps,
                 episode_horizon=episode_horizon,
                 sample_async=sample_async,
-                seed=seed,
+                seed=self.seed,
+                model_config=model_config,
                 log_level="ERROR"
             )
             self.dataset = False
             self.data = []
-        # assert self.initialized
-        # if self.dataset:
-        #     return
-        self.run_name = run_name
-        self.ckpt = ckpt
-        self.env_name = env_name
-        # assert self.reset_weight is False
 
-    def _set_weight(self):
-        # Lazy set weight
-        agent = restore_agent(self.run_name, self.ckpt, self.env_name)
-        self.worker.set_weights(
-            {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
-        )
-        self.reset_weight = True
+            self.worker.set_weights(
+                {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
+            )
+        self.already_reset = True
         print("Successfully set weigths from agent.")
 
     def wrap_sample(self, return_none=False):
         assert self.initialized
+
+        if not self.already_reset:
+            self._lazy_reset()
+
         assert self.index < self.num_rollouts
-
-        if not self.reset_weight:
-            self._set_weight()
-
         if self.dataset:
             result = self.data[self.index]
         else:
@@ -590,8 +620,10 @@ def several_agent_rollout(
     agent_count = 1
     agent_count_get = 1
 
+    have_gpu = "gpu" in ray.available_resources()
     workers = [
-        RolloutWorkerWrapper.as_remote(num_gpus=0.2).remote(force_rewrite)
+        RolloutWorkerWrapper.as_remote(num_gpus=0.2 if have_gpu else 0
+                                       ).remote(force_rewrite)
         for _ in range(num_workers)
     ]
 
@@ -612,18 +644,13 @@ def several_agent_rollout(
             assert run_name == "PPO"
 
             # TODO Only support PPO now.
-            worker = workers[i]
             workers[i].reset.remote(
-                ckpt, num_rollouts, seed, env_maker, PPOTFPolicy, run_name,
-                env_name
+                ckpt, num_rollouts, seed, env_maker, run_name, env_name, True
             )
-            if ray.get(workers[i].get_dataset.remote()):
-                print("Dataset is detected! We will load data from file.")
             obj_ids = []
-
             for _ in range(num_rollouts):
                 # Ask to return None.
-                obj_ids.append(worker.wrap_sample.remote(not return_data))
+                obj_ids.append(workers[i].wrap_sample.remote(not return_data))
             obj_ids_dict[name] = obj_ids
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from agent"
@@ -633,6 +660,10 @@ def several_agent_rollout(
                     time.time() - start_t, num_rollouts, name
                 )
             )
+
+            if ray.get(workers[i].get_dataset.remote()):
+                print("Dataset is detected! We will load data from file.")
+
             agent_count += 1
             now_t = time.time()
 
@@ -655,14 +686,35 @@ def several_agent_rollout(
     return return_dict if return_data else None
 
 
-def test_serveral_agent_rollout():
+def test_RolloutWorkerWrapper_with_activation():
+    initialize_ray(test_mode=True)
+    env_maker = lambda _: gym.make("BipedalWalker-v2")
+    ckpt = "test/fake-ckpt1/checkpoint-313"
+    rww_new = RolloutWorkerWrapper.as_remote().remote()
+    rww_new.reset.remote(
+        ckpt, 2, 0, env_maker, "PPO", "BipedalWalker-v2", True
+    )
+    for _ in range(2):
+        result = ray.get(rww_new.wrap_sample.remote())
+    print(result)
+    print("Prepare to close")
+    print("Dataset: ", ray.get(rww_new.get_dataset.remote()))
+    rww_new.close.remote()
+    print("After close")
+    return result
+
+
+def test_serveral_agent_rollout(force=False):
     yaml_path = "data/0811-random-test.yaml"
     num_rollouts = 2
     initialize_ray()
-    several_agent_rollout(yaml_path, num_rollouts)
+    return several_agent_rollout(
+        yaml_path, num_rollouts, force_rewrite=force, return_data=True
+    )
 
 
 if __name__ == "__main__":
+    # test_RolloutWorkerWrapper_with_activation()
     # _test_es_agent_compatibility()
     parser = argparse.ArgumentParser()
     parser.add_argument("--yaml-path", required=True, type=str)
@@ -678,4 +730,4 @@ if __name__ == "__main__":
     several_agent_rollout(
         args.yaml_path, args.num_rollouts, args.seed, args.num_workers,
         args.force_rewrite
-    )
+    )1

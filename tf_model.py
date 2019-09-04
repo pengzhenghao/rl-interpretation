@@ -132,9 +132,13 @@ def vf_preds_and_logits_fetches_new(policy):
     return ret
 
 
+model_config = {"custom_model": "fc_with_activation", "custom_options": {}}
+
+ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
+ppo_default_config['model'].update(model_config)
 PPOTFPolicyWithActivation = build_tf_policy(
     name="PPOTFPolicy",
-    get_default_config=lambda: ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG,
+    get_default_config=lambda: ppo_default_config,
     loss_fn=ppo_surrogate_loss,
     stats_fn=kl_and_loss_stats,
     extra_action_fetches_fn=vf_preds_and_logits_fetches_new,
@@ -148,9 +152,11 @@ PPOTFPolicyWithActivation = build_tf_policy(
     ]
 )
 
+ppo_agent_default_config = DEFAULT_CONFIG
+ppo_agent_default_config['model'].update(model_config)
 PPOAgentWithActivation = build_trainer(
     name="PPO",
-    default_config=DEFAULT_CONFIG,
+    default_config=ppo_agent_default_config,
     default_policy=PPOTFPolicyWithActivation,
     make_policy_optimizer=choose_policy_optimizer,
     validate_config=validate_config,
@@ -158,21 +164,18 @@ PPOAgentWithActivation = build_trainer(
     after_train_result=warn_about_bad_reward_scales
 )
 
-ModelCatalog.register_custom_model(
-    "fc_with_activation", FullyConnectedNetworkWithActivation
-)
+
+def register():
+    ModelCatalog.register_custom_model(
+        "fc_with_activation", FullyConnectedNetworkWithActivation
+    )
+
+
+register()
 
 
 def test_ppo():
     from utils import initialize_ray
     initialize_ray(test_mode=True)
-    po = PPOAgentWithActivation(
-        env="BipedalWalker-v2",
-        config={
-            "model": {
-                "custom_model": "fc_with_activation",
-                "custom_options": {}
-            }
-        }
-    )
+    po = PPOAgentWithActivation(env="BipedalWalker-v2", config=model_config)
     return po
