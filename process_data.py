@@ -7,6 +7,7 @@ from os.path import join
 import pandas
 import yaml
 from gym.envs import spec
+# from rollout import several_agent_rollout
 
 PERFORMANCE_METRIC = "episode_reward_mean"
 
@@ -262,8 +263,9 @@ def generate_progress_yaml(exp_names, output_path, number=None):
     return results
 
 
-
-def generate_yaml(exp_names, output_path):
+def generate_yaml(
+        exp_names, output_path, rollout=False, num_rollouts=100, seed=0
+):
     # Get the trial_name-json_path dict.
 
     assert spec(args.env_name)  # make sure no typo in env_name
@@ -318,6 +320,11 @@ def generate_yaml(exp_names, output_path):
             len(results)
         )
     )
+
+    if rollout:
+        pass
+        # several_agent_rollout(output_path, num_rollouts, seed)
+
     return results
 
 
@@ -337,9 +344,7 @@ if __name__ == '__main__':
     assert args.output_path.endswith("yaml")
 
     if not args.progress:
-        ret = generate_yaml(
-            args.exp_names, args.output_path
-        )
+        ret = generate_yaml(args.exp_names, args.output_path)
     else:
         number = args.number if args.number != -1 else None
         ret = generate_progress_yaml(args.exp_names, args.output_path, number)

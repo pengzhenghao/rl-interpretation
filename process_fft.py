@@ -17,7 +17,6 @@ from rollout import efficient_rollout, make_worker, set_weight
 from utils import restore_agent, initialize_ray, get_random_string, ENV_MAKER_LOOKUP
 
 
-
 def compute_fft(y):
     y = np.asarray(y)
     assert y.ndim == 1
@@ -156,8 +155,8 @@ class FFTWorker(object):
         if self.rollout_worker is None:
             assert self.initialized
             self.rollout_worker = \
-                make_worker(self.env_maker, self.ckpt, self.num_rollouts, self.seed)
-        set_weight(self.rollout_worker, self.agent)
+                make_worker(self.env_maker, self.ckpt, self.num_rollouts, self.seed,
+                            self.run_name, self.env_name)
 
     def _efficient_rollout(
             self,
