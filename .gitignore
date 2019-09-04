@@ -5,3 +5,4 @@ __pycache__/
 data/
 test/fake-ckpt1
 test/fake-ckpt2
+/data/

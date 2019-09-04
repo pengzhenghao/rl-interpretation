@@ -12,6 +12,7 @@ import logging
 import os
 import pickle
 import time
+from math import ceil
 
 import gym
 import numpy as np
@@ -26,7 +27,8 @@ from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from utils import restore_agent, initialize_ray
+from utils import restore_agent, initialize_ray, ENV_MAKER_LOOKUP
+from process_data import read_yaml
 
 EXAMPLE_USAGE = """
 Example Usage via RLlib CLI:
@@ -137,16 +139,16 @@ def default_policy_agent_mapping(unused_agent_id):
     return DEFAULT_POLICY_ID
 
 
-def test_efficient_rollout():
-    initialize_ray()
-    agent = PPOAgent(env="BipedalWalker-v2")
-    env = gym.make("BipedalWalker-v2")
-    w = make_worker(lambda _: env, agent, 0)
-    set_weight(w, agent)
-    ret = efficient_rollout(w, 7)
-    print("start for another time!")
-    ret = efficient_rollout(w, 7)
-    return ret
+# def test_efficient_rollout():
+#     initialize_ray()
+#     agent = PPOAgent(env="BipedalWalker-v2")
+#     env = gym.make("BipedalWalker-v2")
+#     w = make_worker(lambda _: env, 0)
+#     set_weight(w, agent)
+#     ret = efficient_rollout(w, 7)
+#     print("start for another time!")
+#     ret = efficient_rollout(w, 7)
+#     return ret
     # return efficient_rollout(agent, env, 3)
 
 
@@ -193,7 +195,8 @@ class RolloutWorkerWrapper(RolloutWorker):
                 batch_steps=batch_steps,
                 episode_horizon=episode_horizon,
                 sample_async=sample_async,
-                seed=seed
+                seed=seed,
+                log_level="ERROR"
             )
             self.dataset = False
             self.data = []
@@ -228,31 +231,8 @@ class RolloutWorkerWrapper(RolloutWorker):
             )
             self.dataset = len(self.data) >= self.num_rollouts
 
-
-def test_RolloutWorkerWrapper():
-    initialize_ray(test_mode=True)
-    env_maker = lambda _: gym.make("BipedalWalker-v2")
-    ckpt = "test/fake-ckpt1/checkpoint-313"
-    # rww = RolloutWorkerWrapper(ckpt, 2, 0, env_maker, PPOTFPolicy)
-    # for _ in range(2):
-    #     result = rww.wrap_sample()
-    # print(result)
-    # rww.close()
-
-    rww_new = RolloutWorkerWrapper.as_remote().remote(
-        ckpt, 2, 0, env_maker, PPOTFPolicy
-    )
-    for _ in range(2):
-        result = ray.get(rww_new.wrap_sample.remote())
-    print(result)
-    print("Prepare to close")
-    print("Dataset: ", ray.get(rww_new.get_dataset.remote()))
-    rww_new.close.remote()
-    print("After close")
-
-
-def make_worker(env_maker, agent, ckpt, num_rollout, seed):
-    assert agent._name == "PPO", "We only support ppo agent now!"
+def make_worker(env_maker, ckpt, num_rollout, seed):
+    # assert agent._name == "PPO", "We only support ppo agent now!"
     # path = get_dataset_path(ckpt, num_rollout, seed)
     # if os.path.exists(path):
     #     return DataLoader(ckpt, num_rollout, seed)
@@ -264,6 +244,7 @@ def make_worker(env_maker, agent, ckpt, num_rollout, seed):
 
 
 def set_weight(worker, agent):
+    assert agent._name == "PPO", "We only support ppo agent now!"
     if ray.get(worker.get_dataset.remote()):
         return
     # assert agent._name == "PPO", "We only support ppo agent now!"
@@ -317,8 +298,6 @@ Modification:
     1. use iteration as the termination criterion
     2. pass an environment object which can be different from env_name
 """
-
-
 def rollout(
         agent,
         env,
@@ -504,20 +483,91 @@ def _test_es_agent_compatibility():
     rollout(es, env, num_steps=100, require_frame=True)
 
 
+def test_RolloutWorkerWrapper():
+    initialize_ray(test_mode=True)
+    env_maker = lambda _: gym.make("BipedalWalker-v2")
+    ckpt = "test/fake-ckpt1/checkpoint-313"
+    # rww = RolloutWorkerWrapper(ckpt, 2, 0, env_maker, PPOTFPolicy)
+    # for _ in range(2):
+    #     result = rww.wrap_sample()
+    # print(result)
+    # rww.close()
+
+    rww_new = RolloutWorkerWrapper.as_remote().remote(
+        ckpt, 2, 0, env_maker, PPOTFPolicy
+    )
+    for _ in range(2):
+        result = ray.get(rww_new.wrap_sample.remote())
+    print(result)
+    print("Prepare to close")
+    print("Dataset: ", ray.get(rww_new.get_dataset.remote()))
+    rww_new.close.remote()
+    print("After close")
+
+
+def serveral_agent_rollout(yaml_path, num_rollouts, seed, num_workers):
+    name_ckpt_mapping = read_yaml(yaml_path)
+    now_t = start_t = time.time()
+    num_agents = len(name_ckpt_mapping)
+    num_iteration = int(ceil(num_agents / num_workers))
+    agent_ckpt_dict_range = list(name_ckpt_mapping.items())
+    agent_count = 1
+    for iteration in range(num_iteration):
+        start = iteration * num_workers
+        end = min((iteration + 1) * num_workers, num_agents)
+        # obj_ids = []
+        workers = []
+        obj_ids_dict = {}
+        for i, (name, ckpt_dict) in \
+                enumerate(agent_ckpt_dict_range[start:end]):
+            ckpt = ckpt_dict["path"]
+            env_name = ckpt_dict["env_name"]
+            env_maker = ENV_MAKER_LOOKUP[env_name]
+            run_name = ckpt_dict["run_name"]
+            assert run_name == "PPO"
+            # TODO Only support PPO now.
+
+            worker = make_worker(env_maker, ckpt, num_rollouts, seed)
+            if ray.get(worker.get_dataset.remote()):
+                print("Dataset is detected! We will load data from file.")
+            agent = restore_agent(run_name, ckpt, env_name)
+            set_weight(worker, agent)
+            workers.append(worker)
+
+            obj_ids = []
+
+            for _ in range(num_rollouts):
+                obj_ids.append(worker.wrap_sample.remote())
+
+            obj_ids_dict[name] = obj_ids
+
+        for (name, obj_ids), worker in zip(obj_ids_dict.items(), workers):
+            for obj_id in obj_ids:
+                ray.get(obj_id)
+            worker.close.remote()
+            print(
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Collecting {} rollouts from agent"
+                " <{}>".format(
+                    agent_count, num_agents,
+                    time.time() - now_t,
+                    time.time() - start_t, num_rollouts, name
+                )
+            )
+            agent_count += 1
+            now_t = time.time()
+    return None
+
+
 if __name__ == "__main__":
-    # This part is used for test only!
-    # Don't call python rollout.py for any other purpose.
-    test_RolloutWorkerWrapper()
-    # initialize_ray(False)
-    # env = gym.make("CartPole-v0")
-    # ret = rollout(
-    #     restore_agent("PPO", None, "CartPole-v0"),
-    #     env,
-    #     100,
-    #     require_extra_info=True,
-    #     require_trajectory=True,
-    #     require_frame=True
-    # )
-    # print(ret)
-    #
     # _test_es_agent_compatibility()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--yaml-path", required=True, type=str)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--num-rollouts", '-n', type=int, default=100)
+    parser.add_argument("--num-workers", type=int, default=10)
+    parser.add_argument("--num-gpus", '-g', type=int, default=4)
+    args = parser.parse_args()
+    assert args.yaml_path.endswith("yaml")
+
+    initialize_ray(num_gpus=args.num_gpus)
+    serveral_agent_rollout(args.yaml_path, args.num_rollouts, args.seed, args.num_workers)

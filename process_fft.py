@@ -14,18 +14,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from process_cluster import ClusterFinder
 from process_data import get_name_ckpt_mapping
 from rollout import efficient_rollout, make_worker, set_weight
-from utils import restore_agent, initialize_ray, get_random_string
+from utils import restore_agent, initialize_ray, get_random_string, ENV_MAKER_LOOKUP
 
-# has_gpu =
-
-
-def build_env(useless=None):
-    env = BipedalWalker()
-    env.seed(0)
-    return env
-
-
-FFT_ENV_MAKER_LOOKUP = {"BipedalWalker-v2": build_env}
 
 
 def compute_fft(y):
@@ -166,7 +156,7 @@ class FFTWorker(object):
         if self.rollout_worker is None:
             assert self.initialized
             self.rollout_worker = \
-                make_worker(self.env_maker, self.agent, self.ckpt, self.num_rollouts, self.seed)
+                make_worker(self.env_maker, self.ckpt, self.num_rollouts, self.seed)
         set_weight(self.rollout_worker, self.agent)
 
     def _efficient_rollout(
@@ -272,7 +262,7 @@ def get_fft_representation(
             ckpt = ckpt_dict["path"]
             env_name = ckpt_dict["env_name"]
             run_name = ckpt_dict["run_name"]
-            env_maker = FFT_ENV_MAKER_LOOKUP[env_name]
+            env_maker = ENV_MAKER_LOOKUP[env_name]
             workers[i].reset.remote(
                 run_name=run_name,
                 ckpt=ckpt,

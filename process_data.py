@@ -262,7 +262,8 @@ def generate_progress_yaml(exp_names, output_path, number=None):
     return results
 
 
-def generate_yaml(exp_names, run_name, output_path, env_name):
+
+def generate_yaml(exp_names, output_path):
     # Get the trial_name-json_path dict.
 
     assert spec(args.env_name)  # make sure no typo in env_name
@@ -337,7 +338,7 @@ if __name__ == '__main__':
 
     if not args.progress:
         ret = generate_yaml(
-            args.exp_names, args.run_name, args.output_path, args.env_name
+            args.exp_names, args.output_path
         )
     else:
         number = args.number if args.number != -1 else None
