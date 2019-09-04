@@ -549,7 +549,8 @@ def test_RolloutWorkerWrapper():
 
 
 def several_agent_rollout(
-        yaml_path, num_rollouts, seed=0, num_workers=10, force_rewrite=False
+        yaml_path, num_rollouts, seed=0, num_workers=10, force_rewrite=False,
+        return_data=False
 ):
     name_ckpt_mapping = read_yaml(yaml_path)
     now_t_get = now_t = start_t = time.time()
@@ -563,6 +564,8 @@ def several_agent_rollout(
         RolloutWorkerWrapper.as_remote(num_gpus=0.3).remote(force_rewrite)
         for _ in range(num_workers)
     ]
+
+    return_dict = {}
 
     for iteration in range(num_iteration):
         start = iteration * num_workers
@@ -590,7 +593,7 @@ def several_agent_rollout(
 
             for _ in range(num_rollouts):
                 # Ask to return None.
-                obj_ids.append(worker.wrap_sample.remote(True))
+                obj_ids.append(worker.wrap_sample.remote(not return_data))
             obj_ids_dict[name] = obj_ids
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from agent"
@@ -604,8 +607,10 @@ def several_agent_rollout(
             now_t = time.time()
 
         for (name, obj_ids), worker in zip(obj_ids_dict.items(), workers):
+            trajectory_list = []
             for obj_id in obj_ids:
-                ray.get(obj_id)
+                trajectory_list.append(ray.get(obj_id))
+            return_dict[name] = trajectory_list
             worker.close.remote()
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Collected {} rollouts from agent"
@@ -617,7 +622,7 @@ def several_agent_rollout(
             )
             agent_count_get += 1
             now_t_get = time.time()
-    return None
+    return return_dict if return_data else None
 
 
 def test_serveral_agent_rollout():
