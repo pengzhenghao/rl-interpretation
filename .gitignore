@@ -2,4 +2,6 @@
 data/
 *.mp4
 __pycache__/
-/data/
+data/
+test/fake-ckpt1
+test/fake-ckpt2

@@ -137,13 +137,6 @@ def default_policy_agent_mapping(unused_agent_id):
     return DEFAULT_POLICY_ID
 
 
-"""
-Modification:
-    1. use iteration as the termination criterion
-    2. pass an environment object which can be different from env_name
-"""
-
-
 def test_efficient_rollout():
     initialize_ray()
     agent = PPOAgent(env="BipedalWalker-v2")
@@ -157,22 +150,122 @@ def test_efficient_rollout():
     # return efficient_rollout(agent, env, 3)
 
 
-def make_worker(env_maker, agent, seed):
+def get_dataset_path(ckpt, num_rollout, seed):
+    ckpt = os.path.abspath(os.path.expanduser(ckpt))
+    return "{}_rollout{}_seed{}.pkl".format(ckpt, num_rollout, seed)
+
+
+class RolloutWorkerWrapper(RolloutWorker):
+    @classmethod
+    def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
+        return ray.remote(
+            num_cpus=num_cpus, num_gpus=num_gpus, resources=resources
+        )(cls)
+
+    def __init__(
+            self,
+            ckpt,
+            num_rollouts,
+            seed,
+            env_creater,
+            policy,
+            batch_mode="complete_episodes",
+            batch_steps=1,
+            episode_horizon=3000,
+            sample_async=True
+    ):
+        self.path = get_dataset_path(ckpt, num_rollouts, seed)
+        self.num_rollouts = num_rollouts
+        self.index = 0
+        if os.path.exists(self.path):
+            print(
+                "Dataset is detected! It's at {}."
+                "\nWe will load data from it.".format(self.path)
+            )
+            with open(self.path, "rb") as f:
+                self.data = pickle.load(f)
+                self.dataset = True
+        else:
+            super(RolloutWorkerWrapper, self).__init__(
+                env_creator=env_creater,
+                policy=policy,
+                batch_mode=batch_mode,
+                batch_steps=batch_steps,
+                episode_horizon=episode_horizon,
+                sample_async=sample_async,
+                seed=seed
+            )
+            self.dataset = False
+            self.data = []
+
+    def wrap_sample(self):
+        assert self.index < self.num_rollouts
+        if self.dataset:
+            result = self.data[self.index]
+        else:
+            result = self.sample()
+            self.data.append(result)
+        self.index += 1
+        return result
+
+    def get_dataset(self):
+        return self.dataset
+
+    def close(self):
+        if self.dataset:
+            print(
+                "Data is already saved at: {} with len {}.".format(
+                    self.path, len(self.data)
+                )
+            )
+        else:
+            with open(self.path, "wb") as f:
+                pickle.dump(self.data, f)
+            print(
+                "Data is newly saved at: {} with len {}.".format(
+                    self.path, len(self.data)
+                )
+            )
+            self.dataset = len(self.data) >= self.num_rollouts
+
+
+def test_RolloutWorkerWrapper():
+    initialize_ray(test_mode=True)
+    env_maker = lambda _: gym.make("BipedalWalker-v2")
+    ckpt = "test/fake-ckpt1/checkpoint-313"
+    # rww = RolloutWorkerWrapper(ckpt, 2, 0, env_maker, PPOTFPolicy)
+    # for _ in range(2):
+    #     result = rww.wrap_sample()
+    # print(result)
+    # rww.close()
+
+    rww_new = RolloutWorkerWrapper.as_remote().remote(
+        ckpt, 2, 0, env_maker, PPOTFPolicy
+    )
+    for _ in range(2):
+        result = ray.get(rww_new.wrap_sample.remote())
+    print(result)
+    print("Prepare to close")
+    print("Dataset: ", ray.get(rww_new.get_dataset.remote()))
+    rww_new.close.remote()
+    print("After close")
+
+
+def make_worker(env_maker, agent, ckpt, num_rollout, seed):
     assert agent._name == "PPO", "We only support ppo agent now!"
+    # path = get_dataset_path(ckpt, num_rollout, seed)
+    # if os.path.exists(path):
+    #     return DataLoader(ckpt, num_rollout, seed)
     policy = PPOTFPolicy
-    worker = RolloutWorker.as_remote().remote(
-        env_creator=env_maker,
-        policy=policy,
-        batch_mode="complete_episodes",
-        batch_steps=1,
-        episode_horizon=3000,
-        sample_async=True,
-        seed=seed
+    worker = RolloutWorkerWrapper.as_remote().remote(
+        ckpt, num_rollout, seed, env_maker, policy
     )
     return worker
 
 
 def set_weight(worker, agent):
+    if ray.get(worker.get_dataset.remote()):
+        return
     # assert agent._name == "PPO", "We only support ppo agent now!"
     # policy = PPOTFPolicy
     worker.set_weights.remote(
@@ -185,7 +278,7 @@ def efficient_rollout(worker, num_rollouts):
     obj_ids = []
     t = time.time()
     for num in range(num_rollouts):
-        obj_ids.append(worker.sample.remote())
+        obj_ids.append(worker.wrap_sample.remote())
     for num, obj in enumerate(obj_ids):
         # We have so many information:
         # dict_keys(['t', 'eps_id', 'agent_index', 'obs', 'actions',
@@ -215,7 +308,15 @@ def efficient_rollout(worker, num_rollouts):
             time.time() - t
         )
     )
+    worker.close.remote()
     return trajctory_list
+
+
+"""
+Modification:
+    1. use iteration as the termination criterion
+    2. pass an environment object which can be different from env_name
+"""
 
 
 def rollout(
@@ -406,17 +507,17 @@ def _test_es_agent_compatibility():
 if __name__ == "__main__":
     # This part is used for test only!
     # Don't call python rollout.py for any other purpose.
-
-    initialize_ray(False)
-    env = gym.make("CartPole-v0")
-    ret = rollout(
-        restore_agent("PPO", None, "CartPole-v0"),
-        env,
-        100,
-        require_extra_info=True,
-        require_trajectory=True,
-        require_frame=True
-    )
-    print(ret)
-
-    _test_es_agent_compatibility()
+    test_RolloutWorkerWrapper()
+    # initialize_ray(False)
+    # env = gym.make("CartPole-v0")
+    # ret = rollout(
+    #     restore_agent("PPO", None, "CartPole-v0"),
+    #     env,
+    #     100,
+    #     require_extra_info=True,
+    #     require_trajectory=True,
+    #     require_frame=True
+    # )
+    # print(ret)
+    #
+    # _test_es_agent_compatibility()
