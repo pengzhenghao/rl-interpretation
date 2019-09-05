@@ -380,15 +380,21 @@ def build_obs_pool(sample_agent_dataset):
 def get_result():
     pass
 
+from rollout import several_agent_replay
+
 
 def test_new_implementation():
+    yaml_path = "yaml/test-2-agents.yaml"
     agent_dataset = build_agent_dataset(
-        "yaml/test-2-agents.yaml", 2,
+        yaml_path,2,
         output_path="/tmp/{}".format(get_random_string())
     )
-    return agent_dataset
+    sample_agent_dataset = sample_from_agent_dataset(agent_dataset, 0)
+    obs_pool = build_obs_pool(sample_agent_dataset)
+    ret = several_agent_replay(yaml_path, obs_pool)
+    return ret
 
 if __name__ == '__main__':
     # test_origin()
-    initialize_ray(test_mode=True, local_mode=True)
-    ret = test_new_implementation()
+    initialize_ray(test_mode=True)
+    agent_data = test_new_implementation()
