@@ -278,7 +278,7 @@ class RolloutWorkerWrapper(object):
                 episode_horizon=episode_horizon,
                 sample_async=sample_async,
                 seed=self.seed,
-                model_config=model_config,
+                model_config=model_config if self.require_activation else None,
                 log_level="INFO"
             )
             self.dataset = False
