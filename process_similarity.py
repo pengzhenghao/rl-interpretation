@@ -8,10 +8,13 @@ https://github.com/google-research/google-research/tree/master
 import pickle
 
 import numpy as np
+import os
 
 from process_data import read_yaml
 from rollout import several_agent_rollout
 from utils import initialize_ray, get_random_string
+
+from rollout import several_agent_replay
 
 ACTIVATION_DATA_PREFIX = "layer"
 
@@ -182,7 +185,7 @@ def feature_space_linear_cka(features_x, features_y, debiased=False):
     return dot_product_similarity / (normalization_x * normalization_y)
 
 
-get_cka_result = feature_space_linear_cka
+get_cka = feature_space_linear_cka
 
 
 def cca(features_x, features_y):
@@ -265,7 +268,8 @@ def test_origin():
 
 
 def build_agent_dataset(
-        yaml_path, num_rollouts=100, seed=0, num_workers=10, output_path=None
+        yaml_path, num_rollouts=100, seed=0, num_workers=10, output_path=None,
+        _num_agents=None
 ):
     """
     return shape: {
@@ -278,9 +282,10 @@ def build_agent_dataset(
     }
     """
     data_dict = several_agent_rollout(
-        yaml_path, num_rollouts, seed, num_workers, return_data=True
+        yaml_path, num_rollouts, seed, num_workers, return_data=True,
+        _num_agents=_num_agents
     )
-    name_ckpt_mapping = read_yaml(yaml_path)
+    name_ckpt_mapping = read_yaml(yaml_path, number=_num_agents)
     agent_dataset = {}
     traj_count = 0
     for name, traj_list in data_dict.items():
@@ -296,6 +301,7 @@ def build_agent_dataset(
         obs_list = [traj['obs'] for traj in traj_list]
         act_list = [traj['actions'] for traj in traj_list]
         rew_list = [traj['rewards'] for traj in traj_list]
+        action_prob_list = [traj['action_prob'] for traj in traj_list]
         logits_list = [traj['behaviour_logits'] for traj in traj_list]
 
         agent_dict = {
@@ -304,6 +310,7 @@ def build_agent_dataset(
             "act": np.concatenate(act_list),
             "rew_list": np.concatenate(rew_list),
             "logit": np.concatenate(logits_list),
+            "action_prob": np.concatenate(action_prob_list),
             "agent_info": name_ckpt_mapping[name]
         }
         for layer_key in layer_keys:
@@ -325,9 +332,13 @@ def build_agent_dataset(
         output_path = "{}_rollout{}_seed{}.pkl".format(
             output_path, num_rollouts, seed
         )
+
+        dirname = os.path.dirname(output_path)
+        if not os.path.exists(dirname):
+            os.mkdir(dirname)
         with open(output_path, "wb") as f:
             pickle.dump(agent_dataset, f)
-        print("agent_dataset is successfully saved at {}.".format(output_path))
+        print("agent_dataset is successfully saved at <{}>.".format(output_path))
     return agent_dataset
 
 
@@ -378,8 +389,6 @@ def build_obs_pool(sample_agent_dataset):
 def get_result():
     pass
 
-
-from rollout import several_agent_replay
 
 
 def test_new_implementation():

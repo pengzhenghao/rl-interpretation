@@ -33,6 +33,9 @@ class FullyConnectedNetworkWithActivation(TFModelV2):
             obs_space, action_space, num_outputs, model_config, name
         )
 
+        activation_list = []
+        self.activation_value = None
+
         activation = get_activation_fn(model_config.get("fcnet_activation"))
         hiddens = model_config.get("fcnet_hiddens")
         no_final_linear = model_config.get("no_final_linear")
@@ -53,7 +56,7 @@ class FullyConnectedNetworkWithActivation(TFModelV2):
                     activation=activation,
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
-                self.var_list.append(last_layer)
+                activation_list.append(last_layer)
                 i += 1
             layer_out = tf.keras.layers.Dense(
                 num_outputs,
@@ -70,7 +73,7 @@ class FullyConnectedNetworkWithActivation(TFModelV2):
                     activation=activation,
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
-                self.var_list.append(last_layer)
+                activation_list.append(last_layer)
                 i += 1
             layer_out = tf.keras.layers.Dense(
                 num_outputs,
@@ -100,7 +103,7 @@ class FullyConnectedNetworkWithActivation(TFModelV2):
         )(last_layer)
 
         self.base_model = tf.keras.Model(
-            inputs, [layer_out, value_out] + self.var_list
+            inputs, [layer_out, value_out] + activation_list
         )
         self.register_variables(self.base_model.variables)
 

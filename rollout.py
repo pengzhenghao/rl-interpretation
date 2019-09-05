@@ -233,11 +233,23 @@ class RolloutWorkerWrapper(object):
                 "Dataset is detected! It's at {}."
                 "\nWe will load data from it.".format(self.path)
             )
-            with open(self.path, "rb") as f:
-                self.data = pickle.load(f)
-            self.dataset = True
-        else:
+            try:
+                with open(self.path, "rb") as f:
+                    self.data = pickle.load(f)
+                logging.critical(
+                    "Dataset is detected!"
+                    "\nWe have load data from <{}>.".format(self.path)
+                )
+            except Exception as e:
+                logging.critical("Error detected when loading data from {}. "
+                              "We will regenerate the broken pkl files."
+                              .format(self.path))
+                self.dataset = False
+            else:
+                self.dataset = True
 
+        if (not os.path.exists(self.path)) or self.force_rewrite \
+                or (not self.dataset):
             if self.require_activation:
                 agent = restore_agent_with_activation(
                     self.run_name, self.ckpt, self.env_name
@@ -267,7 +279,7 @@ class RolloutWorkerWrapper(object):
                 sample_async=sample_async,
                 seed=self.seed,
                 model_config=model_config,
-                log_level="ERROR"
+                log_level="INFO"
             )
             self.dataset = False
             self.data = []
@@ -275,8 +287,10 @@ class RolloutWorkerWrapper(object):
             self.worker.set_weights(
                 {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
             )
+
+            print("Successfully set weights for agent.")
         self.already_reset = True
-        print("Successfully set weigths from agent.")
+
 
     def wrap_sample(self, return_none=False):
         assert self.initialized
@@ -302,7 +316,7 @@ class RolloutWorkerWrapper(object):
     def close(self):
         assert self.initialized
         if self.dataset:
-            print(
+            logging.critical(
                 "Data is already saved at: {} with len {}.".format(
                     self.path, len(self.data)
                 )
@@ -310,7 +324,7 @@ class RolloutWorkerWrapper(object):
         else:
             with open(self.path, "wb") as f:
                 pickle.dump(self.data, f)
-            print(
+            logging.critical(
                 "Data is newly saved at: {} with len {}.".format(
                     self.path, len(self.data)
                 )
@@ -610,9 +624,11 @@ def several_agent_rollout(
         seed=0,
         num_workers=10,
         force_rewrite=False,
-        return_data=False
+        return_data=False,
+        require_activation=True,
+        _num_agents=None
 ):
-    name_ckpt_mapping = read_yaml(yaml_path)
+    name_ckpt_mapping = read_yaml(yaml_path, number=_num_agents)
     now_t_get = now_t = start_t = time.time()
     num_agents = len(name_ckpt_mapping)
     num_iteration = int(ceil(num_agents / num_workers))
@@ -638,16 +654,15 @@ def several_agent_rollout(
         for i, (name, ckpt_dict) in \
                 enumerate(agent_ckpt_dict_range[start:end]):
             ckpt = ckpt_dict["path"]
-            env_name = ckpt_dict[
-                "env_name"] if "env_name" in ckpt_dict else "BipedalWalker-v2"
+            env_name = ckpt_dict["env_name"]
             env_maker = ENV_MAKER_LOOKUP[env_name]
-            run_name = ckpt_dict["run_name"
-                                 ] if "run_name" in ckpt_dict else "PPO"
+            run_name = ckpt_dict["run_name"]
             assert run_name == "PPO"
 
             # TODO Only support PPO now.
             workers[i].reset.remote(
-                ckpt, num_rollouts, seed, env_maker, run_name, env_name, True
+                ckpt, num_rollouts, seed, env_maker, run_name, env_name,
+                require_activation
             )
             obj_ids = []
             for _ in range(num_rollouts):
@@ -662,9 +677,6 @@ def several_agent_rollout(
                     time.time() - start_t, num_rollouts, name
                 )
             )
-
-            # if ray.get(workers[i].get_dataset.remote()):
-            #     print("Dataset is detected! We will load data from file.")
 
             agent_count += 1
             now_t = time.time()
@@ -710,10 +722,11 @@ def several_agent_replay(
         # num_rollouts,
         seed=0,
         num_workers=10,
+        _num_agents=None
         # force_rewrite=False,
         # return_data=False
 ):
-    name_ckpt_mapping = read_yaml(yaml_path)
+    name_ckpt_mapping = read_yaml(yaml_path, number=_num_agents)
     now_t_get = now_t = start_t = time.time()
     num_agents = len(name_ckpt_mapping)
     num_iteration = int(ceil(num_agents / num_workers))
@@ -722,10 +735,6 @@ def several_agent_replay(
     agent_count_get = 1
 
     have_gpu = has_gpu()
-    # workers = [
-    #     RolloutWorkerWrapper.as_remote(num_gpus=0.2 if have_gpu else 0).remote(force_rewrite)
-    #     for _ in range(num_workers)
-    # ]
     return_dict = {}
 
     for iteration in range(num_iteration):
@@ -737,14 +746,13 @@ def several_agent_replay(
         for i, (name, ckpt_dict) in \
                 enumerate(agent_ckpt_dict_range[start:end]):
             ckpt = ckpt_dict["path"]
-            env_name = ckpt_dict[
-                "env_name"] if "env_name" in ckpt_dict else "BipedalWalker-v2"
+            env_name = ckpt_dict["env_name"]
+                # if "env_name" in ckpt_dict else "BipedalWalker-v2"
             # env_maker = ENV_MAKER_LOOKUP[env_name]
-            run_name = ckpt_dict["run_name"
-                                 ] if "run_name" in ckpt_dict else "PPO"
+            run_name = ckpt_dict["run_name"]
+                # if "run_name" in ckpt_dict else "PPO"
             assert run_name == "PPO"
 
-            # obs = sample_agent_dataset[name]
             if have_gpu:
                 obj_id = remote_replay_gpu.remote(
                     obs, run_name, ckpt, env_name
@@ -764,16 +772,11 @@ def several_agent_replay(
                 )
             )
 
-            # if ray.get(workers[i].get_dataset.remote()):
-            #     print("Dataset is detected! We will load data from file.")
-
             agent_count += 1
             now_t = time.time()
 
         for agent_name, obj_id in obj_ids_dict.items():
-
             act, infos = ray.get(obj_id)
-
             return_dict[agent_name] = {"act": act, "infos": infos}
 
             # trajectory_list = []
