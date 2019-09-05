@@ -1,0 +1,4112 @@
+- ablated_unit_index: 130
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit130/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.732431821014732
+  episode_reward_mean: -1.297257972483298
+  episode_reward_min: -2.767498598720257
+  kl_divergence: 148277.203125
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit130
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit130/checkpoint_782/checkpoint-782
+  performance: -1.297257972483298
+  unit_name: default_policy/default_model/fc_out/unit130
+- ablated_unit_index: 126
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit126/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7062671009643637
+  episode_reward_mean: -1.064322548927938
+  episode_reward_min: -2.3189420662627893
+  kl_divergence: 151.47633361816406
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit126
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit126/checkpoint_782/checkpoint-782
+  performance: -1.064322548927938
+  unit_name: default_policy/default_model/fc_out/unit126
+- ablated_unit_index: 152
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit152/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7102313710091002
+  episode_reward_mean: -1.0408378689529498
+  episode_reward_min: -2.3190204054818824
+  kl_divergence: 208.12094116210938
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit152
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit152/checkpoint_782/checkpoint-782
+  performance: -1.0408378689529498
+  unit_name: default_policy/default_model/fc_out/unit152
+- ablated_unit_index: 20
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit20/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7326877680666147
+  episode_reward_mean: -1.0151040076056261
+  episode_reward_min: -2.292442244967446
+  kl_divergence: 4.049715042114258
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit20
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit20/checkpoint_782/checkpoint-782
+  performance: -1.0151040076056261
+  unit_name: default_policy/default_model/fc_out/unit20
+- ablated_unit_index: 166
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit166/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7448859571805223
+  episode_reward_mean: -1.0124570669418698
+  episode_reward_min: -2.291585522105917
+  kl_divergence: 7897.72509765625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit166
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit166/checkpoint_782/checkpoint-782
+  performance: -1.0124570669418698
+  unit_name: default_policy/default_model/fc_out/unit166
+- ablated_unit_index: 62
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit62/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7683707776659467
+  episode_reward_mean: -1.0104258569074984
+  episode_reward_min: -2.1984917124069
+  kl_divergence: 211.447021484375
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit62
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit62/checkpoint_782/checkpoint-782
+  performance: -1.0104258569074984
+  unit_name: default_policy/default_model/fc_out/unit62
+- ablated_unit_index: 228
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit228/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7232149121337971
+  episode_reward_mean: -1.0096176846480511
+  episode_reward_min: -2.2478322385754437
+  kl_divergence: 89.8697509765625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit228
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit228/checkpoint_782/checkpoint-782
+  performance: -1.0096176846480511
+  unit_name: default_policy/default_model/fc_out/unit228
+- ablated_unit_index: 36
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit36/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.771519948483754
+  episode_reward_mean: -1.009172138290846
+  episode_reward_min: -2.649049149219569
+  kl_divergence: 312.1728210449219
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit36
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit36/checkpoint_782/checkpoint-782
+  performance: -1.009172138290846
+  unit_name: default_policy/default_model/fc_out/unit36
+- ablated_unit_index: 188
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit188/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7178533163380344
+  episode_reward_mean: -1.0085975333040589
+  episode_reward_min: -2.2831986826962494
+  kl_divergence: 29.85506248474121
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit188
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit188/checkpoint_782/checkpoint-782
+  performance: -1.0085975333040589
+  unit_name: default_policy/default_model/fc_out/unit188
+- ablated_unit_index: 181
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit181/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6866829191617071
+  episode_reward_mean: -1.0043855876913954
+  episode_reward_min: -2.242758763264246
+  kl_divergence: 45.705474853515625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit181
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit181/checkpoint_782/checkpoint-782
+  performance: -1.0043855876913954
+  unit_name: default_policy/default_model/fc_out/unit181
+- ablated_unit_index: 191
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit191/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7150379174463452
+  episode_reward_mean: -1.004222781021943
+  episode_reward_min: -2.2390711046264844
+  kl_divergence: 351.2846984863281
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit191
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit191/checkpoint_782/checkpoint-782
+  performance: -1.004222781021943
+  unit_name: default_policy/default_model/fc_out/unit191
+- ablated_unit_index: 204
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit204/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7580944288801401
+  episode_reward_mean: -1.0041018216963626
+  episode_reward_min: -2.2592841813769193
+  kl_divergence: 175748.578125
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit204
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit204/checkpoint_782/checkpoint-782
+  performance: -1.0041018216963626
+  unit_name: default_policy/default_model/fc_out/unit204
+- ablated_unit_index: 85
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit85/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6834912582555187
+  episode_reward_mean: -0.9995083019174682
+  episode_reward_min: -2.2770650142338122
+  kl_divergence: 11477.8603515625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit85
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit85/checkpoint_782/checkpoint-782
+  performance: -0.9995083019174682
+  unit_name: default_policy/default_model/fc_out/unit85
+- ablated_unit_index: 198
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit198/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7102457594343795
+  episode_reward_mean: -0.9972604296792678
+  episode_reward_min: -2.3341085158692074
+  kl_divergence: 30.752246856689453
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit198
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit198/checkpoint_782/checkpoint-782
+  performance: -0.9972604296792678
+  unit_name: default_policy/default_model/fc_out/unit198
+- ablated_unit_index: 147
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit147/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7073314965565985
+  episode_reward_mean: -0.9952268587574651
+  episode_reward_min: -2.261584380602464
+  kl_divergence: 1201.307861328125
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit147
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit147/checkpoint_782/checkpoint-782
+  performance: -0.9952268587574651
+  unit_name: default_policy/default_model/fc_out/unit147
+- ablated_unit_index: 38
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit38/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7135858779059124
+  episode_reward_mean: -0.9919243380227525
+  episode_reward_min: -2.249823313137516
+  kl_divergence: 1.8996171951293945
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit38
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit38/checkpoint_782/checkpoint-782
+  performance: -0.9919243380227525
+  unit_name: default_policy/default_model/fc_out/unit38
+- ablated_unit_index: 27
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit27/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7063376828233414
+  episode_reward_mean: -0.9908311830608086
+  episode_reward_min: -2.2721119484150147
+  kl_divergence: 3.008345603942871
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit27
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit27/checkpoint_782/checkpoint-782
+  performance: -0.9908311830608086
+  unit_name: default_policy/default_model/fc_out/unit27
+- ablated_unit_index: 79
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit79/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7376034350544215
+  episode_reward_mean: -0.9901386715457163
+  episode_reward_min: -2.303165836999193
+  kl_divergence: 2.50907564163208
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit79
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit79/checkpoint_782/checkpoint-782
+  performance: -0.9901386715457163
+  unit_name: default_policy/default_model/fc_out/unit79
+- ablated_unit_index: 19
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit19/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7277843529240563
+  episode_reward_mean: -0.9899627132754091
+  episode_reward_min: -2.2325120742674915
+  kl_divergence: 14.708868980407715
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit19
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit19/checkpoint_782/checkpoint-782
+  performance: -0.9899627132754091
+  unit_name: default_policy/default_model/fc_out/unit19
+- ablated_unit_index: 10
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit10/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7442514841041231
+  episode_reward_mean: -0.9890761210888804
+  episode_reward_min: -2.2738524204200767
+  kl_divergence: 174.28782653808594
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit10
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit10/checkpoint_782/checkpoint-782
+  performance: -0.9890761210888804
+  unit_name: default_policy/default_model/fc_out/unit10
+- ablated_unit_index: 7
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit7/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7272537321324126
+  episode_reward_mean: -0.9885792160966744
+  episode_reward_min: -1.8806222005691382
+  kl_divergence: 163.9246826171875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit7
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit7/checkpoint_782/checkpoint-782
+  performance: -0.9885792160966744
+  unit_name: default_policy/default_model/fc_out/unit7
+- ablated_unit_index: 161
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit161/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.768921971688047
+  episode_reward_mean: -0.9855674888092476
+  episode_reward_min: -2.2143126303857827
+  kl_divergence: 172.4530792236328
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit161
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit161/checkpoint_782/checkpoint-782
+  performance: -0.9855674888092476
+  unit_name: default_policy/default_model/fc_out/unit161
+- ablated_unit_index: 64
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit64/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7217829873189332
+  episode_reward_mean: -0.9854668816856226
+  episode_reward_min: -1.5837642786943653
+  kl_divergence: 434.6380310058594
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit64
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit64/checkpoint_782/checkpoint-782
+  performance: -0.9854668816856226
+  unit_name: default_policy/default_model/fc_out/unit64
+- ablated_unit_index: 78
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit78/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.748692770394806
+  episode_reward_mean: -0.984656644682022
+  episode_reward_min: -1.8511004257804418
+  kl_divergence: 166.10504150390625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit78
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit78/checkpoint_782/checkpoint-782
+  performance: -0.984656644682022
+  unit_name: default_policy/default_model/fc_out/unit78
+- ablated_unit_index: 98
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit98/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.686222552690655
+  episode_reward_mean: -0.9836303255298852
+  episode_reward_min: -2.2552121163848784
+  kl_divergence: 35.67499923706055
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit98
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit98/checkpoint_782/checkpoint-782
+  performance: -0.9836303255298852
+  unit_name: default_policy/default_model/fc_out/unit98
+- ablated_unit_index: 104
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit104/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7188887470979244
+  episode_reward_mean: -0.9835572043467468
+  episode_reward_min: -2.2427150758908465
+  kl_divergence: 77.85166931152344
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit104
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit104/checkpoint_782/checkpoint-782
+  performance: -0.9835572043467468
+  unit_name: default_policy/default_model/fc_out/unit104
+- ablated_unit_index: 107
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit107/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7310281131497285
+  episode_reward_mean: -0.9834657257380834
+  episode_reward_min: -2.256537965149309
+  kl_divergence: 5558.9501953125
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit107
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit107/checkpoint_782/checkpoint-782
+  performance: -0.9834657257380834
+  unit_name: default_policy/default_model/fc_out/unit107
+- ablated_unit_index: 240
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit240/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7239921000022441
+  episode_reward_mean: -0.981311380520618
+  episode_reward_min: -2.254803229084238
+  kl_divergence: 20.859233856201172
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit240
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit240/checkpoint_782/checkpoint-782
+  performance: -0.981311380520618
+  unit_name: default_policy/default_model/fc_out/unit240
+- ablated_unit_index: 37
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit37/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7022548831012099
+  episode_reward_mean: -0.9811910689068616
+  episode_reward_min: -2.201925954883918
+  kl_divergence: 84.84396362304688
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit37
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit37/checkpoint_782/checkpoint-782
+  performance: -0.9811910689068616
+  unit_name: default_policy/default_model/fc_out/unit37
+- ablated_unit_index: 184
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit184/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7062575702468566
+  episode_reward_mean: -0.9808839650962162
+  episode_reward_min: -2.291723237569757
+  kl_divergence: 7814.8681640625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit184
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit184/checkpoint_782/checkpoint-782
+  performance: -0.9808839650962162
+  unit_name: default_policy/default_model/fc_out/unit184
+- ablated_unit_index: 83
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit83/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.707435380668692
+  episode_reward_mean: -0.9803564889349403
+  episode_reward_min: -2.25753452902101
+  kl_divergence: 0.23499345779418945
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit83
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit83/checkpoint_782/checkpoint-782
+  performance: -0.9803564889349403
+  unit_name: default_policy/default_model/fc_out/unit83
+- ablated_unit_index: 102
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit102/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7174401986828669
+  episode_reward_mean: -0.979761685510205
+  episode_reward_min: -2.244520071010418
+  kl_divergence: 125.0656967163086
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit102
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit102/checkpoint_782/checkpoint-782
+  performance: -0.979761685510205
+  unit_name: default_policy/default_model/fc_out/unit102
+- ablated_unit_index: 207
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit207/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7610710820332168
+  episode_reward_mean: -0.9796113342527641
+  episode_reward_min: -1.483185704348609
+  kl_divergence: 558.548095703125
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit207
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit207/checkpoint_782/checkpoint-782
+  performance: -0.9796113342527641
+  unit_name: default_policy/default_model/fc_out/unit207
+- ablated_unit_index: 80
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit80/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7167344567395046
+  episode_reward_mean: -0.9790445964274318
+  episode_reward_min: -2.2177168698664755
+  kl_divergence: 173.50930786132812
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit80
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit80/checkpoint_782/checkpoint-782
+  performance: -0.9790445964274318
+  unit_name: default_policy/default_model/fc_out/unit80
+- ablated_unit_index: 190
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit190/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7139467156831707
+  episode_reward_mean: -0.978051718183183
+  episode_reward_min: -2.2673634004102423
+  kl_divergence: 0.5605605840682983
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit190
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit190/checkpoint_782/checkpoint-782
+  performance: -0.978051718183183
+  unit_name: default_policy/default_model/fc_out/unit190
+- ablated_unit_index: 145
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit145/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7339671652019025
+  episode_reward_mean: -0.9774778843607034
+  episode_reward_min: -2.225968843162682
+  kl_divergence: 12766.888671875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit145
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit145/checkpoint_782/checkpoint-782
+  performance: -0.9774778843607034
+  unit_name: default_policy/default_model/fc_out/unit145
+- ablated_unit_index: 206
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit206/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7153701796719507
+  episode_reward_mean: -0.9769786197339977
+  episode_reward_min: -2.189820625872042
+  kl_divergence: 290.535888671875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit206
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit206/checkpoint_782/checkpoint-782
+  performance: -0.9769786197339977
+  unit_name: default_policy/default_model/fc_out/unit206
+- ablated_unit_index: 254
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit254/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7383765206073112
+  episode_reward_mean: -0.9767334931868704
+  episode_reward_min: -2.218175683628149
+  kl_divergence: 2.9767963886260986
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit254
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit254/checkpoint_782/checkpoint-782
+  performance: -0.9767334931868704
+  unit_name: default_policy/default_model/fc_out/unit254
+- ablated_unit_index: 178
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit178/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7322281903761104
+  episode_reward_mean: -0.9750728726014519
+  episode_reward_min: -2.2228772638545706
+  kl_divergence: 77.28779602050781
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit178
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit178/checkpoint_782/checkpoint-782
+  performance: -0.9750728726014519
+  unit_name: default_policy/default_model/fc_out/unit178
+- ablated_unit_index: 28
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit28/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7265135440520643
+  episode_reward_mean: -0.9741137423588924
+  episode_reward_min: -2.213746039132901
+  kl_divergence: 128.6948699951172
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit28
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit28/checkpoint_782/checkpoint-782
+  performance: -0.9741137423588924
+  unit_name: default_policy/default_model/fc_out/unit28
+- ablated_unit_index: 39
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit39/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7328781821296252
+  episode_reward_mean: -0.9740525797664842
+  episode_reward_min: -1.4793260725283361
+  kl_divergence: 9.47783374786377
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit39
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit39/checkpoint_782/checkpoint-782
+  performance: -0.9740525797664842
+  unit_name: default_policy/default_model/fc_out/unit39
+- ablated_unit_index: 18
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit18/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6512104578626641
+  episode_reward_mean: -0.9739636290615327
+  episode_reward_min: -2.245521266307063
+  kl_divergence: 1383.31591796875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit18
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit18/checkpoint_782/checkpoint-782
+  performance: -0.9739636290615327
+  unit_name: default_policy/default_model/fc_out/unit18
+- ablated_unit_index: 32
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit32/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6996333564215674
+  episode_reward_mean: -0.9735909419052136
+  episode_reward_min: -2.2453929101085923
+  kl_divergence: 38.305023193359375
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit32
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit32/checkpoint_782/checkpoint-782
+  performance: -0.9735909419052136
+  unit_name: default_policy/default_model/fc_out/unit32
+- ablated_unit_index: 123
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit123/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7156477688755841
+  episode_reward_mean: -0.9727112354758384
+  episode_reward_min: -2.266482787599787
+  kl_divergence: 172.30697631835938
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit123
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit123/checkpoint_782/checkpoint-782
+  performance: -0.9727112354758384
+  unit_name: default_policy/default_model/fc_out/unit123
+- ablated_unit_index: 63
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit63/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7581900720316915
+  episode_reward_mean: -0.9725836703811546
+  episode_reward_min: -1.8890490714218466
+  kl_divergence: 9161.8427734375
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit63
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit63/checkpoint_782/checkpoint-782
+  performance: -0.9725836703811546
+  unit_name: default_policy/default_model/fc_out/unit63
+- ablated_unit_index: 160
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit160/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.711952335389331
+  episode_reward_mean: -0.972509211022823
+  episode_reward_min: -2.2341881373034194
+  kl_divergence: 3795.4140625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit160
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit160/checkpoint_782/checkpoint-782
+  performance: -0.972509211022823
+  unit_name: default_policy/default_model/fc_out/unit160
+- ablated_unit_index: 255
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit255/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7600499184746297
+  episode_reward_mean: -0.9723623600830278
+  episode_reward_min: -2.1929820322698617
+  kl_divergence: 2812.98828125
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit255
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit255/checkpoint_782/checkpoint-782
+  performance: -0.9723623600830278
+  unit_name: default_policy/default_model/fc_out/unit255
+- ablated_unit_index: 65
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit65/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.715769319755338
+  episode_reward_mean: -0.9722557569595791
+  episode_reward_min: -2.2378266595508904
+  kl_divergence: 280.90771484375
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit65
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit65/checkpoint_782/checkpoint-782
+  performance: -0.9722557569595791
+  unit_name: default_policy/default_model/fc_out/unit65
+- ablated_unit_index: 26
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit26/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7484285365846008
+  episode_reward_mean: -0.9721838845177334
+  episode_reward_min: -2.2155152942842506
+  kl_divergence: 162.71400451660156
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit26
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit26/checkpoint_782/checkpoint-782
+  performance: -0.9721838845177334
+  unit_name: default_policy/default_model/fc_out/unit26
+- ablated_unit_index: 118
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit118/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7017725640491881
+  episode_reward_mean: -0.971435742638555
+  episode_reward_min: -2.255859119624522
+  kl_divergence: 66157.8046875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit118
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit118/checkpoint_782/checkpoint-782
+  performance: -0.971435742638555
+  unit_name: default_policy/default_model/fc_out/unit118
+- ablated_unit_index: 89
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit89/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7613404164059718
+  episode_reward_mean: -0.9711988850051276
+  episode_reward_min: -1.4020245917135217
+  kl_divergence: 297.9694519042969
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit89
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit89/checkpoint_782/checkpoint-782
+  performance: -0.9711988850051276
+  unit_name: default_policy/default_model/fc_out/unit89
+- ablated_unit_index: 238
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit238/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.746236722186364
+  episode_reward_mean: -0.9702240824024286
+  episode_reward_min: -2.0920571012838445
+  kl_divergence: 33.05370330810547
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit238
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit238/checkpoint_782/checkpoint-782
+  performance: -0.9702240824024286
+  unit_name: default_policy/default_model/fc_out/unit238
+- ablated_unit_index: 22
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit22/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6770843761777505
+  episode_reward_mean: -0.9699353723336042
+  episode_reward_min: -2.2336853100067637
+  kl_divergence: 1.3191946744918823
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit22
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit22/checkpoint_782/checkpoint-782
+  performance: -0.9699353723336042
+  unit_name: default_policy/default_model/fc_out/unit22
+- ablated_unit_index: 187
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit187/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6940780284708998
+  episode_reward_mean: -0.969339883864491
+  episode_reward_min: -2.24051521669887
+  kl_divergence: 1.86275315284729
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit187
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit187/checkpoint_782/checkpoint-782
+  performance: -0.969339883864491
+  unit_name: default_policy/default_model/fc_out/unit187
+- ablated_unit_index: 125
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit125/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7203206603563558
+  episode_reward_mean: -0.9691354069892871
+  episode_reward_min: -2.282508136104174
+  kl_divergence: 17456.92578125
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit125
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit125/checkpoint_782/checkpoint-782
+  performance: -0.9691354069892871
+  unit_name: default_policy/default_model/fc_out/unit125
+- ablated_unit_index: 203
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit203/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7071712749561629
+  episode_reward_mean: -0.9691336658958266
+  episode_reward_min: -2.2333585423883053
+  kl_divergence: 30.992534637451172
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit203
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit203/checkpoint_782/checkpoint-782
+  performance: -0.9691336658958266
+  unit_name: default_policy/default_model/fc_out/unit203
+- ablated_unit_index: 212
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit212/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6928429222038649
+  episode_reward_mean: -0.9690897588745009
+  episode_reward_min: -2.2542155800169965
+  kl_divergence: 17.88098907470703
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit212
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit212/checkpoint_782/checkpoint-782
+  performance: -0.9690897588745009
+  unit_name: default_policy/default_model/fc_out/unit212
+- ablated_unit_index: 169
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit169/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7289334904897659
+  episode_reward_mean: -0.9684597706427337
+  episode_reward_min: -2.288782832494006
+  kl_divergence: 2714.2626953125
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit169
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit169/checkpoint_782/checkpoint-782
+  performance: -0.9684597706427337
+  unit_name: default_policy/default_model/fc_out/unit169
+- ablated_unit_index: 121
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit121/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7037644196345171
+  episode_reward_mean: -0.9681371124666387
+  episode_reward_min: -2.26554257393939
+  kl_divergence: 44.42477798461914
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit121
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit121/checkpoint_782/checkpoint-782
+  performance: -0.9681371124666387
+  unit_name: default_policy/default_model/fc_out/unit121
+- ablated_unit_index: 180
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit180/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.702247747341171
+  episode_reward_mean: -0.9678913816640528
+  episode_reward_min: -2.0758721720483155
+  kl_divergence: 5.128920078277588
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit180
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit180/checkpoint_782/checkpoint-782
+  performance: -0.9678913816640528
+  unit_name: default_policy/default_model/fc_out/unit180
+- ablated_unit_index: 72
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit72/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6808924585692585
+  episode_reward_mean: -0.9671555457750257
+  episode_reward_min: -2.260576173653826
+  kl_divergence: 218.7461700439453
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit72
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit72/checkpoint_782/checkpoint-782
+  performance: -0.9671555457750257
+  unit_name: default_policy/default_model/fc_out/unit72
+- ablated_unit_index: 68
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit68/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7154979615764095
+  episode_reward_mean: -0.9667503445435207
+  episode_reward_min: -2.229358778810129
+  kl_divergence: 6.636608600616455
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit68
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit68/checkpoint_782/checkpoint-782
+  performance: -0.9667503445435207
+  unit_name: default_policy/default_model/fc_out/unit68
+- ablated_unit_index: 142
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit142/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6664585156862959
+  episode_reward_mean: -0.9663889583523848
+  episode_reward_min: -2.2226781842516137
+  kl_divergence: 1999.9354248046875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit142
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit142/checkpoint_782/checkpoint-782
+  performance: -0.9663889583523848
+  unit_name: default_policy/default_model/fc_out/unit142
+- ablated_unit_index: 165
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit165/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6984624585003293
+  episode_reward_mean: -0.9658850182587141
+  episode_reward_min: -2.2283353332436344
+  kl_divergence: 45.26803207397461
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit165
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit165/checkpoint_782/checkpoint-782
+  performance: -0.9658850182587141
+  unit_name: default_policy/default_model/fc_out/unit165
+- ablated_unit_index: 44
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit44/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.706886857607402
+  episode_reward_mean: -0.9636014443797214
+  episode_reward_min: -2.196829374522593
+  kl_divergence: 33.47639465332031
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit44
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit44/checkpoint_782/checkpoint-782
+  performance: -0.9636014443797214
+  unit_name: default_policy/default_model/fc_out/unit44
+- ablated_unit_index: 154
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit154/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7137155920583755
+  episode_reward_mean: -0.9625526108443043
+  episode_reward_min: -2.2174556887454058
+  kl_divergence: 416.20220947265625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit154
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit154/checkpoint_782/checkpoint-782
+  performance: -0.9625526108443043
+  unit_name: default_policy/default_model/fc_out/unit154
+- ablated_unit_index: 95
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit95/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7200410766769199
+  episode_reward_mean: -0.962259483305691
+  episode_reward_min: -2.273267551690962
+  kl_divergence: 100.05611419677734
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit95
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit95/checkpoint_782/checkpoint-782
+  performance: -0.962259483305691
+  unit_name: default_policy/default_model/fc_out/unit95
+- ablated_unit_index: 233
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit233/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.665325709128094
+  episode_reward_mean: -0.9620373485037722
+  episode_reward_min: -2.2384280610289427
+  kl_divergence: 72.18818664550781
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit233
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit233/checkpoint_782/checkpoint-782
+  performance: -0.9620373485037722
+  unit_name: default_policy/default_model/fc_out/unit233
+- ablated_unit_index: 46
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit46/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7177355447082481
+  episode_reward_mean: -0.9619455272262768
+  episode_reward_min: -2.2330235774821303
+  kl_divergence: 9.29731273651123
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit46
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit46/checkpoint_782/checkpoint-782
+  performance: -0.9619455272262768
+  unit_name: default_policy/default_model/fc_out/unit46
+- ablated_unit_index: 128
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit128/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7323157466885933
+  episode_reward_mean: -0.9615621592044923
+  episode_reward_min: -1.502077734494582
+  kl_divergence: 15.574407577514648
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit128
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit128/checkpoint_782/checkpoint-782
+  performance: -0.9615621592044923
+  unit_name: default_policy/default_model/fc_out/unit128
+- ablated_unit_index: 222
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit222/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7078334156541751
+  episode_reward_mean: -0.9614546521856759
+  episode_reward_min: -2.2053332519487814
+  kl_divergence: 84.19376373291016
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit222
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit222/checkpoint_782/checkpoint-782
+  performance: -0.9614546521856759
+  unit_name: default_policy/default_model/fc_out/unit222
+- ablated_unit_index: 193
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit193/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7377565631934776
+  episode_reward_mean: -0.9600246468735292
+  episode_reward_min: -2.2213818721678105
+  kl_divergence: 1942.4871826171875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit193
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit193/checkpoint_782/checkpoint-782
+  performance: -0.9600246468735292
+  unit_name: default_policy/default_model/fc_out/unit193
+- ablated_unit_index: 59
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit59/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.728367260761559
+  episode_reward_mean: -0.9593330987556125
+  episode_reward_min: -2.2353645155684427
+  kl_divergence: 24.212697982788086
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit59
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit59/checkpoint_782/checkpoint-782
+  performance: -0.9593330987556125
+  unit_name: default_policy/default_model/fc_out/unit59
+- ablated_unit_index: 162
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit162/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6811911959871652
+  episode_reward_mean: -0.9593029095430826
+  episode_reward_min: -2.2378459686593484
+  kl_divergence: 13.216741561889648
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit162
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit162/checkpoint_782/checkpoint-782
+  performance: -0.9593029095430826
+  unit_name: default_policy/default_model/fc_out/unit162
+- ablated_unit_index: 115
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit115/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7045423455853015
+  episode_reward_mean: -0.9586353643690521
+  episode_reward_min: -2.2576415500001388
+  kl_divergence: 28.42420196533203
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit115
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit115/checkpoint_782/checkpoint-782
+  performance: -0.9586353643690521
+  unit_name: default_policy/default_model/fc_out/unit115
+- ablated_unit_index: 143
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit143/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7150582679075522
+  episode_reward_mean: -0.9583868370453572
+  episode_reward_min: -2.1914896288122985
+  kl_divergence: 4.859894752502441
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit143
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit143/checkpoint_782/checkpoint-782
+  performance: -0.9583868370453572
+  unit_name: default_policy/default_model/fc_out/unit143
+- ablated_unit_index: 200
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit200/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.733445214465417
+  episode_reward_mean: -0.9582188568661654
+  episode_reward_min: -2.2298107180253934
+  kl_divergence: 0.020491089671850204
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit200
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit200/checkpoint_782/checkpoint-782
+  performance: -0.9582188568661654
+  unit_name: default_policy/default_model/fc_out/unit200
+- ablated_unit_index: 110
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit110/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7208162996626161
+  episode_reward_mean: -0.958180895067142
+  episode_reward_min: -2.2297853912121317
+  kl_divergence: 2.2201480865478516
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit110
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit110/checkpoint_782/checkpoint-782
+  performance: -0.958180895067142
+  unit_name: default_policy/default_model/fc_out/unit110
+- ablated_unit_index: 226
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit226/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7401179294704161
+  episode_reward_mean: -0.9576827761593529
+  episode_reward_min: -2.229687057326861
+  kl_divergence: 0.36429306864738464
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit226
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit226/checkpoint_782/checkpoint-782
+  performance: -0.9576827761593529
+  unit_name: default_policy/default_model/fc_out/unit226
+- ablated_unit_index: 129
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit129/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7336126522415652
+  episode_reward_mean: -0.9573399749506747
+  episode_reward_min: -2.2298352964129298
+  kl_divergence: 0.002320126397535205
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit129
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit129/checkpoint_782/checkpoint-782
+  performance: -0.9573399749506747
+  unit_name: default_policy/default_model/fc_out/unit129
+- ablated_unit_index: 182
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit182/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7246678910621775
+  episode_reward_mean: -0.9572747926573869
+  episode_reward_min: -2.2265941550439856
+  kl_divergence: 0.047013748437166214
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit182
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit182/checkpoint_782/checkpoint-782
+  performance: -0.9572747926573869
+  unit_name: default_policy/default_model/fc_out/unit182
+- ablated_unit_index: 71
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit71/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7182752879252657
+  episode_reward_mean: -0.957266560808237
+  episode_reward_min: -2.134846313924219
+  kl_divergence: 3.5095386505126953
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit71
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit71/checkpoint_782/checkpoint-782
+  performance: -0.957266560808237
+  unit_name: default_policy/default_model/fc_out/unit71
+- ablated_unit_index: 84
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit84/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6716912677666805
+  episode_reward_mean: -0.9569498847212519
+  episode_reward_min: -2.2385458980059885
+  kl_divergence: 9.235504150390625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit84
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit84/checkpoint_782/checkpoint-782
+  performance: -0.9569498847212519
+  unit_name: default_policy/default_model/fc_out/unit84
+- ablated_unit_index: 47
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit47/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7159055338023863
+  episode_reward_mean: -0.9568503538921641
+  episode_reward_min: -2.2298561923510096
+  kl_divergence: 0.021291207522153854
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit47
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit47/checkpoint_782/checkpoint-782
+  performance: -0.9568503538921641
+  unit_name: default_policy/default_model/fc_out/unit47
+- ablated_unit_index: 131
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit131/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7008200366068631
+  episode_reward_mean: -0.956833051079175
+  episode_reward_min: -2.203285808842011
+  kl_divergence: 919.1380004882812
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit131
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit131/checkpoint_782/checkpoint-782
+  performance: -0.956833051079175
+  unit_name: default_policy/default_model/fc_out/unit131
+- ablated_unit_index: 116
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit116/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7381009864751249
+  episode_reward_mean: -0.956616709909886
+  episode_reward_min: -2.228988155524559
+  kl_divergence: 0.7739599943161011
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit116
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit116/checkpoint_782/checkpoint-782
+  performance: -0.956616709909886
+  unit_name: default_policy/default_model/fc_out/unit116
+- ablated_unit_index: 127
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit127/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7007984685593619
+  episode_reward_mean: -0.9566045412953964
+  episode_reward_min: -2.2301981873369474
+  kl_divergence: 0.019460462033748627
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit127
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit127/checkpoint_782/checkpoint-782
+  performance: -0.9566045412953964
+  unit_name: default_policy/default_model/fc_out/unit127
+- ablated_unit_index: 66
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit66/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7082263388205319
+  episode_reward_mean: -0.9565503785056387
+  episode_reward_min: -2.2305402931279206
+  kl_divergence: 0.008676571771502495
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit66
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit66/checkpoint_782/checkpoint-782
+  performance: -0.9565503785056387
+  unit_name: default_policy/default_model/fc_out/unit66
+- ablated_unit_index: 122
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit122/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7220483325490131
+  episode_reward_mean: -0.956536141210412
+  episode_reward_min: -2.2298836942569684
+  kl_divergence: 0.11881009489297867
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit122
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit122/checkpoint_782/checkpoint-782
+  performance: -0.956536141210412
+  unit_name: default_policy/default_model/fc_out/unit122
+- ablated_unit_index: 86
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit86/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7097801708523184
+  episode_reward_mean: -0.956473025544618
+  episode_reward_min: -2.229455042233691
+  kl_divergence: 0.0032358765602111816
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit86
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit86/checkpoint_782/checkpoint-782
+  performance: -0.956473025544618
+  unit_name: default_policy/default_model/fc_out/unit86
+- ablated_unit_index: 174
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit174/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7072241100240498
+  episode_reward_mean: -0.9564709451822813
+  episode_reward_min: -2.2309068276640027
+  kl_divergence: 0.004793019033968449
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit174
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit174/checkpoint_782/checkpoint-782
+  performance: -0.9564709451822813
+  unit_name: default_policy/default_model/fc_out/unit174
+- ablated_unit_index: 87
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit87/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7215737035715355
+  episode_reward_mean: -0.9564114375552316
+  episode_reward_min: -2.228143324897315
+  kl_divergence: 0.009974225424230099
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit87
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit87/checkpoint_782/checkpoint-782
+  performance: -0.9564114375552316
+  unit_name: default_policy/default_model/fc_out/unit87
+- ablated_unit_index: 227
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit227/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6723861420387403
+  episode_reward_mean: -0.9564097632025017
+  episode_reward_min: -2.2301079193409534
+  kl_divergence: 0.008679735474288464
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit227
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit227/checkpoint_782/checkpoint-782
+  performance: -0.9564097632025017
+  unit_name: default_policy/default_model/fc_out/unit227
+- ablated_unit_index: 250
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit250/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6920081171349957
+  episode_reward_mean: -0.9563550333584614
+  episode_reward_min: -2.2299603380964466
+  kl_divergence: 0.003846160601824522
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit250
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit250/checkpoint_782/checkpoint-782
+  performance: -0.9563550333584614
+  unit_name: default_policy/default_model/fc_out/unit250
+- ablated_unit_index: 170
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit170/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7210387210641057
+  episode_reward_mean: -0.9563390338849945
+  episode_reward_min: -2.2303536923633294
+  kl_divergence: 0.0330364853143692
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit170
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit170/checkpoint_782/checkpoint-782
+  performance: -0.9563390338849945
+  unit_name: default_policy/default_model/fc_out/unit170
+- ablated_unit_index: 133
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit133/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6967456594860815
+  episode_reward_mean: -0.9563206049656169
+  episode_reward_min: -2.2296206508483736
+  kl_divergence: 0.030461015179753304
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit133
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit133/checkpoint_782/checkpoint-782
+  performance: -0.9563206049656169
+  unit_name: default_policy/default_model/fc_out/unit133
+- ablated_unit_index: 52
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit52/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6997459944480433
+  episode_reward_mean: -0.9563141061347536
+  episode_reward_min: -2.2308434400912374
+  kl_divergence: 0.0015955757116898894
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit52
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit52/checkpoint_782/checkpoint-782
+  performance: -0.9563141061347536
+  unit_name: default_policy/default_model/fc_out/unit52
+- ablated_unit_index: 73
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit73/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6949779566582291
+  episode_reward_mean: -0.956254158361504
+  episode_reward_min: -2.2294632585799956
+  kl_divergence: 0.83893883228302
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit73
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit73/checkpoint_782/checkpoint-782
+  performance: -0.956254158361504
+  unit_name: default_policy/default_model/fc_out/unit73
+- ablated_unit_index: 157
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit157/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7178547171968966
+  episode_reward_mean: -0.9562526009068025
+  episode_reward_min: -2.230125489478931
+  kl_divergence: 0.01750389114022255
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit157
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit157/checkpoint_782/checkpoint-782
+  performance: -0.9562526009068025
+  unit_name: default_policy/default_model/fc_out/unit157
+- ablated_unit_index: 82
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit82/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6961468663134944
+  episode_reward_mean: -0.9561911961783244
+  episode_reward_min: -2.2304103847847654
+  kl_divergence: 0.007615960668772459
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit82
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit82/checkpoint_782/checkpoint-782
+  performance: -0.9561911961783244
+  unit_name: default_policy/default_model/fc_out/unit82
+- ablated_unit_index: 179
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit179/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6969947130686304
+  episode_reward_mean: -0.9561878364898605
+  episode_reward_min: -2.230585308984544
+  kl_divergence: 0.0019787908531725407
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit179
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit179/checkpoint_782/checkpoint-782
+  performance: -0.9561878364898605
+  unit_name: default_policy/default_model/fc_out/unit179
+- ablated_unit_index: 247
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit247/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7328226427187546
+  episode_reward_mean: -0.9561751348707795
+  episode_reward_min: -2.23095678990148
+  kl_divergence: 0.004900333005934954
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit247
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit247/checkpoint_782/checkpoint-782
+  performance: -0.9561751348707795
+  unit_name: default_policy/default_model/fc_out/unit247
+- ablated_unit_index: 112
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit112/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.692368681147076
+  episode_reward_mean: -0.9561657411408103
+  episode_reward_min: -2.2299278052753473
+  kl_divergence: 0.0012805693550035357
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit112
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit112/checkpoint_782/checkpoint-782
+  performance: -0.9561657411408103
+  unit_name: default_policy/default_model/fc_out/unit112
+- ablated_unit_index: 5
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit5/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6844930561538787
+  episode_reward_mean: -0.9561629388976829
+  episode_reward_min: -2.2300829201992607
+  kl_divergence: 0.002858040388673544
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit5
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit5/checkpoint_782/checkpoint-782
+  performance: -0.9561629388976829
+  unit_name: default_policy/default_model/fc_out/unit5
+- ablated_unit_index: 51
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit51/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6859644035367927
+  episode_reward_mean: -0.9561522910775409
+  episode_reward_min: -2.2300185698525383
+  kl_divergence: 0.003105571959167719
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit51
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit51/checkpoint_782/checkpoint-782
+  performance: -0.9561522910775409
+  unit_name: default_policy/default_model/fc_out/unit51
+- ablated_unit_index: 208
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit208/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6965400063227862
+  episode_reward_mean: -0.9561444102533619
+  episode_reward_min: -2.2302102910634125
+  kl_divergence: 0.05544639378786087
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit208
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit208/checkpoint_782/checkpoint-782
+  performance: -0.9561444102533619
+  unit_name: default_policy/default_model/fc_out/unit208
+- ablated_unit_index: 192
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit192/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6913443782708308
+  episode_reward_mean: -0.9560758168894012
+  episode_reward_min: -2.2300217051164584
+  kl_divergence: 0.0002785686228889972
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit192
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit192/checkpoint_782/checkpoint-782
+  performance: -0.9560758168894012
+  unit_name: default_policy/default_model/fc_out/unit192
+- ablated_unit_index: 100
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit100/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6992235279482156
+  episode_reward_mean: -0.9560560270598968
+  episode_reward_min: -1.854536183288321
+  kl_divergence: 5476.4619140625
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit100
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit100/checkpoint_782/checkpoint-782
+  performance: -0.9560560270598968
+  unit_name: default_policy/default_model/fc_out/unit100
+- ablated_unit_index: 101
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit101/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6884357551094146
+  episode_reward_mean: -0.9560345994956273
+  episode_reward_min: -2.229647251432762
+  kl_divergence: 0.003519764868542552
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit101
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit101/checkpoint_782/checkpoint-782
+  performance: -0.9560345994956273
+  unit_name: default_policy/default_model/fc_out/unit101
+- ablated_unit_index: 242
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit242/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6988850980804637
+  episode_reward_mean: -0.9560306829111846
+  episode_reward_min: -2.2297825008934997
+  kl_divergence: 0.002096853917464614
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit242
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit242/checkpoint_782/checkpoint-782
+  performance: -0.9560306829111846
+  unit_name: default_policy/default_model/fc_out/unit242
+- ablated_unit_index: 236
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit236/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6891213705595584
+  episode_reward_mean: -0.956020618784932
+  episode_reward_min: -2.229934257810936
+  kl_divergence: 0.03909457474946976
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit236
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit236/checkpoint_782/checkpoint-782
+  performance: -0.956020618784932
+  unit_name: default_policy/default_model/fc_out/unit236
+- ablated_unit_index: 136
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit136/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6973302698750049
+  episode_reward_mean: -0.9560149958057684
+  episode_reward_min: -2.2295009433186315
+  kl_divergence: 0.0015740158269181848
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit136
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit136/checkpoint_782/checkpoint-782
+  performance: -0.9560149958057684
+  unit_name: default_policy/default_model/fc_out/unit136
+- ablated_unit_index: 111
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit111/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.695075621508684
+  episode_reward_mean: -0.9560004962985004
+  episode_reward_min: -2.229727082978316
+  kl_divergence: 0.0029411758296191692
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit111
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit111/checkpoint_782/checkpoint-782
+  performance: -0.9560004962985004
+  unit_name: default_policy/default_model/fc_out/unit111
+- ablated_unit_index: 48
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit48/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6750230360316747
+  episode_reward_mean: -0.955999508885631
+  episode_reward_min: -2.2303318198776507
+  kl_divergence: 0.010253505781292915
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit48
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit48/checkpoint_782/checkpoint-782
+  performance: -0.955999508885631
+  unit_name: default_policy/default_model/fc_out/unit48
+- ablated_unit_index: 177
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit177/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7193206157603635
+  episode_reward_mean: -0.9559886662996188
+  episode_reward_min: -2.2269745034879707
+  kl_divergence: 0.004521039314568043
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit177
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit177/checkpoint_782/checkpoint-782
+  performance: -0.9559886662996188
+  unit_name: default_policy/default_model/fc_out/unit177
+- ablated_unit_index: 75
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit75/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6789815659982485
+  episode_reward_mean: -0.9559879654997105
+  episode_reward_min: -2.2301179056869223
+  kl_divergence: 0.006053294986486435
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit75
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit75/checkpoint_782/checkpoint-782
+  performance: -0.9559879654997105
+  unit_name: default_policy/default_model/fc_out/unit75
+- ablated_unit_index: 168
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit168/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6798819422107191
+  episode_reward_mean: -0.9559796981547697
+  episode_reward_min: -2.229473760009434
+  kl_divergence: 0.00023839474306441844
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit168
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit168/checkpoint_782/checkpoint-782
+  performance: -0.9559796981547697
+  unit_name: default_policy/default_model/fc_out/unit168
+- ablated_unit_index: 241
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit241/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6867472336708268
+  episode_reward_mean: -0.9559714071508992
+  episode_reward_min: -2.23039245438638
+  kl_divergence: 0.009473557583987713
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit241
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit241/checkpoint_782/checkpoint-782
+  performance: -0.9559714071508992
+  unit_name: default_policy/default_model/fc_out/unit241
+- ablated_unit_index: 9
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit9/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6886658865356221
+  episode_reward_mean: -0.9559651184643043
+  episode_reward_min: -2.2298322494632266
+  kl_divergence: 0.004447102081030607
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit9
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit9/checkpoint_782/checkpoint-782
+  performance: -0.9559651184643043
+  unit_name: default_policy/default_model/fc_out/unit9
+- ablated_unit_index: 15
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit15/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7028567659649998
+  episode_reward_mean: -0.9559650783500124
+  episode_reward_min: -2.229082447211571
+  kl_divergence: 0.004540411289781332
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit15
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit15/checkpoint_782/checkpoint-782
+  performance: -0.9559650783500124
+  unit_name: default_policy/default_model/fc_out/unit15
+- ablated_unit_index: 201
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit201/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6865844380750021
+  episode_reward_mean: -0.9559609560896992
+  episode_reward_min: -2.2297242608225605
+  kl_divergence: 0.003565122140571475
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit201
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit201/checkpoint_782/checkpoint-782
+  performance: -0.9559609560896992
+  unit_name: default_policy/default_model/fc_out/unit201
+- ablated_unit_index: 244
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit244/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6874865076858551
+  episode_reward_mean: -0.9559555840881153
+  episode_reward_min: -2.2320314274287485
+  kl_divergence: 0.004648586269468069
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit244
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit244/checkpoint_782/checkpoint-782
+  performance: -0.9559555840881153
+  unit_name: default_policy/default_model/fc_out/unit244
+- ablated_unit_index: 229
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit229/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6963998200961722
+  episode_reward_mean: -0.9559513628050701
+  episode_reward_min: -2.2302356796469542
+  kl_divergence: 0.003156085265800357
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit229
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit229/checkpoint_782/checkpoint-782
+  performance: -0.9559513628050701
+  unit_name: default_policy/default_model/fc_out/unit229
+- ablated_unit_index: 132
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit132/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7099570168821774
+  episode_reward_mean: -0.955930874447143
+  episode_reward_min: -2.2298066970811563
+  kl_divergence: 0.014189790934324265
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit132
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit132/checkpoint_782/checkpoint-782
+  performance: -0.955930874447143
+  unit_name: default_policy/default_model/fc_out/unit132
+- ablated_unit_index: 61
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit61/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7054107333912215
+  episode_reward_mean: -0.9559259935060547
+  episode_reward_min: -2.2298625328149653
+  kl_divergence: 0.008907414972782135
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit61
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit61/checkpoint_782/checkpoint-782
+  performance: -0.9559259935060547
+  unit_name: default_policy/default_model/fc_out/unit61
+- ablated_unit_index: 196
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit196/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6951456273005678
+  episode_reward_mean: -0.9559216491544441
+  episode_reward_min: -2.2298453659620137
+  kl_divergence: 0.009814449585974216
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit196
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit196/checkpoint_782/checkpoint-782
+  performance: -0.9559216491544441
+  unit_name: default_policy/default_model/fc_out/unit196
+- ablated_unit_index: 223
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit223/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6903501322610937
+  episode_reward_mean: -0.9559104701119542
+  episode_reward_min: -2.229879507909842
+  kl_divergence: 0.0006340492982417345
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit223
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit223/checkpoint_782/checkpoint-782
+  performance: -0.9559104701119542
+  unit_name: default_policy/default_model/fc_out/unit223
+- ablated_unit_index: 245
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit245/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7018484208602459
+  episode_reward_mean: -0.9559101597326578
+  episode_reward_min: -2.2296072653041556
+  kl_divergence: 0.06030718982219696
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit245
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit245/checkpoint_782/checkpoint-782
+  performance: -0.9559101597326578
+  unit_name: default_policy/default_model/fc_out/unit245
+- ablated_unit_index: 215
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit215/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6838574595556928
+  episode_reward_mean: -0.9558949089710324
+  episode_reward_min: -2.229760299936559
+  kl_divergence: 0.00014046991418581456
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit215
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit215/checkpoint_782/checkpoint-782
+  performance: -0.9558949089710324
+  unit_name: default_policy/default_model/fc_out/unit215
+- ablated_unit_index: 249
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit249/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6901112575413062
+  episode_reward_mean: -0.9558926509729146
+  episode_reward_min: -2.2298936719900633
+  kl_divergence: 0.0008469679160043597
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit249
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit249/checkpoint_782/checkpoint-782
+  performance: -0.9558926509729146
+  unit_name: default_policy/default_model/fc_out/unit249
+- ablated_unit_index: 171
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit171/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.689511261349544
+  episode_reward_mean: -0.9558853145630754
+  episode_reward_min: -2.2296299744353965
+  kl_divergence: 0.0016863211058080196
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit171
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit171/checkpoint_782/checkpoint-782
+  performance: -0.9558853145630754
+  unit_name: default_policy/default_model/fc_out/unit171
+- ablated_unit_index: 175
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit175/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6851645674078428
+  episode_reward_mean: -0.9558763226658226
+  episode_reward_min: -2.228995217284188
+  kl_divergence: 0.003187783295288682
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit175
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit175/checkpoint_782/checkpoint-782
+  performance: -0.9558763226658226
+  unit_name: default_policy/default_model/fc_out/unit175
+- ablated_unit_index: 248
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit248/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7062442516417576
+  episode_reward_mean: -0.9558747243289061
+  episode_reward_min: -2.2300092922008297
+  kl_divergence: 0.013171381317079067
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit248
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit248/checkpoint_782/checkpoint-782
+  performance: -0.9558747243289061
+  unit_name: default_policy/default_model/fc_out/unit248
+- ablated_unit_index: 60
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit60/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7350106611996888
+  episode_reward_mean: -0.9558735971727991
+  episode_reward_min: -2.229561978484817
+  kl_divergence: 0.008743910118937492
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit60
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit60/checkpoint_782/checkpoint-782
+  performance: -0.9558735971727991
+  unit_name: default_policy/default_model/fc_out/unit60
+- ablated_unit_index: 216
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit216/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6880907410476357
+  episode_reward_mean: -0.9558696508487903
+  episode_reward_min: -2.229736112446215
+  kl_divergence: 0.013941504992544651
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit216
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit216/checkpoint_782/checkpoint-782
+  performance: -0.9558696508487903
+  unit_name: default_policy/default_model/fc_out/unit216
+- ablated_unit_index: 153
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit153/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6883883246202023
+  episode_reward_mean: -0.9558620166565696
+  episode_reward_min: -2.2297335587547495
+  kl_divergence: 0.0013528612907975912
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit153
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit153/checkpoint_782/checkpoint-782
+  performance: -0.9558620166565696
+  unit_name: default_policy/default_model/fc_out/unit153
+- ablated_unit_index: 88
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit88/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6860453282364978
+  episode_reward_mean: -0.9558610366361002
+  episode_reward_min: -2.2296692256238315
+  kl_divergence: 0.0009935143170878291
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit88
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit88/checkpoint_782/checkpoint-782
+  performance: -0.9558610366361002
+  unit_name: default_policy/default_model/fc_out/unit88
+- ablated_unit_index: 220
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit220/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7044522993459069
+  episode_reward_mean: -0.9558570481842179
+  episode_reward_min: -2.2305533028449864
+  kl_divergence: 0.007539389654994011
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit220
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit220/checkpoint_782/checkpoint-782
+  performance: -0.9558570481842179
+  unit_name: default_policy/default_model/fc_out/unit220
+- ablated_unit_index: 45
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit45/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6843728144038469
+  episode_reward_mean: -0.9558536336334307
+  episode_reward_min: -2.229620751977589
+  kl_divergence: 0.000846011214889586
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit45
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit45/checkpoint_782/checkpoint-782
+  performance: -0.9558536336334307
+  unit_name: default_policy/default_model/fc_out/unit45
+- ablated_unit_index: 194
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit194/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6872113735955208
+  episode_reward_mean: -0.9558513835734046
+  episode_reward_min: -2.2295491180376485
+  kl_divergence: 0.003405167954042554
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit194
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit194/checkpoint_782/checkpoint-782
+  performance: -0.9558513835734046
+  unit_name: default_policy/default_model/fc_out/unit194
+- ablated_unit_index: 11
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit11/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7024841748146972
+  episode_reward_mean: -0.9558391192155404
+  episode_reward_min: -2.229578925888367
+  kl_divergence: 0.006708191707730293
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit11
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit11/checkpoint_782/checkpoint-782
+  performance: -0.9558391192155404
+  unit_name: default_policy/default_model/fc_out/unit11
+- ablated_unit_index: 217
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit217/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.695115461980924
+  episode_reward_mean: -0.9558384745253306
+  episode_reward_min: -2.2296240922814867
+  kl_divergence: 0.001986141549423337
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit217
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit217/checkpoint_782/checkpoint-782
+  performance: -0.9558384745253306
+  unit_name: default_policy/default_model/fc_out/unit217
+- ablated_unit_index: 41
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit41/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.700965949671343
+  episode_reward_mean: -0.9558368328584463
+  episode_reward_min: -2.2293384773340077
+  kl_divergence: 0.001994201447814703
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit41
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit41/checkpoint_782/checkpoint-782
+  performance: -0.9558368328584463
+  unit_name: default_policy/default_model/fc_out/unit41
+- ablated_unit_index: 224
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit224/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6854187747966497
+  episode_reward_mean: -0.9558357844742659
+  episode_reward_min: -2.229806204016633
+  kl_divergence: 0.000832117919344455
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit224
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit224/checkpoint_782/checkpoint-782
+  performance: -0.9558357844742659
+  unit_name: default_policy/default_model/fc_out/unit224
+- ablated_unit_index: 219
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit219/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.695615770937875
+  episode_reward_mean: -0.955831039079898
+  episode_reward_min: -2.22974540402554
+  kl_divergence: 0.0002582032175268978
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit219
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit219/checkpoint_782/checkpoint-782
+  performance: -0.955831039079898
+  unit_name: default_policy/default_model/fc_out/unit219
+- ablated_unit_index: 13
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit13/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6858525644596666
+  episode_reward_mean: -0.9558286198411494
+  episode_reward_min: -2.2300684862043707
+  kl_divergence: 0.0010348616633564234
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit13
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit13/checkpoint_782/checkpoint-782
+  performance: -0.9558286198411494
+  unit_name: default_policy/default_model/fc_out/unit13
+- ablated_unit_index: 90
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit90/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6906445672431365
+  episode_reward_mean: -0.9558108647105726
+  episode_reward_min: -2.2297038245505356
+  kl_divergence: 0.0005045620491728187
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit90
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit90/checkpoint_782/checkpoint-782
+  performance: -0.9558108647105726
+  unit_name: default_policy/default_model/fc_out/unit90
+- ablated_unit_index: null
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-no_ablation/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6868753114423416
+  episode_reward_mean: -0.9558087353975964
+  episode_reward_min: -2.2296999411688523
+  kl_divergence: 0.0
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/no_ablation
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-no_ablation/checkpoint_782/checkpoint-782
+  performance: -0.9558087353975964
+  unit_name: default_policy/default_model/fc_out/no_ablation
+- ablated_unit_index: 35
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit35/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.686993076908715
+  episode_reward_mean: -0.9558072524227691
+  episode_reward_min: -2.2296869578566403
+  kl_divergence: 0.0021409671753644943
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit35
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit35/checkpoint_782/checkpoint-782
+  performance: -0.9558072524227691
+  unit_name: default_policy/default_model/fc_out/unit35
+- ablated_unit_index: 24
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit24/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6887614864961578
+  episode_reward_mean: -0.955802732367902
+  episode_reward_min: -2.2294331632163376
+  kl_divergence: 0.0027406124863773584
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit24
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit24/checkpoint_782/checkpoint-782
+  performance: -0.955802732367902
+  unit_name: default_policy/default_model/fc_out/unit24
+- ablated_unit_index: 214
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit214/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.683102032102026
+  episode_reward_mean: -0.9557995323101501
+  episode_reward_min: -2.2296606403347106
+  kl_divergence: 0.0016421261243522167
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit214
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit214/checkpoint_782/checkpoint-782
+  performance: -0.9557995323101501
+  unit_name: default_policy/default_model/fc_out/unit214
+- ablated_unit_index: 239
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit239/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6952649573876224
+  episode_reward_mean: -0.9557973756617433
+  episode_reward_min: -2.2300641814079136
+  kl_divergence: 0.0032653294038027525
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit239
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit239/checkpoint_782/checkpoint-782
+  performance: -0.9557973756617433
+  unit_name: default_policy/default_model/fc_out/unit239
+- ablated_unit_index: 205
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit205/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6839135076509191
+  episode_reward_mean: -0.9557953850828035
+  episode_reward_min: -2.229661398317046
+  kl_divergence: 0.002398032695055008
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit205
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit205/checkpoint_782/checkpoint-782
+  performance: -0.9557953850828035
+  unit_name: default_policy/default_model/fc_out/unit205
+- ablated_unit_index: 246
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit246/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6869782306645067
+  episode_reward_mean: -0.9557929065688288
+  episode_reward_min: -2.230274001643684
+  kl_divergence: 0.014158573001623154
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit246
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit246/checkpoint_782/checkpoint-782
+  performance: -0.9557929065688288
+  unit_name: default_policy/default_model/fc_out/unit246
+- ablated_unit_index: 55
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit55/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6860815528389066
+  episode_reward_mean: -0.9557918082828353
+  episode_reward_min: -2.2297371987408656
+  kl_divergence: 0.0006558772292919457
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit55
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit55/checkpoint_782/checkpoint-782
+  performance: -0.9557918082828353
+  unit_name: default_policy/default_model/fc_out/unit55
+- ablated_unit_index: 151
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit151/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6819466865714638
+  episode_reward_mean: -0.955791360061509
+  episode_reward_min: -2.2294241478201005
+  kl_divergence: 0.3825238049030304
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit151
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit151/checkpoint_782/checkpoint-782
+  performance: -0.955791360061509
+  unit_name: default_policy/default_model/fc_out/unit151
+- ablated_unit_index: 195
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit195/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6908647409994155
+  episode_reward_mean: -0.9557911292346063
+  episode_reward_min: -2.2295508036321663
+  kl_divergence: 1.0570684671401978
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit195
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit195/checkpoint_782/checkpoint-782
+  performance: -0.9557911292346063
+  unit_name: default_policy/default_model/fc_out/unit195
+- ablated_unit_index: 231
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit231/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6955705642718821
+  episode_reward_mean: -0.9557894933312687
+  episode_reward_min: -2.2297920113708827
+  kl_divergence: 0.0038530919700860977
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit231
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit231/checkpoint_782/checkpoint-782
+  performance: -0.9557894933312687
+  unit_name: default_policy/default_model/fc_out/unit231
+- ablated_unit_index: 54
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit54/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7090973998575172
+  episode_reward_mean: -0.9557698296657118
+  episode_reward_min: -2.229462915992364
+  kl_divergence: 0.004635009448975325
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit54
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit54/checkpoint_782/checkpoint-782
+  performance: -0.9557698296657118
+  unit_name: default_policy/default_model/fc_out/unit54
+- ablated_unit_index: 213
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit213/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7125936612058432
+  episode_reward_mean: -0.9557697240920413
+  episode_reward_min: -2.2292324776059647
+  kl_divergence: 0.006193837616592646
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit213
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit213/checkpoint_782/checkpoint-782
+  performance: -0.9557697240920413
+  unit_name: default_policy/default_model/fc_out/unit213
+- ablated_unit_index: 25
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit25/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7037468879576774
+  episode_reward_mean: -0.9557681372402889
+  episode_reward_min: -2.229148827190824
+  kl_divergence: 0.0018456635298207402
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit25
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit25/checkpoint_782/checkpoint-782
+  performance: -0.9557681372402889
+  unit_name: default_policy/default_model/fc_out/unit25
+- ablated_unit_index: 159
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit159/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6744529801411555
+  episode_reward_mean: -0.9557661990010637
+  episode_reward_min: -2.229691468751058
+  kl_divergence: 0.03107825107872486
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit159
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit159/checkpoint_782/checkpoint-782
+  performance: -0.9557661990010637
+  unit_name: default_policy/default_model/fc_out/unit159
+- ablated_unit_index: 103
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit103/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6862628120165318
+  episode_reward_mean: -0.9557661043729798
+  episode_reward_min: -2.2296957551694176
+  kl_divergence: 0.0009776983642950654
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit103
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit103/checkpoint_782/checkpoint-782
+  performance: -0.9557661043729798
+  unit_name: default_policy/default_model/fc_out/unit103
+- ablated_unit_index: 167
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit167/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6871973737521729
+  episode_reward_mean: -0.955761288938859
+  episode_reward_min: -2.229576167633757
+  kl_divergence: 0.0003764362772926688
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit167
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit167/checkpoint_782/checkpoint-782
+  performance: -0.955761288938859
+  unit_name: default_policy/default_model/fc_out/unit167
+- ablated_unit_index: 137
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit137/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6802367823378518
+  episode_reward_mean: -0.955755844027809
+  episode_reward_min: -2.2296672604388257
+  kl_divergence: 0.0006092971307225525
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit137
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit137/checkpoint_782/checkpoint-782
+  performance: -0.955755844027809
+  unit_name: default_policy/default_model/fc_out/unit137
+- ablated_unit_index: 199
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit199/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6840595791072919
+  episode_reward_mean: -0.9557537991871599
+  episode_reward_min: -2.2295978379851844
+  kl_divergence: 0.0007968598511070013
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit199
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit199/checkpoint_782/checkpoint-782
+  performance: -0.9557537991871599
+  unit_name: default_policy/default_model/fc_out/unit199
+- ablated_unit_index: 155
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit155/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.689303373773273
+  episode_reward_mean: -0.955753588193181
+  episode_reward_min: -2.2295602461155504
+  kl_divergence: 0.0006254845065996051
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit155
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit155/checkpoint_782/checkpoint-782
+  performance: -0.955753588193181
+  unit_name: default_policy/default_model/fc_out/unit155
+- ablated_unit_index: 6
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit6/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6883581561787687
+  episode_reward_mean: -0.9557517749415293
+  episode_reward_min: -2.229638423205044
+  kl_divergence: 0.0007290285429917276
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit6
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit6/checkpoint_782/checkpoint-782
+  performance: -0.9557517749415293
+  unit_name: default_policy/default_model/fc_out/unit6
+- ablated_unit_index: 210
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit210/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6847873757686466
+  episode_reward_mean: -0.9557436521529756
+  episode_reward_min: -2.229798189248271
+  kl_divergence: 0.0012323572300374508
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit210
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit210/checkpoint_782/checkpoint-782
+  performance: -0.9557436521529756
+  unit_name: default_policy/default_model/fc_out/unit210
+- ablated_unit_index: 221
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit221/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6843506836375854
+  episode_reward_mean: -0.9557320594941885
+  episode_reward_min: -2.2297501462008804
+  kl_divergence: 0.08476302772760391
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit221
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit221/checkpoint_782/checkpoint-782
+  performance: -0.9557320594941885
+  unit_name: default_policy/default_model/fc_out/unit221
+- ablated_unit_index: 234
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit234/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6849507824437095
+  episode_reward_mean: -0.9557309031349235
+  episode_reward_min: -2.2295305807646364
+  kl_divergence: 0.008937668055295944
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit234
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit234/checkpoint_782/checkpoint-782
+  performance: -0.9557309031349235
+  unit_name: default_policy/default_model/fc_out/unit234
+- ablated_unit_index: 243
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit243/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6789276007898153
+  episode_reward_mean: -0.955725518573637
+  episode_reward_min: -2.2296469087408264
+  kl_divergence: 0.007637553848326206
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit243
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit243/checkpoint_782/checkpoint-782
+  performance: -0.955725518573637
+  unit_name: default_policy/default_model/fc_out/unit243
+- ablated_unit_index: 12
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit12/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6825102933601812
+  episode_reward_mean: -0.955722977164429
+  episode_reward_min: -2.2295264762248843
+  kl_divergence: 0.0019541194196790457
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit12
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit12/checkpoint_782/checkpoint-782
+  performance: -0.955722977164429
+  unit_name: default_policy/default_model/fc_out/unit12
+- ablated_unit_index: 156
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit156/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6999663479210211
+  episode_reward_mean: -0.9557219542676352
+  episode_reward_min: -2.229494827956583
+  kl_divergence: 0.0023631134536117315
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit156
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit156/checkpoint_782/checkpoint-782
+  performance: -0.9557219542676352
+  unit_name: default_policy/default_model/fc_out/unit156
+- ablated_unit_index: 237
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit237/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6852193192088378
+  episode_reward_mean: -0.9557150715131499
+  episode_reward_min: -2.2296899999684356
+  kl_divergence: 0.001238016178831458
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit237
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit237/checkpoint_782/checkpoint-782
+  performance: -0.9557150715131499
+  unit_name: default_policy/default_model/fc_out/unit237
+- ablated_unit_index: 164
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit164/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6810664017554372
+  episode_reward_mean: -0.9556989150928628
+  episode_reward_min: -2.2293448367621753
+  kl_divergence: 0.0039724325761199
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit164
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit164/checkpoint_782/checkpoint-782
+  performance: -0.9556989150928628
+  unit_name: default_policy/default_model/fc_out/unit164
+- ablated_unit_index: 8
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit8/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6900132737761997
+  episode_reward_mean: -0.9556983288846534
+  episode_reward_min: -2.2258663761224597
+  kl_divergence: 0.02029208466410637
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit8
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit8/checkpoint_782/checkpoint-782
+  performance: -0.9556983288846534
+  unit_name: default_policy/default_model/fc_out/unit8
+- ablated_unit_index: 252
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit252/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6768244468426963
+  episode_reward_mean: -0.9556978006240573
+  episode_reward_min: -2.229782982374854
+  kl_divergence: 0.005866985768079758
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit252
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit252/checkpoint_782/checkpoint-782
+  performance: -0.9556978006240573
+  unit_name: default_policy/default_model/fc_out/unit252
+- ablated_unit_index: 235
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit235/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.682487451678142
+  episode_reward_mean: -0.9556963607787498
+  episode_reward_min: -2.2297598012393975
+  kl_divergence: 0.0019687851890921593
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit235
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit235/checkpoint_782/checkpoint-782
+  performance: -0.9556963607787498
+  unit_name: default_policy/default_model/fc_out/unit235
+- ablated_unit_index: 149
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit149/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6758443943026177
+  episode_reward_mean: -0.9556912990894715
+  episode_reward_min: -2.2307980689313265
+  kl_divergence: 0.012513093650341034
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit149
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit149/checkpoint_782/checkpoint-782
+  performance: -0.9556912990894715
+  unit_name: default_policy/default_model/fc_out/unit149
+- ablated_unit_index: 0
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit0/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6986197948648295
+  episode_reward_mean: -0.9556895621588214
+  episode_reward_min: -2.2305106147335243
+  kl_divergence: 0.003228535642847419
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit0
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit0/checkpoint_782/checkpoint-782
+  performance: -0.9556895621588214
+  unit_name: default_policy/default_model/fc_out/unit0
+- ablated_unit_index: 2
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit2/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6885330401503815
+  episode_reward_mean: -0.955673088455097
+  episode_reward_min: -2.2295149613078684
+  kl_divergence: 0.0070708817802369595
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit2
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit2/checkpoint_782/checkpoint-782
+  performance: -0.955673088455097
+  unit_name: default_policy/default_model/fc_out/unit2
+- ablated_unit_index: 1
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit1/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6929487839806824
+  episode_reward_mean: -0.9556689238788424
+  episode_reward_min: -2.229252399931975
+  kl_divergence: 0.0027515473775565624
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit1
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit1/checkpoint_782/checkpoint-782
+  performance: -0.9556689238788424
+  unit_name: default_policy/default_model/fc_out/unit1
+- ablated_unit_index: 97
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit97/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6836466473372055
+  episode_reward_mean: -0.9556677193307195
+  episode_reward_min: -2.2297857599363997
+  kl_divergence: 0.0006646023248322308
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit97
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit97/checkpoint_782/checkpoint-782
+  performance: -0.9556677193307195
+  unit_name: default_policy/default_model/fc_out/unit97
+- ablated_unit_index: 172
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit172/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6845996581769249
+  episode_reward_mean: -0.9556645953028275
+  episode_reward_min: -2.2296219679173084
+  kl_divergence: 0.0009498376748524606
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit172
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit172/checkpoint_782/checkpoint-782
+  performance: -0.9556645953028275
+  unit_name: default_policy/default_model/fc_out/unit172
+- ablated_unit_index: 96
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit96/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6779166368786244
+  episode_reward_mean: -0.9556617621593074
+  episode_reward_min: -2.2292611687785646
+  kl_divergence: 0.006028173957020044
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit96
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit96/checkpoint_782/checkpoint-782
+  performance: -0.9556617621593074
+  unit_name: default_policy/default_model/fc_out/unit96
+- ablated_unit_index: 148
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit148/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6842261481937022
+  episode_reward_mean: -0.9556578551459087
+  episode_reward_min: -2.2299553483283785
+  kl_divergence: 0.0006810487248003483
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit148
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit148/checkpoint_782/checkpoint-782
+  performance: -0.9556578551459087
+  unit_name: default_policy/default_model/fc_out/unit148
+- ablated_unit_index: 42
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit42/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6827372059828304
+  episode_reward_mean: -0.9556559371764771
+  episode_reward_min: -2.2295459164436906
+  kl_divergence: 0.0006983174243941903
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit42
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit42/checkpoint_782/checkpoint-782
+  performance: -0.9556559371764771
+  unit_name: default_policy/default_model/fc_out/unit42
+- ablated_unit_index: 40
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit40/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.687896248734869
+  episode_reward_mean: -0.9556305125055718
+  episode_reward_min: -2.22933907543185
+  kl_divergence: 0.004205350764095783
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit40
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit40/checkpoint_782/checkpoint-782
+  performance: -0.9556305125055718
+  unit_name: default_policy/default_model/fc_out/unit40
+- ablated_unit_index: 135
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit135/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6681947309358729
+  episode_reward_mean: -0.955620020100944
+  episode_reward_min: -2.2309170462048318
+  kl_divergence: 0.0028013945557177067
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit135
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit135/checkpoint_782/checkpoint-782
+  performance: -0.955620020100944
+  unit_name: default_policy/default_model/fc_out/unit135
+- ablated_unit_index: 29
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit29/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6792413761466741
+  episode_reward_mean: -0.9556179069852055
+  episode_reward_min: -2.229597298727062
+  kl_divergence: 0.010806831531226635
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit29
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit29/checkpoint_782/checkpoint-782
+  performance: -0.9556179069852055
+  unit_name: default_policy/default_model/fc_out/unit29
+- ablated_unit_index: 92
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit92/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6941190183069557
+  episode_reward_mean: -0.9556085636167257
+  episode_reward_min: -2.2289925804492086
+  kl_divergence: 0.020157117396593094
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit92
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit92/checkpoint_782/checkpoint-782
+  performance: -0.9556085636167257
+  unit_name: default_policy/default_model/fc_out/unit92
+- ablated_unit_index: 209
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit209/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6776751783837899
+  episode_reward_mean: -0.9556050904755302
+  episode_reward_min: -2.2296802549765777
+  kl_divergence: 0.005188099108636379
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit209
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit209/checkpoint_782/checkpoint-782
+  performance: -0.9556050904755302
+  unit_name: default_policy/default_model/fc_out/unit209
+- ablated_unit_index: 120
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit120/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6870624754646196
+  episode_reward_mean: -0.9555890579855454
+  episode_reward_min: -2.229681288729735
+  kl_divergence: 0.0024629472754895687
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit120
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit120/checkpoint_782/checkpoint-782
+  performance: -0.9555890579855454
+  unit_name: default_policy/default_model/fc_out/unit120
+- ablated_unit_index: 225
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit225/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6925925557135304
+  episode_reward_mean: -0.9555837277740972
+  episode_reward_min: -2.2297134208089373
+  kl_divergence: 0.008937791921198368
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit225
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit225/checkpoint_782/checkpoint-782
+  performance: -0.9555837277740972
+  unit_name: default_policy/default_model/fc_out/unit225
+- ablated_unit_index: 93
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit93/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7034035447134337
+  episode_reward_mean: -0.9555733799149091
+  episode_reward_min: -2.2289253598855208
+  kl_divergence: 0.003840808756649494
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit93
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit93/checkpoint_782/checkpoint-782
+  performance: -0.9555733799149091
+  unit_name: default_policy/default_model/fc_out/unit93
+- ablated_unit_index: 17
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit17/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6835044457831755
+  episode_reward_mean: -0.955564887954187
+  episode_reward_min: -2.229603933389612
+  kl_divergence: 0.005108511075377464
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit17
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit17/checkpoint_782/checkpoint-782
+  performance: -0.955564887954187
+  unit_name: default_policy/default_model/fc_out/unit17
+- ablated_unit_index: 158
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit158/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6941604188326745
+  episode_reward_mean: -0.955560197097195
+  episode_reward_min: -2.2297676081266253
+  kl_divergence: 0.008014083839952946
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit158
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit158/checkpoint_782/checkpoint-782
+  performance: -0.955560197097195
+  unit_name: default_policy/default_model/fc_out/unit158
+- ablated_unit_index: 150
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit150/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6872371854105366
+  episode_reward_mean: -0.955555437207418
+  episode_reward_min: -2.229126225010183
+  kl_divergence: 0.01013902947306633
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit150
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit150/checkpoint_782/checkpoint-782
+  performance: -0.955555437207418
+  unit_name: default_policy/default_model/fc_out/unit150
+- ablated_unit_index: 183
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit183/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7199566559897138
+  episode_reward_mean: -0.955541070365562
+  episode_reward_min: -2.2300758883760645
+  kl_divergence: 0.6677720546722412
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit183
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit183/checkpoint_782/checkpoint-782
+  performance: -0.955541070365562
+  unit_name: default_policy/default_model/fc_out/unit183
+- ablated_unit_index: 173
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit173/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6783977324552833
+  episode_reward_mean: -0.9555263666217213
+  episode_reward_min: -2.2296454799628522
+  kl_divergence: 0.002370727714151144
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit173
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit173/checkpoint_782/checkpoint-782
+  performance: -0.9555263666217213
+  unit_name: default_policy/default_model/fc_out/unit173
+- ablated_unit_index: 58
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit58/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6709644453187175
+  episode_reward_mean: -0.9554845050860371
+  episode_reward_min: -2.229160869618878
+  kl_divergence: 0.0036723194643855095
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit58
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit58/checkpoint_782/checkpoint-782
+  performance: -0.9554845050860371
+  unit_name: default_policy/default_model/fc_out/unit58
+- ablated_unit_index: 141
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit141/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6897817711339667
+  episode_reward_mean: -0.9554752779598154
+  episode_reward_min: -2.229220881115027
+  kl_divergence: 0.007113758008927107
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit141
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit141/checkpoint_782/checkpoint-782
+  performance: -0.9554752779598154
+  unit_name: default_policy/default_model/fc_out/unit141
+- ablated_unit_index: 33
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit33/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7023894205410033
+  episode_reward_mean: -0.9554740495593042
+  episode_reward_min: -2.229874855752416
+  kl_divergence: 1.6346815824508667
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit33
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit33/checkpoint_782/checkpoint-782
+  performance: -0.9554740495593042
+  unit_name: default_policy/default_model/fc_out/unit33
+- ablated_unit_index: 16
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit16/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.669236175834667
+  episode_reward_mean: -0.9554695166340238
+  episode_reward_min: -2.229662922735639
+  kl_divergence: 0.004725828766822815
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit16
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit16/checkpoint_782/checkpoint-782
+  performance: -0.9554695166340238
+  unit_name: default_policy/default_model/fc_out/unit16
+- ablated_unit_index: 109
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit109/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.687745649530865
+  episode_reward_mean: -0.9554689311303861
+  episode_reward_min: -2.2299398268616457
+  kl_divergence: 0.009918236173689365
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit109
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit109/checkpoint_782/checkpoint-782
+  performance: -0.9554689311303861
+  unit_name: default_policy/default_model/fc_out/unit109
+- ablated_unit_index: 117
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit117/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6838663334020746
+  episode_reward_mean: -0.9554678166677384
+  episode_reward_min: -2.230074113280203
+  kl_divergence: 0.002270248718559742
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit117
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit117/checkpoint_782/checkpoint-782
+  performance: -0.9554678166677384
+  unit_name: default_policy/default_model/fc_out/unit117
+- ablated_unit_index: 43
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit43/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6980646168782078
+  episode_reward_mean: -0.9554370984125695
+  episode_reward_min: -2.2296860904153437
+  kl_divergence: 421.96820068359375
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit43
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit43/checkpoint_782/checkpoint-782
+  performance: -0.9554370984125695
+  unit_name: default_policy/default_model/fc_out/unit43
+- ablated_unit_index: 146
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit146/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.677243560296174
+  episode_reward_mean: -0.9554330464590061
+  episode_reward_min: -2.2294730831788256
+  kl_divergence: 0.0005909248720854521
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit146
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit146/checkpoint_782/checkpoint-782
+  performance: -0.9554330464590061
+  unit_name: default_policy/default_model/fc_out/unit146
+- ablated_unit_index: 202
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit202/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6807678955029697
+  episode_reward_mean: -0.9554134648870272
+  episode_reward_min: -2.2296210140393447
+  kl_divergence: 0.0023628058843314648
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit202
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit202/checkpoint_782/checkpoint-782
+  performance: -0.9554134648870272
+  unit_name: default_policy/default_model/fc_out/unit202
+- ablated_unit_index: 186
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit186/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6689696070834398
+  episode_reward_mean: -0.9554045592155067
+  episode_reward_min: -2.2297894767280666
+  kl_divergence: 0.0003928749938495457
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit186
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit186/checkpoint_782/checkpoint-782
+  performance: -0.9554045592155067
+  unit_name: default_policy/default_model/fc_out/unit186
+- ablated_unit_index: 106
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit106/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7047315507450476
+  episode_reward_mean: -0.9554034523134614
+  episode_reward_min: -2.2300241688098765
+  kl_divergence: 0.032670874148607254
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit106
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit106/checkpoint_782/checkpoint-782
+  performance: -0.9554034523134614
+  unit_name: default_policy/default_model/fc_out/unit106
+- ablated_unit_index: 30
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit30/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6716454925928265
+  episode_reward_mean: -0.955397772608693
+  episode_reward_min: -2.229406796237454
+  kl_divergence: 0.004177067894488573
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit30
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit30/checkpoint_782/checkpoint-782
+  performance: -0.955397772608693
+  unit_name: default_policy/default_model/fc_out/unit30
+- ablated_unit_index: 163
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit163/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.677851600388065
+  episode_reward_mean: -0.9553499348687309
+  episode_reward_min: -2.2290546817537398
+  kl_divergence: 0.0060486095026135445
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit163
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit163/checkpoint_782/checkpoint-782
+  performance: -0.9553499348687309
+  unit_name: default_policy/default_model/fc_out/unit163
+- ablated_unit_index: 138
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit138/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6702099794256501
+  episode_reward_mean: -0.955348185253998
+  episode_reward_min: -2.230689667652674
+  kl_divergence: 0.24744479358196259
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit138
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit138/checkpoint_782/checkpoint-782
+  performance: -0.955348185253998
+  unit_name: default_policy/default_model/fc_out/unit138
+- ablated_unit_index: 251
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit251/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6729921431047842
+  episode_reward_mean: -0.9553421627909916
+  episode_reward_min: -2.230036082983639
+  kl_divergence: 0.01261388324201107
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit251
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit251/checkpoint_782/checkpoint-782
+  performance: -0.9553421627909916
+  unit_name: default_policy/default_model/fc_out/unit251
+- ablated_unit_index: 94
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit94/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6858217560766898
+  episode_reward_mean: -0.9553409231887595
+  episode_reward_min: -2.228868070031829
+  kl_divergence: 0.0018345386488363147
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit94
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit94/checkpoint_782/checkpoint-782
+  performance: -0.9553409231887595
+  unit_name: default_policy/default_model/fc_out/unit94
+- ablated_unit_index: 14
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit14/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6818425627543292
+  episode_reward_mean: -0.9553333580734591
+  episode_reward_min: -2.229296546872087
+  kl_divergence: 0.00435248389840126
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit14
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit14/checkpoint_782/checkpoint-782
+  performance: -0.9553333580734591
+  unit_name: default_policy/default_model/fc_out/unit14
+- ablated_unit_index: 185
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit185/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.719459630540885
+  episode_reward_mean: -0.9553080039620602
+  episode_reward_min: -2.229566406801965
+  kl_divergence: 0.0035781622864305973
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit185
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit185/checkpoint_782/checkpoint-782
+  performance: -0.9553080039620602
+  unit_name: default_policy/default_model/fc_out/unit185
+- ablated_unit_index: 230
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit230/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.67590302715078
+  episode_reward_mean: -0.9553053314603268
+  episode_reward_min: -2.2292993415798996
+  kl_divergence: 0.007564196363091469
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit230
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit230/checkpoint_782/checkpoint-782
+  performance: -0.9553053314603268
+  unit_name: default_policy/default_model/fc_out/unit230
+- ablated_unit_index: 105
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit105/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6948939484215041
+  episode_reward_mean: -0.9552768580813691
+  episode_reward_min: -2.22968892856998
+  kl_divergence: 0.005986444652080536
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit105
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit105/checkpoint_782/checkpoint-782
+  performance: -0.9552768580813691
+  unit_name: default_policy/default_model/fc_out/unit105
+- ablated_unit_index: 232
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit232/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7039448735211045
+  episode_reward_mean: -0.9552066701842082
+  episode_reward_min: -2.2287073833600948
+  kl_divergence: 0.0006303529953584075
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit232
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit232/checkpoint_782/checkpoint-782
+  performance: -0.9552066701842082
+  unit_name: default_policy/default_model/fc_out/unit232
+- ablated_unit_index: 99
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit99/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6868525800406933
+  episode_reward_mean: -0.9551709215259965
+  episode_reward_min: -2.228953077555325
+  kl_divergence: 0.0057275318540632725
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit99
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit99/checkpoint_782/checkpoint-782
+  performance: -0.9551709215259965
+  unit_name: default_policy/default_model/fc_out/unit99
+- ablated_unit_index: 3
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit3/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7293251564297825
+  episode_reward_mean: -0.9551675644565981
+  episode_reward_min: -2.229553871215012
+  kl_divergence: 0.003042716532945633
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit3
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit3/checkpoint_782/checkpoint-782
+  performance: -0.9551675644565981
+  unit_name: default_policy/default_model/fc_out/unit3
+- ablated_unit_index: 74
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit74/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6719179531304798
+  episode_reward_mean: -0.9551521659287758
+  episode_reward_min: -2.229482832501956
+  kl_divergence: 0.013703727163374424
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit74
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit74/checkpoint_782/checkpoint-782
+  performance: -0.9551521659287758
+  unit_name: default_policy/default_model/fc_out/unit74
+- ablated_unit_index: 76
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit76/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7019065236716233
+  episode_reward_mean: -0.9551453787852624
+  episode_reward_min: -2.229628379375365
+  kl_divergence: 0.2317219078540802
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit76
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit76/checkpoint_782/checkpoint-782
+  performance: -0.9551453787852624
+  unit_name: default_policy/default_model/fc_out/unit76
+- ablated_unit_index: 31
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit31/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6806856619964057
+  episode_reward_mean: -0.9551325294040276
+  episode_reward_min: -2.2244365163799373
+  kl_divergence: 75.79987335205078
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit31
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit31/checkpoint_782/checkpoint-782
+  performance: -0.9551325294040276
+  unit_name: default_policy/default_model/fc_out/unit31
+- ablated_unit_index: 21
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit21/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6744116790400221
+  episode_reward_mean: -0.955104772877961
+  episode_reward_min: -2.2297332026269285
+  kl_divergence: 0.012274147011339664
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit21
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit21/checkpoint_782/checkpoint-782
+  performance: -0.955104772877961
+  unit_name: default_policy/default_model/fc_out/unit21
+- ablated_unit_index: 211
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit211/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6706185298147611
+  episode_reward_mean: -0.9550217050867948
+  episode_reward_min: -2.230439479634788
+  kl_divergence: 0.013844327069818974
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit211
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit211/checkpoint_782/checkpoint-782
+  performance: -0.9550217050867948
+  unit_name: default_policy/default_model/fc_out/unit211
+- ablated_unit_index: 197
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit197/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6899086656154466
+  episode_reward_mean: -0.9549644807257752
+  episode_reward_min: -2.22941182080967
+  kl_divergence: 0.0326724536716938
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit197
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit197/checkpoint_782/checkpoint-782
+  performance: -0.9549644807257752
+  unit_name: default_policy/default_model/fc_out/unit197
+- ablated_unit_index: 140
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit140/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7183729103698097
+  episode_reward_mean: -0.9546713878574552
+  episode_reward_min: -2.2288537947939115
+  kl_divergence: 0.0021572737023234367
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit140
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit140/checkpoint_782/checkpoint-782
+  performance: -0.9546713878574552
+  unit_name: default_policy/default_model/fc_out/unit140
+- ablated_unit_index: 91
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit91/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6843572279891632
+  episode_reward_mean: -0.9545795264451887
+  episode_reward_min: -2.2293729076093696
+  kl_divergence: 0.015328733250498772
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit91
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit91/checkpoint_782/checkpoint-782
+  performance: -0.9545795264451887
+  unit_name: default_policy/default_model/fc_out/unit91
+- ablated_unit_index: 114
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit114/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6751138289207592
+  episode_reward_mean: -0.9542523840821944
+  episode_reward_min: -2.226849938527372
+  kl_divergence: 0.021531466394662857
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit114
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit114/checkpoint_782/checkpoint-782
+  performance: -0.9542523840821944
+  unit_name: default_policy/default_model/fc_out/unit114
+- ablated_unit_index: 70
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit70/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6731328263478353
+  episode_reward_mean: -0.9542385490850236
+  episode_reward_min: -2.22966350984139
+  kl_divergence: 0.009409194812178612
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit70
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit70/checkpoint_782/checkpoint-782
+  performance: -0.9542385490850236
+  unit_name: default_policy/default_model/fc_out/unit70
+- ablated_unit_index: 218
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit218/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.680804195882134
+  episode_reward_mean: -0.9541160481680296
+  episode_reward_min: -2.2300380019452417
+  kl_divergence: 0.004291854333132505
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit218
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit218/checkpoint_782/checkpoint-782
+  performance: -0.9541160481680296
+  unit_name: default_policy/default_model/fc_out/unit218
+- ablated_unit_index: 56
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit56/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.677199330621399
+  episode_reward_mean: -0.9540652418222635
+  episode_reward_min: -2.230125816663727
+  kl_divergence: 0.003779955906793475
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit56
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit56/checkpoint_782/checkpoint-782
+  performance: -0.9540652418222635
+  unit_name: default_policy/default_model/fc_out/unit56
+- ablated_unit_index: 119
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit119/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7044409151567779
+  episode_reward_mean: -0.9540361658193907
+  episode_reward_min: -2.229544114192948
+  kl_divergence: 0.004192383959889412
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit119
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit119/checkpoint_782/checkpoint-782
+  performance: -0.9540361658193907
+  unit_name: default_policy/default_model/fc_out/unit119
+- ablated_unit_index: 23
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit23/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7237420705650001
+  episode_reward_mean: -0.9539852534737103
+  episode_reward_min: -2.2286232974585145
+  kl_divergence: 0.5049943923950195
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit23
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit23/checkpoint_782/checkpoint-782
+  performance: -0.9539852534737103
+  unit_name: default_policy/default_model/fc_out/unit23
+- ablated_unit_index: 113
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit113/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.676031794281058
+  episode_reward_mean: -0.9539775876898527
+  episode_reward_min: -2.2294880010392517
+  kl_divergence: 0.007336521986871958
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit113
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit113/checkpoint_782/checkpoint-782
+  performance: -0.9539775876898527
+  unit_name: default_policy/default_model/fc_out/unit113
+- ablated_unit_index: 189
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit189/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7359253233143427
+  episode_reward_mean: -0.9539163860492288
+  episode_reward_min: -2.2236546663151455
+  kl_divergence: 14.013837814331055
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit189
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit189/checkpoint_782/checkpoint-782
+  performance: -0.9539163860492288
+  unit_name: default_policy/default_model/fc_out/unit189
+- ablated_unit_index: 50
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit50/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.6874619596706105
+  episode_reward_mean: -0.9538391546843351
+  episode_reward_min: -2.22904457387887
+  kl_divergence: 0.0018939521396532655
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit50
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit50/checkpoint_782/checkpoint-782
+  performance: -0.9538391546843351
+  unit_name: default_policy/default_model/fc_out/unit50
+- ablated_unit_index: 108
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit108/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7272848196774722
+  episode_reward_mean: -0.9534389678569645
+  episode_reward_min: -2.2242834511703515
+  kl_divergence: 0.0135017279535532
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit108
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit108/checkpoint_782/checkpoint-782
+  performance: -0.9534389678569645
+  unit_name: default_policy/default_model/fc_out/unit108
+- ablated_unit_index: 4
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit4/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.703899692961946
+  episode_reward_mean: -0.9531178581296771
+  episode_reward_min: -2.228465872775145
+  kl_divergence: 0.01949787139892578
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit4
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit4/checkpoint_782/checkpoint-782
+  performance: -0.9531178581296771
+  unit_name: default_policy/default_model/fc_out/unit4
+- ablated_unit_index: 139
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit139/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7399557955234013
+  episode_reward_mean: -0.9521268829193719
+  episode_reward_min: -2.248907893290743
+  kl_divergence: 273.87762451171875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit139
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit139/checkpoint_782/checkpoint-782
+  performance: -0.9521268829193719
+  unit_name: default_policy/default_model/fc_out/unit139
+- ablated_unit_index: 253
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit253/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7001075008753687
+  episode_reward_mean: -0.9519225427462107
+  episode_reward_min: -2.228771295607712
+  kl_divergence: 0.004663501400500536
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit253
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit253/checkpoint_782/checkpoint-782
+  performance: -0.9519225427462107
+  unit_name: default_policy/default_model/fc_out/unit253
+- ablated_unit_index: 124
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit124/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7063339240918868
+  episode_reward_mean: -0.9516431103730085
+  episode_reward_min: -2.17424334851963
+  kl_divergence: 168.04757690429688
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit124
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit124/checkpoint_782/checkpoint-782
+  performance: -0.9516431103730085
+  unit_name: default_policy/default_model/fc_out/unit124
+- ablated_unit_index: 49
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit49/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.747617092517514
+  episode_reward_mean: -0.9504488557467858
+  episode_reward_min: -1.7710692282027267
+  kl_divergence: 28320.44921875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit49
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit49/checkpoint_782/checkpoint-782
+  performance: -0.9504488557467858
+  unit_name: default_policy/default_model/fc_out/unit49
+- ablated_unit_index: 67
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit67/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.702314635552466
+  episode_reward_mean: -0.9501377177965881
+  episode_reward_min: -1.5751045965024604
+  kl_divergence: 61.67018127441406
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit67
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit67/checkpoint_782/checkpoint-782
+  performance: -0.9501377177965881
+  unit_name: default_policy/default_model/fc_out/unit67
+- ablated_unit_index: 176
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit176/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7096580297220498
+  episode_reward_mean: -0.9500678539375521
+  episode_reward_min: -2.2257889899568033
+  kl_divergence: 0.9278162717819214
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit176
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit176/checkpoint_782/checkpoint-782
+  performance: -0.9500678539375521
+  unit_name: default_policy/default_model/fc_out/unit176
+- ablated_unit_index: 81
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit81/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7087043368760495
+  episode_reward_mean: -0.9496839579260272
+  episode_reward_min: -2.2305977147128435
+  kl_divergence: 3.43784236907959
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit81
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit81/checkpoint_782/checkpoint-782
+  performance: -0.9496839579260272
+  unit_name: default_policy/default_model/fc_out/unit81
+- ablated_unit_index: 57
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit57/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7130965215191244
+  episode_reward_mean: -0.9493682485977295
+  episode_reward_min: -1.8242398420876529
+  kl_divergence: 12.454285621643066
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit57
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit57/checkpoint_782/checkpoint-782
+  performance: -0.9493682485977295
+  unit_name: default_policy/default_model/fc_out/unit57
+- ablated_unit_index: 69
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit69/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7152968669639302
+  episode_reward_mean: -0.9489092289079076
+  episode_reward_min: -2.101477663746104
+  kl_divergence: 311.7674560546875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit69
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit69/checkpoint_782/checkpoint-782
+  performance: -0.9489092289079076
+  unit_name: default_policy/default_model/fc_out/unit69
+- ablated_unit_index: 144
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit144/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7363342343239747
+  episode_reward_mean: -0.945984458041542
+  episode_reward_min: -1.4154006536137311
+  kl_divergence: 76.17809295654297
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit144
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit144/checkpoint_782/checkpoint-782
+  performance: -0.945984458041542
+  unit_name: default_policy/default_model/fc_out/unit144
+- ablated_unit_index: 53
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit53/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7155693458858876
+  episode_reward_mean: -0.9438533859805953
+  episode_reward_min: -2.245950596442446
+  kl_divergence: 16.652099609375
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit53
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit53/checkpoint_782/checkpoint-782
+  performance: -0.9438533859805953
+  unit_name: default_policy/default_model/fc_out/unit53
+- ablated_unit_index: 134
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit134/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.715935448209446
+  episode_reward_mean: -0.943022555369772
+  episode_reward_min: -2.1574804751680565
+  kl_divergence: 38740.44921875
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit134
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit134/checkpoint_782/checkpoint-782
+  performance: -0.943022555369772
+  unit_name: default_policy/default_model/fc_out/unit134
+- ablated_unit_index: 34
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit34/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7489356782411524
+  episode_reward_mean: -0.938359992387069
+  episode_reward_min: -2.1872927928871175
+  kl_divergence: 20.888628005981445
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit34
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit34/checkpoint_782/checkpoint-782
+  performance: -0.938359992387069
+  unit_name: default_policy/default_model/fc_out/unit34
+- ablated_unit_index: 77
+  agent_name: PPO seed=121 rew=299.35
+  checkpoint: data/ppo121_ablation/default_policy-default_model-fc_out-unit77/checkpoint_782/checkpoint-782
+  episode_length_max: 10
+  episode_length_mean: 10.0
+  episode_length_min: 10
+  episode_reward_max: -0.7045798640698197
+  episode_reward_mean: -0.9367233622722181
+  episode_reward_min: -2.1866131416813803
+  kl_divergence: 44.121124267578125
+  layer_name: default_policy/default_model/fc_out
+  name: PPO seed=121 rew=299.35 default_policy/default_model/fc_out/unit77
+  num_rollouts: 100
+  path: data/ppo121_ablation/default_policy-default_model-fc_out-unit77/checkpoint_782/checkpoint-782
+  performance: -0.9367233622722181
+  unit_name: default_policy/default_model/fc_out/unit77

@@ -1,8 +1,0 @@
-es:
-  env:
-    BipedalWalker-v2
-  run: ES
-  config:
-    num_gpus: 0.15
-    seed:
-      grid_search:
