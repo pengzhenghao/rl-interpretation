@@ -1,0 +1,27 @@
+# agent_name (like "0811-seed=10 final reward 270"): ckpt path (like "xx/checkpoint-300/checkpoint_300")
+- env_name: BipedalWalker-v2
+  run_name: PPO
+  name: same file seed 0
+  path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+- env_name: BipedalWalker-v2
+  run_name: PPO
+  name: sfsad 1
+  path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=20_2019-08-10_16-54-37xaa2muqm/checkpoint_469/checkpoint-469
+#  name: same file seed 1
+#  path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+#-
+#  name: same file seed 2
+#  path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+#-
+#  name: same file seed 3
+#  path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+#-
+#  name: same file seed 4
+#  path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+#-
+#  name: same file seed 5
+#  path: ~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+#- same file seed 2: /home/zhpeng/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+#- same file seed 3: /home/zhpeng/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+#- same file seed 4: /home/zhpeng/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313
+#- same file seed 5: /home/zhpeng/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/checkpoint_313/checkpoint-313

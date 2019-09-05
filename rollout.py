@@ -14,6 +14,7 @@ import pickle
 import time
 from math import ceil
 
+
 import gym
 import numpy as np
 import ray
@@ -27,7 +28,7 @@ from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from utils import restore_agent, initialize_ray, ENV_MAKER_LOOKUP, restore_agent_with_activation
+from utils import restore_agent, initialize_ray, ENV_MAKER_LOOKUP, restore_agent_with_activation, has_gpu
 from process_data import read_yaml
 from tf_model import PPOTFPolicyWithActivation
 
@@ -620,7 +621,7 @@ def several_agent_rollout(
     agent_count = 1
     agent_count_get = 1
 
-    have_gpu = "GPU" in ray.available_resources()
+    have_gpu = has_gpu()
     workers = [
         RolloutWorkerWrapper.as_remote(num_gpus=0.2 if have_gpu else 0).remote(force_rewrite)
         for _ in range(num_workers)

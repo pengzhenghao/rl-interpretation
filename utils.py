@@ -648,7 +648,8 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False):
             num_gpus=num_gpus
         )
         print("Sucessfully initialize Ray!")
-    print("Available resources: ", ray.available_resources())
+    if not local_mode:
+        print("Available resources: ", ray.available_resources())
 
 
 def get_random_string():
@@ -676,3 +677,10 @@ ENV_MAKER_LOOKUP = {"BipedalWalker-v2": build_env}
 def _get_ppo_agent(env="CartPole-v0"):
     from ray.rllib.agents.ppo import PPOAgent
     return PPOAgent(env=env)
+
+def has_gpu():
+    try:
+        ret = "GPU" in ray.available_resources()
+    except Exception:
+        return False
+    return ret

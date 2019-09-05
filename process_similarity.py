@@ -7,6 +7,15 @@ https://github.com/google-research/google-research/tree/master
 """
 import numpy as np
 from rollout import several_agent_rollout
+from utils import initialize_ray, get_random_string
+
+
+from rollout import RolloutWorkerWrapper
+from rollout import efficient_rollout_from_worker, parse_rllib_trajectory_list
+from process_data import read_yaml
+import pickle
+
+ACTIVATION_DATA_PREFIX = "layer"
 
 
 def gram_linear(x):
@@ -257,15 +266,19 @@ def test_origin():
     )
 
 
-from rollout import RolloutWorkerWrapper
-from rollout import efficient_rollout_from_worker, parse_rllib_trajectory_list
-from process_data import read_yaml
-import pickle
-
-
 def build_agent_dataset(
         yaml_path, num_rollouts=100, seed=0, num_workers=10, output_path=None
 ):
+    """
+    return shape: {
+        agent1: {
+            obs: array,
+            act: array,
+            layer0: array,
+            ...
+        }
+    }
+    """
     data_dict = several_agent_rollout(
         yaml_path, num_rollouts, seed, num_workers, return_data=True
     )
@@ -273,16 +286,33 @@ def build_agent_dataset(
     agent_dataset = {}
     traj_count = 0
     for name, traj_list in data_dict.items():
+        # traj_list[0].keys() = dict_keys(['t', 'eps_id', 'agent_index',
+        # 'obs', 'actions', 'rewards', 'prev_actions', 'prev_rewards',
+        # 'dones', 'infos', 'new_obs', 'action_prob', 'vf_preds',
+        # 'behaviour_logits', 'layer0', 'layer1', 'unroll_id', 'advantages',
+        # 'value_targets'])
+        layer_keys = [k for k in traj_list[0].keys()
+                      if k.startswith(ACTIVATION_DATA_PREFIX)]
         obs_list = [traj['obs'] for traj in traj_list]
         act_list = [traj['actions'] for traj in traj_list]
         rew_list = [traj['rewards'] for traj in traj_list]
-        traj_count += sum([len(obs) for obs in obs_list])
-        agent_dataset[name] = {
-            "obs": obs_list,
-            "act": act_list,
-            "rew": rew_list,
+        logits_list = [traj['behaviour_logits'] for traj in traj_list]
+
+        agent_dict = {
+            # each entry to list is A ROLLOUT
+            "obs": np.concatenate(obs_list),
+            "act": np.concatenate(act_list),
+            "rew_list": np.concatenate(rew_list),
+            "logit": np.concatenate(logits_list),
             "agent_info": name_ckpt_mapping[name]
         }
+        for layer_key in layer_keys:
+            layer_activation = [traj[layer_key] for traj in traj_list]
+            agent_dict[layer_key] = np.concatenate(layer_activation)
+
+        traj_count += sum([len(obs) for obs in obs_list])
+        agent_dataset[name] = agent_dict
+
     print(
         "Successfully collect {} trajectories from {} agents!".format(
             traj_count, len(data_dict)
@@ -302,14 +332,63 @@ def build_agent_dataset(
     return agent_dataset
 
 
-def sample_from_agent_dataset(agent_dataset, num_sample_per_agent):
+def sample_from_agent_dataset(agent_dataset, seed, batch_size=100):
     # agent_data_mappin = {agent: [[traj1:[t0], [t1], ..], [traj2], ...}
     # build a POOL of Observation
     # Our guide line is, concatenate all traj of a agent and
     # sample 100 (or maybe 1000) observations from each agent's obs pool.
     # so that we have 30,000 obs given 300 agents.
+    """
+    return shape: {
+        agent1: {
+            obs: array [batch_size, ..],
+            act: array [batch_size, ..],
+            layer0: array [batch_size, ..],
+            ...
+        }
+    }
+    """
+    # np.random.seed(seed)
+    rs = np.random.RandomState(seed)
+    sample_agent_dataset = {}
+
+    for agent_name, agent_dict in agent_dataset.items():
+        agent_new_dict = {}
+        agent_total_steps = agent_dict['obs'].shape[0]
+        indices = rs.randint(0, agent_total_steps,
+                                batch_size)
+        agent_new_dict['index'] = indices
+        for data_name, data_array in agent_dict.items():
+            if not isinstance(data_array, np.ndarray):
+                agent_new_dict[data_name] = data_array
+            else:
+                batch = data_array[indices]
+                agent_new_dict[data_name] = batch
+
+        sample_agent_dataset[agent_name] = agent_new_dict
+
+    return sample_agent_dataset
+
+
+def build_obs_pool(sample_agent_dataset):
+    obs_pool = []
+    for agent_name, agent_dict in sample_agent_dataset.items():
+        obs_pool.append(agent_dict['obs'])
+    return np.concatenate(obs_pool)
+
+
+def get_result():
     pass
 
 
+def test_new_implementation():
+    agent_dataset = build_agent_dataset(
+        "yaml/test-2-agents.yaml", 2,
+        output_path="/tmp/{}".format(get_random_string())
+    )
+    return agent_dataset
+
 if __name__ == '__main__':
-    test_origin()
+    # test_origin()
+    initialize_ray(test_mode=True, local_mode=True)
+    ret = test_new_implementation()
