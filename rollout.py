@@ -14,7 +14,6 @@ import pickle
 import time
 from math import ceil
 
-
 import gym
 import numpy as np
 import ray
@@ -605,7 +604,6 @@ def test_RolloutWorkerWrapper():
     print("After close")
 
 
-
 def several_agent_rollout(
         yaml_path,
         num_rollouts,
@@ -624,7 +622,8 @@ def several_agent_rollout(
 
     have_gpu = has_gpu()
     workers = [
-        RolloutWorkerWrapper.as_remote(num_gpus=0.2 if have_gpu else 0).remote(force_rewrite)
+        RolloutWorkerWrapper.as_remote(num_gpus=0.2 if have_gpu else 0
+                                       ).remote(force_rewrite)
         for _ in range(num_workers)
     ]
 
@@ -639,9 +638,11 @@ def several_agent_rollout(
         for i, (name, ckpt_dict) in \
                 enumerate(agent_ckpt_dict_range[start:end]):
             ckpt = ckpt_dict["path"]
-            env_name = ckpt_dict["env_name"] if "env_name" in ckpt_dict else "BipedalWalker-v2"
+            env_name = ckpt_dict[
+                "env_name"] if "env_name" in ckpt_dict else "BipedalWalker-v2"
             env_maker = ENV_MAKER_LOOKUP[env_name]
-            run_name = ckpt_dict["run_name"] if "run_name" in ckpt_dict else "PPO"
+            run_name = ckpt_dict["run_name"
+                                 ] if "run_name" in ckpt_dict else "PPO"
             assert run_name == "PPO"
 
             # TODO Only support PPO now.
@@ -736,16 +737,22 @@ def several_agent_replay(
         for i, (name, ckpt_dict) in \
                 enumerate(agent_ckpt_dict_range[start:end]):
             ckpt = ckpt_dict["path"]
-            env_name = ckpt_dict["env_name"] if "env_name" in ckpt_dict else "BipedalWalker-v2"
+            env_name = ckpt_dict[
+                "env_name"] if "env_name" in ckpt_dict else "BipedalWalker-v2"
             # env_maker = ENV_MAKER_LOOKUP[env_name]
-            run_name = ckpt_dict["run_name"] if "run_name" in ckpt_dict else "PPO"
+            run_name = ckpt_dict["run_name"
+                                 ] if "run_name" in ckpt_dict else "PPO"
             assert run_name == "PPO"
 
             # obs = sample_agent_dataset[name]
             if have_gpu:
-                obj_id = remote_replay_gpu.remote(obs, run_name, ckpt, env_name)
+                obj_id = remote_replay_gpu.remote(
+                    obs, run_name, ckpt, env_name
+                )
             else:
-                obj_id = remote_replay_cpu.remote(obs, run_name, ckpt, env_name)
+                obj_id = remote_replay_cpu.remote(
+                    obs, run_name, ckpt, env_name
+                )
             obj_ids_dict[name] = obj_id
 
             print(
@@ -767,10 +774,7 @@ def several_agent_replay(
 
             act, infos = ray.get(obj_id)
 
-            return_dict[agent_name] = {
-                "act": act,
-                "infos": infos
-            }
+            return_dict[agent_name] = {"act": act, "infos": infos}
 
             # trajectory_list = []
             # for obj_id in obj_ids:

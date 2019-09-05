@@ -678,6 +678,7 @@ def _get_ppo_agent(env="CartPole-v0"):
     from ray.rllib.agents.ppo import PPOAgent
     return PPOAgent(env=env)
 
+
 def has_gpu():
     try:
         ret = "GPU" in ray.available_resources()

@@ -5,15 +5,13 @@ https://github.com/google-research/google-research/tree/master
 /representation_similarity
 
 """
+import pickle
+
 import numpy as np
+
+from process_data import read_yaml
 from rollout import several_agent_rollout
 from utils import initialize_ray, get_random_string
-
-
-from rollout import RolloutWorkerWrapper
-from rollout import efficient_rollout_from_worker, parse_rllib_trajectory_list
-from process_data import read_yaml
-import pickle
 
 ACTIVATION_DATA_PREFIX = "layer"
 
@@ -291,8 +289,10 @@ def build_agent_dataset(
         # 'dones', 'infos', 'new_obs', 'action_prob', 'vf_preds',
         # 'behaviour_logits', 'layer0', 'layer1', 'unroll_id', 'advantages',
         # 'value_targets'])
-        layer_keys = [k for k in traj_list[0].keys()
-                      if k.startswith(ACTIVATION_DATA_PREFIX)]
+        layer_keys = [
+            k for k in traj_list[0].keys()
+            if k.startswith(ACTIVATION_DATA_PREFIX)
+        ]
         obs_list = [traj['obs'] for traj in traj_list]
         act_list = [traj['actions'] for traj in traj_list]
         rew_list = [traj['rewards'] for traj in traj_list]
@@ -320,12 +320,11 @@ def build_agent_dataset(
     )
 
     if output_path is not None:
-        if not output_path.endswith(".pkl"):
-            output_path = output_path + ".pkl"
-            print(
-                "WARNING! The output path is not ends with '.pkl'!!"
-                " We add it for you and it's <{}> now!".format(output_path)
-            )
+        if output_path.endswith(".pkl"):
+            output_path = output_path.split(".pkl")[0]
+        output_path = "{}_rollout{}_seed{}.pkl".format(
+            output_path, num_rollouts, seed
+        )
         with open(output_path, "wb") as f:
             pickle.dump(agent_dataset, f)
         print("agent_dataset is successfully saved at {}.".format(output_path))
@@ -355,8 +354,7 @@ def sample_from_agent_dataset(agent_dataset, seed, batch_size=100):
     for agent_name, agent_dict in agent_dataset.items():
         agent_new_dict = {}
         agent_total_steps = agent_dict['obs'].shape[0]
-        indices = rs.randint(0, agent_total_steps,
-                                batch_size)
+        indices = rs.randint(0, agent_total_steps, batch_size)
         agent_new_dict['index'] = indices
         for data_name, data_array in agent_dict.items():
             if not isinstance(data_array, np.ndarray):
@@ -380,19 +378,20 @@ def build_obs_pool(sample_agent_dataset):
 def get_result():
     pass
 
+
 from rollout import several_agent_replay
 
 
 def test_new_implementation():
     yaml_path = "yaml/test-2-agents.yaml"
     agent_dataset = build_agent_dataset(
-        yaml_path,2,
-        output_path="/tmp/{}".format(get_random_string())
+        yaml_path, 2, output_path="/tmp/{}".format(get_random_string())
     )
     sample_agent_dataset = sample_from_agent_dataset(agent_dataset, 0)
     obs_pool = build_obs_pool(sample_agent_dataset)
     ret = several_agent_replay(yaml_path, obs_pool)
     return ret
+
 
 if __name__ == '__main__':
     # test_origin()
