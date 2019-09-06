@@ -13,6 +13,7 @@ import os
 import pickle
 import time
 from math import ceil
+import copy
 
 import gym
 import numpy as np
@@ -250,37 +251,32 @@ class RolloutWorkerWrapper(object):
 
         if (not os.path.exists(self.path)) or self.force_rewrite \
                 or (not self.dataset):
+
+            config_for_evaluation = {
+                "batch_mode": "complete_episodes",
+                "sample_batch_size": 1,
+                "horizon": 3000,
+                "seed": self.seed
+            }
+
             if self.require_activation:
                 agent = restore_agent_with_activation(
-                    self.run_name, self.ckpt, self.env_name
+                    self.run_name, self.ckpt, self.env_name,
+                    config_for_evaluation
                 )
                 self.policy_type = PPOTFPolicyWithActivation
-            else:
-                agent = restore_agent(self.run_name, self.ckpt, self.env_name)
-                self.policy_type = PPOTFPolicy
-            policy = agent.get_policy()
-            if self.require_activation:
+                policy = agent.get_policy()
                 assert "layer0" in policy.extra_compute_action_fetches(), \
-                "This policy is not we modified policy. Please use policy we " \
-                "reimplemented."
-
-            batch_mode = "complete_episodes"
-            batch_steps = 1
-            episode_horizon = 3000
-            sample_async = True
+                "This policy is not we modified policy. Please use policy" \
+                "we reimplemented."
+            else:
+                agent = restore_agent(self.run_name, self.ckpt, self.env_name,
+                                      config_for_evaluation)
+                self.policy_type = PPOTFPolicy
 
             register()
-            self.worker = RolloutWorker(
-                env_creator=self.env_creater,
-                policy=self.policy_type,
-                batch_mode=batch_mode,
-                batch_steps=batch_steps,
-                episode_horizon=episode_horizon,
-                sample_async=sample_async,
-                seed=self.seed,
-                model_config=model_config if self.require_activation else None,
-                log_level="INFO"
-            )
+            self.worker = agent.workers.local_worker()
+
             self.dataset = False
             self.data = []
 
@@ -291,23 +287,21 @@ class RolloutWorkerWrapper(object):
             print("Successfully set weights for agent.")
         self.already_reset = True
 
-
-    def wrap_sample(self, return_none=False):
+    def wrap_sample(self):
         assert self.initialized
-
         if not self.already_reset:
             self._lazy_reset()
-
-        assert self.index < self.num_rollouts
-        if self.dataset:
-            result = self.data[self.index]
-        else:
-            result = self.worker.sample()
-            self.data.append(result)
-        self.index += 1
-        if return_none:
-            return None
-        return result
+        result_list = []
+        for roll in range(self.num_rollouts):
+            assert self.index < self.num_rollouts
+            if self.dataset:
+                result = self.data[self.index]
+            else:
+                result = self.worker.sample()
+                self.data.append(result)
+            self.index += 1
+            result_list.append(result)
+        return result_list
 
     def get_dataset(self):
         assert self.initialized
@@ -345,7 +339,6 @@ def make_worker(env_maker, ckpt, num_rollout, seed, run_name, env_name):
     )
     return worker
 
-
 def efficient_rollout_from_worker(worker, num_rollouts):
     trajctory_list = []
     obj_ids = []
@@ -358,7 +351,7 @@ def efficient_rollout_from_worker(worker, num_rollouts):
         # 'rewards', 'prev_actions', 'prev_rewards', 'dones', 'infos',
         # 'new_obs', 'action_prob', 'vf_preds', 'behaviour_logits',
         # 'unroll_id', 'advantages', 'value_targets'])
-        data = ray.get(obj).data
+        data = copy.deepcopy(ray.get(obj).data)
         trajectory = parse_single_rollout(data)
         logging.info(
             "Finish collect {}/{} rollouts. The latest rollout contain {}"
@@ -664,11 +657,8 @@ def several_agent_rollout(
                 ckpt, num_rollouts, seed, env_maker, run_name, env_name,
                 require_activation
             )
-            obj_ids = []
-            for _ in range(num_rollouts):
-                # Ask to return None.
-                obj_ids.append(workers[i].wrap_sample.remote(not return_data))
-            obj_ids_dict[name] = obj_ids
+            obj_id = workers[i].wrap_sample.remote()
+            obj_ids_dict[name] = obj_id
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from agent"
                 " <{}>".format(
@@ -681,10 +671,10 @@ def several_agent_rollout(
             agent_count += 1
             now_t = time.time()
 
-        for (name, obj_ids), worker in zip(obj_ids_dict.items(), workers):
-            trajectory_list = []
-            for obj_id in obj_ids:
-                trajectory_list.append(ray.get(obj_id))
+        for (name, obj_id), worker in zip(obj_ids_dict.items(), workers):
+            trajectory_list = copy.deepcopy(ray.get(obj_id))
+            # for obj_id in obj_ids:
+            #     trajectory_list.append(ray.get(obj_id))
             return_dict[name] = trajectory_list
             worker.close.remote()
             print(
@@ -776,7 +766,7 @@ def several_agent_replay(
             now_t = time.time()
 
         for agent_name, obj_id in obj_ids_dict.items():
-            act, infos = ray.get(obj_id)
+            act, infos = copy.deepcopy(ray.get(obj_id))
             return_dict[agent_name] = {"act": act, "infos": infos}
 
             # trajectory_list = []
