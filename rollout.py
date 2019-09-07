@@ -754,8 +754,8 @@ def several_agent_replay(
             obj_ids_dict[name] = obj_id
 
             print(
-                "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect output of {} samples"
-                " from agent <{}>".format(
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect replay result"
+                " of {} samples from agent <{}>".format(
                     agent_count, num_agents,
                     time.time() - now_t,
                     time.time() - start_t, obs.shape, name

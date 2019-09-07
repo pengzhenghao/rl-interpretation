@@ -187,6 +187,135 @@ def feature_space_linear_cka(features_x, features_y, debiased=False):
 
 get_cka = feature_space_linear_cka
 
+import time
+import ray
+import copy
+import pandas as pd
+
+get_cka_remote = ray.remote(get_cka)
+
+
+def agent_dataset_to_cka_result(agent_dataset, seed, yaml_path, layer,
+                                num_agents=None):
+    batch_size = 100
+    sample_agent_dataset = sample_from_agent_dataset(agent_dataset, seed,
+                                                     batch_size)
+    print("Collected {} samples per agent for {} agents.".format(batch_size,
+                                                                 num_agents))
+    obs_pool = build_obs_pool(sample_agent_dataset)
+    print("Build observation pool with shape {}.".format(obs_pool.shape))
+    ret = several_agent_replay(yaml_path, obs_pool, _num_agents=num_agents)
+    print("Finish replay for all agents.")
+    # cka_result = np.zeros((len(alist), len(alist)))
+    assert isinstance(layer, int)
+
+    alist = [
+        (i, v['infos']['layer{}'.format(layer)])
+        for i, v in enumerate(ret.values())
+    ]
+
+    cka_list = []
+    obs_queue = []
+
+    num_workers = 10
+    worker_cnt = 0
+
+    now = start = time.time()
+
+    for ia, a in alist[:-1]:
+        print("{:.2f}/{:.2f} Start the {}th agents' computation.".format(
+            time.time() - now, time.time() - start, ia))
+        for ib, b in alist[ia:]:
+            obj = get_cka_remote.remote(a, b)
+            obs_queue.append([ia, ib, obj])
+            worker_cnt += 1
+            if worker_cnt == num_workers:
+                for x, y, obj in obs_queue:
+                    c = copy.deepcopy(ray.get(obj))
+                    cka_list.append({
+                        "x": x,
+                        "y": y,
+                        "value": c
+                    })
+                    if x == y:
+                        continue
+                    cka_list.append({
+                        "x": x,
+                        "y": y,
+                        "value": c
+                    })
+                worker_cnt = 0
+                obs_queue.clear()
+        print("{:.2f}/{:.2f} Finish the {}th agents' computation.".format(
+            time.time() - now, time.time() - start, ia))
+        now = time.time()
+
+    cka_result = pd.DataFrame(cka_list)
+    cka_info = {
+        "obs_pool": obs_pool,
+        "replay_result": ret,
+        "sample_agent_dataset": sample_agent_dataset
+    }
+    return cka_result, cka_info
+
+
+def pipeline():
+    yaml_path = "yaml/ppo-300-agents.yaml"
+    test_mode = False
+
+    # output_path = "data/similarity/{}.pkl".format(
+    #     osp.basename(yaml_path).split(".yaml")[0])
+    # num_rollouts = 2 if test_mode else 100
+    num_rollouts = 100
+    num_agents = None
+    local_mode = False
+
+
+    output_path = "data/similarity/ppo-300-agents_rollout100_seed0.pkl"
+
+    agent_dataset = build_agent_dataset(output_path=output_path)
+
+    seed = 0
+    layer = 1
+    cka_result, cka_info = agent_dataset_to_cka_result(
+        agent_dataset, seed=seed,  yaml_path=yaml_path, layer=layer,
+        num_agents=None
+    )
+    cka_result_path = output_path.replace(
+        ".pkl", "_sample-seed{}_layer{}_cka-result.pkl".format(
+            seed, layer
+        ))
+    print(cka_result_path)
+    with open(cka_result_path, "wb") as f:
+        pickle.dump(cka_result, f)
+    cka_info_path = output_path.replace(
+        ".pkl", "_sample-seed{}_layer{}_cka-info.pkl".format(
+            seed, layer
+        ))
+    print(cka_info_path)
+    with open(cka_info_path, "wb") as f:
+        pickle.dump(cka_info, f)
+
+    # seed = 0
+    # layer = 0
+    # cka_result, cka_info = agent_dataset_to_cka_result(
+    #     agent_dataset, seed=seed,  yaml_path=yaml_path, layer=layer,
+    #     num_agents=None
+    # )
+    # cka_result_path = output_path.replace(
+    #     ".pkl", "_sample-seed{}_layer{}_cka-result.pkl".format(
+    #         seed, layer
+    #     ))
+    # print(cka_result_path)
+    # with open(cka_result_path, "wb") as f:
+    #     pickle.dump(cka_result, f)
+    # cka_info_path = output_path.replace(
+    #     ".pkl", "_sample-seed{}_layer{}_cka-info.pkl".format(
+    #         seed, layer
+    #     ))
+    # print(cka_info_path)
+    # with open(cka_info_path, "wb") as f:
+    #     pickle.dump(cka_info, f)
 
 def cca(features_x, features_y):
     """Compute the mean squared CCA correlation (R^2_{CCA}).
@@ -268,7 +397,7 @@ def test_origin():
 
 
 def build_agent_dataset(
-        yaml_path, num_rollouts=100, seed=0, num_workers=10, output_path=None,
+        yaml_path=None, num_rollouts=100, seed=0, num_workers=10, output_path=None,
         _num_agents=None
 ):
     """
@@ -281,6 +410,17 @@ def build_agent_dataset(
         }
     }
     """
+    if output_path is not None:
+        if os.path.exists(output_path):
+            print("We have detected a saved agent dataset.")
+            print("Load dataset from <{}>".format(output_path))
+            with open(output_path, "rb") as f:
+                agent_dataset = pickle.load(f)
+            return agent_dataset
+
+    assert yaml_path is not None, "We can't find saved dataset. " \
+                                  "You should provide yaml path."
+
     data_dict = several_agent_rollout(
         yaml_path, num_rollouts, seed, num_workers, return_data=True,
         _num_agents=_num_agents
@@ -320,25 +460,26 @@ def build_agent_dataset(
         traj_count += sum([len(obs) for obs in obs_list])
         agent_dataset[name] = agent_dict
 
-    print(
-        "Successfully collect {} trajectories from {} agents!".format(
-            traj_count, len(data_dict)
-        )
-    )
-
     if output_path is not None:
         if output_path.endswith(".pkl"):
             output_path = output_path.split(".pkl")[0]
         output_path = "{}_rollout{}_seed{}.pkl".format(
             output_path, num_rollouts, seed
         )
-
         dirname = os.path.dirname(output_path)
         if not os.path.exists(dirname):
             os.mkdir(dirname)
         with open(output_path, "wb") as f:
             pickle.dump(agent_dataset, f)
-        print("agent_dataset is successfully saved at <{}>.".format(output_path))
+        print(
+            "agent_dataset is successfully saved at <{}>.".format(output_path))
+
+    print(
+        "Successfully collect {} trajectories from {} agents!".format(
+            traj_count, len(data_dict)
+        )
+    )
+
     return agent_dataset
 
 
@@ -404,5 +545,6 @@ def test_new_implementation():
 
 if __name__ == '__main__':
     # test_origin()
-    initialize_ray(test_mode=True)
-    agent_data = test_new_implementation()
+    initialize_ray(num_gpus=4)
+    pipeline()
+    # agent_data = test_new_implementation()
