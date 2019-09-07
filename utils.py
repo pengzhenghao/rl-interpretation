@@ -104,6 +104,8 @@ class VideoRecorder(object):
         enabled (bool): Whether to actually record video, or just no-op (for
         convenience)
     """
+    allow_gif_mode = ['clip', 'full', 'beginning', 'end', 'period',
+                                '3period']
 
     def __init__(
             # self, env, path=None, metadata=None, base_path=None
@@ -111,6 +113,7 @@ class VideoRecorder(object):
             base_path,
             grids=None,
             generate_gif=False,
+            gif_mode=None,
             fps=50
     ):
         # self.grids = int | dict
@@ -125,6 +128,9 @@ class VideoRecorder(object):
         self.num_cols = None
         self.num_rows = None
         self.generate_gif = generate_gif
+        if self.generate_gif:
+            assert gif_mode in self.allow_gif_mode
+            self.gif_mode = gif_mode
 
         required_ext = '.mp4'
         if base_path is not None:
@@ -407,7 +413,7 @@ class VideoRecorder(object):
         # self._add_things_on_backgaround(frames_dict, extra_info_dict)
         obj_ids = []
         obj_cnt = 0
-        num_workers = 10
+        num_workers = 16
         for idx, (title, frames_info) in \
                 enumerate(frames_dict.items()):
             frames = frames_info['frames']
@@ -430,10 +436,28 @@ class VideoRecorder(object):
                 else:
                     text = information['text_function'](value)
                     self._put_text(None, text, pos, canvas=frames)
-            gif_path = os.path.join(
-                self.base_path, "{}_frames{}.gif".format(title, len(frames))
-            )
-            obj = remote_generate_gif.remote(frames, gif_path, self.frames_per_sec)
+
+            length = len(frames)
+            one_clip_length = min(5 * self.frames_per_sec, length)
+
+            # if self.gif_mode == 'full':
+                clip = frames
+            # elif self.gif_mode == 'clip':
+                begin = frames[:one_clip_length]
+                end = frames[-one_clip_length:]
+                center = frames[int(length - one_clip_length/2):
+                         int(length + one_clip_length/2)]
+                clip = np.concatenate([begin, end, center])
+            # elif self.gif_mode == 'beginning':
+                clip = frames[:one_clip_length]
+            # elif self.gif_mode == 'end':
+                clip = frames[-one_clip_length:]
+            # elif self.gif_mode == 'period':
+                period = frames_info['period']
+                clip = frames[int(length - period/2): int(length + period/2)]
+
+
+            # obj = self._gener
             obj_ids.append(obj)
             obj_cnt += 1
             if len(obj_ids) == num_workers:
@@ -441,6 +465,15 @@ class VideoRecorder(object):
                     ray.get(obj)
                 obj_ids.clear()
                 obj_cnt = 0
+
+
+
+    def _generate_gif_for_clip(self, agent_name, clip, mode):
+        gif_path = os.path.join(
+            self.base_path, mode, "{}.gif".format(agent_name)
+        )
+        obj_id = remote_generate_gif.remote(clip, gif_path, self.frames_per_sec)
+        return obj_id
 
     def _close(self):
         """Make sure to manually close, or else you'll leak the encoder

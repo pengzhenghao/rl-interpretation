@@ -536,6 +536,12 @@ def rollout(
                 frame_extra_info["reward"].append(reward_total)
                 frame_extra_info["step"].append(steps)
 
+                # data required for calculating period.
+                # we observe the channel 7 and 12 which represent the speed
+                # of the knee joints.
+                # This only hold for BipedalWalker-v2.
+                frame_extra_info["period_info"].append(obs[[7, 12]])
+
             if multiagent:
                 for agent_id, r in reward.items():
                     prev_rewards[agent_id] = r

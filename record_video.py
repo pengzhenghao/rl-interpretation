@@ -16,6 +16,7 @@ from math import ceil
 import numpy as np
 import PIL
 import ray
+import os.path as osp
 
 from PIL import Image
 import yaml
@@ -312,33 +313,24 @@ class GridVideoRecorder(object):
                 len(frames_dict)
             )
         )
-        # locations = [f_info['loc'] for f_info in frames_dict.values()]
+        # preprocess
 
-        # unique_locations = set(locations)
-        # no_specify_location = len(unique_locations) == 1 and next(
-        #     iter(unique_locations)
-        # ) is None
-        # assert len(unique_locations) == len(locations) or no_specify_location
-        # if no_specify_location:
-        #     grids = len(frames_dict)
-        # else:
-        #     max_row = max([row + 1 for row, _ in locations])
-        #     max_col = max([col + 1 for _, col in locations])
-        #     grids = {"col": max_col, "row": max_row}
-        vr = VideoRecorder(self.video_path, generate_gif=True)
+        # 1: First 5 second.
+        path = osp.join(self.video_path, "beginning")
+        vr = VideoRecorder(path, generate_gif=True)
         path = vr.generate_video(frames_dict, extra_info_dict)
+
+        # 2: Last 5 second.
+
+        # 3: Mix of 3 5s clips.
+
+
+        # 4: 1 period
+
+        # 5: 3 period
+
+
         return path
-        # return path
-
-        # for agent_name, frame_info in frames_dict.items():
-        #     frames = frame_info['frame']
-
-            # frames_len = frames()
-
-
-            # gif_path = None
-            # remote_generate_gif(frames, gif_path)
-
 
     def close(self):
         ray.shutdown()
@@ -544,7 +536,7 @@ def test_gif_generation():
     )
 
     frames_dict, extra_info_dict = gvr.generate_frames(
-        name_ckpt_mapping, 100
+        name_ckpt_mapping
     )
     gvr.generate_gif(frames_dict, extra_info_dict)
     # gvr.close()
