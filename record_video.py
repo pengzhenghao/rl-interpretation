@@ -246,6 +246,8 @@ class GridVideoRecorder(object):
 
                 period_source = np.stack(new_extra_info['period_info'])
                 period = get_period(period_source, self.fps)
+                print("period for agent <{}> is {}, its len is {}".format(
+                    name, period, len(new_frames)))
 
                 frames_info = {
                     "frames":
@@ -320,8 +322,8 @@ class GridVideoRecorder(object):
                 len(frames_dict)
             )
         )
-        path = osp.join(self.video_path, "beginning")
-        vr = VideoRecorder(path, generate_gif=True, fps=self.fps)
+        # path = osp.join(self.video_path, "beginning")
+        vr = VideoRecorder(self.video_path, generate_gif=True, fps=self.fps)
         path = vr.generate_video(frames_dict, extra_info_dict)
         return path
 

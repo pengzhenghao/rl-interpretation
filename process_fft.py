@@ -98,7 +98,8 @@ def get_period(source, fps):
         y = source[:, i]
         fre = compute_fft(y)
         fre[0] = -np.inf
-        period = fre.argmax() * (fps / len(y)) * fps
+        period = len(y) / fre.argmax() # * (fps / len(y))  # in Hz
+        # period = freq
         ret.append(period)
     return float(np.mean(ret))
 

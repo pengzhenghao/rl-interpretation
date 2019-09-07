@@ -428,6 +428,8 @@ class VideoRecorder(object):
                     value_sequence = value
                     for timestep, value in enumerate(value_sequence):
                         text = information['text_function'](value)
+                        if text=='X':
+                            print(timestep, value, text, frames.shape)
                         self._put_text(timestep, text, pos, canvas=frames)
                 else:
                     text = information['text_function'](value)
@@ -450,30 +452,31 @@ class VideoRecorder(object):
         one_clip_length = min(5 * self.frames_per_sec, length)
         obj_ids = []
         for mode in self.allow_gif_mode:
-            if self.gif_mode == 'full':
+            if mode == 'full':
                 clip = frames
-            elif self.gif_mode == 'clip':
+            elif mode == 'clip':
                 begin = frames[:one_clip_length]
                 end = frames[-one_clip_length:]
-                center = frames[int(length - one_clip_length /
-                                    2):int(length + one_clip_length / 2)]
+                center = frames[int((length - one_clip_length) /
+                                    2):int((length + one_clip_length) / 2)]
                 clip = np.concatenate([begin, end, center])
-            elif self.gif_mode == 'beginning':
+            elif mode == 'beginning':
                 clip = frames[:one_clip_length]
-            elif self.gif_mode == 'end':
+            elif mode == 'end':
                 clip = frames[-one_clip_length:]
-            elif self.gif_mode == 'period':
+            elif mode == 'period':
                 period = min(frames_info['period'], length)
-                clip = frames[int(length -
-                                  period / 2):int(length + period / 2)]
-            elif self.gif_mode == '3period':
+                clip = frames[int((length -
+                                  period) / 2):int((length + period) / 2)]
+            elif mode == '3period':
                 period = min(3 * frames_info['period'], length)
-                clip = frames[int(length -
-                                  period / 2):int(length + period / 2)]
+                clip = frames[int((length -
+                                  period) / 2):int((length + period) / 2)]
 
             gif_path = os.path.join(
                 self.base_path, mode, "{}.gif".format(agent_name)
             )
+            os.makedirs(os.path.dirname(gif_path), exist_ok=True)
             obj_id = remote_generate_gif.remote(
                 clip, gif_path, self.frames_per_sec
             )
