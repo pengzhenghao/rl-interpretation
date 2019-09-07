@@ -242,9 +242,12 @@ class RolloutWorkerWrapper(object):
                     "\nWe have load data from <{}>.".format(self.path)
                 )
             except Exception as e:
-                logging.critical("Error detected when loading data from {}. "
-                              "We will regenerate the broken pkl files."
-                              .format(self.path))
+                logging.critical(
+                    "Error detected when loading data from {}. "
+                    "We will regenerate the broken pkl files.".format(
+                        self.path
+                    )
+                )
                 self.dataset = False
             else:
                 self.dataset = True
@@ -270,8 +273,10 @@ class RolloutWorkerWrapper(object):
                 "This policy is not we modified policy. Please use policy" \
                 "we reimplemented."
             else:
-                agent = restore_agent(self.run_name, self.ckpt, self.env_name,
-                                      config_for_evaluation)
+                agent = restore_agent(
+                    self.run_name, self.ckpt, self.env_name,
+                    config_for_evaluation
+                )
                 self.policy_type = PPOTFPolicy
 
             register()
@@ -339,6 +344,7 @@ def make_worker(env_maker, ckpt, num_rollout, seed, run_name, env_name):
     )
     return worker
 
+
 def efficient_rollout_from_worker(worker, num_rollouts):
     trajctory_list = []
     obj_ids = []
@@ -401,6 +407,7 @@ Modification:
 def rollout(
         agent,
         env,
+        env_name,
         num_steps=None,
         require_frame=False,
         require_trajectory=False,
@@ -447,11 +454,13 @@ def rollout(
             trajectory = []
         if require_frame:
             frames = []
+            assert env_name in ["BipedalWalker-v2"]
             frame_extra_info = {
                 "value_function": [],
                 "reward": [],
                 "done": [],
-                "step": []
+                "step": [],
+                "period_info": []
             }
         if require_extra_info:
             extra_infos = []
@@ -540,6 +549,7 @@ def rollout(
                 # we observe the channel 7 and 12 which represent the speed
                 # of the knee joints.
                 # This only hold for BipedalWalker-v2.
+                assert obs.ndim == 1
                 frame_extra_info["period_info"].append(obs[[7, 12]])
 
             if multiagent:
@@ -586,7 +596,7 @@ def _test_es_agent_compatibility():
     from ray.rllib.agents.es import ESTrainer
     es = ESTrainer(env="BipedalWalker-v2")
     env = gym.make("BipedalWalker-v2")
-    rollout(es, env, num_steps=100, require_frame=True)
+    rollout(es, env, "BipedalWalker-v2", num_steps=100, require_frame=True)
 
 
 def test_RolloutWorkerWrapper():
@@ -743,10 +753,10 @@ def several_agent_replay(
                 enumerate(agent_ckpt_dict_range[start:end]):
             ckpt = ckpt_dict["path"]
             env_name = ckpt_dict["env_name"]
-                # if "env_name" in ckpt_dict else "BipedalWalker-v2"
+            # if "env_name" in ckpt_dict else "BipedalWalker-v2"
             # env_maker = ENV_MAKER_LOOKUP[env_name]
             run_name = ckpt_dict["run_name"]
-                # if "run_name" in ckpt_dict else "PPO"
+            # if "run_name" in ckpt_dict else "PPO"
             assert run_name == "PPO"
 
             if have_gpu:

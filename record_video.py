@@ -26,9 +26,12 @@ from rollout import rollout
 from utils import build_config, VideoRecorder, \
     restore_agent, initialize_ray
 from env_wrapper import BipedalWalkerWrapper
+from process_fft import get_period
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
+
+FPS = 50
 
 from collections import OrderedDict
 import time
@@ -149,27 +152,27 @@ class CollectFramesWorker(object):
         agent = restore_agent(run_name, ckpt, env_name, config)
         env = env_maker()
         # env.seed(self.seed)
-        result = rollout(agent, env, self.num_steps, require_frame=True)
+        result = rollout(agent, env, env_name,
+                         self.num_steps, require_frame=True)
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
         agent.stop()
         return frames, extra_info
 
 
-
 from utils import _generate_gif, remote_generate_gif
+
 
 def test_generate_gif():
     data = np.random.randint(0, 256, (500, 100, 100, 4), dtype='uint8')
     _generate_gif(data, "tmp_delete_me.gif")
 
 
-
-
 class GridVideoRecorder(object):
-    def __init__(self, video_path, local_mode=False):
+    def __init__(self, video_path, local_mode=False, fps=50):
         initialize_ray(local_mode)
         self.video_path = video_path
+        self.fps = fps
 
     def generate_frames(
             self,
@@ -232,14 +235,17 @@ class GridVideoRecorder(object):
                 now = time.time()
 
             for incre, (name, object_id) in enumerate(object_id_dict.items()):
-                frames, extra_info = ray.get(object_id)
+                new_frames, new_extra_info = copy.deepcopy(ray.get(object_id))
 
                 # To avoid memory leakage. This part is really important!
-                new_frames = copy.deepcopy(frames)
-                new_extra_info = copy.deepcopy(extra_info)
+                # new_frames = copy.deepcopy(frames)
+                # new_extra_info = copy.deepcopy(extra_info)
 
-                del frames
-                del extra_info
+                # del frames
+                # del extra_info
+
+                period_source = np.stack(new_extra_info['period_info'])
+                period = get_period(period_source, self.fps)
 
                 frames_info = {
                     "frames":
@@ -252,7 +258,8 @@ class GridVideoRecorder(object):
                     if name_row_mapping is None else name_row_mapping[name],
                     "loc":
                     None
-                    if name_loc_mapping is None else name_loc_mapping[name]
+                    if name_loc_mapping is None else name_loc_mapping[name],
+                    "period": period
                 }
 
                 frames_dict[name] = frames_info
@@ -303,7 +310,7 @@ class GridVideoRecorder(object):
             max_row = max([row + 1 for row, _ in locations])
             max_col = max([col + 1 for _, col in locations])
             grids = {"col": max_col, "row": max_row}
-        vr = VideoRecorder(self.video_path, grids=grids)
+        vr = VideoRecorder(self.video_path, grids=grids, fps=self.fps)
         path = vr.generate_video(frames_dict, extra_info_dict)
         return path
 
@@ -313,28 +320,13 @@ class GridVideoRecorder(object):
                 len(frames_dict)
             )
         )
-        # preprocess
-
-        # 1: First 5 second.
         path = osp.join(self.video_path, "beginning")
-        vr = VideoRecorder(path, generate_gif=True)
+        vr = VideoRecorder(path, generate_gif=True, fps=self.fps)
         path = vr.generate_video(frames_dict, extra_info_dict)
-
-        # 2: Last 5 second.
-
-        # 3: Mix of 3 5s clips.
-
-
-        # 4: 1 period
-
-        # 5: 3 period
-
-
         return path
 
     def close(self):
         ray.shutdown()
-
 
 
 def _build_name_row_mapping(cluster_dict):
@@ -483,7 +475,7 @@ def generate_grid_of_videos(
             new_name = name_callback(old_name)
             new_name_ckpt_mapping[new_name] = val
         name_ckpt_mapping = new_name_ckpt_mapping
-    gvr = GridVideoRecorder(video_path=video_prefix, local_mode=local_mode)
+    gvr = GridVideoRecorder(video_path=video_prefix, local_mode=local_mode, fps=FPS)
     frames_dict, extra_info_dict = gvr.generate_frames(
         name_ckpt_mapping,
         num_steps=steps,
@@ -507,7 +499,7 @@ def test_cluster_video_generation():
     name_ckpt_mapping = get_name_ckpt_mapping(args.yaml, number=2)
 
     gvr = GridVideoRecorder(
-        video_path=args.yaml[:-5], local_mode=args.local_mode
+        video_path=args.yaml[:-5], local_mode=args.local_mode, fps=FPS
     )
 
     name_row_mapping = {key: "TEST ROW" for key in name_ckpt_mapping.keys()}
@@ -526,18 +518,16 @@ def test_cluster_video_generation():
 
     gvr.close()
 
+
 def test_gif_generation():
     yaml = "yaml/test-2-agents.yaml"
     name_ckpt_mapping = get_name_ckpt_mapping(yaml, number=2)
 
     gvr = GridVideoRecorder(
-        video_path="data/vis/gif/test-2-agents",
-        local_mode=True
+        video_path="data/vis/gif/test-2-agents", local_mode=True, fps=FPS
     )
 
-    frames_dict, extra_info_dict = gvr.generate_frames(
-        name_ckpt_mapping
-    )
+    frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)
     gvr.generate_gif(frames_dict, extra_info_dict)
     # gvr.close()
 

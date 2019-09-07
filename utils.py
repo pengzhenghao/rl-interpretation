@@ -78,11 +78,13 @@ def _generate_gif(frames, path, fps=50):
     assert path.endswith(".gif")
     duration = int(1 / fps * 1000)
     images = [Image.fromarray(frame) for frame in frames]
-    images[0].save(path,
-                   save_all=True,
-                   append_images=images[1:],
-                   duration=duration,
-                   loop=0)
+    images[0].save(
+        path,
+        save_all=True,
+        append_images=images[1:],
+        duration=duration,
+        loop=0
+    )
 
 
 class VideoRecorder(object):
@@ -104,8 +106,7 @@ class VideoRecorder(object):
         enabled (bool): Whether to actually record video, or just no-op (for
         convenience)
     """
-    allow_gif_mode = ['clip', 'full', 'beginning', 'end', 'period',
-                                '3period']
+    allow_gif_mode = ['clip', 'full', 'beginning', 'end', 'period', '3period']
 
     def __init__(
             # self, env, path=None, metadata=None, base_path=None
@@ -113,14 +114,15 @@ class VideoRecorder(object):
             base_path,
             grids=None,
             generate_gif=False,
-            gif_mode=None,
+            # gif_mode=None,
             fps=50
     ):
         # self.grids = int | dict
         # if int, then it represent the number of videos
         # if dict, then it should be like {agent_name: (row, col)}
         self.frame_shape = None
-        assert generate_gif or isinstance(grids, int) or isinstance(grids, dict)
+        assert generate_gif or isinstance(grids,
+                                          int) or isinstance(grids, dict)
         self.grids = grids
         self.frame_range = None
         self.scale = None
@@ -128,9 +130,9 @@ class VideoRecorder(object):
         self.num_cols = None
         self.num_rows = None
         self.generate_gif = generate_gif
-        if self.generate_gif:
-            assert gif_mode in self.allow_gif_mode
-            self.gif_mode = gif_mode
+        # if self.generate_gif:
+            # assert gif_mode in self.allow_gif_mode
+            # self.gif_mode = gif_mode
 
         required_ext = '.mp4'
         if base_path is not None:
@@ -199,8 +201,7 @@ class VideoRecorder(object):
                 )
         else:
             text_img = np.zeros(
-                (canvas[0].shape[1], canvas[0].shape[0], 4),
-                dtype='uint8'
+                (canvas[0].shape[1], canvas[0].shape[0], 4), dtype='uint8'
             )
             new_pos = ORIGINAL_VIDEO_HEIGHT - pos[1], pos[0]
             cv2.putText(
@@ -318,8 +319,7 @@ class VideoRecorder(object):
 
             # filled the extra number of frames
             self.background[len(frames):, height[0]:height[1], width[0]:
-                                                               width[1],
-            2::-1] = frames[-1]
+                            width[1], 2::-1] = frames[-1]
 
             for information in extra_info_dict.values():
                 if 'pos_ratio' not in information:
@@ -386,11 +386,11 @@ class VideoRecorder(object):
         for idx, frame in enumerate(self.background):
             if idx % 100 == 99:
                 print(
-                    "Current Frames: {}/{} (T +{:.1f}s Total {:.1f}s)"
-                        .format(idx + 1, len(self.background),
-                                time.time() - now,
-                                time.time() - start
-                                )
+                    "Current Frames: {}/{} (T +{:.1f}s Total {:.1f}s)".format(
+                        idx + 1, len(self.background),
+                        time.time() - now,
+                        time.time() - start
+                    )
                 )
                 now = time.time()
             self.last_frame = frame
@@ -403,16 +403,12 @@ class VideoRecorder(object):
     def _get_pos(left_ratio, bottom_ratio, width, height):
         return (
             int(left_ratio * width[0] + (1 - left_ratio) * width[1]),
-            int(
-                bottom_ratio * height[0] +
-                (1 - bottom_ratio) * height[1]
-            )
+            int(bottom_ratio * height[0] + (1 - bottom_ratio) * height[1])
         )
 
     def _generate_gif(self, frames_dict, extra_info_dict):
         # self._add_things_on_backgaround(frames_dict, extra_info_dict)
-        obj_ids = []
-        obj_cnt = 0
+        obj_list = []
         num_workers = 16
         for idx, (title, frames_info) in \
                 enumerate(frames_dict.items()):
@@ -436,44 +432,53 @@ class VideoRecorder(object):
                 else:
                     text = information['text_function'](value)
                     self._put_text(None, text, pos, canvas=frames)
+            obj_ids = self._generate_gif_for_clip(title, frames, frames_info)
+            obj_list.extend(obj_ids)
+            if len(obj_list) >= num_workers:
+                for obj in obj_list:
+                    ray.get(obj)
+                obj_list.clear()
 
-            length = len(frames)
-            one_clip_length = min(5 * self.frames_per_sec, length)
-
-            # if self.gif_mode == 'full':
+    def _generate_gif_for_clip(self, agent_name, frames, frames_info):
+        print(
+            "Start generating gif for agent <{}>. "
+            "We will use these modes: {}".format(
+                agent_name, self.allow_gif_mode
+            )
+        )
+        length = len(frames)
+        one_clip_length = min(5 * self.frames_per_sec, length)
+        obj_ids = []
+        for mode in self.allow_gif_mode:
+            if self.gif_mode == 'full':
                 clip = frames
-            # elif self.gif_mode == 'clip':
+            elif self.gif_mode == 'clip':
                 begin = frames[:one_clip_length]
                 end = frames[-one_clip_length:]
-                center = frames[int(length - one_clip_length/2):
-                         int(length + one_clip_length/2)]
+                center = frames[int(length - one_clip_length /
+                                    2):int(length + one_clip_length / 2)]
                 clip = np.concatenate([begin, end, center])
-            # elif self.gif_mode == 'beginning':
+            elif self.gif_mode == 'beginning':
                 clip = frames[:one_clip_length]
-            # elif self.gif_mode == 'end':
+            elif self.gif_mode == 'end':
                 clip = frames[-one_clip_length:]
-            # elif self.gif_mode == 'period':
-                period = frames_info['period']
-                clip = frames[int(length - period/2): int(length + period/2)]
+            elif self.gif_mode == 'period':
+                period = min(frames_info['period'], length)
+                clip = frames[int(length -
+                                  period / 2):int(length + period / 2)]
+            elif self.gif_mode == '3period':
+                period = min(3 * frames_info['period'], length)
+                clip = frames[int(length -
+                                  period / 2):int(length + period / 2)]
 
-
-            # obj = self._gener
-            obj_ids.append(obj)
-            obj_cnt += 1
-            if len(obj_ids) == num_workers:
-                for obj in obj_ids:
-                    ray.get(obj)
-                obj_ids.clear()
-                obj_cnt = 0
-
-
-
-    def _generate_gif_for_clip(self, agent_name, clip, mode):
-        gif_path = os.path.join(
-            self.base_path, mode, "{}.gif".format(agent_name)
-        )
-        obj_id = remote_generate_gif.remote(clip, gif_path, self.frames_per_sec)
-        return obj_id
+            gif_path = os.path.join(
+                self.base_path, mode, "{}.gif".format(agent_name)
+            )
+            obj_id = remote_generate_gif.remote(
+                clip, gif_path, self.frames_per_sec
+            )
+            obj_ids.append(obj_id)
+        return obj_ids
 
     def _close(self):
         """Make sure to manually close, or else you'll leak the encoder
@@ -563,11 +568,11 @@ class VideoRecorder(object):
                         VIDEO_WIDTH_EDGE
                     ],
                     "column":
-                        col_id,
+                    col_id,
                     "row":
-                        row_id,
+                    row_id,
                     "index":
-                        i
+                    i
                 }
             )
         self.frame_range = frame_range
@@ -625,15 +630,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-                self.backend,
+            self.backend,
             'version':
-                str(
-                    subprocess.check_output(
-                        [self.backend, '-version'], stderr=subprocess.STDOUT
-                    )
-                ),
+            str(
+                subprocess.check_output(
+                    [self.backend, '-version'], stderr=subprocess.STDOUT
+                )
+            ),
             'cmdline':
-                self.cmdline
+            self.cmdline
         }
 
     def start(self):
@@ -682,7 +687,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                    format(type(frame), frame)
+                format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(
