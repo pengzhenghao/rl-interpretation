@@ -15,6 +15,7 @@ from math import floor
 import cv2
 import numpy as np
 import ray
+from PIL import Image
 from gym import logger, error
 from gym.envs.box2d import BipedalWalker
 from ray.rllib.agents.registry import get_agent_class
@@ -64,6 +65,26 @@ class DefaultMapping(collections.defaultdict):
         return value
 
 
+@ray.remote(num_return_vals=1)
+def remote_generate_gif(frames, path, fps=50):
+    _generate_gif(frames, path, fps)
+    return None
+
+
+def _generate_gif(frames, path, fps=50):
+    assert isinstance(frames, np.ndarray)
+    assert frames.dtype == 'uint8'
+    assert frames.ndim == 4
+    assert path.endswith(".gif")
+    duration = int(1 / fps * 1000)
+    images = [Image.fromarray(frame) for frame in frames]
+    images[0].save(path,
+                   save_all=True,
+                   append_images=images[1:],
+                   duration=duration,
+                   loop=0)
+
+
 class VideoRecorder(object):
     """VideoRecorder renders a nice movie of a rollout, frame by frame. It
     comes with an `enabled` option so you can still use the same code
@@ -88,20 +109,22 @@ class VideoRecorder(object):
             # self, env, path=None, metadata=None, base_path=None
             self,
             base_path,
-            grids,
-            FPS=50
+            grids=None,
+            generate_gif=False,
+            fps=50
     ):
         # self.grids = int | dict
         # if int, then it represent the number of videos
         # if dict, then it should be like {agent_name: (row, col)}
         self.frame_shape = None
-        assert isinstance(grids, int) or isinstance(grids, dict)
+        assert generate_gif or isinstance(grids, int) or isinstance(grids, dict)
         self.grids = grids
         self.frame_range = None
         self.scale = None
         self.last_frame = None
         self.num_cols = None
         self.num_rows = None
+        self.generate_gif = generate_gif
 
         required_ext = '.mp4'
         if base_path is not None:
@@ -113,6 +136,7 @@ class VideoRecorder(object):
                                              delete=False) as f:
                 path = f.name
         self.path = path
+        self.base_path = base_path
 
         path_base, actual_ext = os.path.splitext(self.path)
 
@@ -127,10 +151,13 @@ class VideoRecorder(object):
         # Touch the file in any case, so we know it's present. (This
         # corrects for platform platform differences. Using ffmpeg on
         # OS X, the file is precreated, but not on Linux.
-        touch(path)
+        if not generate_gif:
+            touch(self.path)
+        else:
+            os.makedirs(self.base_path, exist_ok=True)
 
         self.extra_num_frames = None
-        self.frames_per_sec = FPS
+        self.frames_per_sec = fps
         self.encoder = None  # lazily start the process
 
         logger.info('Starting new video recorder writing to %s', self.path)
@@ -143,14 +170,16 @@ class VideoRecorder(object):
             pos,
             thickness=1,
             color=(0, 0, 0),
+            canvas=None,
             rotate=False,
             not_scale=False
     ):
         # print("put text {} at pos {} at time {}".format(text, pos, timestep))
+        canvas = self.background if canvas is None else canvas
         if not text:
             return
         if timestep is None:
-            timestep = list(range(len(self.background)))
+            timestep = list(range(len(canvas)))
         elif isinstance(timestep, int):
             timestep = [timestep]
         assert isinstance(timestep, list)
@@ -158,13 +187,13 @@ class VideoRecorder(object):
         if not rotate:
             for t in timestep:
                 cv2.putText(
-                    self.background[t], text, pos, cv2.FONT_HERSHEY_SIMPLEX,
+                    canvas[t], text, pos, cv2.FONT_HERSHEY_SIMPLEX,
                     1 if not_scale else 0.38 * self.scale + 0.1, color,
                     thickness
                 )
         else:
             text_img = np.zeros(
-                (self.background[0].shape[1], self.background[0].shape[0], 4),
+                (canvas[0].shape[1], canvas[0].shape[0], 4),
                 dtype='uint8'
             )
             new_pos = ORIGINAL_VIDEO_HEIGHT - pos[1], pos[0]
@@ -174,7 +203,7 @@ class VideoRecorder(object):
             )
             # Only work for black background which is all zeros
             for t in timestep:
-                self.background[t] += text_img[:, ::-1, :].swapaxes(0, 1)
+                canvas[t] += text_img[:, ::-1, :].swapaxes(0, 1)
 
     def _build_background(self, frames_dict):
         assert self.frames_per_sec is not None
@@ -262,20 +291,8 @@ class VideoRecorder(object):
             rang = self.frame_range[idx] if not specify_loc \
                 else self.frame_range[row_id * self.num_cols + col_id]
 
-            # TODO we can add async execution here
             height = rang["height"]
             width = rang["width"]
-
-            def get_pos(left_ratio, bottom_ratio):
-                assert 0 <= left_ratio <= 1
-                assert 0 <= bottom_ratio <= 1
-                return (
-                    int(left_ratio * width[0] + (1 - left_ratio) * width[1]),
-                    int(
-                        bottom_ratio * height[0] +
-                        (1 - bottom_ratio) * height[1]
-                    )
-                )
 
             if self.scale < 1:
                 frames = [
@@ -289,8 +306,8 @@ class VideoRecorder(object):
                 ]
                 frames = np.stack(frames)
 
-            self.background[:len(frames), height[0]:height[1], width[0]:
-                                                               width[1],
+            self.background[:len(frames), \
+            height[0]:height[1], width[0]: width[1],
             2::-1] = frames
 
             # filled the extra number of frames
@@ -301,7 +318,7 @@ class VideoRecorder(object):
             for information in extra_info_dict.values():
                 if 'pos_ratio' not in information:
                     continue
-                pos = get_pos(*information['pos_ratio'])
+                pos = self._get_pos(*information['pos_ratio'], width, height)
                 value = information[title]
                 if isinstance(value, list):
                     # filter out the empty list if any.
@@ -340,6 +357,11 @@ class VideoRecorder(object):
         #       "frame_info": {'width':.., "height":.., }
         # }
 
+        if self.generate_gif:
+            self.scale = 1
+            self._generate_gif(frames_dict, extra_info_dict)
+            return self.base_path
+
         if not self.initialized:
             info = extra_info_dict['frame_info']
             # tmp_frame = list(frames_dict.values())[0][0]
@@ -354,14 +376,15 @@ class VideoRecorder(object):
 
         now = time.time()
         start = now
+
         for idx, frame in enumerate(self.background):
             if idx % 100 == 99:
                 print(
-                    "Current Frames: {}/{} (T +{:.1f}s Total {:.1f}s)".format(
-                        idx + 1, len(self.background),
-                        time.time() - now,
-                        time.time() - start
-                    )
+                    "Current Frames: {}/{} (T +{:.1f}s Total {:.1f}s)"
+                        .format(idx + 1, len(self.background),
+                                time.time() - now,
+                                time.time() - start
+                                )
                 )
                 now = time.time()
             self.last_frame = frame
@@ -370,14 +393,61 @@ class VideoRecorder(object):
         self._close()
         return self.path
 
+    @staticmethod
+    def _get_pos(left_ratio, bottom_ratio, width, height):
+        return (
+            int(left_ratio * width[0] + (1 - left_ratio) * width[1]),
+            int(
+                bottom_ratio * height[0] +
+                (1 - bottom_ratio) * height[1]
+            )
+        )
+
+    def _generate_gif(self, frames_dict, extra_info_dict):
+        # self._add_things_on_backgaround(frames_dict, extra_info_dict)
+        obj_ids = []
+        obj_cnt = 0
+        num_workers = 10
+        for idx, (title, frames_info) in \
+                enumerate(frames_dict.items()):
+            frames = frames_info['frames']
+            width = (0, extra_info_dict['frame_info']['width'])
+            height = (0, extra_info_dict['frame_info']['width'])
+
+            for information in extra_info_dict.values():
+                if 'pos_ratio' not in information:
+                    continue
+                pos = self._get_pos(*information['pos_ratio'], width, height)
+                value = information[title]
+                if isinstance(value, list):
+                    # filter out the empty list if any.
+                    if not value:
+                        continue
+                    value_sequence = value
+                    for timestep, value in enumerate(value_sequence):
+                        text = information['text_function'](value)
+                        self._put_text(timestep, text, pos, canvas=frames)
+                else:
+                    text = information['text_function'](value)
+                    self._put_text(None, text, pos, canvas=frames)
+            gif_path = os.path.join(
+                self.base_path, "{}_frames{}.gif".format(title, len(frames))
+            )
+            obj = remote_generate_gif.remote(frames, gif_path, self.frames_per_sec)
+            obj_ids.append(obj)
+            obj_cnt += 1
+            if len(obj_ids) == num_workers:
+                for obj in obj_ids:
+                    ray.get(obj)
+                obj_ids.clear()
+                obj_cnt = 0
+
     def _close(self):
         """Make sure to manually close, or else you'll leak the encoder
         process"""
-
         # Add extra 5 seconds static frames to help visualization.
         # for _ in range(5 * int(self.frames_per_sec)):
         #     self._encode_image_frame(self.last_frame)
-
         if self.encoder:
             print('Closing video encoder: path={}'.format(self.path))
             self.encoder.close()

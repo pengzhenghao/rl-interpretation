@@ -13,8 +13,11 @@ import argparse
 import copy
 import json
 from math import ceil
-
+import numpy as np
+import PIL
 import ray
+
+from PIL import Image
 import yaml
 
 from process_data import get_name_ckpt_mapping
@@ -150,6 +153,16 @@ class CollectFramesWorker(object):
         env.close()
         agent.stop()
         return frames, extra_info
+
+
+
+from utils import _generate_gif, remote_generate_gif
+
+def test_generate_gif():
+    data = np.random.randint(0, 256, (500, 100, 100, 4), dtype='uint8')
+    _generate_gif(data, "tmp_delete_me.gif")
+
+
 
 
 class GridVideoRecorder(object):
@@ -293,8 +306,43 @@ class GridVideoRecorder(object):
         path = vr.generate_video(frames_dict, extra_info_dict)
         return path
 
+    def generate_gif(self, frames_dict, extra_info_dict):
+        print(
+            "Start generating grid containing {} videos.".format(
+                len(frames_dict)
+            )
+        )
+        # locations = [f_info['loc'] for f_info in frames_dict.values()]
+
+        # unique_locations = set(locations)
+        # no_specify_location = len(unique_locations) == 1 and next(
+        #     iter(unique_locations)
+        # ) is None
+        # assert len(unique_locations) == len(locations) or no_specify_location
+        # if no_specify_location:
+        #     grids = len(frames_dict)
+        # else:
+        #     max_row = max([row + 1 for row, _ in locations])
+        #     max_col = max([col + 1 for _, col in locations])
+        #     grids = {"col": max_col, "row": max_row}
+        vr = VideoRecorder(self.video_path, generate_gif=True)
+        path = vr.generate_video(frames_dict, extra_info_dict)
+        return path
+        # return path
+
+        # for agent_name, frame_info in frames_dict.items():
+        #     frames = frame_info['frame']
+
+            # frames_len = frames()
+
+
+            # gif_path = None
+            # remote_generate_gif(frames, gif_path)
+
+
     def close(self):
         ray.shutdown()
+
 
 
 def _build_name_row_mapping(cluster_dict):
@@ -486,6 +534,21 @@ def test_cluster_video_generation():
 
     gvr.close()
 
+def test_gif_generation():
+    yaml = "yaml/test-2-agents.yaml"
+    name_ckpt_mapping = get_name_ckpt_mapping(yaml, number=2)
+
+    gvr = GridVideoRecorder(
+        video_path="data/vis/gif/test-2-agents",
+        local_mode=True
+    )
+
+    frames_dict, extra_info_dict = gvr.generate_frames(
+        name_ckpt_mapping, 100
+    )
+    gvr.generate_gif(frames_dict, extra_info_dict)
+    # gvr.close()
+
 
 def test_es_compatibility():
     name_ckpt_mapping = get_name_ckpt_mapping(
@@ -501,4 +564,5 @@ def test_es_compatibility():
 
 
 if __name__ == "__main__":
-    test_es_compatibility()
+    # test_es_compatibility()
+    test_gif_generation()
