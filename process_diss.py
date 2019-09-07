@@ -490,5 +490,6 @@ if __name__ == '__main__':
         pickle.dump(result, f)
 
     generate_yaml_of_ablated_agents(
-        result, "data/ppo121_ablation_last2_layer/result.yaml"
+        result,
+        "data/ppo121_ablation_last2_layer/ppo-1-agents-ablation-result-fc_out.yaml"
     )

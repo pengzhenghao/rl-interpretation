@@ -16,8 +16,11 @@ import cv2
 import numpy as np
 import ray
 from gym import logger, error
+from gym.envs.box2d import BipedalWalker
 from ray.rllib.agents.registry import get_agent_class
 from ray.tune.util import merge_dicts
+
+from tf_model import PPOAgentWithActivation, model_config
 
 ORIGINAL_VIDEO_WIDTH = 1920
 ORIGINAL_VIDEO_HEIGHT = 1080
@@ -29,7 +32,7 @@ VIDEO_WIDTH = ORIGINAL_VIDEO_WIDTH - 2 * VIDEO_WIDTH_EDGE
 VIDEO_HEIGHT = ORIGINAL_VIDEO_HEIGHT - 2 * VIDEO_HEIGHT_EDGE
 
 
-def build_config(ckpt, args_config):
+def build_config(ckpt, args_config, extra_config=None):
     config = {"log_level": "ERROR"}
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
@@ -45,6 +48,7 @@ def build_config(ckpt, args_config):
     if "num_workers" in config:
         config["num_workers"] = min(1, config["num_workers"])
     config = merge_dicts(config, args_config or {})
+    config = merge_dicts(config, extra_config or {})
     return config
 
 
@@ -286,11 +290,13 @@ class VideoRecorder(object):
                 frames = np.stack(frames)
 
             self.background[:len(frames), height[0]:height[1], width[0]:
-                            width[1], 2::-1] = frames
+                                                               width[1],
+            2::-1] = frames
 
             # filled the extra number of frames
             self.background[len(frames):, height[0]:height[1], width[0]:
-                            width[1], 2::-1] = frames[-1]
+                                                               width[1],
+            2::-1] = frames[-1]
 
             for information in extra_info_dict.values():
                 if 'pos_ratio' not in information:
@@ -454,11 +460,11 @@ class VideoRecorder(object):
                         VIDEO_WIDTH_EDGE
                     ],
                     "column":
-                    col_id,
+                        col_id,
                     "row":
-                    row_id,
+                        row_id,
                     "index":
-                    i
+                        i
                 }
             )
         self.frame_range = frame_range
@@ -516,15 +522,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-            self.backend,
+                self.backend,
             'version':
-            str(
-                subprocess.check_output(
-                    [self.backend, '-version'], stderr=subprocess.STDOUT
-                )
-            ),
+                str(
+                    subprocess.check_output(
+                        [self.backend, '-version'], stderr=subprocess.STDOUT
+                    )
+                ),
             'cmdline':
-            self.cmdline
+                self.cmdline
         }
 
     def start(self):
@@ -573,7 +579,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                format(type(frame), frame)
+                    format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(
@@ -603,14 +609,28 @@ class ImageEncoder(object):
             )
 
 
-def restore_agent(run_name, ckpt, env_name, config=None):
+def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None):
+    # if config is None:
+    if not has_gpu():
+        args_config = {"model": model_config}
+    else:
+        args_config = {"model": model_config, "num_gpus_per_worker": 0.1}
+    config = build_config(ckpt, args_config, extra_config)
+    agent = PPOAgentWithActivation(env=env_name, config=config)
+    if ckpt is not None:
+        ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
+        agent.restore(ckpt)
+    return agent
+
+
+def restore_agent(run_name, ckpt, env_name, extra_config=None):
     cls = get_agent_class(run_name)
-    if config is None:
-        if 'gpu' not in ray.available_resources():
-            args_config = {}
-        else:
-            args_config = {"num_gpus_per_worker": 0.1}
-        config = build_config(ckpt, args_config)
+    # if config is None:
+    if not has_gpu():
+        args_config = {}
+    else:
+        args_config = {"num_gpus_per_worker": 0.1}
+    config = build_config(ckpt, args_config, extra_config)
     # This is a workaround
     if run_name == "ES":
         config["num_workers"] = 1
@@ -630,7 +650,8 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False):
             num_gpus=num_gpus
         )
         print("Sucessfully initialize Ray!")
-    print("Available resources: ", ray.available_resources())
+    if not local_mode:
+        print("Available resources: ", ray.available_resources())
 
 
 def get_random_string():
@@ -644,3 +665,25 @@ def _get_num_iters_from_ckpt_name(ckpt):
     num_iters = eval(base_name.split("-")[1])
     assert isinstance(num_iters, int)
     return num_iters
+
+
+def build_env(useless=None):
+    env = BipedalWalker()
+    env.seed(0)
+    return env
+
+
+ENV_MAKER_LOOKUP = {"BipedalWalker-v2": build_env}
+
+
+def _get_ppo_agent(env="CartPole-v0"):
+    from ray.rllib.agents.ppo import PPOAgent
+    return PPOAgent(env=env)
+
+
+def has_gpu():
+    try:
+        ret = "GPU" in ray.available_resources()
+    except Exception:
+        return False
+    return ret

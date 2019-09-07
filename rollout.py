@@ -12,6 +12,8 @@ import logging
 import os
 import pickle
 import time
+from math import ceil
+import copy
 
 import gym
 import numpy as np
@@ -26,7 +28,9 @@ from ray.rllib.evaluation.rollout_worker import RolloutWorker
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from utils import restore_agent, initialize_ray
+from utils import restore_agent, initialize_ray, ENV_MAKER_LOOKUP, restore_agent_with_activation, has_gpu
+from process_data import read_yaml
+from tf_model import PPOTFPolicyWithActivation
 
 EXAMPLE_USAGE = """
 Example Usage via RLlib CLI:
@@ -137,77 +141,226 @@ def default_policy_agent_mapping(unused_agent_id):
     return DEFAULT_POLICY_ID
 
 
-"""
-Modification:
-    1. use iteration as the termination criterion
-    2. pass an environment object which can be different from env_name
-"""
+# def test_efficient_rollout():
+#     initialize_ray()
+#     agent = PPOAgent(env="BipedalWalker-v2")
+#     env = gym.make("BipedalWalker-v2")
+#     w = make_worker(lambda _: env, 0)
+#     set_weight(w, agent)
+#     ret = efficient_rollout(w, 7)
+#     print("start for another time!")
+#     ret = efficient_rollout(w, 7)
+#     return ret
+# return efficient_rollout(agent, env, 3)
 
 
-def test_efficient_rollout():
-    initialize_ray()
-    agent = PPOAgent(env="BipedalWalker-v2")
-    env = gym.make("BipedalWalker-v2")
-    w = make_worker(lambda _: env, agent, 0)
-    set_weight(w, agent)
-    ret = efficient_rollout(w, 7)
-    print("start for another time!")
-    ret = efficient_rollout(w, 7)
-    return ret
-    # return efficient_rollout(agent, env, 3)
+def get_dataset_path(ckpt, num_rollout, seed):
+    ckpt = os.path.abspath(os.path.expanduser(ckpt))
+    return "{}_rollout{}_seed{}.pkl".format(ckpt, num_rollout, seed)
 
 
-def make_worker(env_maker, agent, seed):
-    assert agent._name == "PPO", "We only support ppo agent now!"
+def on_episode_start(info):
+    # print(info.keys())  # -> "env", 'episode"
+    episode = info["episode"]
+    # print("episode {} started".format(episode.episode_id))
+    episode.user_data["last_layer_activation"] = []
+
+
+def on_episode_step(info):
+    episode = info["episode"]
+    pole_angle = abs(episode.last_observation_for()[2])
+    episode.user_data["last_layer_activation"].append(pole_angle)
+
+
+from tf_model import model_config, register
+
+
+class RolloutWorkerWrapper(object):
+    @classmethod
+    def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
+        return ray.remote(
+            num_cpus=num_cpus, num_gpus=num_gpus, resources=resources
+        )(cls)
+
+    def __init__(self, force_rewrite=False):
+        self.initialized = False
+        self.already_reset = False
+        self.path = None
+        self.num_rollouts = None
+        self.index = None
+        self.dataset = False
+        self.data = None
+        self.worker = None
+        self.force_rewrite = force_rewrite
+        self.run_name = None
+        self.env_name = None
+        self.ckpt = None
+        self.seed = None
+        self.policy_type = None
+        self.env_creater = None
+        self.require_activation = None
+
+    def reset(
+            self,
+            ckpt,
+            num_rollouts,
+            seed,
+            env_creater,
+            # policy_type,
+            run_name,
+            env_name,
+            require_activation=False,
+    ):
+        self.already_reset = False
+        self.initialized = True
+        self.path = get_dataset_path(ckpt, num_rollouts, seed)
+        self.num_rollouts = num_rollouts
+        self.require_activation = require_activation
+        self.index = 0
+        # assert self.initialized
+        # if self.dataset:
+        #     return
+        self.run_name = run_name
+        self.ckpt = ckpt
+        self.env_name = env_name
+        self.env_creater = env_creater
+        # self.policy = policy
+        self.seed = seed
+
+    def _lazy_reset(self):
+        assert self.initialized
+        if os.path.exists(self.path) and (not self.force_rewrite):
+            print(
+                "Dataset is detected! It's at {}."
+                "\nWe will load data from it.".format(self.path)
+            )
+            try:
+                with open(self.path, "rb") as f:
+                    self.data = pickle.load(f)
+                logging.critical(
+                    "Dataset is detected!"
+                    "\nWe have load data from <{}>.".format(self.path)
+                )
+            except Exception as e:
+                logging.critical("Error detected when loading data from {}. "
+                              "We will regenerate the broken pkl files."
+                              .format(self.path))
+                self.dataset = False
+            else:
+                self.dataset = True
+
+        if (not os.path.exists(self.path)) or self.force_rewrite \
+                or (not self.dataset):
+
+            config_for_evaluation = {
+                "batch_mode": "complete_episodes",
+                "sample_batch_size": 1,
+                "horizon": 3000,
+                "seed": self.seed
+            }
+
+            if self.require_activation:
+                agent = restore_agent_with_activation(
+                    self.run_name, self.ckpt, self.env_name,
+                    config_for_evaluation
+                )
+                self.policy_type = PPOTFPolicyWithActivation
+                policy = agent.get_policy()
+                assert "layer0" in policy.extra_compute_action_fetches(), \
+                "This policy is not we modified policy. Please use policy" \
+                "we reimplemented."
+            else:
+                agent = restore_agent(self.run_name, self.ckpt, self.env_name,
+                                      config_for_evaluation)
+                self.policy_type = PPOTFPolicy
+
+            register()
+            self.worker = agent.workers.local_worker()
+
+            self.dataset = False
+            self.data = []
+
+            self.worker.set_weights(
+                {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
+            )
+
+            print("Successfully set weights for agent.")
+        self.already_reset = True
+
+    def wrap_sample(self):
+        assert self.initialized
+        if not self.already_reset:
+            self._lazy_reset()
+        result_list = []
+        for roll in range(self.num_rollouts):
+            assert self.index < self.num_rollouts
+            if self.dataset:
+                result = self.data[self.index]
+            else:
+                result = self.worker.sample()
+                self.data.append(result)
+            self.index += 1
+            result_list.append(result)
+        return result_list
+
+    def get_dataset(self):
+        assert self.initialized
+        return self.dataset
+
+    def close(self):
+        assert self.initialized
+        if self.dataset:
+            logging.critical(
+                "Data is already saved at: {} with len {}.".format(
+                    self.path, len(self.data)
+                )
+            )
+        else:
+            with open(self.path, "wb") as f:
+                pickle.dump(self.data, f)
+            logging.critical(
+                "Data is newly saved at: {} with len {}.".format(
+                    self.path, len(self.data)
+                )
+            )
+            self.dataset = len(self.data) >= self.num_rollouts
+        return self.path
+
+
+def make_worker(env_maker, ckpt, num_rollout, seed, run_name, env_name):
+    # assert agent._name == "PPO", "We only support ppo agent now!"
+    # path = get_dataset_path(ckpt, num_rollout, seed)
+    # if os.path.exists(path):
+    #     return DataLoader(ckpt, num_rollout, seed)
     policy = PPOTFPolicy
-    worker = RolloutWorker.as_remote().remote(
-        env_creator=env_maker,
-        policy=policy,
-        batch_mode="complete_episodes",
-        batch_steps=1,
-        episode_horizon=3000,
-        sample_async=True,
-        seed=seed
+    worker = RolloutWorkerWrapper.as_remote().remote()
+    worker.reset.remote(
+        ckpt, num_rollout, seed, env_maker, policy, run_name, env_name
     )
     return worker
 
-
-def set_weight(worker, agent):
-    # assert agent._name == "PPO", "We only support ppo agent now!"
-    # policy = PPOTFPolicy
-    worker.set_weights.remote(
-        {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
-    )
-
-
-def efficient_rollout(worker, num_rollouts):
+def efficient_rollout_from_worker(worker, num_rollouts):
     trajctory_list = []
     obj_ids = []
     t = time.time()
     for num in range(num_rollouts):
-        obj_ids.append(worker.sample.remote())
+        obj_ids.append(worker.wrap_sample.remote())
     for num, obj in enumerate(obj_ids):
         # We have so many information:
         # dict_keys(['t', 'eps_id', 'agent_index', 'obs', 'actions',
         # 'rewards', 'prev_actions', 'prev_rewards', 'dones', 'infos',
         # 'new_obs', 'action_prob', 'vf_preds', 'behaviour_logits',
         # 'unroll_id', 'advantages', 'value_targets'])
-        data = ray.get(obj).data
-        obs = data['obs']
-        act = data['actions']
-        rew = data['rewards']
-        next_obs = data['new_obs']
-        # value_function = data['vf_preds']
-        done = data['dones']
+        data = copy.deepcopy(ray.get(obj).data)
+        trajectory = parse_single_rollout(data)
         logging.info(
             "Finish collect {}/{} rollouts. The latest rollout contain {}"
             " steps.".format(
                 num + 1,
                 num_rollouts,
-                len(obs),
+                len(trajectory[0]),
             )
         )
-        trajectory = [obs, act, next_obs, rew, done]
         trajctory_list.append(trajectory)
     logging.info(
         "Finish {} Rollouts. Cost: {} s.".format(
@@ -215,7 +368,34 @@ def efficient_rollout(worker, num_rollouts):
             time.time() - t
         )
     )
+    worker.close.remote()
     return trajctory_list
+
+
+def parse_rllib_trajectory_list(trajectory_list):
+    return_list = []
+    for num, trajectory in enumerate(trajectory_list):
+        parsed_trajectory = parse_single_rollout(trajectory)
+        return_list.append(parsed_trajectory)
+    return trajectory_list
+
+
+def parse_single_rollout(data):
+    obs = data['obs']
+    act = data['actions']
+    rew = data['rewards']
+    next_obs = data['new_obs']
+    # value_function = data['vf_preds']
+    done = data['dones']
+    trajectory = [obs, act, next_obs, rew, done]
+    return trajectory
+
+
+"""
+Modification:
+    1. use iteration as the termination criterion
+    2. pass an environment object which can be different from env_name
+"""
 
 
 def rollout(
@@ -403,20 +583,253 @@ def _test_es_agent_compatibility():
     rollout(es, env, num_steps=100, require_frame=True)
 
 
-if __name__ == "__main__":
-    # This part is used for test only!
-    # Don't call python rollout.py for any other purpose.
+def test_RolloutWorkerWrapper():
+    initialize_ray(test_mode=True)
+    env_maker = lambda _: gym.make("BipedalWalker-v2")
+    ckpt = "test/fake-ckpt1/checkpoint-313"
+    # rww = RolloutWorkerWrapper(ckpt, 2, 0, env_maker, PPOTFPolicy)
+    # for _ in range(2):
+    #     result = rww.wrap_sample()
+    # print(result)
+    # rww.close()
 
-    initialize_ray(False)
-    env = gym.make("CartPole-v0")
-    ret = rollout(
-        restore_agent("PPO", None, "CartPole-v0"),
-        env,
-        100,
-        require_extra_info=True,
-        require_trajectory=True,
-        require_frame=True
+    rww_new = RolloutWorkerWrapper.as_remote().remote(
+        ckpt,
+        2,
+        0,
+        env_maker,
+        PPOTFPolicy,
+        run_name="PPO",
+        env_name="BipedalWalker-v2"
     )
-    print(ret)
+    for _ in range(2):
+        result = ray.get(rww_new.wrap_sample.remote())
+    print(result)
+    print("Prepare to close")
+    print("Dataset: ", ray.get(rww_new.get_dataset.remote()))
+    rww_new.close.remote()
+    print("After close")
 
-    _test_es_agent_compatibility()
+
+def several_agent_rollout(
+        yaml_path,
+        num_rollouts,
+        seed=0,
+        num_workers=10,
+        force_rewrite=False,
+        return_data=False,
+        require_activation=True,
+        _num_agents=None
+):
+    name_ckpt_mapping = read_yaml(yaml_path, number=_num_agents)
+    now_t_get = now_t = start_t = time.time()
+    num_agents = len(name_ckpt_mapping)
+    num_iteration = int(ceil(num_agents / num_workers))
+    agent_ckpt_dict_range = list(name_ckpt_mapping.items())
+    agent_count = 1
+    agent_count_get = 1
+
+    have_gpu = has_gpu()
+    workers = [
+        RolloutWorkerWrapper.as_remote(num_gpus=0.2 if have_gpu else 0
+                                       ).remote(force_rewrite)
+        for _ in range(num_workers)
+    ]
+
+    return_dict = {}
+
+    for iteration in range(num_iteration):
+        start = iteration * num_workers
+        end = min((iteration + 1) * num_workers, num_agents)
+        # obj_ids = []
+        # workers = []
+        obj_ids_dict = {}
+        for i, (name, ckpt_dict) in \
+                enumerate(agent_ckpt_dict_range[start:end]):
+            ckpt = ckpt_dict["path"]
+            env_name = ckpt_dict["env_name"]
+            env_maker = ENV_MAKER_LOOKUP[env_name]
+            run_name = ckpt_dict["run_name"]
+            assert run_name == "PPO"
+
+            # TODO Only support PPO now.
+            workers[i].reset.remote(
+                ckpt, num_rollouts, seed, env_maker, run_name, env_name,
+                require_activation
+            )
+            obj_id = workers[i].wrap_sample.remote()
+            obj_ids_dict[name] = obj_id
+            print(
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from agent"
+                " <{}>".format(
+                    agent_count, num_agents,
+                    time.time() - now_t,
+                    time.time() - start_t, num_rollouts, name
+                )
+            )
+
+            agent_count += 1
+            now_t = time.time()
+
+        for (name, obj_id), worker in zip(obj_ids_dict.items(), workers):
+            trajectory_list = copy.deepcopy(ray.get(obj_id))
+            # for obj_id in obj_ids:
+            #     trajectory_list.append(ray.get(obj_id))
+            return_dict[name] = trajectory_list
+            worker.close.remote()
+            print(
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Collected {} rollouts from agent"
+                " <{}>".format(
+                    agent_count_get, num_agents,
+                    time.time() - now_t_get,
+                    time.time() - start_t, num_rollouts, name
+                )
+            )
+            agent_count_get += 1
+            now_t_get = time.time()
+    return return_dict if return_data else None
+
+
+def _replay(obs, run_name, ckpt, env_name):
+    agent = restore_agent_with_activation(run_name, ckpt, env_name)
+    act, _, infos = agent.get_policy().compute_actions(obs)
+    return act, infos
+
+
+@ray.remote(num_gpus=0.2)
+def remote_replay_gpu(obs, run_name, ckpt, env_name):
+    return _replay(obs, run_name, ckpt, env_name)
+
+
+@ray.remote
+def remote_replay_cpu(obs, run_name, ckpt, env_name):
+    return _replay(obs, run_name, ckpt, env_name)
+
+
+def several_agent_replay(
+        yaml_path,
+        obs,
+        # num_rollouts,
+        seed=0,
+        num_workers=10,
+        _num_agents=None
+        # force_rewrite=False,
+        # return_data=False
+):
+    name_ckpt_mapping = read_yaml(yaml_path, number=_num_agents)
+    now_t_get = now_t = start_t = time.time()
+    num_agents = len(name_ckpt_mapping)
+    num_iteration = int(ceil(num_agents / num_workers))
+    agent_ckpt_dict_range = list(name_ckpt_mapping.items())
+    agent_count = 1
+    agent_count_get = 1
+
+    have_gpu = has_gpu()
+    return_dict = {}
+
+    for iteration in range(num_iteration):
+        start = iteration * num_workers
+        end = min((iteration + 1) * num_workers, num_agents)
+        # obj_ids = []
+        # workers = []
+        obj_ids_dict = {}
+        for i, (name, ckpt_dict) in \
+                enumerate(agent_ckpt_dict_range[start:end]):
+            ckpt = ckpt_dict["path"]
+            env_name = ckpt_dict["env_name"]
+                # if "env_name" in ckpt_dict else "BipedalWalker-v2"
+            # env_maker = ENV_MAKER_LOOKUP[env_name]
+            run_name = ckpt_dict["run_name"]
+                # if "run_name" in ckpt_dict else "PPO"
+            assert run_name == "PPO"
+
+            if have_gpu:
+                obj_id = remote_replay_gpu.remote(
+                    obs, run_name, ckpt, env_name
+                )
+            else:
+                obj_id = remote_replay_cpu.remote(
+                    obs, run_name, ckpt, env_name
+                )
+            obj_ids_dict[name] = obj_id
+
+            print(
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect replay result"
+                " of {} samples from agent <{}>".format(
+                    agent_count, num_agents,
+                    time.time() - now_t,
+                    time.time() - start_t, obs.shape, name
+                )
+            )
+
+            agent_count += 1
+            now_t = time.time()
+
+        for agent_name, obj_id in obj_ids_dict.items():
+            act, infos = copy.deepcopy(ray.get(obj_id))
+            return_dict[agent_name] = {"act": act, "infos": infos}
+
+            # trajectory_list = []
+            # for obj_id in obj_ids:
+            #     trajectory_list.append(ray.get(obj_id))
+            # return_dict[name] = trajectory_list
+            # worker.close.remote()
+            print(
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Collected output of {} samples "
+                "from agent <{}>".format(
+                    agent_count_get, num_agents,
+                    time.time() - now_t_get,
+                    time.time() - start_t, obs.shape, agent_name
+                )
+            )
+            agent_count_get += 1
+            now_t_get = time.time()
+    return return_dict
+
+
+def test_RolloutWorkerWrapper_with_activation():
+    initialize_ray(test_mode=True)
+    env_maker = lambda _: gym.make("BipedalWalker-v2")
+    ckpt = "test/fake-ckpt1/checkpoint-313"
+    rww_new = RolloutWorkerWrapper.as_remote().remote(True)
+    rww_new.reset.remote(
+        ckpt, 2, 0, env_maker, "PPO", "BipedalWalker-v2", True
+    )
+    for _ in range(2):
+        result = ray.get(rww_new.wrap_sample.remote())
+    print(result)
+    print("Prepare to close")
+    print("Dataset: ", ray.get(rww_new.get_dataset.remote()))
+    rww_new.close.remote()
+    print("After close")
+    return result
+
+
+def test_serveral_agent_rollout(force=False):
+    yaml_path = "data/0811-random-test.yaml"
+    num_rollouts = 2
+    initialize_ray()
+    return several_agent_rollout(
+        yaml_path, num_rollouts, force_rewrite=force, return_data=True
+    )
+
+
+if __name__ == "__main__":
+    # test_serveral_agent_rollout(True)
+    # exit(0)
+    # _test_es_agent_compatibility()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--yaml-path", required=True, type=str)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--num-rollouts", '-n', type=int, default=100)
+    parser.add_argument("--num-workers", type=int, default=10)
+    parser.add_argument("--num-gpus", '-g', type=int, default=4)
+    parser.add_argument("--force-rewrite", action="store_true")
+    args = parser.parse_args()
+    assert args.yaml_path.endswith("yaml")
+
+    initialize_ray(num_gpus=args.num_gpus)
+    several_agent_rollout(
+        args.yaml_path, args.num_rollouts, args.seed, args.num_workers,
+        args.force_rewrite
+    )

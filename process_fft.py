@@ -13,19 +13,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from process_cluster import ClusterFinder
 from process_data import get_name_ckpt_mapping
-from rollout import efficient_rollout, make_worker, set_weight
-from utils import restore_agent, initialize_ray, get_random_string
-
-# has_gpu =
-
-
-def build_env(useless=None):
-    env = BipedalWalker()
-    env.seed(0)
-    return env
-
-
-FFT_ENV_MAKER_LOOKUP = {"BipedalWalker-v2": build_env}
+from rollout import efficient_rollout_from_worker, make_worker, set_weight
+from utils import restore_agent, initialize_ray, get_random_string, ENV_MAKER_LOOKUP
 
 
 def compute_fft(y):
@@ -123,6 +112,7 @@ class FFTWorker(object):
             env_name,
             env_maker,
             agent_name,
+            num_rollouts,
             padding=None,
             padding_length=None,
             padding_value=None,
@@ -131,6 +121,7 @@ class FFTWorker(object):
     ):
         self.initialized = True
         self.run_name = run_name
+        self.num_rollouts = num_rollouts
         self.ckpt = ckpt
         self.env_name = env_name
         self.env_maker = env_maker
@@ -164,15 +155,17 @@ class FFTWorker(object):
         if self.rollout_worker is None:
             assert self.initialized
             self.rollout_worker = \
-                make_worker(self.env_maker, self.agent, self.seed)
-        set_weight(self.rollout_worker, self.agent)
+                make_worker(self.env_maker, self.ckpt, self.num_rollouts, self.seed,
+                            self.run_name, self.env_name)
 
     def _efficient_rollout(
             self,
-            num_rollouts,
             seed,
     ):
-        rollout_result = efficient_rollout(self.rollout_worker, num_rollouts)
+        rollout_result = efficient_rollout_from_worker(
+            self.rollout_worker, self.num_rollouts
+        )
+        # self.rollout_worker.close.remote()
         data_frame = None
 
         for i, roll in enumerate(rollout_result):
@@ -189,11 +182,11 @@ class FFTWorker(object):
     @ray.method(num_return_vals=2)
     def fft(
             self,
-            num_seeds,
-            num_rollouts,
-            stack=False,
-            normalize="range",
-            log=True,
+            # num_seeds,
+            # num_rollouts,
+            # stack=False,
+            normalize="std",
+            # log=True,
             _num_steps=None,
             _extra_name=""
     ):
@@ -209,8 +202,9 @@ class FFTWorker(object):
             assert isinstance(normalize, str)
             assert normalize in ['range', 'std']
         data_frame = None
-        for seed in range(num_seeds):
-            df = self._efficient_rollout(num_rollouts, seed)
+        # for seed in range(num_seeds):
+        for seed in range(1):
+            df = self._efficient_rollout(seed)
             if data_frame is None:
                 data_frame = df
             else:
@@ -267,10 +261,11 @@ def get_fft_representation(
             ckpt = ckpt_dict["path"]
             env_name = ckpt_dict["env_name"]
             run_name = ckpt_dict["run_name"]
-            env_maker = FFT_ENV_MAKER_LOOKUP[env_name]
+            env_maker = ENV_MAKER_LOOKUP[env_name]
             workers[i].reset.remote(
                 run_name=run_name,
                 ckpt=ckpt,
+                num_rollouts=num_rollouts,
                 env_name=env_name,
                 env_maker=env_maker,
                 agent_name=name,
@@ -281,9 +276,6 @@ def get_fft_representation(
             )
 
             df_obj_id, rep_obj_id = workers[i].fft.remote(
-                num_seeds,
-                num_rollouts,
-                stack,
                 normalize=normalize,
                 _extra_name="[{}/{}] ".format(agent_count, num_agents)
             )
@@ -415,10 +407,11 @@ def get_fft_cluster_finder(
 
 
 def test_efficient_rollout():
-    initialize_ray(num_gpus=4, test_mode=True)
-    num_rollouts = 20
-    num_workers = 10
-    yaml_path = "data/0902-ppo-20-agents/0902-ppo-20-agents.yaml"
+    initialize_ray(num_gpus=4, test_mode=False)
+    num_rollouts = 2
+    num_workers = 2
+    # yaml_path = "data/0902-ppo-20-agents/0902-ppo-20-agents.yaml"
+    yaml_path = "data/0811-random-test.yaml"
     ret = get_fft_cluster_finder(
         yaml_path=yaml_path,
         num_rollouts=num_rollouts,
