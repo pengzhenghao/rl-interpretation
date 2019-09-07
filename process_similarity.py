@@ -240,8 +240,8 @@ def agent_dataset_to_cka_result(agent_dataset, seed, yaml_path, layer,
                     if x == y:
                         continue
                     cka_list.append({
-                        "x": x,
-                        "y": y,
+                        "x": y,
+                        "y": x,
                         "value": c
                     })
                 worker_cnt = 0

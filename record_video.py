@@ -293,6 +293,32 @@ class GridVideoRecorder(object):
         path = vr.generate_video(frames_dict, extra_info_dict)
         return path
 
+    def generate_gif(self, frames_dict, extra_info_dict):
+        print(
+            "Start generating grid containing {} videos.".format(
+                len(frames_dict)
+            )
+        )
+        # locations = [f_info['loc'] for f_info in frames_dict.values()]
+
+        # unique_locations = set(locations)
+        # no_specify_location = len(unique_locations) == 1 and next(
+        #     iter(unique_locations)
+        # ) is None
+        # assert len(unique_locations) == len(locations) or no_specify_location
+        # if no_specify_location:
+        # grids = len(frames_dict)
+        # else:
+        #     max_row = max([row + 1 for row, _ in locations])
+        #     max_col = max([col + 1 for _, col in locations])
+        #     grids = {"col": max_col, "row": max_row}
+        # vr = VideoRecorder(self.video_path, grids=grids)
+        # path = vr.generate_video(frames_dict, extra_info_dict)
+
+
+
+        # return path
+
     def close(self):
         ray.shutdown()
 
