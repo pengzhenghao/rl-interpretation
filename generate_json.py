@@ -67,12 +67,23 @@ DEFAULT_FILES_PATH = {
 }
 
 def generate_json(yaml_path, name_path_dict, output_dir):
+    """
+    name_path_dict = {
+        agent_name: {
+            mode: data/vis/exp/agent/gif
+        }
+    }
+    """
+    def modify(mode_path_dict):
+        return {mode: osp.join(*path.split("/")[3:])
+                for mode, path in mode_path_dict.items()}
+
     name_ckpt_dict = read_yaml(yaml_path)
     json_dict = {}
     for agent_name, info in name_ckpt_dict.items():
         json_dict[agent_name] = {
             "info": info,
-            "gif_path": name_path_dict[agent_name],
+            "gif_path": modify(name_path_dict[agent_name]),
             "name": agent_name
         }
     json_path = osp.join(output_dir, JSON_FILE_NAME)
@@ -99,9 +110,10 @@ if __name__ == '__main__':
     parser.add_argument("--yaml-path", type=str, required=True)
     parser.add_argument("--exp-dir", type=str, required=True)
     parser.add_argument("--test-mode", action="store_true")
+    parser.add_argument("--num-gpus", "-g", type=int, default=4)
     args = parser.parse_args()
 
-    initialize_ray(test_mode=args.test_mode)
+    initialize_ray(test_mode=args.test_mode, num_gpus=args.num_gpus)
 
     name_path_dict = generate_gif(args.yaml_path, args.exp_dir)
     print("Finish generate gif.")

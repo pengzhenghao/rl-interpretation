@@ -43,7 +43,7 @@ import time
 PRESET_INFORMATION_DICT = {
     "reward": {
         "default_value": 0.0,
-        "text_function": lambda val: "Reward {:07.2f}".format(val),
+        "text_function": lambda val: "Rew {:07.2f}".format(val),
         "pos_ratio": (0.95, 0.9)
     },
     "step": {
@@ -58,7 +58,7 @@ PRESET_INFORMATION_DICT = {
     },
     "value_function": {
         "default_value": 0.0,
-        "text_function": lambda val: "Value {:.3f}".format(val),
+        "text_function": lambda val: "Val {:.3f}".format(val),
         "pos_ratio": (0.95, 0.7)
     },
     "title": {
@@ -191,6 +191,7 @@ class GridVideoRecorder(object):
             "The name-checkpoint dict is not OrderedDict!!! " \
             "We suggest you to use OrderedDict."
 
+        start = now = time.time()
         num_agent = len(name_ckpt_mapping)
 
         num_iteration = int(ceil(num_agent / num_workers))
@@ -210,8 +211,6 @@ class GridVideoRecorder(object):
             idx_start = iteration * num_workers
             idx_end = min((iteration + 1) * num_workers, num_agent)
 
-            now = time.time()
-            start = now
             object_id_dict = {}
             for incre, (name, ckpt_dict) in \
                     enumerate(name_ckpt_mapping_range[idx_start: idx_end]):

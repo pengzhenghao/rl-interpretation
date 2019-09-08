@@ -79,6 +79,15 @@ def _generate_gif(frames, path, fps=50):
     print("Current dir: {}, store path: {}".format(os.getcwd(), path))
     duration = int(1 / fps * 1000)
     images = [Image.fromarray(frame) for frame in frames]
+
+    # work around to crop the frame
+    # images = [Image.fromarray(frame[50:150, 50:150, :]) for frame in frames]
+    # print("LOOK SHAPE", frames[0].shape)
+    # print("LOOK SIZE", images[0].size)
+    # org_width, org_height = images[0].size
+    # scale = max(org_height, org_width) / 100
+    # images = [img.resize((int(org_width / scale), int(org_height / scale)))
+    #        for img in images]
     images[0].save(
         path,
         save_all=True,
