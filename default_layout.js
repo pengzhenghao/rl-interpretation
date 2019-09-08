@@ -1,10 +1,11 @@
 var data;
 var agent_name_list;
-var num_cols = 2;
+var num_cols = 10;
 var num_rows = 0;
 var path_prefix = "../../../";
 var default_mode = "clip";
 var display_info_keys = ['performance'];
+var json_path = "index.json";
 
 // The format of json file:
 // {
@@ -132,7 +133,7 @@ function onclick_end() {
     fillDataDefault("end");
 }
 
-$.getJSON("test-html.json", function (read_data) {
+$.getJSON(json_path, function (read_data) {
     data = read_data;
     agent_name_list = get_agent_name_list(data);
     console.log("At the beginning, agent list is: " + agent_name_list);

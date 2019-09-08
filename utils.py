@@ -76,6 +76,7 @@ def _generate_gif(frames, path, fps=50):
     assert frames.dtype == 'uint8'
     assert frames.ndim == 4
     assert path.endswith(".gif")
+    print("Current dir: {}, store path: {}".format(os.getcwd(), path))
     duration = int(1 / fps * 1000)
     images = [Image.fromarray(frame) for frame in frames]
     images[0].save(
@@ -365,8 +366,9 @@ class VideoRecorder(object):
 
         if self.generate_gif:
             self.scale = 1
-            self._generate_gif(frames_dict, extra_info_dict)
-            return self.base_path
+            name_path_dict = self._generate_gif(frames_dict, extra_info_dict)
+            return name_path_dict
+            # return self.base_path
 
         if not self.initialized:
             info = extra_info_dict['frame_info']
@@ -409,6 +411,7 @@ class VideoRecorder(object):
     def _generate_gif(self, frames_dict, extra_info_dict):
         # self._add_things_on_backgaround(frames_dict, extra_info_dict)
         obj_list = []
+        name_path_dict = {}
         num_workers = 16
         for idx, (title, frames_info) in \
                 enumerate(frames_dict.items()):
@@ -434,12 +437,15 @@ class VideoRecorder(object):
                 else:
                     text = information['text_function'](value)
                     self._put_text(None, text, pos, canvas=frames)
-            obj_ids = self._generate_gif_for_clip(title, frames, frames_info)
+            obj_ids, mode_path_dict = self._generate_gif_for_clip(
+                title, frames, frames_info)
             obj_list.extend(obj_ids)
+            name_path_dict[title] = mode_path_dict
             if len(obj_list) >= num_workers:
-                for obj in obj_list:
-                    ray.get(obj)
+                ray.get(obj_list)
                 obj_list.clear()
+        ray.get(obj_list)
+        return name_path_dict
 
     def _generate_gif_for_clip(self, agent_name, frames, frames_info):
         print(
@@ -451,6 +457,7 @@ class VideoRecorder(object):
         length = len(frames)
         one_clip_length = min(5 * self.frames_per_sec, length)
         obj_ids = []
+        mode_path_dict = {}
         for mode in self.allow_gif_mode:
             if mode == 'full':
                 continue
@@ -475,7 +482,7 @@ class VideoRecorder(object):
                 period = min(frames_info['period'], length)
                 clip = frames[int((length -
                                   period) / 2):int((length + period) / 2)]
-                fps = self.frames_per_sec / 2
+                fps = self.frames_per_sec / 10
 
             elif mode == '3period':
                 period = min(3 * frames_info['period'], length)
@@ -483,15 +490,16 @@ class VideoRecorder(object):
                                   period) / 2):int((length + period) / 2)]
                 fps = self.frames_per_sec / 2
 
-            gif_path = os.path.join(
-                self.base_path, mode, "{}.gif".format(agent_name)
-            )
+            # we consider the base_path is to .../exp_name/
+            gif_path = os.path.join(self.base_path, agent_name.replace(" ", "-"),
+                                    "{}_{}.gif".format(agent_name.replace(" ", "-"), mode))
             os.makedirs(os.path.dirname(gif_path), exist_ok=True)
             obj_id = remote_generate_gif.remote(
                 clip, gif_path, int(fps)
             )
             obj_ids.append(obj_id)
-        return obj_ids
+            mode_path_dict[mode] = gif_path
+        return obj_ids, mode_path_dict
 
     def _close(self):
         """Make sure to manually close, or else you'll leak the encoder

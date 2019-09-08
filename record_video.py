@@ -324,8 +324,8 @@ class GridVideoRecorder(object):
         )
         # path = osp.join(self.video_path, "beginning")
         vr = VideoRecorder(self.video_path, generate_gif=True, fps=self.fps)
-        path = vr.generate_video(frames_dict, extra_info_dict)
-        return path
+        name_path_dict = vr.generate_video(frames_dict, extra_info_dict)
+        return name_path_dict
 
     def close(self):
         ray.shutdown()
@@ -492,6 +492,13 @@ def generate_grid_of_videos(
     print("Video has been saved at: <{}>".format(path))
     return path
 
+def generate_gif(yaml_path, output_dir):
+    name_ckpt_mapping = get_name_ckpt_mapping(yaml_path)
+    gvr = GridVideoRecorder(output_dir, fps=FPS)
+    frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)
+    name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
+    return name_path_dict
+
 
 def test_cluster_video_generation():
 
@@ -530,7 +537,9 @@ def test_gif_generation():
     )
 
     frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)
-    gvr.generate_gif(frames_dict, extra_info_dict)
+    name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
+    print(name_path_dict)
+    return name_path_dict
     # gvr.close()
 
 
