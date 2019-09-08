@@ -13,21 +13,24 @@ import argparse
 import copy
 import json
 from math import ceil
-
+import numpy as np
 import ray
-import yaml
 
 from process_data import get_name_ckpt_mapping
 from rollout import rollout
 from utils import build_config, VideoRecorder, \
     restore_agent, initialize_ray
 from env_wrapper import BipedalWalkerWrapper
+from process_fft import get_period
+
+from collections import OrderedDict
+import time
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
-from collections import OrderedDict
-import time
+FPS = 50
+
 
 # info_datails should contain:
 #   default_value: the default value of this measurement
@@ -36,7 +39,7 @@ import time
 PRESET_INFORMATION_DICT = {
     "reward": {
         "default_value": 0.0,
-        "text_function": lambda val: "Reward {:07.2f}".format(val),
+        "text_function": lambda val: "Rew {:07.2f}".format(val),
         "pos_ratio": (0.95, 0.9)
     },
     "step": {
@@ -51,7 +54,7 @@ PRESET_INFORMATION_DICT = {
     },
     "value_function": {
         "default_value": 0.0,
-        "text_function": lambda val: "Value {:.3f}".format(val),
+        "text_function": lambda val: "Val {:.3f}".format(val),
         "pos_ratio": (0.95, 0.7)
     },
     "title": {
@@ -145,17 +148,27 @@ class CollectFramesWorker(object):
         agent = restore_agent(run_name, ckpt, env_name, config)
         env = env_maker()
         # env.seed(self.seed)
-        result = rollout(agent, env, self.num_steps, require_frame=True)
+        result = rollout(agent, env, env_name,
+                         self.num_steps, require_frame=True)
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
         agent.stop()
         return frames, extra_info
 
 
+from utils import _generate_gif, remote_generate_gif
+
+
+def test_generate_gif():
+    data = np.random.randint(0, 256, (500, 100, 100, 4), dtype='uint8')
+    _generate_gif(data, "tmp_delete_me.gif")
+
+
 class GridVideoRecorder(object):
-    def __init__(self, video_path, local_mode=False):
+    def __init__(self, video_path, local_mode=False, fps=50):
         initialize_ray(local_mode)
         self.video_path = video_path
+        self.fps = fps
 
     def generate_frames(
             self,
@@ -174,6 +187,7 @@ class GridVideoRecorder(object):
             "The name-checkpoint dict is not OrderedDict!!! " \
             "We suggest you to use OrderedDict."
 
+        start = now = time.time()
         num_agent = len(name_ckpt_mapping)
 
         num_iteration = int(ceil(num_agent / num_workers))
@@ -193,8 +207,6 @@ class GridVideoRecorder(object):
             idx_start = iteration * num_workers
             idx_end = min((iteration + 1) * num_workers, num_agent)
 
-            now = time.time()
-            start = now
             object_id_dict = {}
             for incre, (name, ckpt_dict) in \
                     enumerate(name_ckpt_mapping_range[idx_start: idx_end]):
@@ -218,14 +230,19 @@ class GridVideoRecorder(object):
                 now = time.time()
 
             for incre, (name, object_id) in enumerate(object_id_dict.items()):
-                frames, extra_info = ray.get(object_id)
+                new_frames, new_extra_info = copy.deepcopy(ray.get(object_id))
 
                 # To avoid memory leakage. This part is really important!
-                new_frames = copy.deepcopy(frames)
-                new_extra_info = copy.deepcopy(extra_info)
+                # new_frames = copy.deepcopy(frames)
+                # new_extra_info = copy.deepcopy(extra_info)
 
-                del frames
-                del extra_info
+                # del frames
+                # del extra_info
+
+                period_source = np.stack(new_extra_info['period_info'])
+                period = get_period(period_source, self.fps)
+                print("period for agent <{}> is {}, its len is {}".format(
+                    name, period, len(new_frames)))
 
                 frames_info = {
                     "frames":
@@ -238,7 +255,8 @@ class GridVideoRecorder(object):
                     if name_row_mapping is None else name_row_mapping[name],
                     "loc":
                     None
-                    if name_loc_mapping is None else name_loc_mapping[name]
+                    if name_loc_mapping is None else name_loc_mapping[name],
+                    "period": period
                 }
 
                 frames_dict[name] = frames_info
@@ -289,7 +307,7 @@ class GridVideoRecorder(object):
             max_row = max([row + 1 for row, _ in locations])
             max_col = max([col + 1 for _, col in locations])
             grids = {"col": max_col, "row": max_row}
-        vr = VideoRecorder(self.video_path, grids=grids)
+        vr = VideoRecorder(self.video_path, grids=grids, fps=self.fps)
         path = vr.generate_video(frames_dict, extra_info_dict)
         return path
 
@@ -299,25 +317,10 @@ class GridVideoRecorder(object):
                 len(frames_dict)
             )
         )
-        # locations = [f_info['loc'] for f_info in frames_dict.values()]
-
-        # unique_locations = set(locations)
-        # no_specify_location = len(unique_locations) == 1 and next(
-        #     iter(unique_locations)
-        # ) is None
-        # assert len(unique_locations) == len(locations) or no_specify_location
-        # if no_specify_location:
-        # grids = len(frames_dict)
-        # else:
-        #     max_row = max([row + 1 for row, _ in locations])
-        #     max_col = max([col + 1 for _, col in locations])
-        #     grids = {"col": max_col, "row": max_row}
-        # vr = VideoRecorder(self.video_path, grids=grids)
-        # path = vr.generate_video(frames_dict, extra_info_dict)
-
-
-
-        # return path
+        # path = osp.join(self.video_path, "beginning")
+        vr = VideoRecorder(self.video_path, generate_gif=True, fps=self.fps)
+        name_path_dict = vr.generate_video(frames_dict, extra_info_dict)
+        return name_path_dict
 
     def close(self):
         ray.shutdown()
@@ -469,7 +472,7 @@ def generate_grid_of_videos(
             new_name = name_callback(old_name)
             new_name_ckpt_mapping[new_name] = val
         name_ckpt_mapping = new_name_ckpt_mapping
-    gvr = GridVideoRecorder(video_path=video_prefix, local_mode=local_mode)
+    gvr = GridVideoRecorder(video_path=video_prefix, local_mode=local_mode, fps=FPS)
     frames_dict, extra_info_dict = gvr.generate_frames(
         name_ckpt_mapping,
         num_steps=steps,
@@ -484,6 +487,13 @@ def generate_grid_of_videos(
     print("Video has been saved at: <{}>".format(path))
     return path
 
+def generate_gif(yaml_path, output_dir):
+    name_ckpt_mapping = get_name_ckpt_mapping(yaml_path)
+    gvr = GridVideoRecorder(output_dir, fps=FPS)
+    frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)
+    name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
+    return name_path_dict
+
 
 def test_cluster_video_generation():
 
@@ -493,7 +503,7 @@ def test_cluster_video_generation():
     name_ckpt_mapping = get_name_ckpt_mapping(args.yaml, number=2)
 
     gvr = GridVideoRecorder(
-        video_path=args.yaml[:-5], local_mode=args.local_mode
+        video_path=args.yaml[:-5], local_mode=args.local_mode, fps=FPS
     )
 
     name_row_mapping = {key: "TEST ROW" for key in name_ckpt_mapping.keys()}
@@ -513,6 +523,21 @@ def test_cluster_video_generation():
     gvr.close()
 
 
+def test_gif_generation():
+    yaml = "yaml/test-2-agents.yaml"
+    name_ckpt_mapping = get_name_ckpt_mapping(yaml, number=2)
+
+    gvr = GridVideoRecorder(
+        video_path="data/vis/gif/test-2-agents", local_mode=True, fps=FPS
+    )
+
+    frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)
+    name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
+    print(name_path_dict)
+    return name_path_dict
+    # gvr.close()
+
+
 def test_es_compatibility():
     name_ckpt_mapping = get_name_ckpt_mapping(
         "data/es-30-agents-0818.yaml", 10
@@ -527,4 +552,5 @@ def test_es_compatibility():
 
 
 if __name__ == "__main__":
-    test_es_compatibility()
+    # test_es_compatibility()
+    test_gif_generation()

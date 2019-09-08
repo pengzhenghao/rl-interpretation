@@ -7,7 +7,7 @@ import pandas
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-from record_video import generate_video_of_cluster
+# from record_video import generate_video_of_cluster
 from reduce_dimension import reduce_dimension, draw
 
 
@@ -172,13 +172,13 @@ if __name__ == '__main__':
     print("Figures have been saved at {}_**.png".format(prefix))
 
     # generate grid of videos with shape (k, max_num_cols)
-    generate_video_of_cluster(
-        prediction=prediction,
-        num_agents=num_agents,
-        yaml_path=yaml_path,
-        video_prefix=prefix,
-        seed=args.seed,
-        max_num_cols=args.max_num_cols,
-        num_workers=args.num_workers
-    )
-    print("Finished generating videos.")
+    # generate_video_of_cluster(
+    #     prediction=prediction,
+    #     num_agents=num_agents,
+    #     yaml_path=yaml_path,
+    #     video_prefix=prefix,
+    #     seed=args.seed,
+    #     max_num_cols=args.max_num_cols,
+    #     num_workers=args.num_workers
+    # )
+    # print("Finished generating videos.")

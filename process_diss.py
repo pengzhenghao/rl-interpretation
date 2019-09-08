@@ -192,6 +192,7 @@ class AblationWorker(object):
             result = rollout(
                 self.agent,
                 env,
+                self.env_name,
                 num_steps=_num_steps or 0,
                 require_trajectory=True,
                 require_extra_info=return_trajectory
