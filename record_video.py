@@ -14,12 +14,7 @@ import copy
 import json
 from math import ceil
 import numpy as np
-import PIL
 import ray
-import os.path as osp
-
-from PIL import Image
-import yaml
 
 from process_data import get_name_ckpt_mapping
 from rollout import rollout
@@ -28,13 +23,14 @@ from utils import build_config, VideoRecorder, \
 from env_wrapper import BipedalWalkerWrapper
 from process_fft import get_period
 
+from collections import OrderedDict
+import time
+
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
 FPS = 50
 
-from collections import OrderedDict
-import time
 
 # info_datails should contain:
 #   default_value: the default value of this measurement
