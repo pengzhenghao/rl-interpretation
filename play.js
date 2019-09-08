@@ -4,6 +4,26 @@ var num_cols = 2;
 var num_rows = 0;
 var path_prefix = "";
 var default_mode = "clip";
+var display_info_keys = ['performance'];
+
+// The format of json file:
+// {
+//     "agent 1": {
+//         "column": 0,
+//         "row": 1,
+//         "name": "agent 1",
+//         "gif_path": {
+//             "end": "gif/test-2-agents/3period/sfsad 1.gif",
+//             "clip": ...
+//         },
+//         "info": {
+//             "performance": 100,
+//             "length": 101,
+//             "xxx": ...,
+//         }
+//     },
+//     ...
+// }
 
 
 var get_agent_name_list = function (data) {
@@ -19,7 +39,9 @@ function collectAgentInfo(agent_data) {
     var ret = "";
     var info_dict = agent_data['info'];
     for (var info_key in info_dict) {
-        ret += info_key + ": " + info_dict[info_key] + "<br>";
+        if ($.inArray(info_key, display_info_keys)>=0) {
+            ret += info_key + ": " + info_dict[info_key] + "<br>";
+        }
     }
     return ret;
 }
@@ -65,7 +87,7 @@ function createTable() {
     }
 }
 
-function fillData(mode) {
+function fillDataDefault(mode) {
     var agent_name;
     var row = 0;
     var col = 0;
@@ -76,7 +98,7 @@ function fillData(mode) {
         head.innerHTML = agent_name;
 
         var img = document.getElementById(ceil_id + "img");
-        var agent_data = data[agent_name]
+        var agent_data = data[agent_name];
         var src_path = agent_data['gif_path'][mode];
         img.innerHTML = "<img src=\""
             + path_prefix + src_path + "\" id=\"" + agent_name +
@@ -95,19 +117,19 @@ function fillData(mode) {
 }
 
 function onclick_clip() {
-    fillData('clip');
+    fillDataDefault('clip');
 }
 
 function onclick_period() {
-    fillData("3period");
+    fillDataDefault("3period");
 }
 
 function onclick_beginning() {
-    fillData("beginning");
+    fillDataDefault("beginning");
 }
 
 function onclick_end() {
-    fillData("end");
+    fillDataDefault("end");
 }
 
 $.getJSON("test-html.json", function (read_data) {
@@ -115,7 +137,5 @@ $.getJSON("test-html.json", function (read_data) {
     agent_name_list = get_agent_name_list(data);
     console.log("At the beginning, agent list is: " + agent_name_list);
     createTable();
-    fillData(default_mode);
+    fillDataDefault(default_mode);
 });
-
-// createTable();
