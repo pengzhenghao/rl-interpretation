@@ -453,32 +453,42 @@ class VideoRecorder(object):
         obj_ids = []
         for mode in self.allow_gif_mode:
             if mode == 'full':
-                clip = frames
+                continue
+
             elif mode == 'clip':
                 begin = frames[:one_clip_length]
                 end = frames[-one_clip_length:]
                 center = frames[int((length - one_clip_length) /
                                     2):int((length + one_clip_length) / 2)]
                 clip = np.concatenate([begin, end, center])
+                fps = self.frames_per_sec
+
             elif mode == 'beginning':
                 clip = frames[:one_clip_length]
+                fps = self.frames_per_sec / 2
+
             elif mode == 'end':
                 clip = frames[-one_clip_length:]
+                fps = self.frames_per_sec / 2
+
             elif mode == 'period':
                 period = min(frames_info['period'], length)
                 clip = frames[int((length -
                                   period) / 2):int((length + period) / 2)]
+                fps = self.frames_per_sec / 2
+
             elif mode == '3period':
                 period = min(3 * frames_info['period'], length)
                 clip = frames[int((length -
                                   period) / 2):int((length + period) / 2)]
+                fps = self.frames_per_sec / 2
 
             gif_path = os.path.join(
                 self.base_path, mode, "{}.gif".format(agent_name)
             )
             os.makedirs(os.path.dirname(gif_path), exist_ok=True)
             obj_id = remote_generate_gif.remote(
-                clip, gif_path, self.frames_per_sec
+                clip, gif_path, int(fps)
             )
             obj_ids.append(obj_id)
         return obj_ids
