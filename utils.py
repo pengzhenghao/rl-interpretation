@@ -116,7 +116,7 @@ class VideoRecorder(object):
         enabled (bool): Whether to actually record video, or just no-op (for
         convenience)
     """
-    allow_gif_mode = ['clip', 'full', 'beginning', 'end', 'period', '3period']
+    allow_gif_mode = ['clip', 'full', 'beginning', 'end', 'period', '3period', "hd"]
 
     def __init__(
             # self, env, path=None, metadata=None, base_path=None
@@ -125,7 +125,8 @@ class VideoRecorder(object):
             grids=None,
             generate_gif=False,
             # gif_mode=None,
-            fps=50
+            fps=50,
+            scale=None
     ):
         # self.grids = int | dict
         # if int, then it represent the number of videos
@@ -135,7 +136,7 @@ class VideoRecorder(object):
                                           int) or isinstance(grids, dict)
         self.grids = grids
         self.frame_range = None
-        self.scale = None
+        self.scale = scale or 1
         self.last_frame = None
         self.num_cols = None
         self.num_rows = None
@@ -374,7 +375,7 @@ class VideoRecorder(object):
         # }
 
         if self.generate_gif:
-            self.scale = 1
+            # self.scale = 1
             name_path_dict = self._generate_gif(frames_dict, extra_info_dict)
             return name_path_dict
             # return self.base_path
@@ -428,6 +429,17 @@ class VideoRecorder(object):
             width = (0, extra_info_dict['frame_info']['width'])
             height = (0, extra_info_dict['frame_info']['width'])
 
+            if self.scale < 1:
+                resize_frames = [
+                    cv2.resize(
+                        frame, (
+                            int(width[1] * self.scale), int(height[1] * self.scale)
+                        ),
+                        interpolation=cv2.INTER_AREA
+                    ) for frame in frames
+                ]
+                resize_frames = np.stack(resize_frames)
+
             for information in extra_info_dict.values():
                 if 'pos_ratio' not in information:
                     continue
@@ -446,8 +458,9 @@ class VideoRecorder(object):
                 else:
                     text = information['text_function'](value)
                     self._put_text(None, text, pos, canvas=frames)
+
             obj_ids, mode_path_dict = self._generate_gif_for_clip(
-                title, frames, frames_info)
+                title, frames, resize_frames, frames_info)
             obj_list.extend(obj_ids)
             name_path_dict[title] = mode_path_dict
             if len(obj_list) >= num_workers:
@@ -456,7 +469,7 @@ class VideoRecorder(object):
         ray.get(obj_list)
         return name_path_dict
 
-    def _generate_gif_for_clip(self, agent_name, frames, frames_info):
+    def _generate_gif_for_clip(self, agent_name, frames, resize_frames, frames_info):
         print(
             "Start generating gif for agent <{}>. "
             "We will use these modes: {}".format(
@@ -464,40 +477,47 @@ class VideoRecorder(object):
             )
         )
         length = len(frames)
-        one_clip_length = min(5 * self.frames_per_sec, length)
+        one_clip_length = min(3 * self.frames_per_sec, length)
         obj_ids = []
         mode_path_dict = {}
         for mode in self.allow_gif_mode:
-            if mode == 'full':
-                continue
-
-            elif mode == 'clip':
-                begin = frames[:one_clip_length]
-                end = frames[-one_clip_length:]
-                center = frames[int((length - one_clip_length) /
-                                    2):int((length + one_clip_length) / 2)]
-                clip = np.concatenate([begin, end, center])
+            if mode == 'hd':
+                clip = frames
                 fps = self.frames_per_sec
 
+            elif mode == 'clip':
+                begin = resize_frames[:one_clip_length]
+                end = resize_frames[-one_clip_length:]
+                center = resize_frames[int((length - one_clip_length) /
+                                    2):int((length + one_clip_length) / 2)]
+                clip = np.concatenate([begin, end, center])
+                clip = clip[::2, ...]
+                fps = self.frames_per_sec / 2
+
             elif mode == 'beginning':
-                clip = frames[:one_clip_length]
+                clip = resize_frames[:one_clip_length]
+                clip = clip[::2, ...]
                 fps = self.frames_per_sec / 2
 
             elif mode == 'end':
-                clip = frames[-one_clip_length:]
+                clip = resize_frames[-one_clip_length:]
+                clip = clip[::2, ...]
                 fps = self.frames_per_sec / 2
 
             elif mode == 'period':
                 period = min(frames_info['period'], length)
-                clip = frames[int((length -
+                clip = resize_frames[int((length -
                                   period) / 2):int((length + period) / 2)]
                 fps = self.frames_per_sec / 10
 
             elif mode == '3period':
                 period = min(3 * frames_info['period'], length)
-                clip = frames[int((length -
+                clip = resize_frames[int((length -
                                   period) / 2):int((length + period) / 2)]
-                fps = self.frames_per_sec / 2
+                fps = self.frames_per_sec / 10
+
+            else:
+                continue
 
             # we consider the base_path is to .../exp_name/
             gif_path = os.path.join(self.base_path, agent_name.replace(" ", "-"),

@@ -318,7 +318,8 @@ class GridVideoRecorder(object):
             )
         )
         # path = osp.join(self.video_path, "beginning")
-        vr = VideoRecorder(self.video_path, generate_gif=True, fps=self.fps)
+        vr = VideoRecorder(self.video_path, generate_gif=True, fps=self.fps,
+                           scale=0.5)
         name_path_dict = vr.generate_video(frames_dict, extra_info_dict)
         return name_path_dict
 
