@@ -11,10 +11,11 @@ from gym.envs.box2d.bipedal_walker import BipedalWalker
 from scipy.fftpack import fft
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-from process_cluster import ClusterFinder
-from process_data import get_name_ckpt_mapping
-from rollout import efficient_rollout_from_worker, make_worker
-from utils import restore_agent, initialize_ray, get_random_string, ENV_MAKER_LOOKUP
+from cluster.process_cluster import ClusterFinder
+from process_data.process_data import get_name_ckpt_mapping
+from evaluate.rollout import efficient_rollout_from_worker, make_worker
+from utils import initialize_ray, get_random_string, ENV_MAKER_LOOKUP
+from evaluate.evaulate_utils import restore_agent
 
 
 def compute_fft(y):
@@ -98,7 +99,7 @@ def get_period(source, fps):
         y = source[:, i]
         fre = compute_fft(y)
         fre[0] = -np.inf
-        period = len(y) / fre.argmax() # * (fps / len(y))  # in Hz
+        period = len(y) / fre.argmax()  # * (fps / len(y))  # in Hz
         # period = freq
         ret.append(period)
     return float(np.mean(ret))

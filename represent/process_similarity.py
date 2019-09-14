@@ -10,11 +10,11 @@ import pickle
 import numpy as np
 import os
 
-from process_data import read_yaml
-from rollout import several_agent_rollout
+from process_data.process_data import read_yaml
+from evaluate.rollout import several_agent_rollout
 from utils import initialize_ray, get_random_string
 
-from rollout import several_agent_replay
+from evaluate.rollout import several_agent_replay
 
 ACTIVATION_DATA_PREFIX = "layer"
 

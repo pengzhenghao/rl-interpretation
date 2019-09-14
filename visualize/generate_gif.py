@@ -1,5 +1,5 @@
-from process_data import get_name_ckpt_mapping
-from record_video import GridVideoRecorder
+from process_data.process_data import get_name_ckpt_mapping
+from visualize.record_video import GridVideoRecorder
 
 FPS = 50
 
@@ -16,9 +16,7 @@ if __name__ == "__main__":
 
     name_ckpt_mapping = get_name_ckpt_mapping(args.yaml_path)
 
-    gvr = GridVideoRecorder(
-        video_path=args.output_path, fps=FPS
-    )
+    gvr = GridVideoRecorder(video_path=args.output_path, fps=FPS)
 
     frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)
     name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)

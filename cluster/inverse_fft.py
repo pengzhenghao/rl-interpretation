@@ -22,23 +22,12 @@ For each cluster:
 
 """
 
-import copy
-import time
-from math import ceil
-import os.path as osp
-import os
-
 import numpy as np
 import pandas
-import ray
 from scipy.fftpack import fft, ifft
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from gym.envs.box2d.bipedal_walker import BipedalWalker
 
-from process_cluster import ClusterFinder
-from process_data import get_name_ckpt_mapping
-from rollout import rollout
-from utils import restore_agent, initialize_ray, get_random_string
+from utils import initialize_ray
 
 
 def build_env():

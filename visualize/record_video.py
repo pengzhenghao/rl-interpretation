@@ -16,12 +16,13 @@ from math import ceil
 import numpy as np
 import ray
 
-from process_data import get_name_ckpt_mapping
-from rollout import rollout
-from utils import build_config, VideoRecorder, \
+from process_data.process_data import get_name_ckpt_mapping
+from evaluate.rollout import rollout
+from evaluate.evaulate_utils import build_config, \
     restore_agent, initialize_ray
-from env_wrapper import BipedalWalkerWrapper
-from process_fft import get_period
+from visualize.visualize_utils import VideoRecorder
+from env.env_wrapper import BipedalWalkerWrapper
+from represent.process_fft import get_period
 
 from collections import OrderedDict
 import time
@@ -30,7 +31,6 @@ VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
 FPS = 50
-
 
 # info_datails should contain:
 #   default_value: the default value of this measurement
@@ -148,8 +148,9 @@ class CollectFramesWorker(object):
         agent = restore_agent(run_name, ckpt, env_name, config)
         env = env_maker()
         # env.seed(self.seed)
-        result = rollout(agent, env, env_name,
-                         self.num_steps, require_frame=True)
+        result = rollout(
+            agent, env, env_name, self.num_steps, require_frame=True
+        )
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
         agent.stop()
@@ -241,8 +242,11 @@ class GridVideoRecorder(object):
 
                 period_source = np.stack(new_extra_info['period_info'])
                 period = get_period(period_source, self.fps)
-                print("period for agent <{}> is {}, its len is {}".format(
-                    name, period, len(new_frames)))
+                print(
+                    "period for agent <{}> is {}, its len is {}".format(
+                        name, period, len(new_frames)
+                    )
+                )
 
                 frames_info = {
                     "frames":
@@ -256,7 +260,8 @@ class GridVideoRecorder(object):
                     "loc":
                     None
                     if name_loc_mapping is None else name_loc_mapping[name],
-                    "period": period
+                    "period":
+                    period
                 }
 
                 frames_dict[name] = frames_info
@@ -318,8 +323,9 @@ class GridVideoRecorder(object):
             )
         )
         # path = osp.join(self.video_path, "beginning")
-        vr = VideoRecorder(self.video_path, generate_gif=True, fps=self.fps,
-                           scale=0.5)
+        vr = VideoRecorder(
+            self.video_path, generate_gif=True, fps=self.fps, scale=0.5
+        )
         name_path_dict = vr.generate_video(frames_dict, extra_info_dict)
         return name_path_dict
 
@@ -473,7 +479,9 @@ def generate_grid_of_videos(
             new_name = name_callback(old_name)
             new_name_ckpt_mapping[new_name] = val
         name_ckpt_mapping = new_name_ckpt_mapping
-    gvr = GridVideoRecorder(video_path=video_prefix, local_mode=local_mode, fps=FPS)
+    gvr = GridVideoRecorder(
+        video_path=video_prefix, local_mode=local_mode, fps=FPS
+    )
     frames_dict, extra_info_dict = gvr.generate_frames(
         name_ckpt_mapping,
         num_steps=steps,
@@ -487,6 +495,7 @@ def generate_grid_of_videos(
     gvr.close()
     print("Video has been saved at: <{}>".format(path))
     return path
+
 
 def generate_gif(yaml_path, output_dir):
     name_ckpt_mapping = get_name_ckpt_mapping(yaml_path)

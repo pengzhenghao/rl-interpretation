@@ -52,9 +52,9 @@ import argparse
 import json
 import os.path as osp
 
-from process_data import read_yaml
+from process_data.process_data import read_yaml
 from utils import initialize_ray
-from record_video import generate_gif
+from visualize.record_video import generate_gif
 
 JSON_FILE_NAME = "index.json"
 HTML_FILE_NAME = "index.html"
@@ -66,6 +66,7 @@ DEFAULT_FILES_PATH = {
     "jquery-3.4.1.min.js": "data/vis/jquery-3.4.1.min.js"
 }
 
+
 def generate_json(yaml_path, name_path_dict, output_dir):
     """
     name_path_dict = {
@@ -74,9 +75,12 @@ def generate_json(yaml_path, name_path_dict, output_dir):
         }
     }
     """
+
     def modify(mode_path_dict):
-        return {mode: osp.join(*path.split("/")[3:])
-                for mode, path in mode_path_dict.items()}
+        return {
+            mode: osp.join(*path.split("/")[3:])
+            for mode, path in mode_path_dict.items()
+        }
 
     name_ckpt_dict = read_yaml(yaml_path)
     json_dict = {}
