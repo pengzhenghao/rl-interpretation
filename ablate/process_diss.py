@@ -9,9 +9,10 @@ import ray
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
 from cluster.process_cluster import ClusterFinder
-from evaluate.rollout import rollout, replay
-from utils import initialize_ray, _get_num_iters_from_ckpt_name
 from evaluate.evaulate_utils import restore_agent
+from evaluate.replay import deprecated_replay, agent_replay
+from evaluate.rollout import rollout
+from utils import initialize_ray, _get_num_iters_from_ckpt_name, build_env
 
 ABLATE_LAYER_NAME = "default_policy/default_model/fc2"
 NO_ABLATION_UNIT_NAME = "no_ablation"
@@ -20,12 +21,6 @@ ABLATE_LAYER_NAME_DIMENSION_DICT = {
     "default_policy/default_model/fc2": 256,
     "default_policy/default_model/fc_out": 256,
 }
-
-# [
-# "default_policy/default_model/fc1": 24,
-# "default_policy/default_model/fc2": 256,
-# "default_policy/default_model/fc_out": 256,
-# ]
 
 
 def _get_unit_name(layer_name, unit_index):
@@ -49,7 +44,14 @@ def ablate_unit(agent, layer_name, index, _test=False):
 
     # get the target matrix's name
     weight_name = osp.join(layer_name, "kernel")
-    assert weight_name in weight_dict
+    if weight_name not in weight_dict:
+        # For some reason, weight_name should be
+        # default_policy/default_model/fc2/kernel
+        # but it's not in current agent's model. So we make this workaround.
+        weight_name = weight_name.replace("/default_model/", "/")
+        if "fc_" not in weight_name:
+            weight_name = weight_name.replace("/fc", "/fc_")
+    assert weight_name in weight_dict, "weight_name: {}, weight_dict: {}".format(weight_name, weight_dict.keys())
     matrix = weight_dict[weight_name]
     assert matrix.ndim == 2
 
@@ -78,7 +80,6 @@ class AblationWorker(object):
 
     def __init__(self):
         self._num_steps = None
-        # self.agent = None
         self.agent = None
         self.agent_name = None
         self.env_maker = None
@@ -88,8 +89,6 @@ class AblationWorker(object):
         self.ckpt = None
         self.iter = None
         self.env_name = None
-        # self.postprocess_func = lambda x: x
-        # self.padding_value = None
 
     @ray.method(num_return_vals=0)
     def reset(
@@ -116,7 +115,7 @@ class AblationWorker(object):
     def compute_kl_divergence(self, trajectory_list):
         target_logit_list = []
         for trajectory in trajectory_list:
-            actions, infos = replay(trajectory, self.agent)
+            actions, infos = deprecated_replay(trajectory, self.agent)
             target_logit_list.append(infos["behaviour_logits"])
 
         # compute the KL divergence
@@ -149,6 +148,22 @@ class AblationWorker(object):
         )
         return averaged_kl_divergence
 
+    @ray.method(num_return_vals=2)
+    def replay(self, obs, layer_name=None, unit_index=None, batch_size=1024):
+        self._prepare_agent(unit_index, layer_name)
+
+        action, infos = \
+            agent_replay(self.agent, obs)
+        # action is an array with shape (num_samples, act_dim)
+        # infos is a dict whose typical keys are action_prob, action_logp,
+        # vf_preds, behaviour_logits.
+        return action, infos
+
+    def _prepare_agent(self, unit_index=None, layer_name=None):
+        self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
+        if unit_index is not None:
+            self.agent = ablate_unit(self.agent, layer_name, unit_index)
+
     @ray.method(num_return_vals=1)
     def ablate(
             self,
@@ -168,9 +183,7 @@ class AblationWorker(object):
         assert (save is None) or (isinstance(save, str))
         assert (isinstance(unit_index, int)) or (unit_index is None)
 
-        self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
-        if unit_index is not None:
-            self.agent = ablate_unit(self.agent, layer_name, unit_index)
+        self._prepare_agent(unit_index, layer_name)
 
         trajectory_batch = []
         episode_reward_batch = []
@@ -333,7 +346,7 @@ def get_ablation_result(
 
             print(
                 "{}/{} (Unit {}) (+{:.1f}s/{:.1f}s) Start collecting data.".
-                format(
+                    format(
                     agent_count,
                     len(unit_index_list),
                     unit_index,
@@ -352,7 +365,7 @@ def get_ablation_result(
             result_dict[unit_name] = result
             print(
                 "{}/{} (Unit {}) (+{:.1f}s/{:.1f}s) Start collecting data.".
-                format(
+                    format(
                     agent_count_get, len(unit_index_list), unit_index,
                     time.time() - now_t_get,
                     time.time() - start_t
@@ -365,6 +378,57 @@ def get_ablation_result(
 
     ret = _parse_result_dict(result_dict)
     return ret
+
+
+def test_ablation_worker_replay():
+    from test.utils import get_test_agent_config, load_test_agent_rollout
+    from utils import initialize_ray
+
+    initialize_ray(test_mode=True)
+    worker = AblationWorker.remote()
+    obs_list = load_test_agent_rollout()
+    obs = np.concatenate([o['obs'] for o in obs_list])
+
+    config = get_test_agent_config()
+    worker.reset.remote(
+        run_name=config['run_name'],
+        ckpt=config['ckpt'],
+        env_name=config['env_name'],
+        env_maker=build_env,
+        agent_name="Test Agent",
+        worker_name="Test Worker"
+    )
+
+    result = copy.deepcopy(
+        ray.get(
+            worker.replay.remote(
+                obs=obs
+            )
+        )
+    )
+
+    result2 = copy.deepcopy(
+        ray.get(
+            worker.replay.remote(
+                obs=obs,
+                layer_name=ABLATE_LAYER_NAME,
+                unit_index=10
+            )
+        )
+    )
+
+
+    result3 = copy.deepcopy(
+        ray.get(
+            worker.replay.remote(
+                obs=obs,
+                layer_name="default_policy/default_model/fc_out",
+                unit_index=20
+            )
+        )
+    )
+
+    return result, result2, result3
 
 
 def generate_yaml_of_ablated_agents(
@@ -465,33 +529,28 @@ def get_dissect_cluster_finder():
 
 if __name__ == '__main__':
     # test codes here.
-    from gym.envs.box2d import BipedalWalker
-    import pickle
+    r1, r2 = test_ablation_worker_replay()
 
-    def env_maker():
-        env = BipedalWalker()
-        env.seed(0)
-        return env
-
-    result = get_ablation_result(
-        ckpt="~/ray_results/0811-0to50and100to300/"
-        "PPO_BipedalWalker-v2_21_seed=121_2019-08-11_20-50-59_g4ab4_j/"
-        "checkpoint_782/checkpoint-782",
-        run_name="PPO",
-        env_name="BipedalWalker-v2",
-        env_maker=env_maker,
-        num_rollouts=500,
-        layer_name=ABLATE_LAYER_NAME,
-        num_units=ABLATE_LAYER_NAME_DIMENSION_DICT[ABLATE_LAYER_NAME],
-        agent_name="PPO seed=121 rew=299.35",
-        # local_mode=False,
-        num_worker=24,
-        save="data/ppo121_ablation_last2_layer/"
-    )
-    with open("ablation_result_last2_layer_0830.pkl", 'wb') as f:
-        pickle.dump(result, f)
-
-    generate_yaml_of_ablated_agents(
-        result,
-        "data/ppo121_ablation_last2_layer/ppo-1-agents-ablation-result-fc_out.yaml"
-    )
+    # result = get_ablation_result(
+    #     ckpt="~/ray_results/0811-0to50and100to300/"
+    #          "PPO_BipedalWalker-v2_21_seed=121_2019-08-11_20-50-59_g4ab4_j/"
+    #          "checkpoint_782/checkpoint-782",
+    #     run_name="PPO",
+    #     env_name="BipedalWalker-v2",
+    #     env_maker=build_env,
+    #     num_rollouts=500,
+    #     layer_name=ABLATE_LAYER_NAME,
+    #     num_units=ABLATE_LAYER_NAME_DIMENSION_DICT[ABLATE_LAYER_NAME],
+    #     agent_name="PPO seed=121 rew=299.35",
+    #     # local_mode=False,
+    #     num_worker=24,
+    #     save="data/ppo121_ablation_last2_layer/"
+    # )
+    # with open("ablation_result_last2_layer_0830.pkl", 'wb') as f:
+    #     pickle.dump(result, f)
+    #
+    # generate_yaml_of_ablated_agents(
+    #     result,
+    #     "data/ppo121_ablation_last2_layer/ppo-1-agents-ablation-result"
+    #     "-fc_out.yaml"
+    # )

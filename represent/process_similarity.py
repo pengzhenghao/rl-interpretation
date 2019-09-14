@@ -14,7 +14,7 @@ from process_data.process_data import read_yaml
 from evaluate.rollout import several_agent_rollout
 from utils import initialize_ray, get_random_string
 
-from evaluate.rollout import several_agent_replay
+from evaluate.replay import several_agent_replay
 
 ACTIVATION_DATA_PREFIX = "layer"
 
