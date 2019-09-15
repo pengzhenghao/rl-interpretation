@@ -158,7 +158,8 @@ elif args.env == "HalfCheetah-v2":
             },
             "stop": {
                 "episode_reward_mean": 9800,
-                "time_total_s": 10800
+                "timesteps_total": int(1.5e8)
+                # "time_total_s": 10800
             }
         }
     }
