@@ -6,13 +6,20 @@ from utils import build_env
 
 def get_test_agent_config():
     return {
-        "env_maker": build_env,
-        "ckpt": os.path.abspath(os.path.expanduser(
-            "~/ray_results/0810-20seeds/"
-            "PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/"
-            "checkpoint_313/checkpoint-313")),
-        "env_name": "BipedalWalker-v2",
-        "run_name": "PPO"
+        "env_maker":
+        build_env,
+        "ckpt":
+        os.path.abspath(
+            os.path.expanduser(
+                "~/ray_results/0810-20seeds/"
+                "PPO_BipedalWalker-v2_0_seed=0_2019-08-10_15-21-164grca382/"
+                "checkpoint_313/checkpoint-313"
+            )
+        ),
+        "env_name":
+        "BipedalWalker-v2",
+        "run_name":
+        "PPO"
     }
 
 

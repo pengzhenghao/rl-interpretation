@@ -51,7 +51,9 @@ def ablate_unit(agent, layer_name, index, _test=False):
         weight_name = weight_name.replace("/default_model/", "/")
         if "fc_" not in weight_name:
             weight_name = weight_name.replace("/fc", "/fc_")
-    assert weight_name in weight_dict, "weight_name: {}, weight_dict: {}".format(weight_name, weight_dict.keys())
+    assert weight_name in weight_dict, "weight_name: {}, weight_dict: {}".format(
+        weight_name, weight_dict.keys()
+    )
     matrix = weight_dict[weight_name]
     assert matrix.ndim == 2
 
@@ -346,7 +348,7 @@ def get_ablation_result(
 
             print(
                 "{}/{} (Unit {}) (+{:.1f}s/{:.1f}s) Start collecting data.".
-                    format(
+                format(
                     agent_count,
                     len(unit_index_list),
                     unit_index,
@@ -365,7 +367,7 @@ def get_ablation_result(
             result_dict[unit_name] = result
             print(
                 "{}/{} (Unit {}) (+{:.1f}s/{:.1f}s) Start collecting data.".
-                    format(
+                format(
                     agent_count_get, len(unit_index_list), unit_index,
                     time.time() - now_t_get,
                     time.time() - start_t
@@ -399,24 +401,15 @@ def test_ablation_worker_replay():
         worker_name="Test Worker"
     )
 
-    result = copy.deepcopy(
-        ray.get(
-            worker.replay.remote(
-                obs=obs
-            )
-        )
-    )
+    result = copy.deepcopy(ray.get(worker.replay.remote(obs=obs)))
 
     result2 = copy.deepcopy(
         ray.get(
             worker.replay.remote(
-                obs=obs,
-                layer_name=ABLATE_LAYER_NAME,
-                unit_index=10
+                obs=obs, layer_name=ABLATE_LAYER_NAME, unit_index=10
             )
         )
     )
-
 
     result3 = copy.deepcopy(
         ray.get(

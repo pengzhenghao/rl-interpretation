@@ -5,8 +5,11 @@ from collections import namedtuple
 
 # a container for get_result function below. Works just like tuple,
 # but prettier
-ActionResult = namedtuple("action_result", (
-"snapshot", "observation", "reward", "is_done", "info"))
+ActionResult = namedtuple(
+    "action_result", ("snapshot", "observation", "reward", "is_done", "info")
+)
+import numpy as np
+np.testing.assert_array_almost_equal()
 
 
 class WithSnapshots(Wrapper):
@@ -48,8 +51,9 @@ class WithSnapshots(Wrapper):
        Should not change snapshot inplace (in case of doubt, deepcopy).
        """
 
-        assert not hasattr(self, "_monitor") or hasattr(self.env,
-                                                        "_monitor"), "can't backtrack while recording"
+        assert not hasattr(self, "_monitor") or hasattr(
+            self.env, "_monitor"
+        ), "can't backtrack while recording"
 
         # self.render(
         #     close=True)  # close popup windows since we can't load into them
@@ -73,6 +77,7 @@ class WithSnapshots(Wrapper):
         new_snapshot = self.get_snapshot()
 
         return ActionResult(new_snapshot, obs, r, done, info)
+
 
 if __name__ == '__main__':
     pass
