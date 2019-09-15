@@ -9,8 +9,10 @@ And then run:
 
 nohup python startup.py --exp-name 0818-es-exp --run ES > logfile.log 2>&1 &
 nohup python startup.py --exp-name 0818-a2c-exp --run A2C > logfile.log 2>&1 &
-nohup python startup.py --exp-name 0818-ddpg-exp --run DDPG > logfile.log 2>&1 &
-nohup python startup.py --exp-name 0818-impala-exp --run IMPALA > logfile.log 2>&1 &
+nohup python startup.py --exp-name 0818-ddpg-exp --run DDPG > logfile.log
+2>&1 &
+nohup python startup.py --exp-name 0818-impala-exp --run IMPALA >
+logfile.log 2>&1 &
 
 Doesn't matter how you run the script, name the exp or how to store the data.
 I suggest not to run all scripts at the same times. Because each script will
@@ -36,7 +38,6 @@ import logging
 import ray
 from ray import tune
 from ray.rllib.utils import merge_dicts
-from ray.rllib.utils.schedules import LinearSchedule
 
 # The arguments below is copied from
 # https://github.com/araffin/rl-baselines-zoo/blob/master/hyperparams/ppo2.yml
@@ -46,6 +47,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--exp-name", type=str, required=True)
 parser.add_argument("--env", type=str, default="BipedalWalker-v2")
 parser.add_argument("--run", type=str, default="PPO")
+parser.add_argument("--num-seeds", type=int, default=1)
 args = parser.parse_args()
 
 target_list = []
@@ -133,6 +135,33 @@ elif args.env == "BipedalWalkerHardcore-v2":
             "timesteps_total": int(10e7)
         }
     }
+elif args.env == "HalfCheetah-v2":
+    algo_specify_config_dict = {
+        "PPO": {
+            "config": {
+                "seed": tune.grid_search((list(range(args.num_seeds)))),
+                "gamma": 0.99,
+                "lambda": 0.95,
+                "kl_coeff": 1.0,
+                'num_sgd_iter': 32,
+                'lr': .0003,
+                'vf_loss_coeff': 0.5,
+                'clip_param': 0.2,
+                'sgd_minibatch_size': 4096,
+                'train_batch_size': 65536,
+                "num_workers": 16,
+                "num_gpus": 1,
+                "grad_clip": 0.5,
+                "num_envs_per_worker": 16,
+                "batch_mode": "truncate_episodes",
+                "observation_filter": "MeanStdFilter",
+            },
+            "stop": {
+                "episode_reward_mean": 9800,
+                "time_total_s": 10800
+            }
+        }
+    }
 else:
     raise NotImplementedError(
         "Only prepared BipedalWalker and "
@@ -157,6 +186,9 @@ tune.run(
     verbose=1,
     checkpoint_freq=1,
     checkpoint_at_end=True,
-    stop={"timesteps_total": algo_specify_config['timesteps_total']},
+    stop={"timesteps_total": algo_specify_config['timesteps_total']}
+        if "timesteps_total" in algo_specify_config \
+        else algo_specify_config['stop']
+    ,
     config=run_config,
 )
