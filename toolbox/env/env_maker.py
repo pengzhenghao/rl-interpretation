@@ -11,7 +11,7 @@ def build_bipedal_walker(useless=None):
 
 
 def build_halfcheetah(useless=None):
-    env = BipedalWalker("BipedalWalker-v2")
+    env = gym.make("HalfCheetah-v2")
     env.seed(0)
     env = MujocoWrapper(env)
     return env
