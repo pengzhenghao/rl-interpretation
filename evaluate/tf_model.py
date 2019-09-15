@@ -142,7 +142,7 @@ model_config = {"custom_model": "fc_with_activation", "custom_options": {}}
 ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
 ppo_default_config['model'].update(model_config)
 PPOTFPolicyWithActivation = build_tf_policy(
-    name="PPOTFPolicy",
+    name="PPOTFPolicyWithActivation",
     get_default_config=lambda: ppo_default_config,
     loss_fn=ppo_surrogate_loss,
     stats_fn=kl_and_loss_stats,
@@ -160,7 +160,7 @@ PPOTFPolicyWithActivation = build_tf_policy(
 ppo_agent_default_config = DEFAULT_CONFIG
 ppo_agent_default_config['model'].update(model_config)
 PPOAgentWithActivation = build_trainer(
-    name="PPO",
+    name="PPOWithActivation",
     default_config=ppo_agent_default_config,
     default_policy=PPOTFPolicyWithActivation,
     make_policy_optimizer=choose_policy_optimizer,
