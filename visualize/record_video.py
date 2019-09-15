@@ -18,7 +18,7 @@ import ray
 
 from process_data.process_data import get_name_ckpt_mapping
 from evaluate.rollout import rollout
-from evaluate.evaulate_utils import build_config, \
+from evaluate.evaluate_utils import build_config, \
     restore_agent
 from visualize.visualize_utils import VideoRecorder
 from env.env_wrapper import BipedalWalkerWrapper
