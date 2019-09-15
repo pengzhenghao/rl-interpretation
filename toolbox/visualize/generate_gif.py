@@ -1,7 +1,7 @@
 import sys
 sys.path.append("../")
-from process_data.process_data import get_name_ckpt_mapping
-from visualize.record_video import GridVideoRecorder
+from toolbox.process_data.process_data import get_name_ckpt_mapping
+from toolbox.visualize.record_video import GridVideoRecorder
 
 FPS = 50
 

@@ -52,9 +52,9 @@ import argparse
 import json
 import os.path as osp
 
-from process_data.process_data import read_yaml
-from utils import initialize_ray
-from visualize.record_video import generate_gif
+from toolbox.process_data.process_data import read_yaml
+from toolbox.utils import initialize_ray
+from toolbox.visualize.record_video import generate_gif
 
 JSON_FILE_NAME = "index.json"
 HTML_FILE_NAME = "index.html"

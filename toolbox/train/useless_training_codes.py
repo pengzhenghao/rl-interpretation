@@ -35,9 +35,8 @@ from ray.rllib.models import Model
 from ray.rllib.models import ModelCatalog
 from ray.tune.registry import register_env
 
-from env import RaySimulator
-from env.constants import *
-from env.utils import get_config_path
+from toolbox.env import RaySimulator
+from toolbox.env import get_config_path
 from tf_utils import conv1d, fc, conv_to_fc
 
 parser = argparse.ArgumentParser()

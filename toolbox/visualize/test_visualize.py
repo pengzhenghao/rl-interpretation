@@ -1,19 +1,21 @@
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
 
-from process_data.process_data import get_name_ckpt_mapping
-from visualize.record_video import (create_parser, GridVideoRecorder,
-                                    generate_grid_of_videos,rename_agent)
-from test.utils import get_ppo_agent
-from visualize.generate_gif import generate_gif_from_agent
-from utils import initialize_ray
+# import sys
+# sys.path.append("../")
+from toolbox.process_data.process_data import get_name_ckpt_mapping
+from toolbox.visualize.record_video import (create_parser, GridVideoRecorder,
+                                            generate_grid_of_videos, rename_agent)
+from toolbox.test.utils import get_ppo_agent
+from toolbox.visualize.generate_gif import generate_gif_from_agent
+from toolbox.utils import initialize_ray
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
 FPS = 50
 
 
-def test_genarate_gif():
+def test_generate_gif_from_agent():
     initialize_ray(test_mode=True)
     agent = get_ppo_agent("BipedalWalker-v2")
     ret = generate_gif_from_agent(agent, "test_agent", "/tmp/test_genrate_gif")

@@ -7,15 +7,14 @@ from math import ceil
 import numpy as np
 import pandas
 import ray
-from gym.envs.box2d.bipedal_walker import BipedalWalker
 from scipy.fftpack import fft
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-from cluster.process_cluster import ClusterFinder
-from process_data.process_data import get_name_ckpt_mapping
-from evaluate.rollout import efficient_rollout_from_worker, make_worker
-from utils import initialize_ray, get_random_string, ENV_MAKER_LOOKUP
-from evaluate.evaluate_utils import restore_agent
+from toolbox.cluster.process_cluster import ClusterFinder
+from toolbox.process_data.process_data import get_name_ckpt_mapping
+from toolbox.evaluate.rollout import efficient_rollout_from_worker, make_worker
+from toolbox.utils import initialize_ray, get_random_string, ENV_MAKER_LOOKUP
+from toolbox.evaluate import restore_agent
 
 
 def compute_fft(y):

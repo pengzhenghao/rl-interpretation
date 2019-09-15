@@ -26,10 +26,10 @@ from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from evaluate.evaluate_utils import restore_agent, restore_agent_with_activation
-from utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
-from process_data.process_data import read_yaml
-from evaluate.tf_model import PPOTFPolicyWithActivation
+from toolbox.evaluate import restore_agent, restore_agent_with_activation
+from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
+from toolbox.process_data.process_data import read_yaml
+from toolbox.evaluate.tf_model import PPOTFPolicyWithActivation
 
 EXAMPLE_USAGE = """
 Example Usage via RLlib CLI:
@@ -171,7 +171,7 @@ def on_episode_step(info):
     episode.user_data["last_layer_activation"].append(pole_angle)
 
 
-from evaluate.tf_model import register
+from toolbox.evaluate.tf_model import register
 
 
 class RolloutWorkerWrapper(object):

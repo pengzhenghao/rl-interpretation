@@ -5,6 +5,8 @@ https://github.com/ray-project/ray/blob/master/rllib/models/tf/fcnet_v2.py
 
 """
 from __future__ import absolute_import, division, print_function
+import sys
+sys.path.append("../")
 
 from ray.rllib.models.tf.misc import normc_initializer, get_activation_fn
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
@@ -16,8 +18,7 @@ from ray.rllib.agents.ppo.ppo import *
 
 from ray.rllib.models import ModelCatalog
 
-import sys
-sys.path.append("../")
+
 
 # from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
@@ -183,7 +184,7 @@ register()
 
 
 def test_ppo():
-    from utils import initialize_ray
+    from toolbox.utils import initialize_ray
     initialize_ray(test_mode=True)
     po = PPOAgentWithActivation(env="BipedalWalker-v2", config=model_config)
     return po

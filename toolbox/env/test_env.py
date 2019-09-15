@@ -1,6 +1,6 @@
 import sys
 sys.path.append("../")
-from env.mujoco_wrapper import MujocoWrapper
+from toolbox.env.mujoco_wrapper import MujocoWrapper
 import numpy as np
 
 

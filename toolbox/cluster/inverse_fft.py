@@ -27,7 +27,7 @@ import pandas
 from scipy.fftpack import fft, ifft
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-from utils import initialize_ray
+from toolbox.utils import initialize_ray
 
 
 def build_env():

@@ -7,8 +7,8 @@ import pickle
 from ray.rllib.agents.registry import get_agent_class
 from ray.tune.util import merge_dicts
 
-from evaluate.tf_model import PPOAgentWithActivation, model_config
-from utils import has_gpu
+from toolbox.evaluate.tf_model import PPOAgentWithActivation, model_config
+from toolbox.utils import has_gpu
 
 
 def build_config(ckpt, extra_config=None):

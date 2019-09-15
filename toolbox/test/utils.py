@@ -1,7 +1,7 @@
 import os
 
-from evaluate.rollout import RolloutWorkerWrapper
-from utils import build_env
+from toolbox.evaluate.rollout import RolloutWorkerWrapper
+from toolbox.utils import build_env
 
 
 def get_test_agent_config():

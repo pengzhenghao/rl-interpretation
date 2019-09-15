@@ -3,14 +3,14 @@ import copy
 import numpy as np
 import ray
 
-from ablate.process_diss import ablate_multiple_units, AblationWorker, ABLATE_LAYER_NAME, get_agent_layer_names
-from utils import build_env, initialize_ray
-from test.utils import get_ppo_agent
+from toolbox.ablate.process_diss import ablate_multiple_units, AblationWorker, ABLATE_LAYER_NAME, get_agent_layer_names
+from toolbox.utils import build_env, initialize_ray
+from toolbox.test.utils import get_ppo_agent
 
 
 def test_ablation_worker_replay():
-    from test.utils import get_test_agent_config, load_test_agent_rollout
-    from utils import initialize_ray
+    from toolbox.test.utils import get_test_agent_config, load_test_agent_rollout
+    from toolbox.utils import initialize_ray
 
     initialize_ray(test_mode=True)
     worker = AblationWorker.remote()

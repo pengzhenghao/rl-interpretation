@@ -13,7 +13,7 @@
 #### Generate YAML files from a batch of trained agents
 
 ```python
-from process_data.process_data import generate_yaml
+from toolbox.process_data.process_data import generate_yaml
 generate_yaml(
   exp_names=["0811-0to50and100to300", "0811-50to100"],
 	run_name="PPO",
@@ -26,7 +26,7 @@ generate_yaml(
 #### Read from YAML files
 
 ```python
-from process_data.process_data import read_yaml, get_name_ckpt_mapping
+from toolbox.process_data.process_data import read_yaml, get_name_ckpt_mapping
 name_ckpt_mapping = read_yaml(ckpt, number=None, mode='top')
 # get_name_ckpt_mapping = read_yaml
 # mode = ['top', 'uniform']
@@ -38,7 +38,7 @@ name_ckpt_mapping = read_yaml(ckpt, number=None, mode='top')
 #### Generate FFT representation
 
 ```python
-from represent.process_fft import get_fft_representation
+from toolbox.represent import get_fft_representation
 data_frame_dict, representation_dict = get_fft_representation(
         name_ckpt_mapping,
         run_name,
@@ -58,7 +58,7 @@ data_frame_dict, representation_dict = get_fft_representation(
 #### Generate dataframe for clustering
 
 ```python
-from represent.process_fft import parse_representation_dict
+from toolbox.represent import parse_representation_dict
 
 cluster_df = parse_representation_dict(
             representation_dict, 
@@ -73,7 +73,7 @@ cluster_df = parse_representation_dict(
 #### Cluster and predict
 
 ```python
-from cluster.process_cluster import ClusterFinder
+from toolbox.cluster.process_cluster import ClusterFinder
 
 cluster_finder = ClusterFinder(
   			cluster_df, 
@@ -103,7 +103,7 @@ prediction = cluster_finder.predict()
 #### Generate video from cluster prediction
 
 ```python
-from cluster.process_cluster import generate_video_of_cluster
+from toolbox.cluster.process_cluster import generate_video_of_cluster
 generate_video_of_cluster(
         prediction,
         env_name,
@@ -126,7 +126,7 @@ generate_video_of_cluster(
 #### From YAML to FFT ClusterFinder
 
 ```python
-from represent.process_fft import get_fft_cluster_finder
+from toolbox.represent import get_fft_cluster_finder
 
 cluster_findr_dict = get_fft_cluster_finder(
         yaml_path,
@@ -208,7 +208,7 @@ So above is the format of yaml files which give an OrderedDict with name of agen
 How we generate it? Just call:
 
 ```python
-from process_data.process_data import generate_yaml
+from toolbox.process_data.process_data import generate_yaml
 generate_yaml(
   exp_names=["0811-0to50and100to300", "0811-50to100"],
 	run_name="PPO",

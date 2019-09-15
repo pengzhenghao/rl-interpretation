@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
+import sys
+sys.path.append("../")
 
 import collections
 import distutils
@@ -401,6 +403,7 @@ class VideoRecorder(object):
             width = (0, extra_info_dict['frame_info']['width'])
             height = (0, extra_info_dict['frame_info']['width'])
 
+            resize_frames = frames
             if self.scale < 1:
                 resize_frames = [
                     cv2.resize(
@@ -501,6 +504,7 @@ class VideoRecorder(object):
                 "{}_{}.gif".format(agent_name.replace(" ", "-"), mode)
             )
             os.makedirs(os.path.dirname(gif_path), exist_ok=True)
+            print("input: ", clip, gif_path, int(fps))
             obj_id = remote_generate_gif.remote(clip, gif_path, int(fps))
             obj_ids.append(obj_id)
             mode_path_dict[mode] = gif_path

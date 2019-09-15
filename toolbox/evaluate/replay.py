@@ -4,12 +4,11 @@ from math import ceil
 
 import numpy as np
 import ray
-from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
-from evaluate.evaluate_utils import restore_agent_with_activation, \
+from toolbox.evaluate import restore_agent_with_activation, \
     restore_agent
-from process_data.process_data import read_yaml
-from utils import has_gpu
+from toolbox.process_data.process_data import read_yaml
+from toolbox.utils import has_gpu
 
 
 def _replay(obs, run_name, ckpt, env_name, require_activation=True):

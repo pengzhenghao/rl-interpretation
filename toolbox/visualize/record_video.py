@@ -19,14 +19,14 @@ from math import ceil
 import numpy as np
 import ray
 
-from env.env_wrapper import BipedalWalkerWrapper
-from evaluate.evaluate_utils import build_config, \
+from toolbox.env import BipedalWalkerWrapper
+from toolbox.evaluate import build_config, \
     restore_agent
-from evaluate.rollout import rollout
-from process_data.process_data import get_name_ckpt_mapping
-from represent.process_fft import get_period
-from utils import initialize_ray
-from visualize.visualize_utils import VideoRecorder
+from toolbox.evaluate.rollout import rollout
+from toolbox.process_data.process_data import get_name_ckpt_mapping
+from toolbox.represent import get_period
+from toolbox.utils import initialize_ray
+from toolbox.visualize import VideoRecorder
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
