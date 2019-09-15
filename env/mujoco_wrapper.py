@@ -1,6 +1,7 @@
+# from gym.envs.mujoco.walker2d import Walker2dEnv
+import gym
 import numpy as np
 from gym.core import Wrapper
-from gym.envs.mujoco.walker2d import Walker2dEnv
 
 
 class MujocoWrapper(Wrapper):
@@ -11,8 +12,8 @@ class MujocoWrapper(Wrapper):
         self.sim.set_state(state)
 
 
-def test_MujocoWrapper():
-    env = Walker2dEnv()
+def _test_MujocoWrapper(env_name):
+    env = gym.make(env_name)
     env = MujocoWrapper(env)
 
     env.seed(0)
@@ -28,7 +29,7 @@ def test_MujocoWrapper():
         states.append(state)
 
     # Test if replicable
-    new_env = Walker2dEnv()
+    new_env = gym.make(env_name)
     new_env = MujocoWrapper(new_env)
     new_env.seed(0)
     new_env.reset()
@@ -44,13 +45,19 @@ def test_MujocoWrapper():
     env.set_state_wrap(states[5])
     env.step(acts[6])
     current_state = env.get_state_wrap()
-    print("Successfully Pass Test!!!")
-    # assert 1==0
     assert current_state.time == states[6].time
     np.testing.assert_array_almost_equal(current_state.qpos, states[6].qpos)
     np.testing.assert_array_almost_equal(current_state.qvel, states[6].qvel)
     np.testing.assert_array_equal(current_state.act, states[6].act)
+
+    print("Successfully Pass Test for env: {}!!!".format(env_name))
     return current_state, states[6]
+
+
+def test_MujocoWrapper():
+    env_name_list = ["Ant-v2", "HalfCheetah-v2", "Humanoid-v2", "Walker2d-v2"]
+    for env_name in env_name_list:
+        _test_MujocoWrapper(env_name)
 
 
 if __name__ == '__main__':
