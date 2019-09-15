@@ -53,11 +53,6 @@ def build_env(useless=None):
 ENV_MAKER_LOOKUP = {"BipedalWalker-v2": build_env}
 
 
-def _get_ppo_agent(env="CartPole-v0"):
-    from ray.rllib.agents.ppo import PPOAgent
-    return PPOAgent(env=env)
-
-
 def has_gpu():
     try:
         ret = "GPU" in ray.available_resources()

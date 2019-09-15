@@ -30,47 +30,60 @@ def _get_unit_name(layer_name, unit_index):
     return osp.join(layer_name, "unit{}".format(unit_index))
 
 
-def ablate_unit(agent, layer_name, index, _test=False):
+def get_agent_layer_names(agent):
+    policy = agent.get_policy()
+    weight_dict = policy._variables.get_weights()
+    return list(weight_dict.keys())
+    # logging.info("Current model layer names: ", weight_dict.keys())
+    # assert isinstance(weight_dict, dict)
+
+
+def ablate_multiple_units(agent, layer_name_index_list_mapping):
     # It should be noted that the agent is MODIFIED in-place in this function!
 
     # get weight dict
     policy = agent.get_policy(DEFAULT_POLICY_ID)
 
-    if _test:
-        old_weight = agent.get_policy(DEFAULT_POLICY_ID).get_weights().copy()
+    # if _test:
+    #     old_weight = agent.get_policy(DEFAULT_POLICY_ID).get_weights().copy()
 
     weight_dict = policy._variables.get_weights()
+    logging.info("Current model layer names: ", weight_dict.keys())
     assert isinstance(weight_dict, dict)
 
-    # get the target matrix's name
-    weight_name = osp.join(layer_name, "kernel")
-    if weight_name not in weight_dict:
-        # For some reason, weight_name should be
-        # default_policy/default_model/fc2/kernel
-        # but it's not in current agent's model. So we make this workaround.
-        weight_name = weight_name.replace("/default_model/", "/")
-        if "fc_" not in weight_name:
-            weight_name = weight_name.replace("/fc", "/fc_")
-    assert weight_name in weight_dict, "weight_name: {}, weight_dict: {}".format(
-        weight_name, weight_dict.keys()
-    )
-    matrix = weight_dict[weight_name]
-    assert matrix.ndim == 2
+    # modify the layer_name
+    for layer_name, index_list in layer_name_index_list_mapping.items():
+        # get the target matrix's name
+        weight_name = osp.join(layer_name, "kernel")
+        if weight_name not in weight_dict:
+            # For some reason, weight_name should be
+            # default_policy/default_model/fc2/kernel
+            # but it's not in current agent's model. So we make this
+            # workaround.
+            weight_name = weight_name.replace("/default_model/", "/")
+            if "fc_" not in weight_name:
+                weight_name = weight_name.replace("/fc", "/fc_")
+        assert weight_name in weight_dict, "weight_name: {}, weight_dict: {" \
+                                           "}".format(
+            weight_name, weight_dict.keys()
+        )
+        matrix = weight_dict[weight_name]
+        assert matrix.ndim == 2
 
-    # ablate
-    assert index < matrix.shape[0]
-    matrix[index, :] = 0
-    weight_dict[weight_name] = matrix
+        matrix[index_list, :] = 0
+        weight_dict[weight_name] = matrix
     ablated_weight = weight_dict
 
     # set back the ablated matrix
     policy = agent.get_policy(DEFAULT_POLICY_ID)
     policy._variables.set_weights(ablated_weight)
 
-    if _test:
-        new_weight = agent.get_policy(DEFAULT_POLICY_ID).get_weights().copy()
-        assert not np.all(old_weight == new_weight)
+    return agent
 
+
+def ablate_unit(agent, layer_name, index, _test=False):
+    layer_name_index_list_mapping = {layer_name: [index]}
+    agent = ablate_multiple_units(agent, layer_name_index_list_mapping)
     return agent
 
 
@@ -382,48 +395,6 @@ def get_ablation_result(
     return ret
 
 
-def test_ablation_worker_replay():
-    from test.utils import get_test_agent_config, load_test_agent_rollout
-    from utils import initialize_ray
-
-    initialize_ray(test_mode=True)
-    worker = AblationWorker.remote()
-    obs_list = load_test_agent_rollout()
-    obs = np.concatenate([o['obs'] for o in obs_list])
-
-    config = get_test_agent_config()
-    worker.reset.remote(
-        run_name=config['run_name'],
-        ckpt=config['ckpt'],
-        env_name=config['env_name'],
-        env_maker=build_env,
-        agent_name="Test Agent",
-        worker_name="Test Worker"
-    )
-
-    result = copy.deepcopy(ray.get(worker.replay.remote(obs=obs)))
-
-    result2 = copy.deepcopy(
-        ray.get(
-            worker.replay.remote(
-                obs=obs, layer_name=ABLATE_LAYER_NAME, unit_index=10
-            )
-        )
-    )
-
-    result3 = copy.deepcopy(
-        ray.get(
-            worker.replay.remote(
-                obs=obs,
-                layer_name="default_policy/default_model/fc_out",
-                unit_index=20
-            )
-        )
-    )
-
-    return result, result2, result3
-
-
 def generate_yaml_of_ablated_agents(
         ablation_result,
         output_path,
@@ -521,8 +492,9 @@ def get_dissect_cluster_finder():
 
 
 if __name__ == '__main__':
+    pass
     # test codes here.
-    r1, r2 = test_ablation_worker_replay()
+    # r1, r2 = test_ablation_worker_replay()
 
     # result = get_ablation_result(
     #     ckpt="~/ray_results/0811-0to50and100to300/"

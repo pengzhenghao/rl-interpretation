@@ -33,3 +33,8 @@ def load_test_agent_rollout():
         config['run_name'], config['env_name']
     )
     return rww_new.wrap_sample()
+
+
+def get_ppo_agent(env="CartPole-v0"):
+    from ray.rllib.agents.ppo import PPOAgent
+    return PPOAgent(env=env)
