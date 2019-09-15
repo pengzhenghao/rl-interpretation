@@ -19,14 +19,14 @@ from math import ceil
 import numpy as np
 import ray
 
-from toolbox.env import BipedalWalkerWrapper
-from toolbox.evaluate import build_config, \
+from toolbox.env.env_wrapper import BipedalWalkerWrapper
+from toolbox.evaluate.evaluate_utils import build_config, \
     restore_agent
 from toolbox.evaluate.rollout import rollout
 from toolbox.process_data.process_data import get_name_ckpt_mapping
-from toolbox.represent import get_period
+from toolbox.represent.process_fft import get_period
 from toolbox.utils import initialize_ray
-from toolbox.visualize import VideoRecorder
+from toolbox.visualize.visualize_utils import VideoRecorder
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -181,9 +181,9 @@ class GridVideoRecorder(object):
         env_maker = BUILD_ENV_MAKER[env_name](seed)
 
         env = env_maker()
-        result = rollout(
+        result = copy.deepcopy(rollout(
             agent, env, env_name, num_steps, require_frame=True
-        )
+        ))
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
         agent.stop()
@@ -208,7 +208,7 @@ class GridVideoRecorder(object):
             agent_name: frames_info
         }
 
-        extra_info_dict = PRESET_INFORMATION_DICT
+        extra_info_dict = PRESET_INFORMATION_DICT.copy()
         for key, val in extra_info.items():
             if key in extra_info_dict:
                 extra_info_dict[key][agent_name] = val
@@ -216,7 +216,7 @@ class GridVideoRecorder(object):
                 extra_info_dict["value_function"][agent_name] = val
         extra_info_dict['title'][agent_name] = agent_name
 
-        new_extra_info_dict = PRESET_INFORMATION_DICT
+        new_extra_info_dict = PRESET_INFORMATION_DICT.copy()
         for key in PRESET_INFORMATION_DICT.keys():
             new_extra_info_dict[key].update(extra_info_dict[key])
         new_extra_info_dict['frame_info'] = {
@@ -252,7 +252,7 @@ class GridVideoRecorder(object):
         agent_count = 1
 
         frames_dict = {}
-        extra_info_dict = PRESET_INFORMATION_DICT
+        extra_info_dict = PRESET_INFORMATION_DICT.copy()
 
         workers = [
             CollectFramesWorker.remote(num_steps, num_iters, seed)
@@ -341,7 +341,7 @@ class GridVideoRecorder(object):
 
             agent_count += num_workers
 
-        new_extra_info_dict = PRESET_INFORMATION_DICT
+        new_extra_info_dict = PRESET_INFORMATION_DICT.copy()
         for key in PRESET_INFORMATION_DICT.keys():
             new_extra_info_dict[key].update(extra_info_dict[key])
         new_extra_info_dict['frame_info'] = {

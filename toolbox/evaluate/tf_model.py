@@ -5,19 +5,24 @@ https://github.com/ray-project/ray/blob/master/rllib/models/tf/fcnet_v2.py
 
 """
 from __future__ import absolute_import, division, print_function
-import sys
-sys.path.append("../")
 
+import ray
 from ray.rllib.models.tf.misc import normc_initializer, get_activation_fn
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from ray.rllib.utils import try_import_tf
 
+# import sys
+# sys.path.append()
 tf = try_import_tf()
-from ray.rllib.agents.ppo.ppo_policy import *
-from ray.rllib.agents.ppo.ppo import *
+from ray.rllib.agents.ppo.ppo_policy import build_tf_policy, \
+    ppo_surrogate_loss, kl_and_loss_stats, setup_config, setup_mixins, \
+    clip_gradients, postprocess_ppo_gae, EntropyCoeffSchedule, KLCoeffMixin, \
+    LearningRateSchedule, ValueNetworkMixin, SampleBatch, BEHAVIOUR_LOGITS
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, build_trainer, \
+    choose_policy_optimizer, validate_config, update_kl, \
+    warn_about_bad_reward_scales
 
 from ray.rllib.models import ModelCatalog
-
 
 
 # from ray.rllib.models.tf.tf_modelv2 import TFModelV2

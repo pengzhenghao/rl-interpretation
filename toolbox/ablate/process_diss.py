@@ -9,7 +9,7 @@ import ray
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
 from toolbox.cluster.process_cluster import ClusterFinder
-from toolbox.evaluate import restore_agent
+from toolbox.evaluate.evaluate_utils import restore_agent
 from toolbox.evaluate.replay import deprecated_replay, agent_replay
 from toolbox.evaluate.rollout import rollout
 from toolbox.utils import initialize_ray, _get_num_iters_from_ckpt_name

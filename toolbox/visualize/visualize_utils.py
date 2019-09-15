@@ -1,17 +1,17 @@
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
-import sys
-sys.path.append("../")
+# import sys
+# sys.path.append("../")
 
-import collections
+# import collections
 import distutils
 import logging
 import os
-import pickle
+# import pickle
 import subprocess
 import tempfile
 import time
-import uuid
+# import uuid
 from math import floor
 
 import cv2
@@ -19,9 +19,9 @@ import numpy as np
 import ray
 from PIL import Image
 from gym import logger, error
-from gym.envs.box2d import BipedalWalker
-from ray.rllib.agents.registry import get_agent_class
-from ray.tune.util import merge_dicts
+# from gym.envs.box2d import BipedalWalker
+# from ray.rllib.agents.registry import get_agent_class
+# from ray.tune.util import merge_dicts
 
 ORIGINAL_VIDEO_WIDTH = 1920
 ORIGINAL_VIDEO_HEIGHT = 1080
@@ -37,8 +37,15 @@ def touch(path):
     open(path, 'a').close()
 
 
-@ray.remote(num_return_vals=1)
+@ray.remote
 def remote_generate_gif(frames, path, fps=50):
+    print("Enter remote_generate_gif!!!!")
+    _generate_gif(frames, path, fps)
+    print("Exit remote_generate_gif!!!!")
+    return 1
+
+
+def local_generate_gif(frames, path, fps=50):
     _generate_gif(frames, path, fps)
     return None
 
@@ -441,9 +448,12 @@ class VideoRecorder(object):
             obj_list.extend(obj_ids)
             name_path_dict[title] = mode_path_dict
             if len(obj_list) >= num_workers:
+                # print("get_obj")
                 ray.get(obj_list)
                 obj_list.clear()
-        ray.get(obj_list)
+        if obj_list:
+            print("obj_list: ", obj_list)
+            ray.get(obj_list)
         return name_path_dict
 
     def _generate_gif_for_clip(
@@ -504,8 +514,9 @@ class VideoRecorder(object):
                 "{}_{}.gif".format(agent_name.replace(" ", "-"), mode)
             )
             os.makedirs(os.path.dirname(gif_path), exist_ok=True)
-            print("input: ", clip, gif_path, int(fps))
+            print("input: ", gif_path, int(fps))
             obj_id = remote_generate_gif.remote(clip, gif_path, int(fps))
+            print("Collect obj_id from remote_generate_gif: ", obj_id)
             obj_ids.append(obj_id)
             mode_path_dict[mode] = gif_path
         return obj_ids, mode_path_dict

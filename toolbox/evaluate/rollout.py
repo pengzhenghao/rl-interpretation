@@ -26,7 +26,8 @@ from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from toolbox.evaluate import restore_agent, restore_agent_with_activation
+from toolbox.evaluate.evaluate_utils import (restore_agent,
+                                             restore_agent_with_activation)
 from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
 from toolbox.process_data.process_data import read_yaml
 from toolbox.evaluate.tf_model import PPOTFPolicyWithActivation
@@ -278,7 +279,6 @@ class RolloutWorkerWrapper(object):
                 )
                 self.policy_type = PPOTFPolicy
 
-            register()
             self.worker = agent.workers.local_worker()
 
             self.dataset = False

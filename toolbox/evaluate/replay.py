@@ -5,7 +5,7 @@ from math import ceil
 import numpy as np
 import ray
 
-from toolbox.evaluate import restore_agent_with_activation, \
+from toolbox.evaluate.evaluate_utils import restore_agent_with_activation, \
     restore_agent
 from toolbox.process_data.process_data import read_yaml
 from toolbox.utils import has_gpu

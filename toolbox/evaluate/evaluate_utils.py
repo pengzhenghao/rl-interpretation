@@ -9,6 +9,7 @@ from ray.tune.util import merge_dicts
 
 from toolbox.evaluate.tf_model import PPOAgentWithActivation, model_config
 from toolbox.utils import has_gpu
+from toolbox.evaluate.tf_model import register
 
 
 def build_config(ckpt, extra_config=None):
@@ -36,6 +37,8 @@ def build_config(ckpt, extra_config=None):
 
 
 def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None):
+    register()
+
     # if config is None:
     config = build_config(ckpt, extra_config)
     agent = PPOAgentWithActivation(env=env_name, config=config)

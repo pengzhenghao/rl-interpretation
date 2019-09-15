@@ -1,5 +1,5 @@
-import sys
-sys.path.append("../")
+# import sys
+# sys.path.append("../")
 from toolbox.process_data.process_data import get_name_ckpt_mapping
 from toolbox.visualize.record_video import GridVideoRecorder
 
@@ -11,6 +11,7 @@ def generate_gif_from_agent(agent, agent_name, output_path):
     frames_dict, extra_info_dict = gvr.generate_frames_from_agent(
         agent, agent_name
     )
+
     name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
     print("Gif has been saved at: ", name_path_dict)
 
