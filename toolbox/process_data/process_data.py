@@ -4,6 +4,7 @@ from collections import OrderedDict
 from math import floor
 from os.path import join
 
+import numpy as np
 import pandas
 import yaml
 from gym.envs import spec
@@ -264,8 +265,10 @@ def generate_progress_yaml(exp_names, output_path, number=None):
 
 
 def generate_yaml(
-        exp_names, output_path, rollout=False, num_rollouts=100, seed=0
+        exp_names, output_path,# number=None
 ):
+    # The yaml file should reflect complete information of experiment.
+    # So we do not allow number as argument.
     # Get the trial_name-json_path dict.
 
     assert spec(args.env_name)  # make sure no typo in env_name
@@ -280,6 +283,9 @@ def generate_yaml(
     trial_performance_list = []
     for i, (trial_name, data) in enumerate(trial_data_dict.items()):
         avg = data[PERFORMANCE_METRIC].tail(K).mean()
+        if np.isnan(avg):
+            avg = float("-inf")
+            print("Avg: ", avg, np.isnan(avg))
         trial_performance_list.append([trial_name, avg])
     # print("Collected trial_performance_list: ", trial_performance_list)
     sorted_trial_pfm_list = sorted(
@@ -321,8 +327,8 @@ def generate_yaml(
         )
     )
 
-    if rollout:
-        pass
+    # if rollout:
+    #     pass
         # several_agent_rollout(output_path, num_rollouts, seed)
 
     return results

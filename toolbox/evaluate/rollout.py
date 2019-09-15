@@ -7,15 +7,14 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 import collections
+import copy
 import json
 import logging
 import os
 import pickle
 import time
 from math import ceil
-import copy
 
-import gym
 import numpy as np
 import ray
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
@@ -28,9 +27,9 @@ from ray.tune.util import merge_dicts
 
 from toolbox.evaluate.evaluate_utils import (restore_agent,
                                              restore_agent_with_activation)
-from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
-from toolbox.process_data.process_data import read_yaml
 from toolbox.evaluate.tf_model import PPOTFPolicyWithActivation
+from toolbox.process_data.process_data import read_yaml
+from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
 
 EXAMPLE_USAGE = """
 Example Usage via RLlib CLI:
@@ -55,7 +54,7 @@ def create_parser(parser_creator=None):
     parser = parser_creator(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-        "given a checkpoint.",
+                    "given a checkpoint.",
         epilog=EXAMPLE_USAGE
     )
 
@@ -68,9 +67,9 @@ def create_parser(parser_creator=None):
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-        "user-defined trainable function or class registered in the "
-        "tune registry."
+             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+             "user-defined trainable function or class registered in the "
+             "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use."
@@ -91,7 +90,7 @@ def create_parser(parser_creator=None):
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-        "Surpresses loading of configuration from checkpoint."
+             "Surpresses loading of configuration from checkpoint."
     )
     return parser
 
@@ -172,9 +171,6 @@ def on_episode_step(info):
     episode.user_data["last_layer_activation"].append(pole_angle)
 
 
-from toolbox.evaluate.tf_model import register
-
-
 class RolloutWorkerWrapper(object):
     @classmethod
     def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
@@ -206,7 +202,6 @@ class RolloutWorkerWrapper(object):
             num_rollouts,
             seed,
             env_creater,
-            # policy_type,
             run_name,
             env_name,
             require_activation=False,
@@ -270,8 +265,9 @@ class RolloutWorkerWrapper(object):
                 self.policy_type = PPOTFPolicyWithActivation
                 policy = agent.get_policy()
                 assert "layer0" in policy.extra_compute_action_fetches(), \
-                "This policy is not we modified policy. Please use policy" \
-                "we reimplemented."
+                    "This policy is not we modified policy. Please use " \
+                    "policy" \
+                    "we reimplemented."
             else:
                 agent = restore_agent(
                     self.run_name, self.ckpt, self.env_name,
@@ -426,7 +422,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-                                                ]["policy_mapping_fn"]
+            ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -583,41 +579,6 @@ def rollout(
     return result
 
 
-def _test_es_agent_compatibility():
-    from ray.rllib.agents.es import ESTrainer
-    es = ESTrainer(env="BipedalWalker-v2")
-    env = gym.make("BipedalWalker-v2")
-    rollout(es, env, "BipedalWalker-v2", num_steps=100, require_frame=True)
-
-
-def test_RolloutWorkerWrapper():
-    initialize_ray(test_mode=True)
-    env_maker = lambda _: gym.make("BipedalWalker-v2")
-    ckpt = "test/fake-ckpt1/checkpoint-313"
-    # rww = RolloutWorkerWrapper(ckpt, 2, 0, env_maker, PPOTFPolicy)
-    # for _ in range(2):
-    #     result = rww.wrap_sample()
-    # print(result)
-    # rww.close()
-
-    rww_new = RolloutWorkerWrapper.as_remote().remote(
-        ckpt,
-        2,
-        0,
-        env_maker,
-        PPOTFPolicy,
-        run_name="PPO",
-        env_name="BipedalWalker-v2"
-    )
-    for _ in range(2):
-        result = ray.get(rww_new.wrap_sample.remote())
-    print(result)
-    print("Prepare to close")
-    print("Dataset: ", ray.get(rww_new.get_dataset.remote()))
-    rww_new.close.remote()
-    print("After close")
-
-
 def several_agent_rollout(
         yaml_path,
         num_rollouts,
@@ -667,7 +628,8 @@ def several_agent_rollout(
             obj_id = workers[i].wrap_sample.remote()
             obj_ids_dict[name] = obj_id
             print(
-                "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from agent"
+                "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from "
+                "agent"
                 " <{}>".format(
                     agent_count, num_agents,
                     time.time() - now_t,
@@ -695,33 +657,6 @@ def several_agent_rollout(
             agent_count_get += 1
             now_t_get = time.time()
     return return_dict if return_data else None
-
-
-def test_RolloutWorkerWrapper_with_activation():
-    initialize_ray(test_mode=True)
-    env_maker = lambda _: gym.make("BipedalWalker-v2")
-    ckpt = "test/fake-ckpt1/checkpoint-313"
-    rww_new = RolloutWorkerWrapper.as_remote().remote(True)
-    rww_new.reset.remote(
-        ckpt, 2, 0, env_maker, "PPO", "BipedalWalker-v2", True
-    )
-    for _ in range(2):
-        result = ray.get(rww_new.wrap_sample.remote())
-    print(result)
-    print("Prepare to close")
-    print("Dataset: ", ray.get(rww_new.get_dataset.remote()))
-    rww_new.close.remote()
-    print("After close")
-    return result
-
-
-def test_serveral_agent_rollout(force=False):
-    yaml_path = "data/0811-random-test.yaml"
-    num_rollouts = 2
-    initialize_ray()
-    return several_agent_rollout(
-        yaml_path, num_rollouts, force_rewrite=force, return_data=True
-    )
 
 
 if __name__ == "__main__":
