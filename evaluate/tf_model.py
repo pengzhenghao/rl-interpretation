@@ -16,6 +16,9 @@ from ray.rllib.agents.ppo.ppo import *
 
 from ray.rllib.models import ModelCatalog
 
+import sys
+sys.path.append("../")
+
 # from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 # class MyModelClass(TFModelV2):

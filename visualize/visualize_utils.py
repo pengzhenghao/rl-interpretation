@@ -129,16 +129,16 @@ class VideoRecorder(object):
         self.path = path
         self.base_path = base_path
 
-        path_base, actual_ext = os.path.splitext(self.path)
+        # path_base, actual_ext = os.path.splitext(self.path)
 
-        if actual_ext != required_ext:
-            hint = " HINT: The environment is text-only, therefore we're " \
-                   "recording its text output in a structured JSON format." \
-                if self.ansi_mode else ''
-            raise error.Error(
-                "Invalid path given: {} -- must have file "
-                "extension {}.{}".format(self.path, required_ext, hint)
-            )
+        # if actual_ext != required_ext:
+        #     hint = " HINT: The environment is text-only, therefore we're " \
+        #            "recording its text output in a structured JSON format." \
+        #         if self.ansi_mode else ''
+        #     raise error.Error(
+        #         "Invalid path given: {} -- must have file "
+        #         "extension {}.{}".format(self.path, required_ext, hint)
+        #     )
         # Touch the file in any case, so we know it's present. (This
         # corrects for platform platform differences. Using ffmpeg on
         # OS X, the file is precreated, but not on Linux.

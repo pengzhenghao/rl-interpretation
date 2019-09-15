@@ -26,7 +26,7 @@ from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from evaluate.evaulate_utils import restore_agent, restore_agent_with_activation
+from evaluate.evaluate_utils import restore_agent, restore_agent_with_activation
 from utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
 from process_data.process_data import read_yaml
 from evaluate.tf_model import PPOTFPolicyWithActivation

@@ -12,21 +12,21 @@ from __future__ import absolute_import, division, print_function, \
 import argparse
 import copy
 import json
+import time
+from collections import OrderedDict
 from math import ceil
+
 import numpy as np
 import ray
 
-from process_data.process_data import get_name_ckpt_mapping
-from evaluate.rollout import rollout
+from env.env_wrapper import BipedalWalkerWrapper
 from evaluate.evaluate_utils import build_config, \
     restore_agent
-from visualize.visualize_utils import VideoRecorder
-from env.env_wrapper import BipedalWalkerWrapper
+from evaluate.rollout import rollout
+from process_data.process_data import get_name_ckpt_mapping
 from represent.process_fft import get_period
 from utils import initialize_ray
-
-from collections import OrderedDict
-import time
+from visualize.visualize_utils import VideoRecorder
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -80,7 +80,7 @@ def create_parser(parser_creator=None):
     parser = parser_creator(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-        "given a checkpoint."
+                    "given a checkpoint."
     )
     parser.add_argument(
         "yaml",
@@ -93,9 +93,9 @@ def create_parser(parser_creator=None):
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-        "user-defined trainable function or class registered in the "
-        "tune registry."
+             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+             "user-defined trainable function or class registered in the "
+             "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use.", required=True
@@ -112,7 +112,7 @@ def create_parser(parser_creator=None):
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-        "Surpresses loading of configuration from checkpoint."
+             "Surpresses loading of configuration from checkpoint."
     )
     return parser
 
@@ -158,12 +158,12 @@ class CollectFramesWorker(object):
         return frames, extra_info
 
 
-from utils import _generate_gif, remote_generate_gif
+# from utils import _generate_gif
 
 
-def test_generate_gif():
-    data = np.random.randint(0, 256, (500, 100, 100, 4), dtype='uint8')
-    _generate_gif(data, "tmp_delete_me.gif")
+# def test_generate_gif():
+#     data = np.random.randint(0, 256, (500, 100, 100, 4), dtype='uint8')
+#     _generate_gif(data, "tmp_delete_me.gif")
 
 
 class GridVideoRecorder(object):
@@ -171,6 +171,60 @@ class GridVideoRecorder(object):
         initialize_ray(local_mode)
         self.video_path = video_path
         self.fps = fps
+
+    def generate_frames_from_agent(
+            self, agent, agent_name, num_steps=None,
+            seed=0):
+        config = agent.config
+
+        env_name = config["env"]
+        env_maker = BUILD_ENV_MAKER[env_name](seed)
+
+        env = env_maker()
+        result = rollout(
+            agent, env, env_name, num_steps, require_frame=True
+        )
+        frames, extra_info = result['frames'], result['frame_extra_info']
+        env.close()
+        agent.stop()
+
+        period_source = np.stack(extra_info['period_info'])
+        period = get_period(period_source, self.fps)
+        print(
+            "period for agent <{}> is {}, its len is {}".format(
+                agent_name, period, len(frames)
+            )
+        )
+
+        frames_info = {
+            "frames": frames,
+            "column": None,
+            "row": None,
+            "loc": None,
+            "period": period
+        }
+
+        return_dict = {
+            agent_name: frames_info
+        }
+
+        extra_info_dict = PRESET_INFORMATION_DICT
+        for key, val in extra_info.items():
+            if key in extra_info_dict:
+                extra_info_dict[key][agent_name] = val
+            elif key == "vf_preds":
+                extra_info_dict["value_function"][agent_name] = val
+        extra_info_dict['title'][agent_name] = agent_name
+
+        new_extra_info_dict = PRESET_INFORMATION_DICT
+        for key in PRESET_INFORMATION_DICT.keys():
+            new_extra_info_dict[key].update(extra_info_dict[key])
+        new_extra_info_dict['frame_info'] = {
+            "width": frames[0].shape[1],
+            "height": frames[0].shape[0]
+        }
+
+        return return_dict, new_extra_info_dict
 
     def generate_frames(
             self,
@@ -251,18 +305,20 @@ class GridVideoRecorder(object):
 
                 frames_info = {
                     "frames":
-                    new_frames,
+                        new_frames,
                     "column":
-                    None if name_column_mapping is None else
-                    name_column_mapping[name],
+                        None if name_column_mapping is None else
+                        name_column_mapping[name],
                     "row":
-                    None
-                    if name_row_mapping is None else name_row_mapping[name],
+                        None
+                        if name_row_mapping is None else name_row_mapping[
+                            name],
                     "loc":
-                    None
-                    if name_loc_mapping is None else name_loc_mapping[name],
+                        None
+                        if name_loc_mapping is None else name_loc_mapping[
+                            name],
                     "period":
-                    period
+                        period
                 }
 
                 frames_dict[name] = frames_info
@@ -506,62 +562,7 @@ def generate_gif(yaml_path, output_dir):
     return name_path_dict
 
 
-def test_cluster_video_generation():
-
-    parser = create_parser()
-    args = parser.parse_args()
-
-    name_ckpt_mapping = get_name_ckpt_mapping(args.yaml, number=2)
-
-    gvr = GridVideoRecorder(
-        video_path=args.yaml[:-5], local_mode=args.local_mode, fps=FPS
-    )
-
-    name_row_mapping = {key: "TEST ROW" for key in name_ckpt_mapping.keys()}
-    name_col_mapping = {key: "TEST COL" for key in name_ckpt_mapping.keys()}
-    name_loc_mapping = {
-        key: (int((idx + 1) / 3), int((idx + 1) % 3))
-        for idx, key in enumerate(name_ckpt_mapping.keys())
-    }
-
-    frames_dict, extra_info_dict = gvr.generate_frames(
-        name_ckpt_mapping, args.steps, args.iters, args.seed, name_col_mapping,
-        name_row_mapping, name_loc_mapping
-    )
-
-    gvr.generate_video(frames_dict, extra_info_dict)
-
-    gvr.close()
-
-
-def test_gif_generation():
-    yaml = "yaml/test-2-agents.yaml"
-    name_ckpt_mapping = get_name_ckpt_mapping(yaml, number=2)
-
-    gvr = GridVideoRecorder(
-        video_path="data/vis/gif/test-2-agents", local_mode=True, fps=FPS
-    )
-
-    frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)
-    name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
-    print(name_path_dict)
-    return name_path_dict
-    # gvr.close()
-
-
-def test_es_compatibility():
-    name_ckpt_mapping = get_name_ckpt_mapping(
-        "data/es-30-agents-0818.yaml", 10
-    )
-    generate_grid_of_videos(
-        name_ckpt_mapping,
-        "data/tmp_test_es_compatibility",
-        steps=50,
-        name_callback=rename_agent,
-        num_workers=10
-    )
-
-
 if __name__ == "__main__":
     # test_es_compatibility()
-    test_gif_generation()
+    # test_gif_generation()
+    pass
