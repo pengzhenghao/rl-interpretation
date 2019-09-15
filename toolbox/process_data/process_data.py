@@ -265,7 +265,8 @@ def generate_progress_yaml(exp_names, output_path, number=None):
 
 
 def generate_yaml(
-        exp_names, output_path,# number=None
+        exp_names,
+        output_path,  # number=None
 ):
     # The yaml file should reflect complete information of experiment.
     # So we do not allow number as argument.
@@ -329,7 +330,7 @@ def generate_yaml(
 
     # if rollout:
     #     pass
-        # several_agent_rollout(output_path, num_rollouts, seed)
+    # several_agent_rollout(output_path, num_rollouts, seed)
 
     return results
 

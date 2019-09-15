@@ -80,7 +80,7 @@ def create_parser(parser_creator=None):
     parser = parser_creator(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-                    "given a checkpoint."
+        "given a checkpoint."
     )
     parser.add_argument(
         "yaml",
@@ -93,9 +93,9 @@ def create_parser(parser_creator=None):
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-             "user-defined trainable function or class registered in the "
-             "tune registry."
+        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+        "user-defined trainable function or class registered in the "
+        "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use.", required=True
@@ -112,7 +112,7 @@ def create_parser(parser_creator=None):
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-             "Surpresses loading of configuration from checkpoint."
+        "Surpresses loading of configuration from checkpoint."
     )
     return parser
 
@@ -160,7 +160,6 @@ class CollectFramesWorker(object):
 
 # from utils import _generate_gif
 
-
 # def test_generate_gif():
 #     data = np.random.randint(0, 256, (500, 100, 100, 4), dtype='uint8')
 #     _generate_gif(data, "tmp_delete_me.gif")
@@ -173,17 +172,17 @@ class GridVideoRecorder(object):
         self.fps = fps
 
     def generate_frames_from_agent(
-            self, agent, agent_name, num_steps=None,
-            seed=0):
+            self, agent, agent_name, num_steps=None, seed=0
+    ):
         config = agent.config
 
         env_name = config["env"]
         env_maker = BUILD_ENV_MAKER[env_name](seed)
 
         env = env_maker()
-        result = copy.deepcopy(rollout(
-            agent, env, env_name, num_steps, require_frame=True
-        ))
+        result = copy.deepcopy(
+            rollout(agent, env, env_name, num_steps, require_frame=True)
+        )
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
         agent.stop()
@@ -204,9 +203,7 @@ class GridVideoRecorder(object):
             "period": period
         }
 
-        return_dict = {
-            agent_name: frames_info
-        }
+        return_dict = {agent_name: frames_info}
 
         extra_info_dict = PRESET_INFORMATION_DICT.copy()
         for key, val in extra_info.items():
@@ -305,20 +302,18 @@ class GridVideoRecorder(object):
 
                 frames_info = {
                     "frames":
-                        new_frames,
+                    new_frames,
                     "column":
-                        None if name_column_mapping is None else
-                        name_column_mapping[name],
+                    None if name_column_mapping is None else
+                    name_column_mapping[name],
                     "row":
-                        None
-                        if name_row_mapping is None else name_row_mapping[
-                            name],
+                    None
+                    if name_row_mapping is None else name_row_mapping[name],
                     "loc":
-                        None
-                        if name_loc_mapping is None else name_loc_mapping[
-                            name],
+                    None
+                    if name_loc_mapping is None else name_loc_mapping[name],
                     "period":
-                        period
+                    period
                 }
 
                 frames_dict[name] = frames_info

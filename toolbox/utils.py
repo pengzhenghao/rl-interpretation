@@ -7,7 +7,8 @@ import os
 import uuid
 
 import ray
-from gym.envs.box2d import BipedalWalker
+
+from toolbox.env.env_maker import build_bipedal_walker, ENV_MAKER_LOOKUP
 
 
 class DefaultMapping(collections.defaultdict):
@@ -44,13 +45,9 @@ def _get_num_iters_from_ckpt_name(ckpt):
     return num_iters
 
 
-def build_env(useless=None):
-    env = BipedalWalker()
-    env.seed(0)
-    return env
+build_env = build_bipedal_walker
 
-
-ENV_MAKER_LOOKUP = {"BipedalWalker-v2": build_env}
+ENV_MAKER_LOOKUP = ENV_MAKER_LOOKUP
 
 
 def has_gpu():

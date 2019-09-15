@@ -4,8 +4,9 @@ from __future__ import absolute_import, division, print_function, \
 # import sys
 # sys.path.append("../")
 from toolbox.process_data.process_data import get_name_ckpt_mapping
-from toolbox.visualize.record_video import (create_parser, GridVideoRecorder,
-                                            generate_grid_of_videos, rename_agent)
+from toolbox.visualize.record_video import (
+    create_parser, GridVideoRecorder, generate_grid_of_videos, rename_agent
+)
 from toolbox.test.utils import get_ppo_agent
 from toolbox.visualize.generate_gif import generate_gif_from_agent
 from toolbox.utils import initialize_ray

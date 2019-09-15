@@ -25,8 +25,9 @@ from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.tune.util import merge_dicts
 
-from toolbox.evaluate.evaluate_utils import (restore_agent,
-                                             restore_agent_with_activation)
+from toolbox.evaluate.evaluate_utils import (
+    restore_agent, restore_agent_with_activation
+)
 from toolbox.evaluate.tf_model import PPOTFPolicyWithActivation
 from toolbox.process_data.process_data import read_yaml
 from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
@@ -54,7 +55,7 @@ def create_parser(parser_creator=None):
     parser = parser_creator(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-                    "given a checkpoint.",
+        "given a checkpoint.",
         epilog=EXAMPLE_USAGE
     )
 
@@ -67,9 +68,9 @@ def create_parser(parser_creator=None):
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-             "user-defined trainable function or class registered in the "
-             "tune registry."
+        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+        "user-defined trainable function or class registered in the "
+        "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use."
@@ -90,7 +91,7 @@ def create_parser(parser_creator=None):
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-             "Surpresses loading of configuration from checkpoint."
+        "Surpresses loading of configuration from checkpoint."
     )
     return parser
 
@@ -422,7 +423,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-            ]["policy_mapping_fn"]
+                                                ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}

@@ -22,7 +22,6 @@ ABLATE_LAYER_NAME_DIMENSION_DICT = {
     "default_policy/default_model/fc2": 256,
     "default_policy/default_model/fc_out": 256,
 }
-
 """
 mapping = get_layer_name_index_list_mapping(df, "episode_reward_mean", threshold)
 ablated_agent = ablate_multiple_units(master_agent, mapping)
