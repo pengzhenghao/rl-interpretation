@@ -3,6 +3,7 @@ import logging
 import os.path as osp
 import time
 from math import ceil
+from collections import defaultdict
 
 import numpy as np
 import ray
@@ -22,9 +23,40 @@ ABLATE_LAYER_NAME_DIMENSION_DICT = {
     "default_policy/default_model/fc_out": 256,
 }
 
+"""
+mapping = get_layer_name_index_list_mapping(df, "episode_reward_mean", threshold)
+ablated_agent = ablate_multiple_units(master_agent, mapping)
+generate_gif_from_agent(
+    ablated_agent, 
+    "Ablated Master Agent (episode_reward_mean {})".format(threshold), 
+    "./ablated-master-agent_episode-reward-mean_threshold-{}".format(threshold)
+)
+"""
+
+
+def get_layer_name_index_list_mapping(df, y_label, threshold=0.02):
+    # use for getting the baseline, so it's ok to ignore the real layer_name
+    layer_name = df.iloc[0]['layer_name']
+    unit_name = _get_unit_name(layer_name, NO_ABLATION_UNIT_NAME)
+    baseline = df.loc[unit_name, y_label]
+
+    relative_error = (df[y_label] - baseline).abs() / abs(baseline)
+    indices = relative_error > threshold
+    new_df = df[indices]
+
+    layer_name_index_list_mapping = defaultdict(list)
+    for _, row in new_df.iterrows():
+        if row.ablated_unit_index is None:
+            continue
+        layer_name = row.layer_name
+        unit_index = int(row.ablated_unit_index)
+        layer_name_index_list_mapping[layer_name].append(unit_index)
+
+    return layer_name_index_list_mapping
+
 
 def _get_unit_name(layer_name, unit_index):
-    if unit_index is None:
+    if (unit_index is None) or (unit_index == NO_ABLATION_UNIT_NAME):
         return osp.join(layer_name, NO_ABLATION_UNIT_NAME)
     assert isinstance(unit_index, int)
     return osp.join(layer_name, "unit{}".format(unit_index))
@@ -63,10 +95,10 @@ def ablate_multiple_units(agent, layer_name_index_list_mapping):
             weight_name = weight_name.replace("/default_model/", "/")
             if "fc_" not in weight_name:
                 weight_name = weight_name.replace("/fc", "/fc_")
-        assert weight_name in weight_dict, "weight_name: {}, weight_dict: {" \
-                                           "}".format(
-            weight_name, weight_dict.keys()
-        )
+        assert weight_name in weight_dict, \
+            "weight_name: {}, weight_dict: {}".format(
+                weight_name, weight_dict.keys()
+            )
         matrix = weight_dict[weight_name]
         assert matrix.ndim == 2
 
