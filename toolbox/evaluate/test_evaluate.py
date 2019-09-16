@@ -3,7 +3,8 @@ import ray
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 
 from toolbox.evaluate.rollout import RolloutWorkerWrapper, \
-    several_agent_rollout, rollout
+    several_agent_rollout, rollout, make_worker, efficient_rollout_from_worker
+from toolbox.env.env_maker import get_env_maker
 from toolbox.utils import initialize_ray
 
 
@@ -69,3 +70,17 @@ def test_RolloutWorkerWrapper():
     print("Dataset: ", ray.get(rww_new.get_dataset.remote()))
     rww_new.close.remote()
     print("After close")
+
+
+def test_efficient_rollout_from_worker():
+    initialize_ray(test_mode=True)
+    env_name = "BipedalWalker-v2"
+    worker = make_worker(get_env_maker(env_name),
+                            None, 1, 0, "ES", env_name)
+    trajctory_list = efficient_rollout_from_worker(worker)
+    print(trajctory_list)
+    return trajctory_list
+
+
+if __name__ == '__main__':
+    r = test_efficient_rollout_from_worker()

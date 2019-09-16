@@ -54,6 +54,8 @@ def default_policy_agent_mapping(unused_agent_id):
 
 
 def get_dataset_path(ckpt, num_rollout, seed):
+    if ckpt is None:
+        ckpt = "/tmp/tmp"
     ckpt = os.path.abspath(os.path.expanduser(ckpt))
     return "{}_rollout{}_seed{}.pkl".format(ckpt, num_rollout, seed)
 
@@ -82,6 +84,8 @@ class RolloutWorkerWrapper(object):
         self.policy_type = None
         self.env_creater = None
         self.require_activation = None
+        self.is_es_agent = False
+        self.agent = None
 
     def reset(
             self,
@@ -99,15 +103,19 @@ class RolloutWorkerWrapper(object):
         self.num_rollouts = num_rollouts
         self.require_activation = require_activation
         self.index = 0
-        # assert self.initialized
-        # if self.dataset:
-        #     return
+
         self.run_name = run_name
         self.ckpt = ckpt
         self.env_name = env_name
         self.env_creater = env_creater
         # self.policy = policy
+        self.agent = None
         self.seed = seed
+
+        # This is a workaround for ES agent.
+        self.is_es_agent = False
+        if self.run_name == "ES":
+            self.is_es_agent = True
 
     def _lazy_reset(self):
         assert self.initialized
@@ -145,32 +153,33 @@ class RolloutWorkerWrapper(object):
             }
 
             if self.require_activation:
-                agent = restore_agent_with_activation(
+                self.agent = restore_agent_with_activation(
                     self.run_name, self.ckpt, self.env_name,
                     config_for_evaluation
                 )
                 self.policy_type = PPOTFPolicyWithActivation
-                policy = agent.get_policy()
+                policy = self.agent.get_policy()
                 assert "layer0" in policy.extra_compute_action_fetches(), \
                     "This policy is not we modified policy. Please use " \
                     "policy" \
                     "we reimplemented."
             else:
-                agent = restore_agent(
+                self.agent = restore_agent(
                     self.run_name, self.ckpt, self.env_name,
                     config_for_evaluation
                 )
                 self.policy_type = PPOTFPolicy
 
-            self.worker = agent.workers.local_worker()
+            if hasattr(self.agent, "workers"):
+                self.worker = self.agent.workers.local_worker()
+                self.worker.set_weights(
+                    {DEFAULT_POLICY_ID: self.agent.get_policy().get_weights()}
+                )
+            else:
+                assert self.is_es_agent
 
             self.dataset = False
             self.data = []
-
-            self.worker.set_weights(
-                {DEFAULT_POLICY_ID: agent.get_policy().get_weights()}
-            )
-
             print("Successfully set weights for agent.")
         self.already_reset = True
 
@@ -179,12 +188,26 @@ class RolloutWorkerWrapper(object):
         if not self.already_reset:
             self._lazy_reset()
         result_list = []
+
+        if self.is_es_agent:
+            env = self.env_creater()
+
         for roll in range(self.num_rollouts):
             assert self.index < self.num_rollouts
             if self.dataset:
                 result = self.data[self.index]
             else:
-                result = self.worker.sample()
+                if self.is_es_agent:
+                    result = rollout(
+                        self.agent,
+                        env,
+                        self.env_name,
+                        require_trajectory=True,
+                        require_extra_info=False
+                    )
+                    result = result['trajectory']
+                else:
+                    result = self.worker.sample()
                 self.data.append(result)
             self.index += 1
             result_list.append(result)
@@ -211,6 +234,10 @@ class RolloutWorkerWrapper(object):
                 )
             )
             self.dataset = len(self.data) >= self.num_rollouts
+        if self.worker:
+            self.worker.stop()
+        if self.agent:
+            self.agent.stop()
         return self.path
 
 
@@ -220,8 +247,8 @@ def make_worker(env_maker, ckpt, num_rollouts, seed, run_name, env_name):
     # if os.path.exists(path):
     #     return DataLoader(ckpt, num_rollout, seed)
     # policy = PPOTFPolicy
-    worker = RolloutWorkerWrapper.as_remote().remote()
-    worker.reset.remote(
+    worker = RolloutWorkerWrapper()
+    worker.reset(
         ckpt=ckpt,
         num_rollouts=num_rollouts,
         seed=seed,
@@ -232,36 +259,26 @@ def make_worker(env_maker, ckpt, num_rollouts, seed, run_name, env_name):
     return worker
 
 
-def efficient_rollout_from_worker(worker, num_rollouts):
+def efficient_rollout_from_worker(worker, num_rollouts=None):
     trajctory_list = []
-    obj_ids = []
     t = time.time()
-    for num in range(num_rollouts):
-        obj_ids.append(worker.wrap_sample.remote())
-    for num, obj in enumerate(obj_ids):
-        # We have so many information:
-        # dict_keys(['t', 'eps_id', 'agent_index', 'obs', 'actions',
-        # 'rewards', 'prev_actions', 'prev_rewards', 'dones', 'infos',
-        # 'new_obs', 'action_prob', 'vf_preds', 'behaviour_logits',
-        # 'unroll_id', 'advantages', 'value_targets'])
-        data = copy.deepcopy(ray.get(obj).data)
-        trajectory = parse_single_rollout(data)
-        logging.info(
-            "Finish collect {}/{} rollouts. The latest rollout contain {}"
-            " steps.".format(
-                num + 1,
-                num_rollouts,
-                len(trajectory[0]),
-            )
-        )
+    data = worker.wrap_sample()
+    print("[efficient_rollout_from_worker] Finish wrap_sample.")
+    # data = copy.deepcopy(ray.get(obj_id))
+    # data is a list. Each entry is a SampleBatch
+    for sample_batch in data:
+        if isinstance(sample_batch, list):
+            trajectory = parse_es_rollout(sample_batch)
+        else:
+            trajectory = parse_single_rollout(sample_batch.data)
         trajctory_list.append(trajectory)
     logging.info(
         "Finish {} Rollouts. Cost: {} s.".format(
-            num_rollouts,
+            num_rollouts or "--",
             time.time() - t
         )
     )
-    worker.close.remote()
+    # worker.close.remote()
     return trajctory_list
 
 
@@ -281,6 +298,17 @@ def parse_single_rollout(data):
     # value_function = data['vf_preds']
     done = data['dones']
     trajectory = [obs, act, next_obs, rew, done]
+    return trajectory
+
+
+def parse_es_rollout(data):
+    assert len(data[0]) == 5
+    obs = np.stack([t[0] for t in data])
+    act = np.stack([t[1] for t in data])
+    next_obs = np.stack([t[2] for t in data])
+    reward = np.stack([t[3] for t in data])
+    done = np.stack([t[4] for t in data])
+    trajectory = [obs, act, next_obs, reward, done]
     return trajectory
 
 
@@ -315,7 +343,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-                                                ]["policy_mapping_fn"]
+            ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -337,7 +365,6 @@ def rollout(
     start = now
     # while steps < (num_steps or steps + 1):
     for i in range(1):  # TODO for future extend to multiple iteration
-
         if require_trajectory:
             trajectory = []
         if require_frame:

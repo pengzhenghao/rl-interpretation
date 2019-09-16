@@ -108,7 +108,7 @@ def get_period(source, fps):
 class FFTWorker(object):
     def __init__(self):
         self._num_steps = None
-        self.agent = None
+        # self.agent = None
         self.agent_name = None
         self.run_name = None
         self.env_name = None
@@ -169,11 +169,18 @@ class FFTWorker(object):
         print("{} is reset!".format(worker_name))
 
     def _make_rollout_worker(self):
+        assert self.initialized
+
         if self.rollout_worker is None:
-            assert self.initialized
+
             self.rollout_worker = \
                 make_worker(self.env_maker, self.ckpt, self.num_rollouts, self.seed,
                             self.run_name, self.env_name)
+        else:
+            self.rollout_worker.reset(
+                self.ckpt, self.num_rollouts, self.seed, self.env_maker,
+                self.run_name, self.env_name
+            )
 
     def _efficient_rollout(
             self,
@@ -182,7 +189,8 @@ class FFTWorker(object):
         rollout_result = efficient_rollout_from_worker(
             self.rollout_worker, self.num_rollouts
         )
-        # self.rollout_worker.close.remote()
+        print("[FFTWorker._efficient_rollout] Successfully collect "
+              "{} rollouts.".format(self.num_rollouts))
         data_frame = None
 
         for i, roll in enumerate(rollout_result):
@@ -199,16 +207,15 @@ class FFTWorker(object):
     @ray.method(num_return_vals=2)
     def fft(
             self,
-            # num_seeds,
-            # num_rollouts,
-            # stack=False,
             normalize="std",
-            # log=True,
             _num_steps=None,
             _extra_name=""
     ):
         # TODO good if we can restore the weight but not create the agent
-        self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
+
+        # This line is totally useless. But create dead worker in
+        # self.agent.workers.
+        # self.agent = restore_agent(self.run_name, self.ckpt, self.env_name)
         self._make_rollout_worker()
 
         assert self.initialized, "You should reset the worker first!"
@@ -219,7 +226,6 @@ class FFTWorker(object):
             assert isinstance(normalize, str)
             assert normalize in ['range', 'std']
         data_frame = None
-        # for seed in range(num_seeds):
         for seed in range(1):
             df = self._efficient_rollout(seed)
             if data_frame is None:
@@ -237,7 +243,8 @@ class FFTWorker(object):
         repr_dict = get_representation(
             data_frame, label_list, self.postprocess_func
         )
-        self.agent.stop()
+
+        # self.rollout_worker.close()
         return data_frame.copy(), repr_dict
 
 
@@ -314,13 +321,10 @@ def get_fft_representation(
 
         for df_obj_id, rep_obj_id, (name, _) in zip(
                 df_obj_ids, rep_obj_ids, agent_ckpt_dict_range[start:end]):
-            df = ray.get(df_obj_id)
-            rep = ray.get(rep_obj_id)
-            data_frame_dict[name] = copy.deepcopy(df)
-            representation_dict[name] = copy.deepcopy(rep)
-            del df
-            del rep
-
+            df = copy.deepcopy(ray.get(df_obj_id))
+            rep = copy.deepcopy(ray.get(rep_obj_id))
+            data_frame_dict[name] = df
+            representation_dict[name] = rep
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Got data from agent <{}>".format(
                     agent_count_get, num_agents,
@@ -328,7 +332,6 @@ def get_fft_representation(
                     time.time() - start_t, name
                 )
             )
-
             agent_count_get += 1
             now_t_get = time.time()
     return data_frame_dict, representation_dict

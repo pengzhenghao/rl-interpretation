@@ -24,7 +24,9 @@ class ClusterFinder(object):
             self.standardized = False
         self.cluster_df = standardized_df
         self.best_k = None
-        self.max_num_cluster = max_num_cluster or len(cluster_df)
+        if max_num_cluster is None:
+            max_num_cluster = 100
+        self.max_num_cluster = min(max_num_cluster, len(cluster_df))
         self.search_range = range(1, self.max_num_cluster + 1)
         self.initialized = False
         self.fits = None
