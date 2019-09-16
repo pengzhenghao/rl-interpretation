@@ -1,23 +1,33 @@
 import gym
-from gym.envs.box2d.bipedal_walker import BipedalWalker
 
+from toolbox.env.env_wrapper import BipedalWalkerWrapper
 from toolbox.env.mujoco_wrapper import MujocoWrapper
+
+DEFAULT_SEED = 0
 
 
 def build_bipedal_walker(useless=None):
     env = gym.make("BipedalWalker-v2")
-    env.seed(0)
+    env.seed(DEFAULT_SEED)
+    return env
+
+
+def build_opencv_bipedal_walker(useless=None):
+    env = BipedalWalkerWrapper()
+    env.seed(DEFAULT_SEED)
     return env
 
 
 def build_halfcheetah(useless=None):
     env = gym.make("HalfCheetah-v2")
-    env.seed(0)
+    env.seed(DEFAULT_SEED)
     env = MujocoWrapper(env)
     return env
 
 
-def get_env_maker(name):
+def get_env_maker(name, require_render=False):
+    if require_render and name == "BipedalWalker-v2":
+        return build_opencv_bipedal_walker
     return ENV_MAKER_LOOKUP[name]
 
 

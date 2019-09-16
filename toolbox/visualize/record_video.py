@@ -19,6 +19,7 @@ from toolbox.process_data.process_data import get_name_ckpt_mapping
 from toolbox.represent.process_fft import get_period
 from toolbox.utils import initialize_ray
 from toolbox.visualize.visualize_utils import VideoRecorder
+from toolbox.env.env_maker import get_env_maker
 
 from toolbox.process_data.process_data import read_yaml
 VIDEO_WIDTH = 1920
@@ -59,13 +60,14 @@ PRESET_INFORMATION_DICT = {
 }
 
 
-def build_env_maker(seed):
-    env = BipedalWalkerWrapper()
-    env.seed(seed)
-    return lambda: env
-
-
-BUILD_ENV_MAKER = {"BipedalWalker-v2": build_env_maker}
+# def build_env_maker(seed):
+#     def env_maker():
+#         env = BipedalWalkerWrapper()
+#         env.seed(seed)
+#     return env_maker
+#
+#
+# BUILD_ENV_MAKER = {"BipedalWalker-v2": build_env_maker}
 
 
 @ray.remote
@@ -101,7 +103,6 @@ class CollectFramesWorker(object):
 
         agent = restore_agent(run_name, ckpt, env_name, config)
         env = env_maker()
-        # env.seed(self.seed)
         result = rollout(
             agent,
             env,
@@ -139,7 +140,7 @@ class GridVideoRecorder(object):
         config = agent.config
 
         env_name = config["env"]
-        env_maker = BUILD_ENV_MAKER[env_name](seed)
+        env_maker = get_env_maker(env_name, require_render=True)
 
         env = env_maker()
         result = copy.deepcopy(
@@ -237,8 +238,9 @@ class GridVideoRecorder(object):
                 ckpt = ckpt_dict["path"]
                 run_name = ckpt_dict["run_name"]
                 env_name = ckpt_dict["env_name"]
-                env_maker = BUILD_ENV_MAKER[env_name](seed)
-                config = build_config(ckpt, args_config)
+                env_maker = get_env_maker(env_name, require_render=True)
+                is_es_agent = run_name == "ES"
+                config = build_config(ckpt, args_config, is_es_agent)
                 object_id_dict[name] = workers[incre].collect_frames.remote(
                     run_name, env_name, env_maker, config, ckpt
                 )

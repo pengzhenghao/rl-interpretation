@@ -12,7 +12,7 @@ from toolbox.utils import has_gpu
 from toolbox.evaluate.tf_model import register
 
 
-def build_config(ckpt, extra_config=None):
+def build_config(ckpt, extra_config=None, is_es_agent=False):
     config = {"log_level": "ERROR"}
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
@@ -27,10 +27,9 @@ def build_config(ckpt, extra_config=None):
                 config.update(pickle.load(f))
     if "num_workers" in config:
         config["num_workers"] = min(1, config["num_workers"])
-    if not has_gpu():
-        args_config = {"model": model_config}
-    else:
-        args_config = {"model": model_config, "num_gpus_per_worker": 0.1}
+    args_config = {} if is_es_agent else {"model": model_config}
+    if has_gpu():
+        args_config.update({"num_gpus_per_worker": 0.1})
     config = merge_dicts(config, args_config or {})
     config = merge_dicts(config, extra_config or {})
     return config
@@ -38,9 +37,9 @@ def build_config(ckpt, extra_config=None):
 
 def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None):
     register()
-
+    is_es_agent = run_name == "ES"
     # if config is None:
-    config = build_config(ckpt, extra_config)
+    config = build_config(ckpt, extra_config, is_es_agent)
     agent = PPOAgentWithActivation(env=env_name, config=config)
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
@@ -50,7 +49,8 @@ def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None):
 
 def restore_agent(run_name, ckpt, env_name, extra_config=None):
     cls = get_agent_class(run_name)
-    config = build_config(ckpt, extra_config)
+    is_es_agent = run_name == "ES"
+    config = build_config(ckpt, extra_config, is_es_agent)
     # This is a workaround
     if run_name == "ES":
         config["num_workers"] = 1

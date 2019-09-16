@@ -26,8 +26,10 @@ from gym import logger, error
 ORIGINAL_VIDEO_WIDTH = 1920
 ORIGINAL_VIDEO_HEIGHT = 1080
 
-VIDEO_WIDTH_EDGE = 100
-VIDEO_HEIGHT_EDGE = 60
+# VIDEO_WIDTH_EDGE = 100
+# VIDEO_HEIGHT_EDGE = 60
+VIDEO_WIDTH_EDGE = 0
+VIDEO_HEIGHT_EDGE = 0
 
 VIDEO_WIDTH = ORIGINAL_VIDEO_WIDTH - 2 * VIDEO_WIDTH_EDGE
 VIDEO_HEIGHT = ORIGINAL_VIDEO_HEIGHT - 2 * VIDEO_HEIGHT_EDGE
@@ -558,6 +560,7 @@ class VideoRecorder(object):
         for potential in search_range:
             # potential = 1, 0.9, ...
             if specify_grids:
+                num_envs = None
                 if wv_over_wf / potential >= self.grids['col'] \
                         and hv_over_hf / potential >= self.grids['row']:
                     break
@@ -573,10 +576,17 @@ class VideoRecorder(object):
 
         assert scale != 0
         # else:
-        num_rows = int(VIDEO_HEIGHT / floor(self.height * scale))
-        num_cols = int(VIDEO_WIDTH / floor(self.width * scale))
 
-        num_envs = num_rows * num_cols
+        num_cols = int(VIDEO_WIDTH / floor(self.width * scale))
+        num_rows = int(VIDEO_HEIGHT / floor(self.height * scale))
+
+        if num_envs is None:
+            num_envs = num_rows * num_cols
+        else:
+            num_rows = min(num_rows, int(num_envs / num_cols))
+
+
+        # num_envs = num_rows * num_cols
 
         if specify_grids:
             assert num_rows >= self.grids['row']

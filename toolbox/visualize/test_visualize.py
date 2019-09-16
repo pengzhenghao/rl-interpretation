@@ -97,11 +97,13 @@ def test_generate_single_video():
 def test_generate_two_videos():
     from toolbox.process_data.process_data import read_batch_yaml
 
+    """You should enter this function at the root dir, s.t. root/toolbox/.."""
     yaml_path_dict_list = [
         {
             "number": 1,
             "mode": "top",
-            "path": "data/yaml/test-2-agents.yaml"
+            "path": "data/yaml/ppo-300-agents.yaml"
+            # "path": "data/yaml/test-2-agents.yaml"
         },
         {
             "number": 1,
@@ -113,7 +115,8 @@ def test_generate_two_videos():
     name_ckpt_mapping = read_batch_yaml(yaml_path_dict_list)
     path = generate_grid_of_videos(
         name_ckpt_mapping,
-        "/tmp/test_two_agents",
+        # "/tmp/test_two_agents",
+        "./video_0916/video_double_agent",
         name_callback=lambda x, y=None: x,
         require_full_frame=True,
         require_text=False
@@ -122,8 +125,22 @@ def test_generate_two_videos():
     print("test generating two videos finished: ", path)
 
 
+def test_generate_two_videos2():
+    name_ckpt_mapping = read_yaml("data/yaml/test-2-agents.yaml", 2)
+    path = generate_grid_of_videos(
+        name_ckpt_mapping,
+        "/tmp/test_double_agent",
+        name_callback=lambda x, y=None: x,
+        require_full_frame=True,
+        require_text=False,
+    )
+
+    print("test finish: ", path)
+
+
 if __name__ == '__main__':
     import os
     os.chdir("../../")
     print(os.getcwd())
-    test_generate_two_videos()
+    # test_generate_two_videos()
+    test_generate_two_videos2()
