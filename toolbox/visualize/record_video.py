@@ -1,11 +1,3 @@
-"""
-Record video given a trained PPO model.
-
-Usage:
-    python record_video.py /YOUR_HOME/ray_results/EXP_NAME/TRAIL_NAME \
-    -l 3000 --scene split -rf REWARD_FUNCTION_NAME
-"""
-
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
 
@@ -75,48 +67,6 @@ def build_env_maker(seed):
 BUILD_ENV_MAKER = {"BipedalWalker-v2": build_env_maker}
 
 
-def create_parser(parser_creator=None):
-    parser_creator = parser_creator or argparse.ArgumentParser
-    parser = parser_creator(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Roll out a reinforcement learning agent "
-        "given a checkpoint."
-    )
-    parser.add_argument(
-        "yaml",
-        type=str,
-        help="yaml files contain name-checkpoint pairs from which to roll out."
-    )
-    required_named = parser.add_argument_group("required named arguments")
-    required_named.add_argument(
-        "--run",
-        type=str,
-        required=True,
-        help="The algorithm or model to train. This may refer to the name "
-        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-        "user-defined trainable function or class registered in the "
-        "tune registry."
-    )
-    required_named.add_argument(
-        "--env", type=str, help="The gym environment to use.", required=True
-    )
-    parser.add_argument("--no-render", default=False, action="store_true")
-    parser.add_argument("--num-envs", '-n', type=int, default=6)
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--iters", default=1, type=int)
-    parser.add_argument("--steps", default=int(1e10), type=int)
-    parser.add_argument("--out", default=None, help="Output filename.")
-    parser.add_argument("--local-mode", default=False, action="store_true")
-    parser.add_argument(
-        "--config",
-        default="{}",
-        type=json.loads,
-        help="Algorithm-specific configuration (e.g. env, hyperparams). "
-        "Surpresses loading of configuration from checkpoint."
-    )
-    return parser
-
-
 @ray.remote
 class CollectFramesWorker(object):
     def __init__(
@@ -124,7 +74,8 @@ class CollectFramesWorker(object):
             # run_name, env_maker, env_name,
             num_steps,
             num_iters,
-            seed
+            seed,
+            require_full_frame=False
     ):
         # self.run_name = run_name
         # self.env_maker = env_maker
@@ -132,6 +83,7 @@ class CollectFramesWorker(object):
         self.num_steps = num_steps
         self.num_iters = num_iters
         self.seed = seed
+        self.require_full_frame = require_full_frame
 
     def collect_frames(self, run_name, env_name, env_maker, config, ckpt):
         """
@@ -150,7 +102,12 @@ class CollectFramesWorker(object):
         env = env_maker()
         # env.seed(self.seed)
         result = rollout(
-            agent, env, env_name, self.num_steps, require_frame=True
+            agent,
+            env,
+            env_name,
+            self.num_steps,
+            require_frame=True,
+            require_full_frame=self.require_full_frame
         )
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
@@ -166,10 +123,14 @@ class CollectFramesWorker(object):
 
 
 class GridVideoRecorder(object):
-    def __init__(self, video_path, local_mode=False, fps=50):
+    def __init__(
+            self, video_path, local_mode=False, fps=50,
+            require_full_frame=False
+    ):
         initialize_ray(local_mode)
         self.video_path = video_path
         self.fps = fps
+        self.require_full_frame = require_full_frame
 
     def generate_frames_from_agent(
             self, agent, agent_name, num_steps=None, seed=0
@@ -181,7 +142,14 @@ class GridVideoRecorder(object):
 
         env = env_maker()
         result = copy.deepcopy(
-            rollout(agent, env, env_name, num_steps, require_frame=True)
+            rollout(
+                agent,
+                env,
+                env_name,
+                num_steps,
+                require_frame=True,
+                require_full_frame=self.require_full_frame
+            )
         )
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
@@ -252,8 +220,9 @@ class GridVideoRecorder(object):
         extra_info_dict = PRESET_INFORMATION_DICT.copy()
 
         workers = [
-            CollectFramesWorker.remote(num_steps, num_iters, seed)
-            for _ in range(num_workers)
+            CollectFramesWorker.remote(
+                num_steps, num_iters, seed, self.require_full_frame
+            ) for _ in range(num_workers)
         ]
 
         for iteration in range(num_iteration):
@@ -345,7 +314,7 @@ class GridVideoRecorder(object):
         }
         return frames_dict, new_extra_info_dict
 
-    def generate_video(self, frames_dict, extra_info_dict):
+    def generate_video(self, frames_dict, extra_info_dict, require_text=True):
         print(
             "Start generating grid containing {} videos.".format(
                 len(frames_dict)
@@ -365,7 +334,7 @@ class GridVideoRecorder(object):
             max_col = max([col + 1 for _, col in locations])
             grids = {"col": max_col, "row": max_row}
         vr = VideoRecorder(self.video_path, grids=grids, fps=self.fps)
-        path = vr.generate_video(frames_dict, extra_info_dict)
+        path = vr.generate_video(frames_dict, extra_info_dict, require_text)
         return path
 
     def generate_gif(self, frames_dict, extra_info_dict):
@@ -505,6 +474,7 @@ def generate_video_of_cluster(
 
     assert new_name_ckpt_mapping.keys() == \
            name_row_mapping.keys() == name_loc_mapping.keys()
+    # FIXME the API has changed but here is left behind.
     generate_grid_of_videos(
         new_name_ckpt_mapping, video_prefix, name_row_mapping,
         name_col_mapping, name_loc_mapping, seed, None, local_mode, steps,
@@ -520,6 +490,8 @@ def generate_grid_of_videos(
         name_loc_mapping=None,
         seed=0,
         name_callback=rename_agent,
+        require_full_frame=False,
+        require_text=True,
         local_mode=False,
         steps=int(1e10),
         num_workers=5
@@ -532,7 +504,10 @@ def generate_grid_of_videos(
             new_name_ckpt_mapping[new_name] = val
         name_ckpt_mapping = new_name_ckpt_mapping
     gvr = GridVideoRecorder(
-        video_path=video_prefix, local_mode=local_mode, fps=FPS
+        video_path=video_prefix,
+        local_mode=local_mode,
+        fps=FPS,
+        require_full_frame=require_full_frame
     )
     frames_dict, extra_info_dict = gvr.generate_frames(
         name_ckpt_mapping,
@@ -541,9 +516,9 @@ def generate_grid_of_videos(
         name_column_mapping=name_col_mapping,
         name_row_mapping=name_row_mapping,
         name_loc_mapping=name_loc_mapping,
-        num_workers=num_workers
+        num_workers=num_workers,
     )
-    path = gvr.generate_video(frames_dict, extra_info_dict)
+    path = gvr.generate_video(frames_dict, extra_info_dict, require_text)
     gvr.close()
     print("Video has been saved at: <{}>".format(path))
     return path
@@ -557,7 +532,45 @@ def generate_gif(yaml_path, output_dir):
     return name_path_dict
 
 
+def create_parser():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Roll out a reinforcement learning agent "
+        "given a checkpoint."
+    )
+    parser.add_argument(
+        "yaml",
+        type=str,
+        help="yaml files contain name-checkpoint pairs from which to roll out."
+    )
+    required_named = parser.add_argument_group("required named arguments")
+    required_named.add_argument(
+        "--run",
+        type=str,
+        required=True,
+        help="The algorithm or model to train. This may refer to the name "
+        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+        "user-defined trainable function or class registered in the "
+        "tune registry."
+    )
+    required_named.add_argument(
+        "--env", type=str, help="The gym environment to use.", required=True
+    )
+    parser.add_argument("--no-render", default=False, action="store_true")
+    parser.add_argument("--num-envs", '-n', type=int, default=6)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--iters", default=1, type=int)
+    parser.add_argument("--steps", default=int(1e10), type=int)
+    parser.add_argument("--out", default=None, help="Output filename.")
+    parser.add_argument("--local-mode", default=False, action="store_true")
+    parser.add_argument(
+        "--config",
+        default="{}",
+        type=json.loads,
+        help="Algorithm-specific configuration (e.g. env, hyperparams). "
+        "Surpresses loading of configuration from checkpoint."
+    )
+
+
 if __name__ == "__main__":
-    # test_es_compatibility()
-    # test_gif_generation()
     pass

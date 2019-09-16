@@ -261,7 +261,9 @@ class VideoRecorder(object):
         assert self.initialized
         return self.frame_range[idx]
 
-    def _build_grid_of_frames(self, frames_dict, extra_info_dict):
+    def _build_grid_of_frames(
+            self, frames_dict, extra_info_dict, require_text
+    ):
         self._add_things_on_backgaround(frames_dict, extra_info_dict)
         for idx, (title, frames_info) in \
                 enumerate(frames_dict.items()):
@@ -293,14 +295,16 @@ class VideoRecorder(object):
             height = rang["height"]
             width = rang["width"]
 
-            if self.scale < 1:
+            if self.scale != 1:
+                interpolation = cv2.INTER_AREA if self.scale<1 \
+                    else cv2.INTER_LINEAR
                 frames = [
                     cv2.resize(
                         frame, (
                             int(self.width * self.scale
                                 ), int(self.height * self.scale)
                         ),
-                        interpolation=cv2.INTER_CUBIC
+                        interpolation=interpolation
                     ) for frame in frames
                 ]
                 frames = np.stack(frames)
@@ -312,32 +316,34 @@ class VideoRecorder(object):
             # filled the extra number of frames
             self.background[len(frames):, height[0]:height[1], width[0]:
                             width[1], 2::-1] = frames[-1]
-
-            for information in extra_info_dict.values():
-                if 'pos_ratio' not in information:
-                    continue
-                pos = self._get_pos(*information['pos_ratio'], width, height)
-                value = information[title]
-                if isinstance(value, list):
-                    # filter out the empty list if any.
-                    if not value:
+            if require_text:
+                for information in extra_info_dict.values():
+                    if 'pos_ratio' not in information:
                         continue
-                    value_sequence = value
-                    for timestep, value in enumerate(value_sequence):
+                    pos = self._get_pos(
+                        *information['pos_ratio'], width, height
+                    )
+                    value = information[title]
+                    if isinstance(value, list):
+                        # filter out the empty list if any.
+                        if not value:
+                            continue
+                        value_sequence = value
+                        for timestep, value in enumerate(value_sequence):
+                            text = information['text_function'](value)
+                            self._put_text(timestep, text, pos)
+                        text = information['text_function'](value_sequence[-1])
+                        for timestep in range(len(value_sequence),
+                                              len(self.background)):
+                            self._put_text(timestep, text, pos)
+                    else:
                         text = information['text_function'](value)
-                        self._put_text(timestep, text, pos)
-                    text = information['text_function'](value_sequence[-1])
-                    for timestep in range(len(value_sequence),
-                                          len(self.background)):
-                        self._put_text(timestep, text, pos)
-                else:
-                    text = information['text_function'](value)
-                    self._put_text(None, text, pos)
+                        self._put_text(None, text, pos)
 
         # self._add_things_on_backgaround(frames_dict)
         return self.background
 
-    def generate_video(self, frames_dict, extra_info_dict):
+    def generate_video(self, frames_dict, extra_info_dict, require_text=True):
         """Render the given `env` and add the resulting frame to the video."""
         logger.debug('Capturing video frame: path=%s', self.path)
 
@@ -371,7 +377,7 @@ class VideoRecorder(object):
 
         self._build_background(frames_dict)
 
-        self._build_grid_of_frames(frames_dict, extra_info_dict)
+        self._build_grid_of_frames(frames_dict, extra_info_dict, require_text)
 
         now = time.time()
         start = now
@@ -545,7 +551,9 @@ class VideoRecorder(object):
         # if not specify_grids:
         wv_over_wf = VIDEO_WIDTH / self.width
         hv_over_hf = VIDEO_HEIGHT / self.height
-        for potential in np.arange(1, 0, -0.01):
+
+        search_range = [2, 1.5] + np.arange(1, 0, -0.01).tolist()
+        for potential in search_range:
             # potential = 1, 0.9, ...
             if specify_grids:
                 if wv_over_wf / potential >= self.grids['col'] \
@@ -558,6 +566,7 @@ class VideoRecorder(object):
                     break
             if potential == 0:
                 raise ValueError()
+        print("Sacle = ", potential)
         scale = potential
 
         assert scale != 0

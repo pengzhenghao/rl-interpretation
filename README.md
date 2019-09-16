@@ -1,5 +1,7 @@
 # Walkthrough
 
+## THIS DOCUMENT IS FAR MORE LEFT BEHIND BY CURRENT CODES, PLEASE IGNORE IT!
+
 :fountain_pen: Peng Zhenghao
 
 :spiral_calendar: Aug 23, 2019

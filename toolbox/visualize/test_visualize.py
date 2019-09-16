@@ -77,3 +77,17 @@ def test_es_compatibility():
         name_callback=rename_agent,
         num_workers=10
     )
+
+
+def test_generate_single_video():
+    from toolbox.process_data.process_data import read_yaml
+    name_ckpt_mapping = read_yaml("data/yaml/test-2-agents.yaml", 1)
+    path = generate_grid_of_videos(
+        name_ckpt_mapping,
+        "/tmp/test_single_agent",
+        name_callback=lambda x, y=None: x,
+        require_full_frame=True,
+        require_text=False
+    )
+
+    print("test finish: ", path)
