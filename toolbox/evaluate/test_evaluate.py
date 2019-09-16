@@ -14,8 +14,12 @@ def test_RolloutWorkerWrapper_with_activation():
     ckpt = "test/fake-ckpt1/checkpoint-313"
     rww_new = RolloutWorkerWrapper.as_remote().remote(True)
     rww_new.reset.remote(
-        ckpt=ckpt, num_rollouts=2, seed=0,
-        env_creater=env_maker, run_name="PPO", env_name="BipedalWalker-v2",
+        ckpt=ckpt,
+        num_rollouts=2,
+        seed=0,
+        env_creater=env_maker,
+        run_name="PPO",
+        env_name="BipedalWalker-v2",
         require_activation=True
     )
     for _ in range(2):
@@ -75,8 +79,7 @@ def test_RolloutWorkerWrapper():
 def test_efficient_rollout_from_worker():
     initialize_ray(test_mode=True)
     env_name = "BipedalWalker-v2"
-    worker = make_worker(get_env_maker(env_name),
-                            None, 1, 0, "ES", env_name)
+    worker = make_worker(get_env_maker(env_name), None, 1, 0, "ES", env_name)
     trajctory_list = efficient_rollout_from_worker(worker)
     print(trajctory_list)
     return trajctory_list

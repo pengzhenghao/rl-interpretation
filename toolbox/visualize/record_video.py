@@ -59,7 +59,6 @@ PRESET_INFORMATION_DICT = {
     }
 }
 
-
 # def build_env_maker(seed):
 #     def env_maker():
 #         env = BipedalWalkerWrapper()
@@ -478,9 +477,15 @@ def generate_video_of_cluster(
     assert new_name_ckpt_mapping.keys() == \
            name_row_mapping.keys() == name_loc_mapping.keys()
     generate_grid_of_videos(
-        new_name_ckpt_mapping, video_prefix, name_row_mapping,
-        name_col_mapping, name_loc_mapping, seed, name_callback=None,
-        local_mode=local_mode, steps=steps,
+        new_name_ckpt_mapping,
+        video_prefix,
+        name_row_mapping,
+        name_col_mapping,
+        name_loc_mapping,
+        seed,
+        name_callback=None,
+        local_mode=local_mode,
+        steps=steps,
         num_workers=num_workers
     )
 

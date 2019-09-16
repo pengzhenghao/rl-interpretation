@@ -181,8 +181,10 @@ def save_yaml(name_ckpt_mapping, output_path):
     # assert isinstance(name_ckpt_mapping, OrderedDict) or isinstance(name_ckpt_mapping, list)
     if not output_path.endswith(".yaml"):
         output_path = output_path + ".yaml"
-        print("Your input output_path is not ended with '.yaml', so we "
-              "add it for you. Now it become: ", output_path)
+        print(
+            "Your input output_path is not ended with '.yaml', so we "
+            "add it for you. Now it become: ", output_path
+        )
     if isinstance(name_ckpt_mapping, OrderedDict):
         result = list(name_ckpt_mapping.values())
     elif isinstance(name_ckpt_mapping, list):
@@ -195,7 +197,6 @@ def save_yaml(name_ckpt_mapping, output_path):
     with open(output_path, "w") as f:
         yaml.safe_dump(result, f)
     return output_path
-
 
 
 def generate_batch_yaml(yaml_path_dict_list, output_path):

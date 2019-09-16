@@ -585,7 +585,6 @@ class VideoRecorder(object):
         else:
             num_rows = min(num_rows, int(num_envs / num_cols))
 
-
         # num_envs = num_rows * num_cols
 
         if specify_grids:

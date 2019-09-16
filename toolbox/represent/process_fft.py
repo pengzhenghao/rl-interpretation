@@ -189,8 +189,10 @@ class FFTWorker(object):
         rollout_result = efficient_rollout_from_worker(
             self.rollout_worker, self.num_rollouts
         )
-        print("[FFTWorker._efficient_rollout] Successfully collect "
-              "{} rollouts.".format(self.num_rollouts))
+        print(
+            "[FFTWorker._efficient_rollout] Successfully collect "
+            "{} rollouts.".format(self.num_rollouts)
+        )
         data_frame = None
 
         for i, roll in enumerate(rollout_result):
@@ -205,12 +207,7 @@ class FFTWorker(object):
         return data_frame
 
     @ray.method(num_return_vals=2)
-    def fft(
-            self,
-            normalize="std",
-            _num_steps=None,
-            _extra_name=""
-    ):
+    def fft(self, normalize="std", _num_steps=None, _extra_name=""):
         # TODO good if we can restore the weight but not create the agent
 
         # This line is totally useless. But create dead worker in

@@ -2,6 +2,7 @@ from toolbox.process_data import read_batch_yaml, save_yaml
 from toolbox.represent.process_fft import get_fft_cluster_finder
 from toolbox.utils import initialize_ray
 
+
 def test_get_fft_cluster_finder():
     num_rollouts = 5
     num_workers = 10
@@ -9,8 +10,7 @@ def test_get_fft_cluster_finder():
         {
             "number": 2,
             "path": "data/yaml/ppo-300-agents.yaml",
-        },
-        {
+        }, {
             "number": 2,
             "path": "data/es-30-agents-0818.yaml"
         }

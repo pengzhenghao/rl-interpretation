@@ -96,7 +96,6 @@ def test_generate_single_video():
 
 def test_generate_two_videos():
     from toolbox.process_data.process_data import read_batch_yaml
-
     """You should enter this function at the root dir, s.t. root/toolbox/.."""
     yaml_path_dict_list = [
         {

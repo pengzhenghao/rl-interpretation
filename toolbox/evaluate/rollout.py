@@ -343,7 +343,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-            ]["policy_mapping_fn"]
+                                                ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -552,9 +552,13 @@ def several_agent_rollout(
 
             # TODO Only support PPO now.
             workers[i].reset.remote(
-                ckpt=ckpt, num_rollouts=num_rollouts,
-                seed=seed, env_creater=env_maker, run_name=run_name,
-                env_name=env_name, require_activation=require_activation
+                ckpt=ckpt,
+                num_rollouts=num_rollouts,
+                seed=seed,
+                env_creater=env_maker,
+                run_name=run_name,
+                env_name=env_name,
+                require_activation=require_activation
             )
             obj_id = workers[i].wrap_sample.remote()
             obj_ids_dict[name] = obj_id
