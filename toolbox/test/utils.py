@@ -29,8 +29,9 @@ def load_test_agent_rollout():
     seed = 0
     rww_new = RolloutWorkerWrapper()
     rww_new.reset(
-        config['ckpt'], num_rollout, seed, config['env_maker'],
-        config['run_name'], config['env_name']
+        ckpt=config['ckpt'], num_rollouts=num_rollout, seed=seed,
+        env_creater=config['env_maker'],
+        run_name=config['run_name'], env_name=config['env_name']
     )
     return rww_new.wrap_sample()
 

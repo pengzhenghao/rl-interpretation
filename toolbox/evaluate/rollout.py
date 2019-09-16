@@ -214,15 +214,20 @@ class RolloutWorkerWrapper(object):
         return self.path
 
 
-def make_worker(env_maker, ckpt, num_rollout, seed, run_name, env_name):
+def make_worker(env_maker, ckpt, num_rollouts, seed, run_name, env_name):
     # assert agent._name == "PPO", "We only support ppo agent now!"
     # path = get_dataset_path(ckpt, num_rollout, seed)
     # if os.path.exists(path):
     #     return DataLoader(ckpt, num_rollout, seed)
-    policy = PPOTFPolicy
+    # policy = PPOTFPolicy
     worker = RolloutWorkerWrapper.as_remote().remote()
     worker.reset.remote(
-        ckpt, num_rollout, seed, env_maker, policy, run_name, env_name
+        ckpt=ckpt,
+        num_rollouts=num_rollouts,
+        seed=seed,
+        env_creater=env_maker,
+        run_name=run_name,
+        env_name=env_name
     )
     return worker
 
@@ -520,8 +525,9 @@ def several_agent_rollout(
 
             # TODO Only support PPO now.
             workers[i].reset.remote(
-                ckpt, num_rollouts, seed, env_maker, run_name, env_name,
-                require_activation
+                ckpt=ckpt, num_rollouts=num_rollouts,
+                seed=seed, env_creater=env_maker, run_name=run_name,
+                env_name=env_name, require_activation=require_activation
             )
             obj_id = workers[i].wrap_sample.remote()
             obj_ids_dict[name] = obj_id

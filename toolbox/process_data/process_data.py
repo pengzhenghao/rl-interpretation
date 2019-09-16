@@ -177,6 +177,27 @@ def read_batch_yaml(yaml_path_dict_list):
     return name_ckpt_mapping
 
 
+def save_yaml(name_ckpt_mapping, output_path):
+    # assert isinstance(name_ckpt_mapping, OrderedDict) or isinstance(name_ckpt_mapping, list)
+    if not output_path.endswith(".yaml"):
+        output_path = output_path + ".yaml"
+        print("Your input output_path is not ended with '.yaml', so we "
+              "add it for you. Now it become: ", output_path)
+    if isinstance(name_ckpt_mapping, OrderedDict):
+        result = list(name_ckpt_mapping.values())
+    elif isinstance(name_ckpt_mapping, list):
+        result = name_ckpt_mapping
+    else:
+        raise ValueError(
+            "Your input name_ckpt_mapping should be either list or "
+            "OrderedDict! But we get: ", type(name_ckpt_mapping)
+        )
+    with open(output_path, "w") as f:
+        yaml.safe_dump(result, f)
+    return output_path
+
+
+
 def generate_batch_yaml(yaml_path_dict_list, output_path):
     # This function allow generate a super-yaml file to aggregate
     # informations from different yaml files.
@@ -186,10 +207,8 @@ def generate_batch_yaml(yaml_path_dict_list, output_path):
     assert isinstance(name_ckpt_mapping, OrderedDict)
     assert output_path.endswith(".yaml")
     # A list of dict, that's what we need.
-    result = list(name_ckpt_mapping.values())
-    with open(output_path, "w") as f:
-        yaml.safe_dump(result, f)
-    return result
+    save_yaml(name_ckpt_mapping, output_path)
+    return name_ckpt_mapping
 
 
 def generate_progress_yaml(exp_names, output_path, number=None):
@@ -254,8 +273,7 @@ def generate_progress_yaml(exp_names, output_path, number=None):
                     "iter": num_iters
                 }
             )
-    with open(output_path, 'w') as f:
-        yaml.safe_dump(results, f)
+    save_yaml(results, output_path)
     print(
         "Successfully collect yaml file containing {} checkpoints.".format(
             len(results)
@@ -320,8 +338,7 @@ def generate_yaml(
                 "iter": ckpt["iter"]
             }
         )
-    with open(output_path, 'w') as f:
-        yaml.safe_dump(results, f)
+    save_yaml(results, output_path)
     print(
         "Successfully collect yaml file containing {} checkpoints.".format(
             len(results)

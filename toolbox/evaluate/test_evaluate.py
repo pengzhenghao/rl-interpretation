@@ -13,7 +13,9 @@ def test_RolloutWorkerWrapper_with_activation():
     ckpt = "test/fake-ckpt1/checkpoint-313"
     rww_new = RolloutWorkerWrapper.as_remote().remote(True)
     rww_new.reset.remote(
-        ckpt, 2, 0, env_maker, "PPO", "BipedalWalker-v2", True
+        ckpt=ckpt, num_rollouts=2, seed=0,
+        env_creater=env_maker, run_name="PPO", env_name="BipedalWalker-v2",
+        require_activation=True
     )
     for _ in range(2):
         result = ray.get(rww_new.wrap_sample.remote())

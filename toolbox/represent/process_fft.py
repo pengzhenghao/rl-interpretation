@@ -407,7 +407,10 @@ def get_fft_cluster_finder(
         "cluster_finder": {
             'nostd_cluster_finder': nostd_cluster_finder
         },
-        "prefix": prefix
+        "prefix": prefix,
+        "cluster_df": cluster_df,
+        "data_frame_dict": data_frame_dict,
+        "repr_dict": repr_dict
     }
 
     if try_standardize:

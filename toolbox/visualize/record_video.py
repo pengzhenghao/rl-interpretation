@@ -477,7 +477,6 @@ def generate_video_of_cluster(
 
     assert new_name_ckpt_mapping.keys() == \
            name_row_mapping.keys() == name_loc_mapping.keys()
-    # FIXME the API has changed but here is left behind.
     generate_grid_of_videos(
         new_name_ckpt_mapping, video_prefix, name_row_mapping,
         name_col_mapping, name_loc_mapping, seed, name_callback=None,
