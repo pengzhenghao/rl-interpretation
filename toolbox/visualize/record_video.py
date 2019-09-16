@@ -20,6 +20,7 @@ from toolbox.represent.process_fft import get_period
 from toolbox.utils import initialize_ray
 from toolbox.visualize.visualize_utils import VideoRecorder
 
+from toolbox.process_data.process_data import read_yaml
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
@@ -477,8 +478,9 @@ def generate_video_of_cluster(
     # FIXME the API has changed but here is left behind.
     generate_grid_of_videos(
         new_name_ckpt_mapping, video_prefix, name_row_mapping,
-        name_col_mapping, name_loc_mapping, seed, None, local_mode, steps,
-        num_workers
+        name_col_mapping, name_loc_mapping, seed, name_callback=None,
+        local_mode=local_mode, steps=steps,
+        num_workers=num_workers
     )
 
 
@@ -521,6 +523,20 @@ def generate_grid_of_videos(
     path = gvr.generate_video(frames_dict, extra_info_dict, require_text)
     gvr.close()
     print("Video has been saved at: <{}>".format(path))
+    return path
+
+
+def generate_single_video(yaml_path, output_path):
+    assert yaml_path.endswith(".yaml")
+    name_ckpt_mapping = read_yaml(yaml_path, 1)
+    path = generate_grid_of_videos(
+        name_ckpt_mapping,
+        output_path,
+        name_callback=lambda x, y=None: x,
+        require_full_frame=True,
+        require_text=False
+    )
+    print("Successfully generated video at: ", path)
     return path
 
 

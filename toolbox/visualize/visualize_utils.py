@@ -34,6 +34,8 @@ VIDEO_HEIGHT = ORIGINAL_VIDEO_HEIGHT - 2 * VIDEO_HEIGHT_EDGE
 
 
 def touch(path):
+    dir_name = os.path.dirname(path)
+    os.makedirs(dir_name, exist_ok=True)
     open(path, 'a').close()
 
 

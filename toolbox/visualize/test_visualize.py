@@ -10,6 +10,8 @@ from toolbox.visualize.record_video import (
 from toolbox.test.utils import get_ppo_agent
 from toolbox.visualize.generate_gif import generate_gif_from_agent
 from toolbox.utils import initialize_ray
+from toolbox.process_data.process_data import read_yaml
+
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
@@ -80,7 +82,6 @@ def test_es_compatibility():
 
 
 def test_generate_single_video():
-    from toolbox.process_data.process_data import read_yaml
     name_ckpt_mapping = read_yaml("data/yaml/test-2-agents.yaml", 1)
     path = generate_grid_of_videos(
         name_ckpt_mapping,
@@ -91,3 +92,38 @@ def test_generate_single_video():
     )
 
     print("test finish: ", path)
+
+
+def test_generate_two_videos():
+    from toolbox.process_data.process_data import read_batch_yaml
+
+    yaml_path_dict_list = [
+        {
+            "number": 1,
+            "mode": "top",
+            "path": "data/yaml/test-2-agents.yaml"
+        },
+        {
+            "number": 1,
+            "mode": "top",
+            "path": "data/yaml/es-30-agents-0818.yaml"
+        }
+    ]
+
+    name_ckpt_mapping = read_batch_yaml(yaml_path_dict_list)
+    path = generate_grid_of_videos(
+        name_ckpt_mapping,
+        "/tmp/test_two_agents",
+        name_callback=lambda x, y=None: x,
+        require_full_frame=True,
+        require_text=False
+    )
+
+    print("test generating two videos finished: ", path)
+
+
+if __name__ == '__main__':
+    import os
+    os.chdir("../../")
+    print(os.getcwd())
+    test_generate_two_videos()
