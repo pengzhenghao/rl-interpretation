@@ -13,6 +13,8 @@ from toolbox.evaluate.tf_model import register
 
 
 def build_config(ckpt, extra_config=None, is_es_agent=False):
+    if extra_config is None:
+        extra_config = {}
     config = {"log_level": "ERROR"}
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
@@ -30,8 +32,12 @@ def build_config(ckpt, extra_config=None, is_es_agent=False):
     args_config = {} if is_es_agent else {"model": model_config}
     if has_gpu():
         args_config.update({"num_gpus_per_worker": 0.1})
-    config = merge_dicts(config, args_config or {})
-    config = merge_dicts(config, extra_config or {})
+    config = merge_dicts(config, args_config)
+    config = merge_dicts(config, extra_config)
+    if is_es_agent:
+        config['num_workers'] = 1
+        config['num_gpus_per_worker'] = 0
+        config["num_gpus"] = 0
     return config
 
 
@@ -48,14 +54,16 @@ def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None):
 
 
 def restore_agent(run_name, ckpt, env_name, extra_config=None):
+    print('BEFORE RESTORE AGENT!!!!!!!!!!!!!!!')
     cls = get_agent_class(run_name)
     is_es_agent = run_name == "ES"
     config = build_config(ckpt, extra_config, is_es_agent)
     # This is a workaround
-    if run_name == "ES":
-        config["num_workers"] = 1
+    # if run_name == "ES":
+    #     config["num_workers"] = 1
     agent = cls(env=env_name, config=config)
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
         agent.restore(ckpt)
+    print("AFTER RESTORE AGENBT!!!!!!!!!!!!!!")
     return agent

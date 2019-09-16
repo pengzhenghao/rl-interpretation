@@ -26,10 +26,10 @@ from gym import logger, error
 ORIGINAL_VIDEO_WIDTH = 1920
 ORIGINAL_VIDEO_HEIGHT = 1080
 
-# VIDEO_WIDTH_EDGE = 100
-# VIDEO_HEIGHT_EDGE = 60
-VIDEO_WIDTH_EDGE = 0
-VIDEO_HEIGHT_EDGE = 0
+VIDEO_WIDTH_EDGE = 100
+VIDEO_HEIGHT_EDGE = 60
+# VIDEO_WIDTH_EDGE = 0
+# VIDEO_HEIGHT_EDGE = 0
 
 VIDEO_WIDTH = ORIGINAL_VIDEO_WIDTH - 2 * VIDEO_WIDTH_EDGE
 VIDEO_HEIGHT = ORIGINAL_VIDEO_HEIGHT - 2 * VIDEO_HEIGHT_EDGE
@@ -583,7 +583,7 @@ class VideoRecorder(object):
         if num_envs is None:
             num_envs = num_rows * num_cols
         else:
-            num_rows = min(num_rows, int(num_envs / num_cols))
+            num_rows = min(num_rows, int(np.ceil(num_envs / num_cols)))
 
         # num_envs = num_rows * num_cols
 

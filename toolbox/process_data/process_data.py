@@ -133,24 +133,53 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
 
     if mode == 'uniform':
         interval = int(floor(len(list_of_dict) / number))
-        # list_of_dict[::interval][-number:]
-        # list_of_dict - interval * number
 
-        start_index = len(list_of_dict) % number - 1
-        indices = reversed(list_of_dict[:start_index:-interval])
+        indices = []
+
+        count = 0
+        for ele in reversed(list_of_dict):
+            if count % interval == 0:
+                indices.insert(0, ele)
+                if len(indices) == number:
+                    break
+            count += 1
+        assert len(indices) == number, indices
+
     elif mode == 'top':
         indices = list_of_dict[-number:]
     elif mode == 'bottom':
         indices = list_of_dict[:number]
     else:
         raise NotImplementedError
-
+    print(len(list(indices)))
     for d in indices:
         # ret[d['name']] = d['path']
         ret[d['name']] = d
     assert len(ret) == number
     return ret
 
+
+def rearange_name_ckpt_mapping_according_to_cluster_prediction(name_ckpt_mapping, prediction, max_num_cols=None):
+    cluster_indices = set([v['cluster'] for v in prediction.values()])
+    # num_clusters = len(cluster_indices)
+    # max_num_cols = 18
+
+    new_name_ckpt_mapping = []
+    for cid in cluster_indices:
+        agent_list = [v for v in prediction.values() if v['cluster'] == cid]
+        agent_list = sorted(agent_list, key=lambda x: x['distance'])
+        # print(agent_list)
+
+        if max_num_cols:
+            agent_list = agent_list[:min(len(agent_list), max_num_cols)]
+
+        for a in agent_list:
+            name = a['name']
+            ncm = name_ckpt_mapping[name]
+            new_name_ckpt_mapping.append(ncm)
+
+    new_name_ckpt_mapping = make_ordereddict(new_name_ckpt_mapping, mode="top")
+    return new_name_ckpt_mapping
 
 def read_yaml(yaml_path, number=None, mode='top'):
     with open(yaml_path, 'r') as f:

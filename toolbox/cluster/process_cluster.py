@@ -7,7 +7,6 @@ import pandas
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-# from record_video import generate_video_of_cluster
 from toolbox.visualize.reduce_dimension import reduce_dimension, draw
 
 

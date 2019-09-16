@@ -5,14 +5,15 @@ from toolbox.utils import initialize_ray
 
 def test_get_fft_cluster_finder():
     num_rollouts = 5
-    num_workers = 10
+    num_workers = 1
     yaml_path_dict_list = [
+        # {
+        #     "number": 5,
+        #     "path": "data/yaml/ppo-300-agents.yaml",
+        # },
         {
-            "number": 2,
-            "path": "data/yaml/ppo-300-agents.yaml",
-        }, {
-            "number": 2,
-            "path": "data/es-30-agents-0818.yaml"
+            "number": 5,
+            "path": "data/yaml/es-30-agents-0818.yaml"
         }
     ]
 
@@ -36,5 +37,5 @@ if __name__ == '__main__':
 
     initialize_ray(test_mode=True, num_gpus=3)
 
-    os.chdir("../../")
+    # os.chdir("../../")
     ret = test_get_fft_cluster_finder()

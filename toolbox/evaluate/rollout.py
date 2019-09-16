@@ -176,6 +176,7 @@ class RolloutWorkerWrapper(object):
                     {DEFAULT_POLICY_ID: self.agent.get_policy().get_weights()}
                 )
             else:
+                self.worker = None
                 assert self.is_es_agent
 
             self.dataset = False
@@ -234,10 +235,10 @@ class RolloutWorkerWrapper(object):
                 )
             )
             self.dataset = len(self.data) >= self.num_rollouts
-        if self.worker:
-            self.worker.stop()
-        if self.agent:
-            self.agent.stop()
+        # if self.worker:
+        #     self.worker.stop()
+        # if self.agent:
+        #     self.agent.stop()
         return self.path
 
 
@@ -278,7 +279,6 @@ def efficient_rollout_from_worker(worker, num_rollouts=None):
             time.time() - t
         )
     )
-    # worker.close.remote()
     return trajctory_list
 
 
@@ -580,7 +580,7 @@ def several_agent_rollout(
             # for obj_id in obj_ids:
             #     trajectory_list.append(ray.get(obj_id))
             return_dict[name] = trajectory_list
-            worker.close.remote()
+            # worker.close.remote()
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Collected {} rollouts from agent"
                 " <{}>".format(

@@ -172,7 +172,6 @@ class FFTWorker(object):
         assert self.initialized
 
         if self.rollout_worker is None:
-
             self.rollout_worker = \
                 make_worker(self.env_maker, self.ckpt, self.num_rollouts, self.seed,
                             self.run_name, self.env_name)
@@ -189,10 +188,12 @@ class FFTWorker(object):
         rollout_result = efficient_rollout_from_worker(
             self.rollout_worker, self.num_rollouts
         )
+
         print(
             "[FFTWorker._efficient_rollout] Successfully collect "
             "{} rollouts.".format(self.num_rollouts)
         )
+
         data_frame = None
 
         for i, roll in enumerate(rollout_result):
@@ -206,7 +207,7 @@ class FFTWorker(object):
         data_frame.insert(data_frame.shape[1], "seed", seed)
         return data_frame
 
-    @ray.method(num_return_vals=2)
+    @ray.method(num_return_vals=1)
     def fft(self, normalize="std", _num_steps=None, _extra_name=""):
         # TODO good if we can restore the weight but not create the agent
 
@@ -241,8 +242,11 @@ class FFTWorker(object):
             data_frame, label_list, self.postprocess_func
         )
 
-        # self.rollout_worker.close()
-        return data_frame.copy(), repr_dict
+        # dump the rollout if necessary. This should not REALLY close any
+        # worker.
+        self.rollout_worker.close()
+        ret = (data_frame.copy(), repr_dict)
+        return ret
 
 
 def get_fft_representation(
@@ -276,7 +280,6 @@ def get_fft_representation(
         start = iteration * num_workers
         end = min((iteration + 1) * num_workers, num_agents)
         df_obj_ids = []
-        rep_obj_ids = []
         for i, (name, ckpt_dict) in enumerate(agent_ckpt_dict_range[start:end]
                                               ):
             ckpt = ckpt_dict["path"]
@@ -296,7 +299,7 @@ def get_fft_representation(
                 worker_name="Worker{}".format(i)
             )
 
-            df_obj_id, rep_obj_id = workers[i].fft.remote(
+            df_obj_id = workers[i].fft.remote(
                 normalize=normalize,
                 _extra_name="[{}/{}] ".format(agent_count, num_agents)
             )
@@ -309,17 +312,13 @@ def get_fft_representation(
                     time.time() - start_t, name
                 )
             )
-
             agent_count += 1
             now_t = time.time()
-
             df_obj_ids.append(df_obj_id)
-            rep_obj_ids.append(rep_obj_id)
 
-        for df_obj_id, rep_obj_id, (name, _) in zip(
-                df_obj_ids, rep_obj_ids, agent_ckpt_dict_range[start:end]):
-            df = copy.deepcopy(ray.get(df_obj_id))
-            rep = copy.deepcopy(ray.get(rep_obj_id))
+        for df_obj_id, (name, _) in zip(
+                df_obj_ids, agent_ckpt_dict_range[start:end]):
+            df, rep = copy.deepcopy(ray.get(df_obj_id))
             data_frame_dict[name] = df
             representation_dict[name] = rep
             print(
