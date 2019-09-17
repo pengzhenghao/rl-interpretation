@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 # MODIFIED BY PENGZHENGHAO
-from toolbox.rllib.dynamic_tf_policy import DynamicTFPolicy
+from toolbox.modified_rllib.dynamic_tf_policy import DynamicTFPolicy
 
 # from ray.rllib.policy.dynamic_tf_policy import DynamicTFPolicy
 from ray.rllib.policy import eager_tf_policy

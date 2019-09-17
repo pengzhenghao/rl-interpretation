@@ -22,8 +22,8 @@ from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, \
     validate_config, update_kl, \
     warn_about_bad_reward_scales
 
-from toolbox.rllib.tf_policy_template import build_tf_policy
-from toolbox.rllib.trainer_template import build_trainer
+from toolbox.modified_rllib.tf_policy_template import build_tf_policy
+from toolbox.modified_rllib.trainer_template import build_trainer
 # from toolbox.rllib.tf_policy_template import ValueNetworkMixin_modified
 
 from ray.rllib.models import ModelCatalog
