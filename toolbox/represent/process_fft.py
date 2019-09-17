@@ -316,8 +316,8 @@ def get_fft_representation(
             now_t = time.time()
             df_obj_ids.append(df_obj_id)
 
-        for df_obj_id, (name, _) in zip(
-                df_obj_ids, agent_ckpt_dict_range[start:end]):
+        for df_obj_id, (name, _) in zip(df_obj_ids,
+                                        agent_ckpt_dict_range[start:end]):
             df, rep = copy.deepcopy(ray.get(df_obj_id))
             data_frame_dict[name] = df
             representation_dict[name] = rep

@@ -159,7 +159,9 @@ def make_ordereddict(list_of_dict, number=None, mode="uniform"):
     return ret
 
 
-def rearange_name_ckpt_mapping_according_to_cluster_prediction(name_ckpt_mapping, prediction, max_num_cols=None):
+def rearange_name_ckpt_mapping_according_to_cluster_prediction(
+        name_ckpt_mapping, prediction, max_num_cols=None
+):
     cluster_indices = set([v['cluster'] for v in prediction.values()])
     # num_clusters = len(cluster_indices)
     # max_num_cols = 18
@@ -180,6 +182,7 @@ def rearange_name_ckpt_mapping_according_to_cluster_prediction(name_ckpt_mapping
 
     new_name_ckpt_mapping = make_ordereddict(new_name_ckpt_mapping, mode="top")
     return new_name_ckpt_mapping
+
 
 def read_yaml(yaml_path, number=None, mode='top'):
     with open(yaml_path, 'r') as f:

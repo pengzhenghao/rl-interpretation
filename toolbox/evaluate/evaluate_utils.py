@@ -54,7 +54,7 @@ def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None):
 
 
 def restore_agent(run_name, ckpt, env_name, extra_config=None):
-    print('BEFORE RESTORE AGENT!!!!!!!!!!!!!!!')
+    # print('BEFORE RESTORE AGENT!!!!!!!!!!!!!!!')
     cls = get_agent_class(run_name)
     is_es_agent = run_name == "ES"
     config = build_config(ckpt, extra_config, is_es_agent)
@@ -65,5 +65,5 @@ def restore_agent(run_name, ckpt, env_name, extra_config=None):
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
         agent.restore(ckpt)
-    print("AFTER RESTORE AGENBT!!!!!!!!!!!!!!")
+    # print("AFTER RESTORE AGENBT!!!!!!!!!!!!!!")
     return agent

@@ -164,6 +164,11 @@ class RolloutWorkerWrapper(object):
                     "policy" \
                     "we reimplemented."
             else:
+                if self.worker is not None:
+                    try:
+                        self.worker.stop()
+                    except Exception:
+                        pass
                 self.agent = restore_agent(
                     self.run_name, self.ckpt, self.env_name,
                     config_for_evaluation
