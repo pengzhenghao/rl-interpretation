@@ -1,10 +1,12 @@
 import gym
+import numpy as np
 import ray
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 
+from toolbox.env.env_maker import get_env_maker
+from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 from toolbox.evaluate.rollout import RolloutWorkerWrapper, \
     several_agent_rollout, rollout, make_worker, efficient_rollout_from_worker
-from toolbox.env.env_maker import get_env_maker
 from toolbox.utils import initialize_ray
 
 
@@ -85,5 +87,28 @@ def test_efficient_rollout_from_worker():
     return trajctory_list
 
 
+def test_restore_agent_with_mask():
+    initialize_ray(test_mode=True)
+    env_name = "BipedalWalker-v2"
+    ckpt = "~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=20_" \
+           "2019-08-10_16-54-37xaa2muqm/checkpoint_469/checkpoint-469"
+    agent = restore_agent_with_mask("PPO", ckpt, env_name)
+
+    obs_space = agent.get_policy().observation_space
+    obs = obs_space.sample()
+
+    val = np.zeros((1, 256), dtype=np.float32)
+    val[:, ::2] = 1.0
+
+    mask_batch = {"fc_1_mask": val.copy(), "fc_2_mask": val.copy()}
+
+    ret = agent.get_policy().compute_actions(
+        np.array([obs]), mask_batch=mask_batch
+    )
+
+    return ret
+
+
 if __name__ == '__main__':
-    r = test_efficient_rollout_from_worker()
+    # r = test_efficient_rollout_from_worker()
+    ret = test_restore_agent_with_mask()

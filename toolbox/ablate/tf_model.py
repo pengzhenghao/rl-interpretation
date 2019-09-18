@@ -69,33 +69,18 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                     activation=activation,
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
+
                 activation_list.append(last_layer)
 
                 mask_name = "fc_{}_mask".format(i)
-                # mask_input = tf.placeholder_with_default(
-                #     tf.ones_like(last_layer),
-                #     shape=last_layer.shape,
-                #     name=mask_name
-                # )
-
                 mask_input = tf.keras.layers.Input(
                     shape=size,
                     name=mask_name,
-                    # tensor=tf.ones_like(last_layer)
                 )
-                # mask_input = tf.keras.layers.Input(
-                #     shape=size, name=mask_name
-                # )
                 mask_placeholder_dict[mask_name] = mask_input
                 assert last_layer.shape.as_list() == mask_input.shape.as_list()
 
-                # print("The activation mask's size: ", size)
-                # print("The last layer shape: ", last_layer.shape)
-                # print("The mask input shape: ", mask_input.shape)
-
                 last_layer = tf.multiply(last_layer, mask_input)
-
-                # print("The after multiple shape: ", last_layer.shape)
                 i += 1
 
             layer_out = tf.keras.layers.Dense(
@@ -113,31 +98,15 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                     activation=activation,
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
+
                 activation_list.append(last_layer)
 
                 mask_name = "fc_{}_mask".format(i)
-
-                # mask_input = tf.placeholder_with_default(
-                #     tf.ones_like(last_layer),
-                #     shape=last_layer.shape,
-                #     name=mask_name
-                # )
-
-                mask_input = tf.keras.layers.Input(
-                    shape=size,
-                    name=mask_name,
-                    # tensor=tf.ones_like(last_layer)
-                )
+                mask_input = tf.keras.layers.Input(shape=size, name=mask_name)
                 mask_placeholder_dict[mask_name] = mask_input
-
-                # print("The activation mask's size: ", size)
-                # print("The last layer shape: ", last_layer.shape)
-                # print("The mask input shape: ", mask_input.shape)
 
                 assert last_layer.shape.as_list() == mask_input.shape.as_list()
                 last_layer = tf.multiply(last_layer, mask_input)
-
-                # print("The after multiple shape: ", last_layer.shape)
 
                 i += 1
             layer_out = tf.keras.layers.Dense(
@@ -171,8 +140,6 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
         input_tensor = [inputs] + list(self.mask_placeholder_dict.values())
 
-        # print("Concat tensor shape: ", input_tensor)
-
         self.base_model = tf.keras.Model(
             inputs=input_tensor,
             outputs=[layer_out, value_out] + activation_list
@@ -196,9 +163,6 @@ class FullyConnectedNetworkWithMask(TFModelV2):
             for ph in self.mask_placeholder_dict.values():
                 extra_input.append(tf.ones_like(ph))
 
-        # print("Extra input: ", extra_input)
-
-        # tf.is_variable_initialized
         model_out, self._value_out, *self.activation_value = self.base_model(
             extra_input
         )

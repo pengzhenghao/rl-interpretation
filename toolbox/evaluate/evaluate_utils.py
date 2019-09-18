@@ -13,7 +13,9 @@ from toolbox.evaluate.tf_model import PPOAgentWithActivation, model_config, \
 from toolbox.utils import has_gpu
 
 
-def build_config(ckpt, extra_config=None, is_es_agent=False):
+def build_config(
+        ckpt, extra_config=None, is_es_agent=False, change_model=None
+):
     if extra_config is None:
         extra_config = {}
     config = {"log_level": "ERROR"}
@@ -39,18 +41,24 @@ def build_config(ckpt, extra_config=None, is_es_agent=False):
         config['num_workers'] = 1
         config['num_gpus_per_worker'] = 0
         config["num_gpus"] = 0
+    if change_model:
+        assert isinstance(change_model, str)
+        config['model']['custom_model'] = change_model
     return config
 
 
 def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
     if agent_type == "PPOAgentWithActivation":
         cls = PPOAgentWithActivation
+        change_model = "fc_with_activation"
     elif agent_type == "PPOAgentWithMask":
         cls = PPOAgentWithMask
+        change_model = "fc_with_mask"
     else:
         cls = get_agent_class(run_name)
     is_es_agent = run_name == "ES"
-    config = build_config(ckpt, extra_config, is_es_agent)
+    config = build_config(ckpt, extra_config, is_es_agent, change_model)
+    print(config)
     agent = cls(env=env_name, config=config)
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
