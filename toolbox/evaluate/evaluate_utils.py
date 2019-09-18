@@ -56,6 +56,7 @@ def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
         change_model = "fc_with_mask"
     else:
         cls = get_agent_class(run_name)
+        change_model = None
     is_es_agent = run_name == "ES"
     config = build_config(ckpt, extra_config, is_es_agent, change_model)
     print(config)

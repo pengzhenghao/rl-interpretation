@@ -359,6 +359,8 @@ class ModifiedInputTensorMixin(object):
 model_config = {"custom_model": "fc_with_mask", "custom_options": {}}
 
 
+
+
 def setup_mixins(policy, obs_space, action_space, config):
     ValueNetworkMixin_modified.__init__(
         policy, obs_space, action_space, config
@@ -389,6 +391,16 @@ PPOTFPolicyWithMask = build_tf_policy(
     ]
 )
 
+class AddMaskInfoMixin(object):
+
+    def get_mask_info(self):
+        ret = {
+            name: tensor.shape.as_list()
+            for name, tensor in \
+            self.get_policy().model.mask_placeholder_dict.items()
+        }
+        return ret
+
 ppo_agent_default_config = DEFAULT_CONFIG
 ppo_agent_default_config['model'].update(model_config)
 PPOAgentWithMask = build_trainer(
@@ -404,7 +416,8 @@ PPOAgentWithMask = build_trainer(
     make_policy_optimizer=None,
     validate_config=validate_config,
     after_optimizer_step=update_kl,
-    after_train_result=warn_about_bad_reward_scales
+    after_train_result=warn_about_bad_reward_scales,
+    mixins=[AddMaskInfoMixin]
 )
 
 
