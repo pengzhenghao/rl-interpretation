@@ -394,11 +394,10 @@ PPOTFPolicyWithMask = build_tf_policy(
 class AddMaskInfoMixin(object):
 
     def get_mask_info(self):
-        ret = {
-            name: tensor.shape.as_list()
-            for name, tensor in \
-            self.get_policy().model.mask_placeholder_dict.items()
-        }
+        ret = OrderedDict()
+        for name, tensor in \
+                self.get_policy().model.mask_placeholder_dict.items():
+            ret[name] = tensor.shape.as_list()
         return ret
 
 ppo_agent_default_config = DEFAULT_CONFIG
