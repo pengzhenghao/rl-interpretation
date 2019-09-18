@@ -89,13 +89,13 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                 mask_placeholder_dict[mask_name] = mask_input
                 assert last_layer.shape.as_list() == mask_input.shape.as_list()
 
-                print("The activation mask's size: ", size)
-                print("The last layer shape: ", last_layer.shape)
-                print("The mask input shape: ", mask_input.shape)
+                # print("The activation mask's size: ", size)
+                # print("The last layer shape: ", last_layer.shape)
+                # print("The mask input shape: ", mask_input.shape)
 
                 last_layer = tf.multiply(last_layer, mask_input)
 
-                print("The after multiple shape: ", last_layer.shape)
+                # print("The after multiple shape: ", last_layer.shape)
                 i += 1
 
             layer_out = tf.keras.layers.Dense(
@@ -130,14 +130,14 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                 )
                 mask_placeholder_dict[mask_name] = mask_input
 
-                print("The activation mask's size: ", size)
-                print("The last layer shape: ", last_layer.shape)
-                print("The mask input shape: ", mask_input.shape)
+                # print("The activation mask's size: ", size)
+                # print("The last layer shape: ", last_layer.shape)
+                # print("The mask input shape: ", mask_input.shape)
 
                 assert last_layer.shape.as_list() == mask_input.shape.as_list()
                 last_layer = tf.multiply(last_layer, mask_input)
 
-                print("The after multiple shape: ", last_layer.shape)
+                # print("The after multiple shape: ", last_layer.shape)
 
                 i += 1
             layer_out = tf.keras.layers.Dense(
@@ -245,14 +245,10 @@ class ValueNetworkMixin_modified(object):
                     tf.convert_to_tensor([prev_action]),
                     SampleBatch.PREV_REWARDS:
                     tf.convert_to_tensor([prev_reward]),
-                    "is_training": tf.convert_to_tensor(False),
-                    # "fc_1_mask": tf.ones((1, 256)),
-                    # "fc_2_mask": tf.ones((1, 256)),
-                    # "obs_flat":
+                    "is_training": tf.convert_to_tensor(False)
                 }
 
                 for name, tensor in self.model.mask_placeholder_dict.items():
-                    batch_size = ob.shape.as_list()[0]
                     shape = [1] + tensor.shape.as_list()[1:]
                     input_dict[name] = tf.ones(shape)
 
@@ -263,81 +259,10 @@ class ValueNetworkMixin_modified(object):
                 return self.model.value_function()[0]
 
         else:
-
             @make_tf_callable(self.get_session())
             def value(ob, prev_action, prev_reward, *state):
-
-                # print("2Enter self._value, please stop here.")
                 return tf.constant(0.0)
-
-        # print("3Enter self._value, please stop here.")
         self._value = value
-        # self._value = "TEST STRING"
-
-
-# class MODIFIED_THE_INPUT_TENSOR(TFPolicy):
-#     """Mixin for TFPolicy that adds entropy coeff decay."""
-#
-#     @override(TFPolicy)
-#     def _build_compute_actions(self,
-#                                builder,
-#                                obs_batch,
-#                                state_batches=None,
-#                                prev_action_batch=None,
-#                                prev_reward_batch=None,
-#                                episodes=None,
-#                                mask_batch=None,  # NEW!!
-#                                ):
-#         state_batches = state_batches or []
-#         if len(self._state_inputs) != len(state_batches):
-#             raise ValueError(
-#                 "Must pass in RNN state batches for placeholders {}, got {}".
-#                     format(self._state_inputs, state_batches))
-#         builder.add_feed_dict(self.extra_compute_action_feed_dict())
-#         builder.add_feed_dict({self._obs_input: obs_batch})
-#         if state_batches:
-#             builder.add_feed_dict({self._seq_lens: np.ones(len(obs_batch))})
-#         if self._prev_action_input is not None and \
-#                 prev_action_batch is not None:
-#             builder.add_feed_dict({self._prev_action_input:
-#             prev_action_batch})
-#         if self._prev_reward_input is not None and \
-#                 prev_reward_batch is not None:
-#             builder.add_feed_dict({self._prev_reward_input:
-#             prev_reward_batch})
-#         builder.add_feed_dict({self._is_training: False})
-#
-#         assert isinstance(mask_batch, dict)
-#         # assert
-#         for name, mask in mask_batch.items():
-#             assert isinstance(mask, np.ndarray)
-#             builder.add_feed_dict(
-#                 {
-#                     self.model.mask_placeholder_dict[name]: mask
-#                 }
-#             )
-#
-#         builder.add_feed_dict(dict(zip(self._state_inputs, state_batches)))
-#         fetches = builder.add_fetches([self._sampler] + self._state_outputs +
-#                                       [self.extra_compute_action_fetches()])
-#         return fetches[0], fetches[1:-1], fetches[-1]
-#
-#     @override(TFPolicy)
-#     def compute_actions(self,
-#                         obs_batch,
-#                         state_batches=None,
-#                         prev_action_batch=None,
-#                         prev_reward_batch=None,
-#                         info_batch=None,
-#                         episodes=None,
-#                         mask_batch=None,  # NEW!!!
-#                         **kwargs):
-#         builder = TFRunBuilder(self._sess, "compute_actions")
-#         fetches = self._build_compute_actions(builder, obs_batch,
-#                                               state_batches,
-#                                               prev_action_batch,
-#                                               prev_reward_batch, mask_batch)
-#         return builder.get(fetches)
 
 
 def postprocess_ppo_gae_deprecated(
@@ -391,6 +316,83 @@ def register():
     )
 
 
+import ray.experimental.tf_utils
+from ray.rllib.utils.tf_run_builder import TFRunBuilder
+from collections import OrderedDict
+import numpy as np
+from ray.rllib.utils.tf_ops import make_tf_callable
+
+from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.tf_policy import TFPolicy
+from ray.rllib.models.catalog import ModelCatalog
+from ray.rllib.utils.annotations import override
+# from toolbox.ablate.tf_model import
+
+class MODIFIED_THE_INPUT_TENSOR(object):
+    """Mixin for TFPolicy that adds entropy coeff decay."""
+    @override(TFPolicy)
+    def _build_compute_actions(self,
+                               builder,
+                               obs_batch,
+                               state_batches=None,
+                               prev_action_batch=None,
+                               prev_reward_batch=None,
+                               episodes=None,
+                               mask_batch=None,  # NEW!!
+                               ):
+        state_batches = state_batches or []
+        if len(self._state_inputs) != len(state_batches):
+            raise ValueError(
+                "Must pass in RNN state batches for placeholders {}, got {}".
+                    format(self._state_inputs, state_batches))
+        builder.add_feed_dict(self.extra_compute_action_feed_dict())
+        builder.add_feed_dict({self._obs_input: obs_batch})
+        if state_batches:
+            builder.add_feed_dict({self._seq_lens: np.ones(len(obs_batch))})
+        if self._prev_action_input is not None and \
+                prev_action_batch is not None:
+            builder.add_feed_dict({self._prev_action_input:
+            prev_action_batch})
+        if self._prev_reward_input is not None and \
+                prev_reward_batch is not None:
+            builder.add_feed_dict({self._prev_reward_input:
+            prev_reward_batch})
+        builder.add_feed_dict({self._is_training: False})
+
+        assert isinstance(mask_batch, dict), mask_batch
+        # assert
+        for name, mask in mask_batch.items():
+            assert isinstance(mask, np.ndarray)
+            builder.add_feed_dict(
+                {
+                    self.model.mask_placeholder_dict[name]: mask
+                }
+            )
+
+        builder.add_feed_dict(dict(zip(self._state_inputs, state_batches)))
+        fetches = builder.add_fetches([self._sampler] + self._state_outputs +
+                                      [self.extra_compute_action_fetches()])
+        return fetches[0], fetches[1:-1], fetches[-1]
+
+    @override(TFPolicy)
+    def compute_actions(self,
+                        obs_batch,
+                        state_batches=None,
+                        prev_action_batch=None,
+                        prev_reward_batch=None,
+                        info_batch=None,
+                        episodes=None,
+                        mask_batch=None,  # NEW!!!
+                        **kwargs):
+        builder = TFRunBuilder(self._sess, "compute_actions")
+        fetches = self._build_compute_actions(builder, obs_batch,
+                                              state_batches,
+                                              prev_action_batch,
+                                              prev_reward_batch,
+                                              mask_batch=mask_batch)
+        return builder.get(fetches)
+
+
 register()
 
 model_config = {"custom_model": "fc_with_mask", "custom_options": {}}
@@ -405,6 +407,7 @@ def setup_mixins(policy, obs_space, action_space, config):
         policy, config["entropy_coeff"], config["entropy_coeff_schedule"]
     )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
+    MODIFIED_THE_INPUT_TENSOR.__init__(policy)
 
 
 ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
@@ -421,7 +424,7 @@ PPOTFPolicyWithMask = build_tf_policy(
     before_loss_init=setup_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin_modified
+        ValueNetworkMixin_modified, MODIFIED_THE_INPUT_TENSOR
     ]
 )
 
@@ -450,9 +453,26 @@ def test_ppo():
     po = PPOAgentWithActivation(
         env="BipedalWalker-v2", config={"model": model_config}
     )
-
     return po
 
 
+def test_run_ppo():
+    agent = test_ppo()
+    obs_space = agent.get_policy().observation_space
+    obs = obs_space.sample()
+
+    mask_batch = {
+        "fc_1_mask": np.zeros((1, 256)),
+        "fc_2_mask": np.ones((1, 256))
+    }
+
+    ret = agent.get_policy().compute_actions(np.array([obs]),
+                                       mask_batch=mask_batch)
+    print(ret)
+
+    return ret
+
+
 if __name__ == '__main__':
-    test_ppo()
+    # test_ppo()
+    test_run_ppo()

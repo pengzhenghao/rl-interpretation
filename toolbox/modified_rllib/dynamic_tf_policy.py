@@ -159,7 +159,7 @@ class DynamicTFPolicy(TFPolicy):
         # PENGZHENGHAO
         for name, ph in self.model.mask_placeholder_dict.items():
             self._input_dict[name] = ph
-        print("Current key names of input dict: ", self._input_dict.keys())
+        # print("Current key names of input dict: ", self._input_dict.keys())
 
         if existing_inputs:
             self._state_in = [
@@ -218,10 +218,10 @@ class DynamicTFPolicy(TFPolicy):
 
         # Phase 2 init
         before_loss_init(self, obs_space, action_space, config)
-        print("Before dynamic_tf_policy's initialize_loss")
+        # print("Before dynamic_tf_policy's initialize_loss")
         if not existing_inputs:
             self._initialize_loss()
-        print("After dynamic_tf_policy's initialize_loss")
+        # print("After dynamic_tf_policy's initialize_loss")
 
     @override(TFPolicy)
     def copy(self, existing_inputs):
