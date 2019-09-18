@@ -8,30 +8,30 @@ from __future__ import absolute_import, division, print_function
 
 from collections import OrderedDict
 
-from ray.rllib.models.tf.misc import normc_initializer, get_activation_fn
-from ray.rllib.models.tf.tf_modelv2 import TFModelV2
-from ray.rllib.utils import try_import_tf
-from ray.rllib.utils.tf_ops import make_tf_callable
-
-tf = try_import_tf()
+import numpy as np
+import ray.experimental.tf_utils
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, \
+    validate_config, update_kl, \
+    warn_about_bad_reward_scales
 from ray.rllib.agents.ppo.ppo_policy import \
     ppo_surrogate_loss, kl_and_loss_stats, setup_config, \
     clip_gradients, EntropyCoeffSchedule, KLCoeffMixin, \
     LearningRateSchedule, BEHAVIOUR_LOGITS, postprocess_ppo_gae
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, \
-    validate_config, update_kl, \
-    warn_about_bad_reward_scales
+from ray.rllib.evaluation.postprocessing import compute_advantages
+from ray.rllib.models import ModelCatalog
+from ray.rllib.models.tf.misc import normc_initializer, get_activation_fn
+from ray.rllib.models.tf.tf_modelv2 import TFModelV2
+from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.tf_policy import TFPolicy
+from ray.rllib.utils import try_import_tf
+from ray.rllib.utils.annotations import override
+from ray.rllib.utils.tf_ops import make_tf_callable
+from ray.rllib.utils.tf_run_builder import TFRunBuilder
 
 from toolbox.modified_rllib.tf_policy_template import build_tf_policy
 from toolbox.modified_rllib.trainer_template import build_trainer
-# from toolbox.rllib.tf_policy_template import ValueNetworkMixin_modified
 
-from ray.rllib.models import ModelCatalog
-from ray.rllib.evaluation.postprocessing import compute_advantages
-import ray.experimental.tf_utils
-from ray.rllib.policy.sample_batch import SampleBatch
-
-# from ray.rllib.utils import try_import_tf
+tf = try_import_tf()
 
 
 class FullyConnectedNetworkWithMask(TFModelV2):
@@ -259,9 +259,11 @@ class ValueNetworkMixin_modified(object):
                 return self.model.value_function()[0]
 
         else:
+
             @make_tf_callable(self.get_session())
             def value(ob, prev_action, prev_reward, *state):
                 return tf.constant(0.0)
+
         self._value = value
 
 
@@ -310,53 +312,45 @@ def postprocess_ppo_gae_deprecated(
     return batch
 
 
-def register():
+def register_fc_with_mask():
     ModelCatalog.register_custom_model(
         "fc_with_mask", FullyConnectedNetworkWithMask
     )
 
 
-import ray.experimental.tf_utils
-from ray.rllib.utils.tf_run_builder import TFRunBuilder
-from collections import OrderedDict
-import numpy as np
-from ray.rllib.utils.tf_ops import make_tf_callable
+register_fc_with_mask()
 
-from ray.rllib.policy.sample_batch import SampleBatch
-from ray.rllib.policy.tf_policy import TFPolicy
-from ray.rllib.models.catalog import ModelCatalog
-from ray.rllib.utils.annotations import override
-# from toolbox.ablate.tf_model import
 
-class MODIFIED_THE_INPUT_TENSOR(object):
+class ModifiedInputTensorMixin(object):
     """Mixin for TFPolicy that adds entropy coeff decay."""
+
     @override(TFPolicy)
-    def _build_compute_actions(self,
-                               builder,
-                               obs_batch,
-                               state_batches=None,
-                               prev_action_batch=None,
-                               prev_reward_batch=None,
-                               episodes=None,
-                               mask_batch=None,  # NEW!!
-                               ):
+    def _build_compute_actions(
+            self,
+            builder,
+            obs_batch,
+            state_batches=None,
+            prev_action_batch=None,
+            prev_reward_batch=None,
+            episodes=None,
+            mask_batch=None,  # NEW!!
+    ):
         state_batches = state_batches or []
         if len(self._state_inputs) != len(state_batches):
             raise ValueError(
                 "Must pass in RNN state batches for placeholders {}, got {}".
-                    format(self._state_inputs, state_batches))
+                format(self._state_inputs, state_batches)
+            )
         builder.add_feed_dict(self.extra_compute_action_feed_dict())
         builder.add_feed_dict({self._obs_input: obs_batch})
         if state_batches:
             builder.add_feed_dict({self._seq_lens: np.ones(len(obs_batch))})
         if self._prev_action_input is not None and \
                 prev_action_batch is not None:
-            builder.add_feed_dict({self._prev_action_input:
-            prev_action_batch})
+            builder.add_feed_dict({self._prev_action_input: prev_action_batch})
         if self._prev_reward_input is not None and \
                 prev_reward_batch is not None:
-            builder.add_feed_dict({self._prev_reward_input:
-            prev_reward_batch})
+            builder.add_feed_dict({self._prev_reward_input: prev_reward_batch})
         builder.add_feed_dict({self._is_training: False})
 
         assert isinstance(mask_batch, dict), mask_batch
@@ -364,36 +358,39 @@ class MODIFIED_THE_INPUT_TENSOR(object):
         for name, mask in mask_batch.items():
             assert isinstance(mask, np.ndarray)
             builder.add_feed_dict(
-                {
-                    self.model.mask_placeholder_dict[name]: mask
-                }
+                {self.model.mask_placeholder_dict[name]: mask}
             )
 
         builder.add_feed_dict(dict(zip(self._state_inputs, state_batches)))
-        fetches = builder.add_fetches([self._sampler] + self._state_outputs +
-                                      [self.extra_compute_action_fetches()])
+        fetches = builder.add_fetches(
+            [self._sampler] + self._state_outputs +
+            [self.extra_compute_action_fetches()]
+        )
         return fetches[0], fetches[1:-1], fetches[-1]
 
     @override(TFPolicy)
-    def compute_actions(self,
-                        obs_batch,
-                        state_batches=None,
-                        prev_action_batch=None,
-                        prev_reward_batch=None,
-                        info_batch=None,
-                        episodes=None,
-                        mask_batch=None,  # NEW!!!
-                        **kwargs):
+    def compute_actions(
+            self,
+            obs_batch,
+            state_batches=None,
+            prev_action_batch=None,
+            prev_reward_batch=None,
+            info_batch=None,
+            episodes=None,
+            mask_batch=None,  # NEW!!!
+            **kwargs
+    ):
         builder = TFRunBuilder(self._sess, "compute_actions")
-        fetches = self._build_compute_actions(builder, obs_batch,
-                                              state_batches,
-                                              prev_action_batch,
-                                              prev_reward_batch,
-                                              mask_batch=mask_batch)
+        fetches = self._build_compute_actions(
+            builder,
+            obs_batch,
+            state_batches,
+            prev_action_batch,
+            prev_reward_batch,
+            mask_batch=mask_batch
+        )
         return builder.get(fetches)
 
-
-register()
 
 model_config = {"custom_model": "fc_with_mask", "custom_options": {}}
 
@@ -407,7 +404,7 @@ def setup_mixins(policy, obs_space, action_space, config):
         policy, config["entropy_coeff"], config["entropy_coeff_schedule"]
     )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
-    MODIFIED_THE_INPUT_TENSOR.__init__(policy)
+    ModifiedInputTensorMixin.__init__(policy)
 
 
 ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
@@ -424,13 +421,13 @@ PPOTFPolicyWithMask = build_tf_policy(
     before_loss_init=setup_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin_modified, MODIFIED_THE_INPUT_TENSOR
+        ValueNetworkMixin_modified, ModifiedInputTensorMixin
     ]
 )
 
 ppo_agent_default_config = DEFAULT_CONFIG
 ppo_agent_default_config['model'].update(model_config)
-PPOAgentWithActivation = build_trainer(
+PPOAgentWithMask = build_trainer(
     name="PPOWithMask",
     default_config=ppo_agent_default_config,
     default_policy=PPOTFPolicyWithMask,
@@ -450,7 +447,7 @@ PPOAgentWithActivation = build_trainer(
 def test_ppo():
     from toolbox.utils import initialize_ray
     initialize_ray(test_mode=True, local_mode=True)
-    po = PPOAgentWithActivation(
+    po = PPOAgentWithMask(
         env="BipedalWalker-v2", config={"model": model_config}
     )
     return po
@@ -466,8 +463,9 @@ def test_run_ppo():
         "fc_2_mask": np.ones((1, 256))
     }
 
-    ret = agent.get_policy().compute_actions(np.array([obs]),
-                                       mask_batch=mask_batch)
+    ret = agent.get_policy().compute_actions(
+        np.array([obs]), mask_batch=mask_batch
+    )
     print(ret)
 
     return ret

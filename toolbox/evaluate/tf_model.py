@@ -178,13 +178,13 @@ PPOAgentWithActivation = build_trainer(
 )
 
 
-def register():
+def register_fc_with_activation():
     ModelCatalog.register_custom_model(
         "fc_with_activation", FullyConnectedNetworkWithActivation
     )
 
 
-register()
+register_fc_with_activation()
 
 
 def test_ppo():

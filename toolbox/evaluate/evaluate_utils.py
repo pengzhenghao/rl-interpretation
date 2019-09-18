@@ -7,9 +7,10 @@ import pickle
 from ray.rllib.agents.registry import get_agent_class
 from ray.tune.util import merge_dicts
 
-from toolbox.evaluate.tf_model import PPOAgentWithActivation, model_config
+from toolbox.ablate.tf_model import PPOAgentWithMask, register_fc_with_mask
+from toolbox.evaluate.tf_model import PPOAgentWithActivation, model_config, \
+    register_fc_with_activation
 from toolbox.utils import has_gpu
-from toolbox.evaluate.tf_model import register
 
 
 def build_config(ckpt, extra_config=None, is_es_agent=False):
@@ -41,29 +42,33 @@ def build_config(ckpt, extra_config=None, is_es_agent=False):
     return config
 
 
-def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None):
-    register()
-    is_es_agent = run_name == "ES"
-    # if config is None:
-    config = build_config(ckpt, extra_config, is_es_agent)
-    agent = PPOAgentWithActivation(env=env_name, config=config)
-    if ckpt is not None:
-        ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
-        agent.restore(ckpt)
-    return agent
-
-
-def restore_agent(run_name, ckpt, env_name, extra_config=None):
-    # print('BEFORE RESTORE AGENT!!!!!!!!!!!!!!!')
-    cls = get_agent_class(run_name)
+def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
+    if agent_type == "PPOAgentWithActivation":
+        cls = PPOAgentWithActivation
+    elif agent_type == "PPOAgentWithMask":
+        cls = PPOAgentWithMask
+    else:
+        cls = get_agent_class(run_name)
     is_es_agent = run_name == "ES"
     config = build_config(ckpt, extra_config, is_es_agent)
-    # This is a workaround
-    # if run_name == "ES":
-    #     config["num_workers"] = 1
     agent = cls(env=env_name, config=config)
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
         agent.restore(ckpt)
-    # print("AFTER RESTORE AGENBT!!!!!!!!!!!!!!")
     return agent
+
+
+def restore_agent_with_mask(run_name, ckpt, env_name, extra_config=None):
+    register_fc_with_mask()
+    return _restore("PPOAgentWithMask", run_name, ckpt, env_name, extra_config)
+
+
+def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None):
+    register_fc_with_activation()
+    return _restore(
+        "PPOAgentWithActivation", run_name, ckpt, env_name, extra_config
+    )
+
+
+def restore_agent(run_name, ckpt, env_name, extra_config=None):
+    return _restore(run_name, run_name, ckpt, env_name, extra_config)
