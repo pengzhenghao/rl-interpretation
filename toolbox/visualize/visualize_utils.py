@@ -43,9 +43,9 @@ def touch(path):
 
 @ray.remote
 def remote_generate_gif(frames, path, fps=50):
-    print("Enter remote_generate_gif!!!!")
+    # print("Enter remote_generate_gif!!!!")
     _generate_gif(frames, path, fps)
-    print("Exit remote_generate_gif!!!!")
+    # print("Exit remote_generate_gif!!!!")
     return 1
 
 
@@ -524,7 +524,7 @@ class VideoRecorder(object):
                 "{}_{}.gif".format(agent_name.replace(" ", "-"), mode)
             )
             os.makedirs(os.path.dirname(gif_path), exist_ok=True)
-            print("input: ", gif_path, int(fps))
+            # print("input: ", gif_path, int(fps))
             obj_id = remote_generate_gif.remote(clip, gif_path, int(fps))
             print("Collect obj_id from remote_generate_gif: ", obj_id)
             obj_ids.append(obj_id)

@@ -3,14 +3,14 @@ from __future__ import absolute_import, division, print_function, \
 
 # import sys
 # sys.path.append("../")
-from toolbox.process_data.process_data import get_name_ckpt_mapping
+from toolbox.process_data.process_data import get_name_ckpt_mapping, read_yaml
+from toolbox.test.utils import get_ppo_agent
+from toolbox.utils import initialize_ray
+from toolbox.visualize.generate_gif import generate_gif_from_agent
 from toolbox.visualize.record_video import (
     create_parser, GridVideoRecorder, generate_grid_of_videos, rename_agent
 )
-from toolbox.test.utils import get_ppo_agent
-from toolbox.visualize.generate_gif import generate_gif_from_agent
-from toolbox.utils import initialize_ray
-from toolbox.process_data.process_data import read_yaml
+from toolbox.evaluate.evaluate_utils import restore_agent
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -24,6 +24,45 @@ def test_generate_gif_from_agent():
     ret = generate_gif_from_agent(agent, "test_agent", "/tmp/test_genrate_gif")
     print(ret)
     return ret
+
+
+def test_generate_gif_from_agent_mujoco_environemnt():
+    initialize_ray(test_mode=True)
+    agent = get_ppo_agent("HalfCheetah-v2")
+    output_path = "(delete-me!)test_genrate_gif_mujoco"
+    agent_name = "test_agent_mujoco"
+
+    gvr = GridVideoRecorder(video_path=output_path, fps=FPS,
+                            require_full_frame=True)
+    frames_dict, extra_info_dict = gvr.generate_frames_from_agent(
+        agent, agent_name
+    )
+
+    name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
+    print("Gif has been saved at: ", name_path_dict)
+
+
+def test_generate_gif_from_restored_agent_mujoco_environemnt():
+    initialize_ray(test_mode=True)
+    # agent = get_ppo_agent("HalfCheetah-v2")
+
+    ckpt = "/home/zhpeng/ray_results/0915-hc-ppo-5-agents/" \
+           "PPO_HalfCheetah-v2_2_seed=2_2019-09-15_15-01-01hyqn2x2v/" \
+           "checkpoint_1060/checkpoint-1060"
+
+    agent = restore_agent("PPO", ckpt, "HalfCheetah-v2")
+
+    output_path = "(delete-me!)test_genrate_gif_mujoco"
+    agent_name = "test_agent_mujoco"
+
+    gvr = GridVideoRecorder(video_path=output_path, fps=FPS,
+                            require_full_frame=True)
+    frames_dict, extra_info_dict = gvr.generate_frames_from_agent(
+        agent, agent_name
+    )
+
+    name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
+    print("Gif has been saved at: ", name_path_dict)
 
 
 def test_cluster_video_generation():
@@ -139,7 +178,10 @@ def test_generate_two_videos2():
 
 if __name__ == '__main__':
     import os
-    os.chdir("../../")
-    print(os.getcwd())
+
+    # os.chdir("../../")
+    print("CURRENT LOCATION: ", os.getcwd())
     # test_generate_two_videos()
-    test_generate_two_videos2()
+    # test_generate_two_videos2()
+    # test_generate_gif_from_agent_mujoco_environemnt()
+    test_generate_gif_from_restored_agent_mujoco_environemnt()

@@ -14,7 +14,7 @@ def generate_gif_from_agent(agent, agent_name, output_path):
 
     name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
     print("Gif has been saved at: ", name_path_dict)
-
+    return name_path_dict
 
 if __name__ == "__main__":
     import argparse

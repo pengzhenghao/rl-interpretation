@@ -374,7 +374,7 @@ def rollout(
             trajectory = []
         if require_frame:
             frames = []
-            assert env_name in ["BipedalWalker-v2"]
+            # assert env_name in ["BipedalWalker-v2"]
             frame_extra_info = {
                 "value_function": [],
                 "reward": [],
