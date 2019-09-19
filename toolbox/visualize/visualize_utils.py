@@ -507,13 +507,13 @@ class VideoRecorder(object):
                 period = min(frames_info['period'], length)
                 clip = resize_frames[int((length - period) /
                                          2):int((length + period) / 2)]
-                fps = self.frames_per_sec / 10
+                fps = self.frames_per_sec / 4
 
             elif mode == '3period':
                 period = min(3 * frames_info['period'], length)
                 clip = resize_frames[int((length - period) /
                                          2):int((length + period) / 2)]
-                fps = self.frames_per_sec / 10
+                fps = self.frames_per_sec / 4
 
             else:
                 continue
