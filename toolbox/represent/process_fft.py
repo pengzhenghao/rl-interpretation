@@ -102,7 +102,7 @@ def get_period(source, fps):
         # period = freq
         ret.append(period)
     return float(np.mean(ret))
-
+set().difference()
 
 @ray.remote(num_gpus=0.3)
 class FFTWorker(object):

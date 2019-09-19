@@ -206,9 +206,9 @@ class ValueNetworkMixin_modified(object):
                 input_dict = {
                     SampleBatch.CUR_OBS: tf.convert_to_tensor([ob]),
                     SampleBatch.PREV_ACTIONS:
-                    tf.convert_to_tensor([prev_action]),
+                        tf.convert_to_tensor([prev_action]),
                     SampleBatch.PREV_REWARDS:
-                    tf.convert_to_tensor([prev_reward]),
+                        tf.convert_to_tensor([prev_reward]),
                     "is_training": tf.convert_to_tensor(False)
                 }
 
@@ -285,6 +285,16 @@ def register_fc_with_mask():
 register_fc_with_mask()
 
 
+class AddDefaultMask(object):
+
+    def __init__(self):
+        self.default_mask_dict = None
+
+    def set_default_mask(self, mask_dict):
+        assert mask_dict.keys() == self.model.mask_placeholder_dict.keys()
+        self.default_mask_dict = mask_dict
+
+
 class ModifiedInputTensorMixin(object):
     """Mixin for TFPolicy that adds entropy coeff decay."""
 
@@ -303,7 +313,7 @@ class ModifiedInputTensorMixin(object):
         if len(self._state_inputs) != len(state_batches):
             raise ValueError(
                 "Must pass in RNN state batches for placeholders {}, got {}".
-                format(self._state_inputs, state_batches)
+                    format(self._state_inputs, state_batches)
             )
         builder.add_feed_dict(self.extra_compute_action_feed_dict())
         builder.add_feed_dict({self._obs_input: obs_batch})
@@ -359,8 +369,6 @@ class ModifiedInputTensorMixin(object):
 model_config = {"custom_model": "fc_with_mask", "custom_options": {}}
 
 
-
-
 def setup_mixins(policy, obs_space, action_space, config):
     ValueNetworkMixin_modified.__init__(
         policy, obs_space, action_space, config
@@ -371,6 +379,7 @@ def setup_mixins(policy, obs_space, action_space, config):
     )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
     ModifiedInputTensorMixin.__init__(policy)
+    AddDefaultMask.__init__()
 
 
 ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
@@ -387,9 +396,10 @@ PPOTFPolicyWithMask = build_tf_policy(
     before_loss_init=setup_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin_modified, ModifiedInputTensorMixin
+        ValueNetworkMixin_modified, ModifiedInputTensorMixin, AddDefaultMask
     ]
 )
+
 
 class AddMaskInfoMixin(object):
 
@@ -399,6 +409,7 @@ class AddMaskInfoMixin(object):
                 self.get_policy().model.mask_placeholder_dict.items():
             ret[name] = tensor.shape.as_list()
         return ret
+
 
 ppo_agent_default_config = DEFAULT_CONFIG
 ppo_agent_default_config['model'].update(model_config)
