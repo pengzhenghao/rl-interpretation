@@ -1,7 +1,8 @@
 import gym
 
 from toolbox.env.env_wrapper import BipedalWalkerWrapper
-from toolbox.env.mujoco_wrapper import MujocoWrapper
+from toolbox.env.mujoco_wrapper import MujocoWrapper, \
+    HalfCheetahV2NoBackground, HalfCheetahV3NoBackground
 
 DEFAULT_SEED = 0
 
@@ -18,8 +19,17 @@ def build_opencv_bipedal_walker(useless=None):
     return env
 
 
-def build_halfcheetah(useless=None):
-    env = gym.make("HalfCheetah-v2")
+def build_halfcheetahv2(useless=None):
+    # env = gym.make("HalfCheetah-v2")
+    env = HalfCheetahV2NoBackground()
+    env.seed(DEFAULT_SEED)
+    env = MujocoWrapper(env)
+    return env
+
+
+def build_halfcheetahv3(useless=None):
+    # env = gym.make("HalfCheetah-v2")
+    env = HalfCheetahV3NoBackground()
     env.seed(DEFAULT_SEED)
     env = MujocoWrapper(env)
     return env
@@ -33,5 +43,6 @@ def get_env_maker(name, require_render=False):
 
 ENV_MAKER_LOOKUP = {
     "BipedalWalker-v2": build_bipedal_walker,
-    "HalfCheetah-v2": build_halfcheetah
+    "HalfCheetah-v2": build_halfcheetahv2,
+    "HalfCheetah-v3": build_halfcheetahv3
 }

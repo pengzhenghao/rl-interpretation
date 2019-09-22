@@ -135,7 +135,8 @@ class GridVideoRecorder(object):
         self.require_full_frame = require_full_frame
 
     def generate_frames_from_agent(
-            self, agent, agent_name, num_steps=None, seed=0, render_mode="rgb_array"
+            self, agent, agent_name, num_steps=None, seed=0, render_mode="rgb_array",
+            require_trajectory=False
     ):
         config = agent.config
 
@@ -150,11 +151,15 @@ class GridVideoRecorder(object):
                 env_name,
                 num_steps,
                 require_frame=True,
+                require_trajectory=require_trajectory,
                 require_full_frame=self.require_full_frame,
                 render_mode=render_mode
             )
         )
         frames, extra_info = result['frames'], result['frame_extra_info']
+        if require_trajectory:
+            extra_info['trajectory'] = result['trajectory']
+
         env.close()
         agent.stop()
 
@@ -182,6 +187,11 @@ class GridVideoRecorder(object):
                 extra_info_dict[key][agent_name] = val
             elif key == "vf_preds":
                 extra_info_dict["value_function"][agent_name] = val
+            elif key == "trajectory" and require_trajectory:
+                if "trajectory" in extra_info_dict:
+                    extra_info_dict["trajectory"][agent_name] = val
+                else:
+                    extra_info_dict["trajectory"] = {agent_name: val}
         extra_info_dict['title'][agent_name] = agent_name
 
         new_extra_info_dict = PRESET_INFORMATION_DICT.copy()
