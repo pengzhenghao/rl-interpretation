@@ -87,7 +87,7 @@ class CollectFramesWorker(object):
         self.seed = seed
         self.require_full_frame = require_full_frame
 
-    def collect_frames(self, run_name, env_name, env_maker, config, ckpt):
+    def collect_frames(self, run_name, env_name, env_maker, config, ckpt, render_mode="rgb_array"):
         """
         This function create one agent and return one frame sequence.
         :param run_name:
@@ -108,7 +108,8 @@ class CollectFramesWorker(object):
             env_name,
             self.num_steps,
             require_frame=True,
-            require_full_frame=self.require_full_frame
+            require_full_frame=self.require_full_frame,
+            render_mode=render_mode
         )
         frames, extra_info = result['frames'], result['frame_extra_info']
         env.close()
@@ -134,7 +135,7 @@ class GridVideoRecorder(object):
         self.require_full_frame = require_full_frame
 
     def generate_frames_from_agent(
-            self, agent, agent_name, num_steps=None, seed=0
+            self, agent, agent_name, num_steps=None, seed=0, render_mode="rgb_array"
     ):
         config = agent.config
 
@@ -149,7 +150,8 @@ class GridVideoRecorder(object):
                 env_name,
                 num_steps,
                 require_frame=True,
-                require_full_frame=self.require_full_frame
+                require_full_frame=self.require_full_frame,
+                render_mode=render_mode
             )
         )
         frames, extra_info = result['frames'], result['frame_extra_info']
@@ -202,7 +204,8 @@ class GridVideoRecorder(object):
             name_row_mapping=None,
             name_loc_mapping=None,
             args_config=None,
-            num_workers=10
+            num_workers=10,
+            render_mode="rgb_array"
     ):
 
         assert isinstance(name_ckpt_mapping, OrderedDict), \
@@ -241,7 +244,7 @@ class GridVideoRecorder(object):
                 is_es_agent = run_name == "ES"
                 config = build_config(ckpt, args_config, is_es_agent)
                 object_id_dict[name] = workers[incre].collect_frames.remote(
-                    run_name, env_name, env_maker, config, ckpt
+                    run_name, env_name, env_maker, config, ckpt, render_mode
                 )
                 print(
                     "[{}/{}] (T +{:.1f}s Total {:.1f}s) "

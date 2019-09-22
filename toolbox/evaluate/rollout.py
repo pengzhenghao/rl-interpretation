@@ -333,7 +333,8 @@ def rollout(
         require_trajectory=False,
         require_extra_info=False,
         require_full_frame=False,
-        require_env_state=False
+        require_env_state=False,
+        render_mode="rgb_array"
 ):
     assert require_frame or require_trajectory or require_extra_info or \
            require_env_state, "You must ask for some output!"
@@ -348,7 +349,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-                                                ]["policy_mapping_fn"]
+            ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -484,7 +485,7 @@ def rollout(
             else:
                 prev_rewards[_DUMMY_AGENT_ID] = reward
 
-            kwargs = {"mode": "rgb_array" if require_full_frame else "cropped"}
+            kwargs = {"mode": render_mode if require_full_frame else "cropped"}
             # This copy() is really important!
             # Otherwise see error: pyarrow.lib.ArrowInvalid
             if require_frame:

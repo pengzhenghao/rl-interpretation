@@ -2,6 +2,17 @@
 import gym
 import numpy as np
 from gym.core import Wrapper
+import os
+from gym.envs.mujoco.half_cheetah_v3 import HalfCheetahEnv
+
+class HalfCheetahEnvNoBackground(HalfCheetahEnv):
+    def __init__(self, require_shadow=False):
+        xml_path = 'half_cheetah(no_shadow).xml'
+        if require_shadow:
+            xml_path = "half_cheetah.xml"
+        xml_path = os.path.join(os.path.dirname(__file__),
+                                "modified_mujoco_assets", xml_path)
+        super(HalfCheetahEnvNoBackground, self).__init__(xml_file=xml_path)
 
 
 class MujocoWrapper(Wrapper):
