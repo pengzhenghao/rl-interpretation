@@ -476,8 +476,9 @@ def rollout(
                 # we observe the channel 7 and 12 which represent the speed
                 # of the knee joints.
                 # This only hold for BipedalWalker-v2.
-                assert obs.ndim == 1
-                frame_extra_info["period_info"].append(obs[[7, 12]])
+                if env_name == "BipedalWalker-v2":
+                    assert obs.ndim == 1
+                    frame_extra_info["period_info"].append(obs[[7, 12]])
 
             if multiagent:
                 for agent_id, r in reward.items():

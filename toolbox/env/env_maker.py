@@ -26,6 +26,13 @@ def build_halfcheetahv2(useless=None):
     env = MujocoWrapper(env)
     return env
 
+def build_halfcheetahv2_shadow(useless=None):
+    # env = gym.make("HalfCheetah-v2")
+    env = HalfCheetahV2NoBackground(True)
+    env.seed(DEFAULT_SEED)
+    env = MujocoWrapper(env)
+    return env
+
 
 def build_halfcheetahv3(useless=None):
     # env = gym.make("HalfCheetah-v2")
@@ -43,6 +50,7 @@ def get_env_maker(name, require_render=False):
 
 ENV_MAKER_LOOKUP = {
     "BipedalWalker-v2": build_bipedal_walker,
+    "HalfCheetah-v2-shadow": build_halfcheetahv2_shadow,
     "HalfCheetah-v2": build_halfcheetahv2,
     "HalfCheetah-v3": build_halfcheetahv3
 }
