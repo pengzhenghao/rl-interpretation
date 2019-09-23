@@ -7,6 +7,7 @@ from gym import utils
 from gym.core import Wrapper
 from gym.envs.mujoco import mujoco_env
 from gym.envs.mujoco.half_cheetah_v3 import HalfCheetahEnv as HCEnvV3
+from gym.envs.mujoco.hopper_v3 import HopperEnv as HopperEnvV3
 
 
 class HalfCheetahV2NoBackground(mujoco_env.MujocoEnv, utils.EzPickle):
@@ -56,6 +57,16 @@ class HalfCheetahV3NoBackground(HCEnvV3):
         xml_path = os.path.join(os.path.dirname(__file__),
                                 "modified_mujoco_assets", xml_path)
         super(HalfCheetahV3NoBackground, self).__init__(xml_file=xml_path)
+
+
+class HopperV3NoBackground(HopperEnvV3):
+    def __init__(self, require_shadow=False):
+        xml_path = 'hopper(no_shadow).xml'
+        if require_shadow:
+            xml_path = "hopper.xml"
+        xml_path = os.path.join(os.path.dirname(__file__),
+                                "modified_mujoco_assets", xml_path)
+        super(HopperV3NoBackground, self).__init__(xml_file=xml_path)
 
 
 class MujocoWrapper(Wrapper):
