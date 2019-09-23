@@ -323,7 +323,6 @@ Modification:
     2. pass an environment object which can be different from env_name
 """
 
-
 def rollout(
         agent,
         env,

@@ -59,14 +59,47 @@ class HalfCheetahV3NoBackground(HCEnvV3):
         super(HalfCheetahV3NoBackground, self).__init__(xml_file=xml_path)
 
 
-class HopperV3NoBackground(HopperEnvV3):
-    def __init__(self, require_shadow=False):
+class HopperV3NoBackground(HopperEnvV3, utils.EzPickle):
+    def __init__(self,
+                 require_shadow=False,
+                 # xml_file='hopper.xml',
+                 forward_reward_weight=1.0,
+                 ctrl_cost_weight=1e-3,
+                 healthy_reward=1.0,
+                 terminate_when_unhealthy=True,
+                 healthy_state_range=(-100.0, 100.0),
+                 healthy_z_range=(0.7, float('inf')),
+                 healthy_angle_range=(-0.2, 0.2),
+                 reset_noise_scale=5e-3,
+                 exclude_current_positions_from_observation=True,
+                 rgb_rendering_tracking=True):
         xml_path = 'hopper(no_shadow).xml'
         if require_shadow:
             xml_path = "hopper.xml"
         xml_path = os.path.join(os.path.dirname(__file__),
                                 "modified_mujoco_assets", xml_path)
-        super(HopperV3NoBackground, self).__init__(xml_file=xml_path)
+
+        utils.EzPickle.__init__(**locals())
+
+        self._forward_reward_weight = forward_reward_weight
+
+        self._ctrl_cost_weight = ctrl_cost_weight
+
+        self._healthy_reward = healthy_reward
+        self._terminate_when_unhealthy = terminate_when_unhealthy
+
+        self._healthy_state_range = healthy_state_range
+        self._healthy_z_range = healthy_z_range
+        self._healthy_angle_range = healthy_angle_range
+
+        self._reset_noise_scale = reset_noise_scale
+
+        self._exclude_current_positions_from_observation = (
+            exclude_current_positions_from_observation)
+
+        # Original the skip frame = 4
+        mujoco_env.MujocoEnv.__init__(self, xml_path, 4,
+                                      rgb_rendering_tracking=rgb_rendering_tracking)
 
 
 class MujocoWrapper(Wrapper):
