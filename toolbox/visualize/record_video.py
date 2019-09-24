@@ -87,7 +87,15 @@ class CollectFramesWorker(object):
         self.seed = seed
         self.require_full_frame = require_full_frame
 
-    def collect_frames(self, run_name, env_name, env_maker, config, ckpt, render_mode="rgb_array"):
+    def collect_frames(
+            self,
+            run_name,
+            env_name,
+            env_maker,
+            config,
+            ckpt,
+            render_mode="rgb_array"
+    ):
         """
         This function create one agent and return one frame sequence.
         :param run_name:
@@ -135,7 +143,12 @@ class GridVideoRecorder(object):
         self.require_full_frame = require_full_frame
 
     def generate_frames_from_agent(
-            self, agent, agent_name, num_steps=None, seed=0, render_mode="rgb_array",
+            self,
+            agent,
+            agent_name,
+            num_steps=None,
+            seed=0,
+            render_mode="rgb_array",
             require_trajectory=False
     ):
         config = agent.config

@@ -32,8 +32,9 @@ def test_generate_gif_from_agent_mujoco_environemnt():
     output_path = "(delete-me!)test_genrate_gif_mujoco"
     agent_name = "test_agent_mujoco"
 
-    gvr = GridVideoRecorder(video_path=output_path, fps=FPS,
-                            require_full_frame=True)
+    gvr = GridVideoRecorder(
+        video_path=output_path, fps=FPS, require_full_frame=True
+    )
     frames_dict, extra_info_dict = gvr.generate_frames_from_agent(
         agent, agent_name
     )
@@ -55,8 +56,9 @@ def test_generate_gif_from_restored_agent_mujoco_environemnt():
     output_path = "(delete-me!)test_genrate_gif_mujoco"
     agent_name = "test_agent_mujoco"
 
-    gvr = GridVideoRecorder(video_path=output_path, fps=FPS,
-                            require_full_frame=True)
+    gvr = GridVideoRecorder(
+        video_path=output_path, fps=FPS, require_full_frame=True
+    )
     frames_dict, extra_info_dict = gvr.generate_frames_from_agent(
         agent, agent_name
     )

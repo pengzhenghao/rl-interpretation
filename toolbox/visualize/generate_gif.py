@@ -6,14 +6,16 @@ from toolbox.visualize.record_video import GridVideoRecorder
 # FPS = 50
 
 
-def generate_gif_from_agent(agent, agent_name, output_path,
-                            require_full_frame=False):
+def generate_gif_from_agent(
+        agent, agent_name, output_path, require_full_frame=False
+):
 
     env_name = agent.config['env']
     fps = 50 if env_name.startswith("BipedalWalker") else 20
 
-    gvr = GridVideoRecorder(video_path=output_path, fps=fps,
-                            require_full_frame=require_full_frame)
+    gvr = GridVideoRecorder(
+        video_path=output_path, fps=fps, require_full_frame=require_full_frame
+    )
     frames_dict, extra_info_dict = gvr.generate_frames_from_agent(
         agent, agent_name
     )

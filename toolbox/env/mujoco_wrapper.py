@@ -16,8 +16,9 @@ class Walker2dV3NoBackground(Walker2dEnvV3):
         xml_path = 'walker2d(no_shadow).xml'
         if require_shadow:
             xml_path = "walker2d.xml"
-        xml_path = os.path.join(os.path.dirname(__file__),
-                                "modified_mujoco_assets", xml_path)
+        xml_path = os.path.join(
+            os.path.dirname(__file__), "modified_mujoco_assets", xml_path
+        )
         super(Walker2dV3NoBackground, self).__init__(xml_file=xml_path)
 
 
@@ -26,8 +27,9 @@ class HalfCheetahV2NoBackground(mujoco_env.MujocoEnv, utils.EzPickle):
         xml_path = 'half_cheetah(no_shadow).xml'
         if require_shadow:
             xml_path = "half_cheetah.xml"
-        xml_path = os.path.join(os.path.dirname(__file__),
-                                "modified_mujoco_assets", xml_path)
+        xml_path = os.path.join(
+            os.path.dirname(__file__), "modified_mujoco_assets", xml_path
+        )
         mujoco_env.MujocoEnv.__init__(self, xml_path, 1)
         utils.EzPickle.__init__(self)
 
@@ -36,22 +38,26 @@ class HalfCheetahV2NoBackground(mujoco_env.MujocoEnv, utils.EzPickle):
         self.do_simulation(action, self.frame_skip)
         xposafter = self.sim.data.qpos[0]
         ob = self._get_obs()
-        reward_ctrl = - 0.1 * np.square(action).sum()
+        reward_ctrl = -0.1 * np.square(action).sum()
         reward_run = (xposafter - xposbefore) / self.dt
         reward = reward_ctrl + reward_run
         done = False
-        return ob, reward, done, dict(reward_run=reward_run,
-                                      reward_ctrl=reward_ctrl)
+        return ob, reward, done, dict(
+            reward_run=reward_run, reward_ctrl=reward_ctrl
+        )
 
     def _get_obs(self):
-        return np.concatenate([
-            self.sim.data.qpos.flat[1:],
-            self.sim.data.qvel.flat,
-        ])
+        return np.concatenate(
+            [
+                self.sim.data.qpos.flat[1:],
+                self.sim.data.qvel.flat,
+            ]
+        )
 
     def reset_model(self):
-        qpos = self.init_qpos + self.np_random.uniform(low=-.1, high=.1,
-                                                       size=self.model.nq)
+        qpos = self.init_qpos + self.np_random.uniform(
+            low=-.1, high=.1, size=self.model.nq
+        )
         qvel = self.init_qvel + self.np_random.randn(self.model.nv) * .1
         self.set_state(qpos, qvel)
         return self._get_obs()
@@ -62,49 +68,57 @@ class HalfCheetahV2NoBackground(mujoco_env.MujocoEnv, utils.EzPickle):
 
 class HalfCheetahV3NoBackground(HCEnvV3):
     # def __init__(self, require_shadow=False):
-    def __init__(self,
-                 require_shadow=False,
-                 # xml_file='half_cheetah.xml',
-                 forward_reward_weight=1.0,
-                 ctrl_cost_weight=0.1,
-                 reset_noise_scale=0.1,
-                 exclude_current_positions_from_observation=True,
-                 rgb_rendering_tracking=True):
+    def __init__(
+            self,
+            require_shadow=False,
+            # xml_file='half_cheetah.xml',
+            forward_reward_weight=1.0,
+            ctrl_cost_weight=0.1,
+            reset_noise_scale=0.1,
+            exclude_current_positions_from_observation=True,
+            rgb_rendering_tracking=True
+    ):
         xml_path = 'half_cheetah(no_shadow).xml'
         if require_shadow:
             xml_path = "half_cheetah.xml"
-        xml_path = os.path.join(os.path.dirname(__file__),
-                                "modified_mujoco_assets", xml_path)
+        xml_path = os.path.join(
+            os.path.dirname(__file__), "modified_mujoco_assets", xml_path
+        )
         utils.EzPickle.__init__(**locals())
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
         self._reset_noise_scale = reset_noise_scale
         self._exclude_current_positions_from_observation = (
-            exclude_current_positions_from_observation)
+            exclude_current_positions_from_observation
+        )
 
-        mujoco_env.MujocoEnv.__init__(self, xml_path, 5,
-                                      rgb_rendering_tracking=rgb_rendering_tracking)
+        mujoco_env.MujocoEnv.__init__(
+            self, xml_path, 5, rgb_rendering_tracking=rgb_rendering_tracking
+        )
 
 
 class HopperV3NoBackground(HopperEnvV3, utils.EzPickle):
-    def __init__(self,
-                 require_shadow=False,
-                 # xml_file='hopper.xml',
-                 forward_reward_weight=1.0,
-                 ctrl_cost_weight=1e-3,
-                 healthy_reward=1.0,
-                 terminate_when_unhealthy=True,
-                 healthy_state_range=(-100.0, 100.0),
-                 healthy_z_range=(0.7, float('inf')),
-                 healthy_angle_range=(-0.2, 0.2),
-                 reset_noise_scale=5e-3,
-                 exclude_current_positions_from_observation=True,
-                 rgb_rendering_tracking=True):
+    def __init__(
+            self,
+            require_shadow=False,
+            # xml_file='hopper.xml',
+            forward_reward_weight=1.0,
+            ctrl_cost_weight=1e-3,
+            healthy_reward=1.0,
+            terminate_when_unhealthy=True,
+            healthy_state_range=(-100.0, 100.0),
+            healthy_z_range=(0.7, float('inf')),
+            healthy_angle_range=(-0.2, 0.2),
+            reset_noise_scale=5e-3,
+            exclude_current_positions_from_observation=True,
+            rgb_rendering_tracking=True
+    ):
         xml_path = 'hopper(no_shadow).xml'
         if require_shadow:
             xml_path = "hopper.xml"
-        xml_path = os.path.join(os.path.dirname(__file__),
-                                "modified_mujoco_assets", xml_path)
+        xml_path = os.path.join(
+            os.path.dirname(__file__), "modified_mujoco_assets", xml_path
+        )
 
         utils.EzPickle.__init__(**locals())
 
@@ -122,11 +136,13 @@ class HopperV3NoBackground(HopperEnvV3, utils.EzPickle):
         self._reset_noise_scale = reset_noise_scale
 
         self._exclude_current_positions_from_observation = (
-            exclude_current_positions_from_observation)
+            exclude_current_positions_from_observation
+        )
 
         # Original the skip frame = 4
-        mujoco_env.MujocoEnv.__init__(self, xml_path, 4,
-                                      rgb_rendering_tracking=rgb_rendering_tracking)
+        mujoco_env.MujocoEnv.__init__(
+            self, xml_path, 4, rgb_rendering_tracking=rgb_rendering_tracking
+        )
 
 
 class MujocoWrapper(Wrapper):

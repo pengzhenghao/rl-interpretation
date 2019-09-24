@@ -206,9 +206,9 @@ class ValueNetworkMixin_modified(object):
                 input_dict = {
                     SampleBatch.CUR_OBS: tf.convert_to_tensor([ob]),
                     SampleBatch.PREV_ACTIONS:
-                        tf.convert_to_tensor([prev_action]),
+                    tf.convert_to_tensor([prev_action]),
                     SampleBatch.PREV_REWARDS:
-                        tf.convert_to_tensor([prev_reward]),
+                    tf.convert_to_tensor([prev_reward]),
                     "is_training": tf.convert_to_tensor(False)
                 }
 
@@ -286,7 +286,6 @@ register_fc_with_mask()
 
 
 class AddDefaultMask(object):
-
     def __init__(self):
         self.default_mask_dict = None
 
@@ -313,7 +312,7 @@ class ModifiedInputTensorMixin(object):
         if len(self._state_inputs) != len(state_batches):
             raise ValueError(
                 "Must pass in RNN state batches for placeholders {}, got {}".
-                    format(self._state_inputs, state_batches)
+                format(self._state_inputs, state_batches)
             )
         builder.add_feed_dict(self.extra_compute_action_feed_dict())
         builder.add_feed_dict({self._obs_input: obs_batch})
@@ -402,7 +401,6 @@ PPOTFPolicyWithMask = build_tf_policy(
 
 
 class AddMaskInfoMixin(object):
-
     def get_mask_info(self):
         ret = OrderedDict()
         for name, tensor in \

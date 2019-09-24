@@ -26,9 +26,16 @@ def normal_dist(shape, sample_size, random_state=None):
     return pack.normal(loc=1.0, scale=1.0, size=new_shape)
 
 
-def dual_replay(agent, env_state_list, observations, env_maker,
-                probe_mask_name,
-                sample_size=100, seed=0, distribution="binary"):
+def dual_replay(
+        agent,
+        env_state_list,
+        observations,
+        env_maker,
+        probe_mask_name,
+        sample_size=100,
+        seed=0,
+        distribution="binary"
+):
     # FIXME The seed setting is useless here.
     # when you run this funcion mulitple times, you always get different
     # return.
@@ -41,8 +48,9 @@ def dual_replay(agent, env_state_list, observations, env_maker,
     rs = np.random.RandomState(seed)
 
     buffer_size = len(env_state_list)
-    indices = rs.choice(buffer_size,
-                        sample_size)  # uniformaly choose indices from dataset
+    indices = rs.choice(
+        buffer_size, sample_size
+    )  # uniformaly choose indices from dataset
 
     env = env_maker()
     env.reset()
@@ -57,18 +65,20 @@ def dual_replay(agent, env_state_list, observations, env_maker,
     # make the mask_dict
     # firstly, we only want to see the impact of second layer.
     mask_dict = {
-        name: one_dist(shape, sample_size, rs) for name, shape in
-        mask_info.items()
+        name: one_dist(shape, sample_size, rs)
+        for name, shape in mask_info.items()
     }
     assert isinstance(mask_info, OrderedDict)
 
     probe_layer_shape = mask_info[probe_mask_name]
-    mask_dict[probe_mask_name] = dist_callback(probe_layer_shape, sample_size,
-                                               rs)
+    mask_dict[probe_mask_name] = dist_callback(
+        probe_layer_shape, sample_size, rs
+    )
 
     obs = observations[indices]
-    act, _, infos = agent.get_policy().compute_actions(obs,
-                                                       mask_batch=mask_dict)
+    act, _, infos = agent.get_policy().compute_actions(
+        obs, mask_batch=mask_dict
+    )
 
     new_ob_list = []
     rew_list = []
