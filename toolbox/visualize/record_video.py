@@ -157,6 +157,11 @@ class GridVideoRecorder(object):
         env_maker = get_env_maker(env_name, require_render=True)
 
         env = env_maker()
+
+        if seed is not None:
+            assert isinstance(seed, int)
+            env.seed(seed)
+
         result = copy.deepcopy(
             rollout(
                 agent,
