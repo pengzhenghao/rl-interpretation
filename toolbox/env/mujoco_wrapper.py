@@ -8,6 +8,17 @@ from gym.core import Wrapper
 from gym.envs.mujoco import mujoco_env
 from gym.envs.mujoco.half_cheetah_v3 import HalfCheetahEnv as HCEnvV3
 from gym.envs.mujoco.hopper_v3 import HopperEnv as HopperEnvV3
+from gym.envs.mujoco.walker2d_v3 import Walker2dEnv as Walker2dEnvV3
+
+
+class Walker2dV3NoBackground(Walker2dEnvV3):
+    def __init__(self, require_shadow=False):
+        xml_path = 'walker2d(no_shadow).xml'
+        if require_shadow:
+            xml_path = "walker2d.xml"
+        xml_path = os.path.join(os.path.dirname(__file__),
+                                "modified_mujoco_assets", xml_path)
+        super(Walker2dV3NoBackground, self).__init__(xml_file=xml_path)
 
 
 class HalfCheetahV2NoBackground(mujoco_env.MujocoEnv, utils.EzPickle):
@@ -50,13 +61,29 @@ class HalfCheetahV2NoBackground(mujoco_env.MujocoEnv, utils.EzPickle):
 
 
 class HalfCheetahV3NoBackground(HCEnvV3):
-    def __init__(self, require_shadow=False):
+    # def __init__(self, require_shadow=False):
+    def __init__(self,
+                 require_shadow=False,
+                 # xml_file='half_cheetah.xml',
+                 forward_reward_weight=1.0,
+                 ctrl_cost_weight=0.1,
+                 reset_noise_scale=0.1,
+                 exclude_current_positions_from_observation=True,
+                 rgb_rendering_tracking=True):
         xml_path = 'half_cheetah(no_shadow).xml'
         if require_shadow:
             xml_path = "half_cheetah.xml"
         xml_path = os.path.join(os.path.dirname(__file__),
                                 "modified_mujoco_assets", xml_path)
-        super(HalfCheetahV3NoBackground, self).__init__(xml_file=xml_path)
+        utils.EzPickle.__init__(**locals())
+        self._forward_reward_weight = forward_reward_weight
+        self._ctrl_cost_weight = ctrl_cost_weight
+        self._reset_noise_scale = reset_noise_scale
+        self._exclude_current_positions_from_observation = (
+            exclude_current_positions_from_observation)
+
+        mujoco_env.MujocoEnv.__init__(self, xml_path, 5,
+                                      rgb_rendering_tracking=rgb_rendering_tracking)
 
 
 class HopperV3NoBackground(HopperEnvV3, utils.EzPickle):
