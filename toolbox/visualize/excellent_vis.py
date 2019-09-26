@@ -261,12 +261,20 @@ def get_reward(orginal_ckpt, default_th=0.6):
     return eval(last_line[0])
 
 
-def read_result_from_ckpt_dir(ckpt_dir):
+def read_result_from_ckpt_dir(ckpt_dir, hopper_special_process=False):
     ckpt_list = os.listdir(ckpt_dir)
     ppo_result = []
     our_result = []
 
     for ckpt in ckpt_list:
+
+        if hopper_special_process:
+            print("special process hopper, the ckpt is:", ckpt)
+            if "10hidden" not in ckpt:
+                continue
+            if "0.0drop" not in ckpt:
+                continue
+
         ckpt = os.path.join(ckpt_dir, ckpt)
         rew = get_reward(ckpt)
         if rew is not None:
@@ -330,8 +338,14 @@ def collect_frame_batch(pair_list, vis_env, agent_name, num_steps=200,
 
 
 def collect(ckpt_dir_path, agent_name, vis_env, num_steps=200, num_ckpt=20,
-            threshold=0):
-    ppo_result, our_result = read_result_from_ckpt_dir(ckpt_dir_path)
+            threshold=0, hopper_special_process=False):
+
+    ppo_result, our_result = read_result_from_ckpt_dir(
+        ckpt_dir_path, hopper_special_process
+    )
+
+    if hopper_special_process:
+        num_ckpt = 10
 
     pairs = sorted(our_result, key=lambda x: x[1])[-num_ckpt:]
     frame_dict_our_hopper = collect_frame_batch(pairs, vis_env, agent_name,
@@ -343,6 +357,7 @@ def collect(ckpt_dir_path, agent_name, vis_env, num_steps=200, num_ckpt=20,
                                                     agent_name,
                                                     num_steps=num_steps,
                                                     threshold=threshold)
+
     return frame_dict_our_hopper, frame_dict_our_hopper_ppo
 
 
@@ -439,8 +454,8 @@ def plot(index_ckpt_map, fig_dict, result_dict, choose=None, width=5000,
 
         if put_text:
             frame_return = cv2.putText(
-                frame[clip:, :clip_width].copy(), title, (50, height - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.5,
+                frame[clip:, :clip_width].copy(), title, (20, height - 2),
+                cv2.FONT_HERSHEY_SIMPLEX, 2.2,
                 (0, 0, 0, 255), 2
             )
         else:
