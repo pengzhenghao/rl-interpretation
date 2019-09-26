@@ -52,28 +52,22 @@ def _read_reward_file(orginal_ckpt, default_th):
                                     "EarlyStopPolicy_Suc_rwds")
 
         if "0.0drop_prob" not in rew_file:
-            #             rew_file = rew_file.replace("0.0drop_prob_", "")
-
             if ("reward_threshold" not in rew_file) and (
                     "threshold" not in rew_file):
                 rew_file = rew_file.replace("hidden_",
                                             "hidden_{}threshold_".format(
                                                 default_th))
-
     else:
         rew_file = rew_file.replace("checkpoint", "rwds")
     with open(rew_file, "r") as f:
         data = csv.reader(f)
         last_line = list(data)[-1]
-
     return eval(last_line[0])
 
 
 def collect_frame_batch(pair_list, vis_env, agent_name, num_steps=200,
                         verbose=True, threshold=0):
     start = now = time.time()
-    oidlist = {}
-
     ret_dict = {}
     count = 0
 
@@ -103,10 +97,7 @@ def collect_frame_batch(pair_list, vis_env, agent_name, num_steps=200,
         ret_dict[ckpt] = {
             "frame": new_frame_list,
             "velocity": velocity,
-            # "ckpt": ckpt,
-            # "frames_dict": frames_dict,
             "reward": rew,
-            # "extra_info_dict": extra_info_dict,
             "real_reward": extra_info_dict['reward'][agent_name][-1]
         }
         if verbose:
@@ -229,7 +220,12 @@ def draw_multiple_rows(
 
         canvas[i * height:(i + 1) * height, :clip_width, ...] = frame_return
 
-    return canvas
+    alpha = np.tile(canvas[..., 3:], [1, 1, 3]) / 255  # in range [0, 1]
+    white = np.ones_like(alpha) * 255
+    return_canvas = np.multiply(canvas[..., :3], alpha).astype(np.uint8) + \
+                    np.multiply(white, 1 - alpha).astype(np.uint8)
+    return_canvas = cv2.cvtColor(return_canvas, cv2.COLOR_BGR2RGB)
+    return return_canvas
 
 
 def test_sunhao_project_vis():
@@ -254,7 +250,7 @@ def test_sunhao_project_vis():
     vis_env = "HalfCheetah-v3"
     ckpt_dir_path = "Train_PPO_walker/HalfCheetah/CheckPoints"
     halfcheetah_result, halfcheetah_result_ppo = collect_frames_from_ckpt_dir(
-        ckpt_dir_path, agent_name, vis_env, num_ckpt=5,
+        ckpt_dir_path, agent_name, vis_env, num_ckpt=1,
         num_steps=500, reward_threshold=600)
 
     # Step 2: Draw a multiple-exposure figure based on the frames collect.
@@ -263,7 +259,8 @@ def test_sunhao_project_vis():
         start=0,
         interval=300,
         skip_frame=20,
-        alpha=0.48,
+        # alpha=0.48,
+        alpha=0.10,
         velocity_multiplier=7
     )
     ret, fig_dict = draw_all_result(halfcheetah_result,

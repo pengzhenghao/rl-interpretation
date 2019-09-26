@@ -15,6 +15,17 @@ VELOCITY_RETRIEVE_LIST = [
     "Walker2d-v3-shadow",
 ]
 
+ENV_RENDER_CONFIG_LOOKUP = {
+    "HalfCheetah-v2": 1,
+    "HalfCheetah-v2-shadow": 1,
+    "HalfCheetah-v3": 1,
+    "HalfCheetah-v3-shadow": 1,
+    "Hopper-v3": 1,
+    "Hopper-v3-shadow": 1,
+    "Walker2d-v3": 1,
+    "Walker2d-v3-shadow": 1,
+}
+
 
 def _get_velocity(extra_dict, agent_name, env_name):
     assert env_name in ENV_MAKER_LOOKUP.keys()
@@ -220,7 +231,7 @@ def draw_one_exp(frame_list, velocity, draw_config=None):
 def generate_multiple_exposure(
         agent,
         agent_name,
-        output_path,
+        output_path=None,
         require_full_frame=False,
         vis_env_name=None,
         num_steps=None,

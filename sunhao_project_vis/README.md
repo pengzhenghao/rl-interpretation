@@ -1,5 +1,7 @@
 # The Visualization Codes for paper "UNDER REVIEW"
 
+## Quick start
+
 ```python
 from .sunhao_project_vis import *
 
@@ -35,6 +37,9 @@ canvas = draw_multiple_rows(
     put_text=True
 )
 ```
+
+Or you can simply 
+
 
 The process has three steps:
     1. Load checkpoint, run environment and collect a sequence of frames.
