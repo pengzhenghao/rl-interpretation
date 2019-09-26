@@ -23,12 +23,12 @@ ABLATE_LAYER_NAME_DIMENSION_DICT = {
     "default_policy/default_model/fc_out": 256,
 }
 """
-mapping = get_layer_name_index_list_mapping(df, "episode_reward_mean", threshold)
+mapping = get_layer_name_index_list_mapping(df, "episode_reward_mean", reward_threshold)
 ablated_agent = ablate_multiple_units(master_agent, mapping)
 generate_gif_from_agent(
     ablated_agent, 
-    "Ablated Master Agent (episode_reward_mean {})".format(threshold), 
-    "./ablated-master-agent_episode-reward-mean_threshold-{}".format(threshold)
+    "Ablated Master Agent (episode_reward_mean {})".format(reward_threshold), 
+    "./ablated-master-agent_episode-reward-mean_threshold-{}".format(reward_threshold)
 )
 """
 
