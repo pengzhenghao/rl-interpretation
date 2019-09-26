@@ -164,6 +164,7 @@ class RolloutWorkerWrapper(object):
                 )
                 self.policy_type = PPOTFPolicyWithActivation
                 policy = self.agent.get_policy()
+                # print("TEST PURPOSE!!!!!!! DELETE THIS!!!!! WE HAVE ENTER HERE. AGENT POLICY NAME:", type(policy))
                 assert "layer0" in policy.extra_compute_action_fetches(), \
                     "This policy is not we modified policy. Please use " \
                     "policy" \
@@ -179,6 +180,7 @@ class RolloutWorkerWrapper(object):
                     config_for_evaluation
                 )
                 self.policy_type = PPOTFPolicy
+                # print()
 
             if hasattr(self.agent, "workers"):
                 self.worker = self.agent.workers.local_worker()
@@ -350,7 +352,6 @@ def rollout(
     policy_agent_mapping = default_policy_agent_mapping
 
     if hasattr(agent, "workers"):
-        # env = agent.workers.local_worker().env
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
@@ -364,7 +365,6 @@ def rollout(
             for p, m in policy_map.items()
         }
     else:
-        # env = gym.make(env_name)
         multiagent = False
         policy = agent.policy
         state_init = {DEFAULT_POLICY_ID: None}
@@ -428,6 +428,7 @@ def rollout(
                         agent_id, policy_agent_mapping(agent_id)
                     )
                     p_use_lstm = use_lstm[policy_id]
+
                     if p_use_lstm:
                         a_action, p_state, a_info = agent.compute_action(
                             a_obs,
@@ -442,6 +443,8 @@ def rollout(
                         if agent._name == "ES":
                             a_action = agent.compute_action(a_obs)
                         else:
+
+                            print("Starting to compute_action!!!")
                             a_action, _, a_info = agent.compute_action(
                                 a_obs,
                                 prev_action=prev_actions[agent_id],
@@ -449,6 +452,9 @@ def rollout(
                                 policy_id=policy_id,
                                 full_fetch=True
                             )
+
+                    print("Finish to compute_action!!!")
+
                     a_action = _flatten_action(a_action)  # tuple actions
                     action_dict[agent_id] = a_action
                     prev_actions[agent_id] = a_action
@@ -608,9 +614,6 @@ def several_agent_rollout(
 
 
 if __name__ == "__main__":
-    # test_serveral_agent_rollout(True)
-    # exit(0)
-    # _test_es_agent_compatibility()
     parser = argparse.ArgumentParser()
     parser.add_argument("--yaml-path", required=True, type=str)
     parser.add_argument("--seed", type=int, default=0)
@@ -618,10 +621,11 @@ if __name__ == "__main__":
     parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--num-gpus", '-g', type=int, default=4)
     parser.add_argument("--force-rewrite", action="store_true")
+    parser.add_argument("--test-mode", action="store_true")
     args = parser.parse_args()
     assert args.yaml_path.endswith("yaml")
 
-    initialize_ray(num_gpus=args.num_gpus)
+    initialize_ray(num_gpus=args.num_gpus, test_mode=args.test_mode)
     several_agent_rollout(
         args.yaml_path, args.num_rollouts, args.seed, args.num_workers,
         args.force_rewrite

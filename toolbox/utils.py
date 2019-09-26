@@ -28,7 +28,7 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False):
             num_gpus=num_gpus
         )
         print("Sucessfully initialize Ray!")
-    if not local_mode:
+    if (not local_mode) and (ray.is_initialized()):
         print("Available resources: ", ray.available_resources())
 
 

@@ -4,7 +4,8 @@ import ray
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 
 from toolbox.env.env_maker import get_env_maker
-from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
+from toolbox.evaluate.evaluate_utils import restore_agent_with_mask, \
+    restore_agent_with_activation, restore_agent
 from toolbox.evaluate.rollout import RolloutWorkerWrapper, \
     several_agent_rollout, rollout, make_worker, efficient_rollout_from_worker
 from toolbox.utils import initialize_ray
@@ -109,6 +110,24 @@ def test_restore_agent_with_mask():
     return ret
 
 
+def test_rollout():
+    initialize_ray(test_mode=True, num_gpus=1)
+    env_name = "HalfCheetah-v2"
+    a = restore_agent("PPO", None, env_name)
+    env = gym.make(env_name)
+
+    obs = env.observation_space.sample()
+
+    print(obs.shape)
+
+    policy = a.get_policy()
+
+    ret = policy.compute_single_action(obs, [])
+
+    return ret
+
+
 if __name__ == '__main__':
-    # r = test_efficient_rollout_from_worker()
+    ret = test_rollout()
+    print("ret of normal rollout: ", ret)
     ret = test_restore_agent_with_mask()

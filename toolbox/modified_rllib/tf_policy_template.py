@@ -57,7 +57,6 @@ def build_tf_policy(
         get_batch_divisibility_req=None,
         obs_include_prev_action_reward=True
 ):
-    print("Start to initialize policy name: ", name)
     """Helper function for creating a dynamic tf policy at runtime.
 
     Functions will be run in this order to initialize the policy:
@@ -126,9 +125,10 @@ def build_tf_policy(
         a DynamicTFPolicy instance that uses the specified args
     """
 
+    print("Start to initialize policy name: ", name)
     original_kwargs = locals().copy()
     base = add_mixins(DynamicTFPolicy, mixins)
-    print("name: {}, mixins: {}".format(name, mixins))
+    # print("name: {}, mixins: {}".format(name, mixins))
 
     class policy_cls(base):
         def __init__(

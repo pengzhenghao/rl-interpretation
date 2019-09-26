@@ -29,7 +29,8 @@ from ray.rllib.utils.tf_ops import make_tf_callable
 from ray.rllib.utils.tf_run_builder import TFRunBuilder
 
 from toolbox.modified_rllib.tf_policy_template import build_tf_policy
-from toolbox.modified_rllib.trainer_template import build_trainer
+# from toolbox.modified_rllib.trainer_template import build_trainer
+from ray.rllib.agents.trainer_template import build_trainer
 
 tf = try_import_tf()
 
@@ -378,7 +379,7 @@ def setup_mixins(policy, obs_space, action_space, config):
     )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
     ModifiedInputTensorMixin.__init__(policy)
-    AddDefaultMask.__init__()
+    AddDefaultMask.__init__(policy)
 
 
 ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
