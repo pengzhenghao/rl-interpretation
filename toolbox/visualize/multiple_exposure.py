@@ -15,15 +15,39 @@ VELOCITY_RETRIEVE_LIST = [
     "Walker2d-v3-shadow",
 ]
 
+halfcheetah_config = dict(
+    start=0,
+    interval=300,
+    skip_frame=20,
+    alpha=0.25,
+    velocity_multiplier=7
+)
+
+walker_config = dict(
+    start=0,
+    interval=None,
+    skip_frame=30,
+    alpha=0.25,
+    velocity_multiplier=10
+)
+
+hopper_config = dict(
+    start=0,
+    interval=None,
+    skip_frame=30,
+    alpha=0.48,
+    velocity_multiplier=10
+)
+
 ENV_RENDER_CONFIG_LOOKUP = {
-    "HalfCheetah-v2": 1,
-    "HalfCheetah-v2-shadow": 1,
-    "HalfCheetah-v3": 1,
-    "HalfCheetah-v3-shadow": 1,
-    "Hopper-v3": 1,
-    "Hopper-v3-shadow": 1,
-    "Walker2d-v3": 1,
-    "Walker2d-v3-shadow": 1,
+    "HalfCheetah-v2": halfcheetah_config,
+    "HalfCheetah-v2-shadow": halfcheetah_config,
+    "HalfCheetah-v3": halfcheetah_config,
+    "HalfCheetah-v3-shadow": halfcheetah_config,
+    "Hopper-v3": hopper_config,
+    "Hopper-v3-shadow": hopper_config,
+    "Walker2d-v3": walker_config,
+    "Walker2d-v3-shadow": walker_config,
 }
 
 
@@ -90,7 +114,7 @@ def collect_frame(
 ):
     output_path = "/tmp/tmp_{}_{}_{}_{}".format(
         agent_name, vis_env_name, num_steps or "inf-steps", reward_threshold
-        or "-inf"
+                                  or "-inf"
     )  # temporary output_path and make no different.
 
     if reward_threshold is None:
@@ -157,7 +181,7 @@ def draw_one_exp(frame_list, velocity, draw_config=None):
         draw_frame_list = frame_list[start:start + interval].copy()
 
     if velocity is None:
-        velocity = np.ones((len(draw_frame_list), ))
+        velocity = np.ones((len(draw_frame_list),))
 
     alpha_dim = 3
     information = []
@@ -228,14 +252,16 @@ def draw_one_exp(frame_list, velocity, draw_config=None):
     return canvas
 
 
+# INTERFACE
 def generate_multiple_exposure(
         agent,
         agent_name,
         output_path=None,
-        require_full_frame=False,
         vis_env_name=None,
         num_steps=None,
-        reward_threshold=None
+        reward_threshold=None,
+        render_config=None,
+        put_text=True
 ):
     env_name = agent.config['env']
     if (vis_env_name is not None) and (vis_env_name != env_name):
@@ -245,3 +271,29 @@ def generate_multiple_exposure(
     new_frame_list, velocity, extra_info_dict, frames_dict = \
         collect_frame(agent, agent_name, env_name, num_steps=num_steps,
                       reward_threshold=reward_threshold)
+
+    default_config = ENV_RENDER_CONFIG_LOOKUP[env_name].copy()
+    default_config.update(render_config or {})
+
+    canvas = draw_one_exp(frame_list=new_frame_list,
+                          velocity=velocity,
+                          config=default_config)
+
+    if put_text:
+        real_reward = extra_info_dict['reward'][agent_name][-1]
+        title = "{}, Episode Reward: {:.2f}".format(agent_name, real_reward)
+        canvas = cv2.putText(
+            canvas, title, (20, canvas.shape[0] - 2),
+            cv2.FONT_HERSHEY_SIMPLEX, 2.2, (0, 0, 0, 255), 2
+        )
+
+    alpha = np.tile(canvas[..., 3:], [1, 1, 3]) / 255  # in range [0, 1]
+    white = np.ones_like(alpha) * 255
+    return_canvas = np.multiply(canvas[..., :3], alpha).astype(np.uint8) + \
+                    np.multiply(white, 1 - alpha).astype(np.uint8)
+    return_canvas = cv2.cvtColor(return_canvas, cv2.COLOR_BGR2RGB)
+
+    if output_path is not None:
+        cv2.imwrite(output_path, return_canvas)
+
+    return return_canvas
