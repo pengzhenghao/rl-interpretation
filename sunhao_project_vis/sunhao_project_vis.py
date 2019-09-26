@@ -121,10 +121,12 @@ def collect_frame_batch(pair_list, vis_env, agent_name, num_steps=200,
     return ret_dict
 
 
-def collect_frames_from_ckpt_dir(ckpt_dir_path, agent_name, vis_env,
-                                 num_steps=200, num_ckpt=20,
-                                 reward_threshold=0,
-                                 hopper_special_process=False):
+def collect_frames_from_ckpt_dir(
+        ckpt_dir_path, agent_name, vis_env,
+        num_steps=200, num_ckpt=20,
+        reward_threshold=0,
+        hopper_special_process=False
+):
     ppo_result, our_result = read_ckpt_dir(
         ckpt_dir_path, vis_env
     )

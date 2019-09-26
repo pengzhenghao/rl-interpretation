@@ -181,6 +181,7 @@ def draw_one_exp(frame_list, velocity, draw_config=None):
     ) * 255
     canvas[:, :, 3] = 0
 
+    # draw the not highlighted frames
     x = 0
     for i, info in enumerate(information):
         width = info['width']
@@ -192,6 +193,7 @@ def draw_one_exp(frame_list, velocity, draw_config=None):
             canvas[-shape[0]:, x:x + width][mask] = frame[mask]
         x += offset
 
+    # draw the highlighted frames
     x = 0
     for i, info in enumerate(information):
         width = info['width']
@@ -203,6 +205,7 @@ def draw_one_exp(frame_list, velocity, draw_config=None):
             canvas[-shape[0]:, x:x + width][mask] = frame[mask]
         x += offset
 
+    # draw the last frame if necessary
     if draw_last_frame:
         info = information[-1]
         width = info['width']
@@ -230,4 +233,4 @@ def generate_multiple_exposure(
 
     new_frame_list, velocity, extra_info_dict, frames_dict = \
         collect_frame(agent, agent_name, env_name, num_steps=num_steps,
-                  reward_threshold=reward_threshold)
+                      reward_threshold=reward_threshold)
