@@ -248,7 +248,7 @@ def generate_progress_yaml(exp_names, output_path, number=None):
     # The meaning of number: if None, extract all checkpoints from all trials
     # if is an integer, then extract N checkpoints for each trials.
     assert (number is None) or (isinstance(number, int))
-    assert spec(args.env_name)  # make sure no typo in env_name
+    # assert spec(args.env_name)  # make sure no typo in env_name
     trial_json_dict = {}
     if isinstance(exp_names, str):
         exp_names = [exp_names]
@@ -323,7 +323,7 @@ def generate_yaml(
     # So we do not allow number as argument.
     # Get the trial_name-json_path dict.
 
-    assert spec(args.env_name)  # make sure no typo in env_name
+    # assert spec(args.env_name)  # make sure no typo in env_name
     trial_json_dict = {}
     if isinstance(exp_names, str):
         exp_names = [exp_names]
@@ -394,8 +394,8 @@ if __name__ == '__main__':
     parser.add_argument("--output-path", required=True, type=str)
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--number", type=int, default=-1)
-    parser.add_argument("--num-gpus", '-g', type=int, default=0)
-    parser.add_argument("--env-name", default="BipedalWalker-v2", type=str)
+    # parser.add_argument("--num-gpus", '-g', type=int, default=0)
+    # parser.add_argument("--env-name", default="BipedalWalker-v2", type=str)
     args = parser.parse_args()
     assert isinstance(args.exp_names, list) or isinstance(args.exp_names, str)
     assert args.output_path.endswith("yaml")

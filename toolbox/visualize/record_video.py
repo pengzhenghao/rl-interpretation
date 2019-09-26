@@ -14,7 +14,7 @@ import ray
 from toolbox.env.env_wrapper import BipedalWalkerWrapper
 from toolbox.evaluate.evaluate_utils import build_config, \
     restore_agent
-from toolbox.evaluate.rollout import rollout
+from toolbox.evaluate.rollout import rollout, ENV_NAME_PERIOD_FEATURE_LOOKUP
 from toolbox.process_data.process_data import get_name_ckpt_mapping
 from toolbox.represent.process_fft import get_period
 from toolbox.utils import initialize_ray
@@ -124,14 +124,6 @@ class CollectFramesWorker(object):
         agent.stop()
         return frames, extra_info
 
-
-# from utils import _generate_gif
-
-# def test_generate_gif():
-#     data = np.random.randint(0, 256, (500, 100, 100, 4), dtype='uint8')
-#     _generate_gif(data, "tmp_delete_me.gif")
-
-
 class GridVideoRecorder(object):
     def __init__(
             self, video_path, local_mode=False, fps=50,
@@ -151,11 +143,9 @@ class GridVideoRecorder(object):
             render_mode="rgb_array",
             require_trajectory=False
     ):
-        config = agent.config
 
-        env_name = config["env"]
+        env_name = agent.config["env"]
         env_maker = get_env_maker(env_name, require_render=True)
-
         env = env_maker()
 
         if seed is not None:
@@ -174,6 +164,7 @@ class GridVideoRecorder(object):
                 render_mode=render_mode
             )
         )
+
         frames, extra_info = result['frames'], result['frame_extra_info']
         if require_trajectory:
             extra_info['trajectory'] = result['trajectory']
@@ -181,7 +172,7 @@ class GridVideoRecorder(object):
         env.close()
         agent.stop()
 
-        if env_name == "BipedalWalker-v2":
+        if env_name in ENV_NAME_PERIOD_FEATURE_LOOKUP.keys():
             period_source = np.stack(extra_info['period_info'])
             period = get_period(period_source, self.fps)
             print(
@@ -190,7 +181,7 @@ class GridVideoRecorder(object):
                 )
             )
         else:
-            period = 100
+            period = None
 
         frames_info = {
             "frames": frames,

@@ -297,3 +297,6 @@ def generate_multiple_exposure(
         cv2.imwrite(output_path, return_canvas)
 
     return return_canvas
+
+
+

@@ -40,6 +40,11 @@ Example Usage via executable:
 """
 LOG_INTERVAL_STEPS = 500
 
+ENV_NAME_PERIOD_FEATURE_LOOKUP = {
+    "BipedalWalker-v2": [7, 12],
+    # "HalfCheetah-v2": []
+}
+
 
 class DefaultMapping(collections.defaultdict):
     """default_factory now takes as an argument the missing key."""
@@ -476,9 +481,10 @@ def rollout(
                 # we observe the channel 7 and 12 which represent the speed
                 # of the knee joints.
                 # This only hold for BipedalWalker-v2.
-                if env_name == "BipedalWalker-v2":
+                if env_name in ENV_NAME_PERIOD_FEATURE_LOOKUP.keys():
                     assert obs.ndim == 1
-                    frame_extra_info["period_info"].append(obs[[7, 12]])
+                    period_feature = ENV_NAME_PERIOD_FEATURE_LOOKUP[env_name]
+                    frame_extra_info["period_info"].append(obs[period_feature])
 
             if multiagent:
                 for agent_id, r in reward.items():
