@@ -7,8 +7,8 @@ from toolbox.visualize.record_video import GridVideoRecorder
 VELOCITY_RETRIEVE_LIST = [
     "HalfCheetah-v2",
     "HalfCheetah-v2-shadow",
-    "halfCheetah-v3",
-    "halfCheetah-v3-shadow",
+    "HalfCheetah-v3",
+    "HalfCheetah-v3-shadow",
     "Hopper-v3",
     "Hopper-v3-shadow",
     "Walker2d-v3",
@@ -74,11 +74,12 @@ def _get_boundary(mask):
     return bottom, top, left, right
 
 
-def collect_frame(agent, agent_name, vis_env_name, num_steps=None,
-                  reward_threshold=None):
+def collect_frame(
+        agent, agent_name, vis_env_name, num_steps=None, reward_threshold=None
+):
     output_path = "/tmp/tmp_{}_{}_{}_{}".format(
-        agent_name, vis_env_name, num_steps or "inf-steps",
-                                  reward_threshold or "-inf"
+        agent_name, vis_env_name, num_steps or "inf-steps", reward_threshold
+        or "-inf"
     )  # temporary output_path and make no different.
 
     if reward_threshold is None:
@@ -124,11 +125,7 @@ DEFAULT_CONFIG = dict(
 )
 
 
-def draw_one_exp(
-        frame_list,
-        velocity,
-        draw_config=None
-):
+def draw_one_exp(frame_list, velocity, draw_config=None):
     config = DEFAULT_CONFIG.copy()
     config.update(draw_config or {})
 
@@ -146,10 +143,10 @@ def draw_one_exp(
     if start + interval > len(frame_list):
         draw_frame_list = frame_list.copy()
     else:
-        draw_frame_list = frame_list[start: start + interval].copy()
+        draw_frame_list = frame_list[start:start + interval].copy()
 
     if velocity is None:
-        velocity = np.ones((len(draw_frame_list),))
+        velocity = np.ones((len(draw_frame_list), ))
 
     alpha_dim = 3
     information = []
@@ -185,7 +182,6 @@ def draw_one_exp(
     canvas[:, :, 3] = 0
 
     x = 0
-
     for i, info in enumerate(information):
         width = info['width']
         offset = info['offset']
@@ -193,6 +189,17 @@ def draw_one_exp(
         frame = info['frame']
         shape = frame.shape
         if info['skip']:
+            canvas[-shape[0]:, x:x + width][mask] = frame[mask]
+        x += offset
+
+    x = 0
+    for i, info in enumerate(information):
+        width = info['width']
+        offset = info['offset']
+        mask = info['mask']
+        frame = info['frame']
+        shape = frame.shape
+        if not info['skip']:
             canvas[-shape[0]:, x:x + width][mask] = frame[mask]
         x += offset
 
@@ -208,9 +215,13 @@ def draw_one_exp(
 
 
 def generate_multiple_exposure(
-        agent, agent_name, output_path, require_full_frame=False,
+        agent,
+        agent_name,
+        output_path,
+        require_full_frame=False,
         vis_env_name=None,
-        num_steps=None, reward_threshold=None
+        num_steps=None,
+        reward_threshold=None
 ):
     env_name = agent.config['env']
     if (vis_env_name is not None) and (vis_env_name != env_name):
@@ -220,5 +231,3 @@ def generate_multiple_exposure(
     new_frame_list, velocity, extra_info_dict, frames_dict = \
         collect_frame(agent, agent_name, env_name, num_steps=num_steps,
                   reward_threshold=reward_threshold)
-
-

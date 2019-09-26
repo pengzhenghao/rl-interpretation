@@ -4,15 +4,16 @@ import re
 import time
 from collections import OrderedDict
 
-from .sunhao_agent_wrapper import SunAgentWrapper
-
 import cv2
 import numpy as np
 
 from toolbox.visualize.multiple_exposure import draw_one_exp, collect_frame
+from .sunhao_agent_wrapper import SunAgentWrapper
 
 
-def read_ckpt_dir(ckpt_dir, hopper_special_process=False):
+def read_ckpt_dir(ckpt_dir, env_name):
+    hopper_special_process = env_name.startswith("Hopper")
+
     ckpt_list = os.listdir(ckpt_dir)
     ppo_result = []
     our_result = []
@@ -27,7 +28,12 @@ def read_ckpt_dir(ckpt_dir, hopper_special_process=False):
                 continue
 
         ckpt = os.path.join(ckpt_dir, ckpt)
-        rew = _read_reward_file(ckpt)
+
+        threshold = 0.6 if env_name.startswith("Hopper") else (
+            1.3 if env_name.startswith("HalfCheetah") else 1.1  # Walker
+        )
+
+        rew = _read_reward_file(ckpt, threshold)
         if rew is not None:
             if "Early" in ckpt:
                 our_result.append([ckpt, rew])
@@ -36,7 +42,7 @@ def read_ckpt_dir(ckpt_dir, hopper_special_process=False):
     return ppo_result, our_result
 
 
-def _read_reward_file(orginal_ckpt, default_th=0.6):
+def _read_reward_file(orginal_ckpt, default_th):
     rew_file = orginal_ckpt.replace("CheckPoints", "Rwds")
     if re.search(r"_\d+_", rew_file):
         return None
@@ -48,7 +54,8 @@ def _read_reward_file(orginal_ckpt, default_th=0.6):
         if "0.0drop_prob" not in rew_file:
             #             rew_file = rew_file.replace("0.0drop_prob_", "")
 
-            if "reward_threshold" not in rew_file:
+            if ("reward_threshold" not in rew_file) and (
+                    "threshold" not in rew_file):
                 rew_file = rew_file.replace("hidden_",
                                             "hidden_{}threshold_".format(
                                                 default_th))
@@ -60,28 +67,6 @@ def _read_reward_file(orginal_ckpt, default_th=0.6):
         last_line = list(data)[-1]
 
     return eval(last_line[0])
-
-
-def collect(ckpt_dir_path, agent_name, vis_env, num_steps=200, num_ckpt=20,
-            threshold=0, hopper_special_process=False):
-    ppo_result, our_result = read_ckpt_dir(
-        ckpt_dir_path, hopper_special_process
-    )
-
-    if hopper_special_process:
-        num_ckpt = 10
-    pairs = sorted(our_result, key=lambda x: x[1])[-num_ckpt:]
-    frame_dict_our_hopper = collect_frame_batch(pairs, vis_env, agent_name,
-                                                num_steps=num_steps,
-                                                threshold=threshold)
-
-    ppo_result_pairs = sorted(ppo_result, key=lambda x: x[1])[-num_ckpt:]
-    frame_dict_our_hopper_ppo = collect_frame_batch(ppo_result_pairs, vis_env,
-                                                    agent_name,
-                                                    num_steps=num_steps,
-                                                    threshold=threshold)
-
-    return frame_dict_our_hopper, frame_dict_our_hopper_ppo
 
 
 def collect_frame_batch(pair_list, vis_env, agent_name, num_steps=200,
@@ -136,7 +121,32 @@ def collect_frame_batch(pair_list, vis_env, agent_name, num_steps=200,
     return ret_dict
 
 
-def draw_all_result(result_dict, choose_index=None, config=None, threshold=0):
+def collect_frames_from_ckpt_dir(ckpt_dir_path, agent_name, vis_env,
+                                 num_steps=200, num_ckpt=20,
+                                 reward_threshold=0,
+                                 hopper_special_process=False):
+    ppo_result, our_result = read_ckpt_dir(
+        ckpt_dir_path, vis_env
+    )
+
+    if hopper_special_process:
+        num_ckpt = 10
+    pairs = sorted(our_result, key=lambda x: x[1])[-num_ckpt:]
+    frame_dict_our_hopper = collect_frame_batch(pairs, vis_env, agent_name,
+                                                num_steps=num_steps,
+                                                threshold=reward_threshold)
+
+    ppo_result_pairs = sorted(ppo_result, key=lambda x: x[1])[-num_ckpt:]
+    frame_dict_our_hopper_ppo = collect_frame_batch(ppo_result_pairs, vis_env,
+                                                    agent_name,
+                                                    num_steps=num_steps,
+                                                    threshold=reward_threshold)
+
+    return frame_dict_our_hopper, frame_dict_our_hopper_ppo
+
+
+def draw_all_result(result_dict, choose_index=None, config=None,
+                    reward_threshold=0, resize=False):
     index_ckpt_map = {}
     fig_dict = {}
     for i, (k, v) in enumerate(result_dict.items()):
@@ -148,11 +158,11 @@ def draw_all_result(result_dict, choose_index=None, config=None, threshold=0):
         velocity = v['velocity']
 
         reward = v['real_reward']
-        if reward < threshold:
+        if reward < reward_threshold:
             print(
                 "Reward is {} less than the reward_threshold {}. So we skip "
                 "agent "
-                "with index {}".format(reward, threshold, i)
+                "with index {}".format(reward, reward_threshold, i)
             )
             continue
 
@@ -162,6 +172,11 @@ def draw_all_result(result_dict, choose_index=None, config=None, threshold=0):
             velocity,
             config
         )
+
+        if resize:
+            size = (fig.shape[1], 300)
+            fig = cv2.resize(fig, size, interpolation=cv2.INTER_AREA)
+
         fig_dict[k] = fig
         print(
             "(LOOK UP) Current index: {}, Claim Reward: {}, Real Reward:"
@@ -215,17 +230,48 @@ def draw_multiple_rows(
     return canvas
 
 
-def test_sunhao():
+def test_sunhao_project_vis():
+    """This is the example codes for using our visualization tool at Jupyter
+    Notebook.
 
+    The process has three steps:
+        1. Load checkpoint, run environment and collect a sequence of frames.
+        2. For each agent, generate the multiple-exposure figure.
+        3. Concatenate the figure of different agents and add extra
+            information like the reward or the agent name (not supported yet).
 
-    index_ckpt_map, fig_dict = \
-        draw_all_result(result_dict, choose_index=None, config=None,
-                        threshold=0)
+    It should be note that this codes is organized in the very naive way and
+    along with the future development of our toolbox this code may not
+    compatible anymore --- That's the reason we left the codes in this branch。
 
+    2019.09.26 Peng Zhenghao
+    """
+
+    # Step 1: Load checkpoint and collect frames.
+    agent_name = "test-sunhao-0924-halfcheetah"
+    vis_env = "HalfCheetah-v3"
+    ckpt_dir_path = "Train_PPO_walker/HalfCheetah/CheckPoints"
+    halfcheetah_result, halfcheetah_result_ppo = collect_frames_from_ckpt_dir(
+        ckpt_dir_path, agent_name, vis_env, num_ckpt=5,
+        num_steps=500, reward_threshold=600)
+
+    # Step 2: Draw a multiple-exposure figure based on the frames collect.
+    # In this example, we only draw the "our method" result.
+    halfcheetah_config = dict(
+        start=0,
+        interval=300,
+        skip_frame=20,
+        alpha=0.48,
+        velocity_multiplier=7
+    )
+    ret, fig_dict = draw_all_result(halfcheetah_result,
+                                    config=halfcheetah_config)
+
+    # Step 3: Concatenate all figures and spread them in a big image.
     canvas = draw_multiple_rows(
-        index_ckpt_map,
+        ret,
         fig_dict,
-        result_dict,
+        halfcheetah_result,
         choose=None,
         width=5000,
         clip=100,
@@ -236,4 +282,4 @@ def test_sunhao():
 
 
 if __name__ == '__main__':
-    test_sunhao()
+    canvas = test_sunhao_project_vis()
