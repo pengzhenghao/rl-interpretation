@@ -284,21 +284,18 @@ class GridVideoRecorder(object):
 
             for incre, (name, object_id) in enumerate(object_id_dict.items()):
                 new_frames, new_extra_info = copy.deepcopy(ray.get(object_id))
+                # To avoid memory leakage. This deepcopy is really important!
 
-                # To avoid memory leakage. This part is really important!
-                # new_frames = copy.deepcopy(frames)
-                # new_extra_info = copy.deepcopy(extra_info)
-
-                # del frames
-                # del extra_info
-
-                period_source = np.stack(new_extra_info['period_info'])
-                period = get_period(period_source, self.fps)
-                print(
-                    "period for agent <{}> is {}, its len is {}".format(
-                        name, period, len(new_frames)
+                if env_name in ENV_NAME_PERIOD_FEATURE_LOOKUP.keys():
+                    period_source = np.stack(new_extra_info['period_info'])
+                    period = get_period(period_source, self.fps)
+                    print(
+                        "period for agent <{}> is {}, its len is {}".format(
+                            name, period, len(new_frames)
+                        )
                     )
-                )
+                else:
+                    period = None
 
                 frames_info = {
                     "frames":

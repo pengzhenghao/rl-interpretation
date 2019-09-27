@@ -1,8 +1,6 @@
 """
-This filed is copied from ray.rllib.rollout but with little modification.
+This filed is copied from ray.rllib.rollout but with many modification.
 """
-# !/usr/bin/env python
-
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -42,7 +40,7 @@ LOG_INTERVAL_STEPS = 500
 
 ENV_NAME_PERIOD_FEATURE_LOOKUP = {
     "BipedalWalker-v2": [7, 12],
-    # "HalfCheetah-v2": []
+    "HalfCheetah-v2": [2, 11, 15]
 }
 
 
@@ -164,7 +162,6 @@ class RolloutWorkerWrapper(object):
                 )
                 self.policy_type = PPOTFPolicyWithActivation
                 policy = self.agent.get_policy()
-                # print("TEST PURPOSE!!!!!!! DELETE THIS!!!!! WE HAVE ENTER HERE. AGENT POLICY NAME:", type(policy))
                 assert "layer0" in policy.extra_compute_action_fetches(), \
                     "This policy is not we modified policy. Please use " \
                     "policy" \
@@ -180,7 +177,6 @@ class RolloutWorkerWrapper(object):
                     config_for_evaluation
                 )
                 self.policy_type = PPOTFPolicy
-                # print()
 
             if hasattr(self.agent, "workers"):
                 self.worker = self.agent.workers.local_worker()
@@ -355,7 +351,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-                                                ]["policy_mapping_fn"]
+            ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -534,7 +530,7 @@ def several_agent_rollout(
         seed=0,
         num_workers=10,
         force_rewrite=False,
-        return_data=False,
+        return_data=True,
         require_activation=True,
         _num_agents=None
 ):
@@ -558,8 +554,6 @@ def several_agent_rollout(
     for iteration in range(num_iteration):
         start = iteration * num_workers
         end = min((iteration + 1) * num_workers, num_agents)
-        # obj_ids = []
-        # workers = []
         obj_ids_dict = {}
         for i, (name, ckpt_dict) in \
                 enumerate(agent_ckpt_dict_range[start:end]):
@@ -596,10 +590,7 @@ def several_agent_rollout(
 
         for (name, obj_id), worker in zip(obj_ids_dict.items(), workers):
             trajectory_list = copy.deepcopy(ray.get(obj_id))
-            # for obj_id in obj_ids:
-            #     trajectory_list.append(ray.get(obj_id))
             return_dict[name] = trajectory_list
-            # worker.close.remote()
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Collected {} rollouts from agent"
                 " <{}>".format(

@@ -1,7 +1,5 @@
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
-# import sys
-# sys.path.append("../")
 
 # import collections
 import distutils
@@ -14,14 +12,12 @@ import time
 # import uuid
 from math import floor
 
+import IPython
 import cv2
 import numpy as np
 import ray
 from PIL import Image
 from gym import logger, error
-# from gym.envs.box2d import BipedalWalker
-# from ray.rllib.agents.registry import get_agent_class
-# from ray.tune.util import merge_dicts
 
 ORIGINAL_VIDEO_WIDTH = 1920
 ORIGINAL_VIDEO_HEIGHT = 1080
@@ -300,7 +296,7 @@ class VideoRecorder(object):
             width = rang["width"]
 
             if self.scale != 1:
-                interpolation = cv2.INTER_AREA if self.scale<1 \
+                interpolation = cv2.INTER_AREA if self.scale < 1 \
                     else cv2.INTER_LINEAR
                 frames = [
                     cv2.resize(
@@ -319,7 +315,8 @@ class VideoRecorder(object):
 
             # filled the extra number of frames
             self.background[len(frames):, height[0]:height[1], width[0]:
-                            width[1], 2::-1] = frames[-1]
+                                                               width[1],
+            2::-1] = frames[-1]
             if require_text:
                 for information in extra_info_dict.values():
                     if 'pos_ratio' not in information:
@@ -629,11 +626,11 @@ class VideoRecorder(object):
                         VIDEO_WIDTH_EDGE
                     ],
                     "column":
-                    col_id,
+                        col_id,
                     "row":
-                    row_id,
+                        row_id,
                     "index":
-                    i
+                        i
                 }
             )
         self.frame_range = frame_range
@@ -691,15 +688,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-            self.backend,
+                self.backend,
             'version':
-            str(
-                subprocess.check_output(
-                    [self.backend, '-version'], stderr=subprocess.STDOUT
-                )
-            ),
+                str(
+                    subprocess.check_output(
+                        [self.backend, '-version'], stderr=subprocess.STDOUT
+                    )
+                ),
             'cmdline':
-            self.cmdline
+                self.cmdline
         }
 
     def start(self):
@@ -748,7 +745,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                format(type(frame), frame)
+                    format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(
@@ -776,3 +773,25 @@ class ImageEncoder(object):
             logger.error(
                 "VideoRecorder encoder exited with status {}".format(ret)
             )
+
+
+def display_gif(gif_path):
+    with open(gif_path, 'rb') as f:
+        IPython.display.display(
+            IPython.display.Image(data=f.read(), format='png')
+        )
+
+
+def imshow(img, reverse=True):
+    if reverse:
+        img = img[..., ::-1]
+    _, ret = cv2.imencode('.png', img)
+    i = IPython.display.Image(data=ret)
+    IPython.display.display(i)
+
+
+def display_gif(gif_path):
+    with open(gif_path, 'rb') as f:
+        IPython.display.display(
+            IPython.display.Image(data=f.read(), format='png')
+        )
