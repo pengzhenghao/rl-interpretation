@@ -50,6 +50,8 @@ parser.add_argument("--run", type=str, default="PPO")
 parser.add_argument("--num-seeds", type=int, default=1)
 args = parser.parse_args()
 
+print("Argument: ", args)
+
 target_list = []
 
 if args.env == "BipedalWalker-v2":
@@ -160,6 +162,18 @@ elif args.env == "HalfCheetah-v2":
                 "episode_reward_mean": 9800,
                 "timesteps_total": int(1.5e8)
                 # "time_total_s": 10800
+            }
+        },
+        "TD3": {
+            "config": {
+                "learning_starts": 10000,
+                "pure_exploration_steps": 10000,
+                "evaluation_interval": 5,
+                "evaluation_num_episodes": 10
+            },
+            "stop": {
+                "episode_reward_mean": 9800,
+                "timesteps_total": int(1.5e8)
             }
         }
     }
