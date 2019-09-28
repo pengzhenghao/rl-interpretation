@@ -413,7 +413,8 @@ class VideoRecorder(object):
         num_workers = 16
         for idx, (title, frames_info) in \
                 enumerate(frames_dict.items()):
-            frames = frames_info['frames']
+            frames = frames_info['frames'].copy()
+            # Copy frame to avoid the put_text modified the original image
             width = (0, extra_info_dict['frame_info']['width'])
             height = (0, extra_info_dict['frame_info']['width'])
 
