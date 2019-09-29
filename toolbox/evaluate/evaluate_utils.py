@@ -48,19 +48,26 @@ def build_config(
 
 
 def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
-    if agent_type == "PPOAgentWithActivation":
-        cls = PPOAgentWithActivation
-        change_model = "fc_with_activation"
-    elif agent_type == "PPOAgentWithMask":
-        cls = PPOAgentWithMask
-        change_model = "fc_with_mask"
+    assert isinstance(agent_type, str) or callable(agent_type)
+    if callable(agent_type):
+        # We assume this is the agent_maker function which take no zero
+        # argument and return the agent.
+        agent = agent_type()
+        return agent
     else:
-        cls = get_agent_class(run_name)
-        change_model = None
-    is_es_agent = run_name == "ES"
-    config = build_config(ckpt, extra_config, is_es_agent, change_model)
-    print(config)
-    agent = cls(env=env_name, config=config)
+        if agent_type == "PPOAgentWithActivation":
+            cls = PPOAgentWithActivation
+            change_model = "fc_with_activation"
+        elif agent_type == "PPOAgentWithMask":
+            cls = PPOAgentWithMask
+            change_model = "fc_with_mask"
+        else:
+            cls = get_agent_class(run_name)
+            change_model = None
+        is_es_agent = run_name == "ES"
+        config = build_config(ckpt, extra_config, is_es_agent, change_model)
+        print("The chonfig of restored agent: ", config)
+        agent = cls(env=env_name, config=config)
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
         agent.restore(ckpt)
