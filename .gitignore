@@ -6,3 +6,4 @@ data/
 toolbox/test/fake-ckpt1
 toolbox/test/fake-ckpt2
 /data/
+/rl_interpretation_toolbox.egg-info/
