@@ -53,7 +53,6 @@ def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
         # We assume this is the agent_maker function which take no zero
         # argument and return the agent.
         agent = agent_type()
-        return agent
     else:
         if agent_type == "PPOAgentWithActivation":
             cls = PPOAgentWithActivation
