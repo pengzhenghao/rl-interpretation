@@ -14,6 +14,8 @@ import torch.nn.functional as F
 from toolbox.env.env_maker import get_env_maker
 from toolbox.visualize.multiple_exposure import draw_one_exp, collect_frame
 
+SUNHAO_AGENT_NAME = "SunAgentWrapper"
+
 
 class conf(object):
     def __init__(self, hid_num=30, drop_prob=0.1):
@@ -110,71 +112,6 @@ class ActorCritic(nn.Module):
         return logproba
 
 
-class RunningStat(object):
-    def __init__(self, shape):
-        self._n = 0
-        self._M = np.zeros(shape)
-        self._S = np.zeros(shape)
-
-    def push(self, x):
-        x = np.asarray(x)
-        assert x.shape == self._M.shape
-        self._n += 1
-        if self._n == 1:
-            self._M[...] = x
-        else:
-            oldM = self._M.copy()
-            self._M[...] = oldM + (x - oldM) / self._n
-            self._S[...] = self._S + (x - oldM) * (x - self._M)
-
-    @property
-    def n(self):
-        return self._n
-
-    @property
-    def mean(self):
-        return self._M
-
-    @property
-    def var(self):
-        return self._S / (self._n - 1) if self._n > 1 else np.square(self._M)
-
-    @property
-    def std(self):
-        return np.sqrt(self.var)
-
-    @property
-    def shape(self):
-        return self._M.shape
-
-
-class ZFilter:
-    """
-    y = (x-mean)/std
-    using running estimates of mean,std
-    """
-
-    def __init__(self, shape, demean=True, destd=True, clip=10.0):
-        self.demean = demean
-        self.destd = destd
-        self.clip = clip
-
-        self.rs = RunningStat(shape)
-
-    def __call__(self, x, update=True):
-        if update: self.rs.push(x)
-        if self.demean:
-            x = x - self.rs.mean
-        if self.destd:
-            x = x / (self.rs.std + 1e-8)
-        if self.clip:
-            x = np.clip(x, -self.clip, self.clip)
-        return x
-
-    def output_shape(self, input_space):
-        return input_space.shape
-
-
 class args(object):
     #     env_name = ENV_NAME
     seed = 1234
@@ -211,7 +148,7 @@ class SunPolicyWrapper(object):
 
 
 class SunAgentWrapper(object):
-    _name = "SunAgentWrapper"
+    _name = SUNHAO_AGENT_NAME
 
     def __init__(self, ckpt, env_name):
         env = get_env_maker(env_name)()
@@ -219,14 +156,12 @@ class SunAgentWrapper(object):
         num_actions = env.action_space.shape[0]
         num_units = eval(re.search(r"_(\d+)hidden", ckpt).group(1))
 
-        network = ActorCritic(num_inputs, num_actions,
-                              config=conf(num_units, 0.0),
-                              layer_norm=args.layer_norm)
-        network.load_state_dict(torch.load(ckpt))
-
+        self.network = ActorCritic(num_inputs, num_actions,
+                                   config=conf(num_units, 0.0),
+                                   layer_norm=args.layer_norm)
+        self.restore(ckpt)
         self.config = {'env': env_name}
         self.policy = SunPolicyWrapper()
-        self.network = network
 
     def compute_action(self, a_obs, prev_action=None, prev_reward=None,
                        policy_id=None, full_fetch=None):
@@ -245,6 +180,9 @@ class SunAgentWrapper(object):
 
     def stop(self):
         pass
+
+    def restore(self, ckpt):
+        self.network.load_state_dict(torch.load(ckpt))
 
 
 def read_ckpt_dir(ckpt_dir, env_name):
@@ -385,7 +323,7 @@ def draw_all_result(result_dict, choose_index=None, config=None,
             print(
                 "Skip a agent because it's index {} is not in choosen "
                 "indices {}."
-                .format(i, choose_index))
+                    .format(i, choose_index))
             continue
         # if len(v['frame']) > 800 and i > 10:
         #     continue
