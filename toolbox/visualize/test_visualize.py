@@ -95,11 +95,11 @@ def test_cluster_video_generation():
 
 
 def test_gif_generation():
-    yaml = "yaml/test-2-agents.yaml"
+    yaml = "../../data/yaml/test-2-agents.yaml"
     name_ckpt_mapping = get_name_ckpt_mapping(yaml, number=2)
 
     gvr = GridVideoRecorder(
-        video_path="data/vis/gif/test-2-agents", local_mode=True, fps=FPS
+        video_path="../../data/vis/gif/test-2-agents", local_mode=True, fps=FPS
     )
 
     frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)
@@ -111,11 +111,11 @@ def test_gif_generation():
 
 def test_es_compatibility():
     name_ckpt_mapping = get_name_ckpt_mapping(
-        "data/es-30-agents-0818.yaml", 10
+        "../../data/es-30-agents-0818.yaml", 10
     )
     generate_grid_of_videos(
         name_ckpt_mapping,
-        "data/tmp_test_es_compatibility",
+        "../../data/tmp_test_es_compatibility",
         steps=50,
         name_callback=rename_agent,
         num_workers=10
@@ -142,13 +142,13 @@ def test_generate_two_videos():
         {
             "number": 1,
             "mode": "top",
-            "path": "data/yaml/ppo-300-agents.yaml"
+            "path": "../../data/yaml/ppo-300-agents.yaml"
             # "path": "data/yaml/test-2-agents.yaml"
         },
         {
             "number": 1,
             "mode": "top",
-            "path": "data/yaml/es-30-agents-0818.yaml"
+            "path": "../../data/yaml/es-30-agents-0818.yaml"
         }
     ]
 
@@ -166,7 +166,7 @@ def test_generate_two_videos():
 
 
 def test_generate_two_videos2():
-    name_ckpt_mapping = read_yaml("data/yaml/test-2-agents.yaml", 2)
+    name_ckpt_mapping = read_yaml("../../data/yaml/test-2-agents.yaml", 2)
     path = generate_grid_of_videos(
         name_ckpt_mapping,
         "/tmp/test_double_agent",
@@ -183,8 +183,8 @@ if __name__ == '__main__':
 
     # os.chdir("../../")
     print("CURRENT LOCATION: ", os.getcwd())
-    test_generate_single_video()
+    # test_generate_single_video()
     # test_generate_two_videos()
-    # test_generate_two_videos2()
+    test_generate_two_videos2()
     # test_generate_gif_from_agent_mujoco_environemnt()
     # test_generate_gif_from_restored_agent_mujoco_environemnt()
