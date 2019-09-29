@@ -123,15 +123,15 @@ def test_es_compatibility():
 
 
 def test_generate_single_video():
-    name_ckpt_mapping = read_yaml("data/yaml/test-2-agents.yaml", 1)
+    name_ckpt_mapping = read_yaml("../../data/yaml/test-2-agents.yaml", 1)
     path = generate_grid_of_videos(
         name_ckpt_mapping,
         "/tmp/test_single_agent",
         name_callback=lambda x, y=None: x,
         require_full_frame=True,
-        require_text=False
+        require_text=False,
+        steps=50
     )
-
     print("test finish: ", path)
 
 
@@ -183,7 +183,8 @@ if __name__ == '__main__':
 
     # os.chdir("../../")
     print("CURRENT LOCATION: ", os.getcwd())
+    test_generate_single_video()
     # test_generate_two_videos()
     # test_generate_two_videos2()
     # test_generate_gif_from_agent_mujoco_environemnt()
-    test_generate_gif_from_restored_agent_mujoco_environemnt()
+    # test_generate_gif_from_restored_agent_mujoco_environemnt()
