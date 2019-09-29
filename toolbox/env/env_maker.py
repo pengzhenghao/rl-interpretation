@@ -1,9 +1,14 @@
 import gym
 
 from toolbox.env.env_wrapper import BipedalWalkerWrapper
-from toolbox.env.mujoco_wrapper import MujocoWrapper, \
-    HalfCheetahV2NoBackground, HalfCheetahV3NoBackground, \
-    HopperV3NoBackground, Walker2dV3NoBackground
+
+try:
+    from toolbox.env.mujoco_wrapper import MujocoWrapper, \
+        HalfCheetahV2NoBackground, HalfCheetahV3NoBackground, \
+        HopperV3NoBackground, Walker2dV3NoBackground
+except gym.error.DependencyNotInstalled:
+    print("Filed to import mujoco environment wrapper. "
+          "This may because you didn't install mujoco_py.")
 
 DEFAULT_SEED = 0
 
