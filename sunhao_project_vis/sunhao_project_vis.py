@@ -242,7 +242,7 @@ def _read_reward_file(orginal_ckpt, default_th):
 def collect_frame_batch(pair_list, vis_env, agent_name, num_steps=200,
                         verbose=True, threshold=0):
     start = now = time.time()
-    ret_dict = {}
+    ret_dict = OrderedDict()
     count = 0
 
     for ckpt, rew in pair_list:
@@ -314,8 +314,8 @@ def collect_frames_from_ckpt_dir(
 
 def draw_all_result(result_dict, choose_index=None, config=None,
                     reward_threshold=0, resize=False):
-    index_ckpt_map = {}
-    fig_dict = {}
+    index_ckpt_map = OrderedDict()
+    fig_dict = OrderedDict()
     for i, (k, v) in enumerate(result_dict.items()):
         print("Current Drawing Index {}, Name {}".format(i, k))
 
