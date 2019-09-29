@@ -73,7 +73,11 @@ if __name__ == '__main__':
             "num_workers": 1,
             "num_agents": 1,
             "num_envs_per_worker": 10,
-            old_const.USE_BISECTOR: False
+            old_const.USE_BISECTOR: False,
+
+            # Special setting for sync sampling mode
+            "sync_sampling": True,
+            "max_sample_requests_in_flight_per_worker": 1
         }
         ret = tune.run(
             DiCETrainer_APPO,

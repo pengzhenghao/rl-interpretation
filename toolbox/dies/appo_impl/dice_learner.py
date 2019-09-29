@@ -103,6 +103,10 @@ class LearnerThread(threading.Thread):
         self.outqueue.put(batch.count / self.num_sgd_iter)
         self.learner_queue_size.push(self.inqueue.qsize())
 
+        if self.sync_sampling and self.minibatch_buffer.is_empty():
+            # Send signal to optimizer
+            self.outqueue.put(None)
+
 
 class MinibatchBuffer:
     """Ring buffer of recent data batches for minibatch SGD.
@@ -196,7 +200,7 @@ class MinibatchBufferNew:
         self._debug_count_batch = 0
         self._debug_time = time.time()
 
-    def fill(self):
+    def load(self):
         """Split the train batch into mini batches"""
 
         # print("***** ===== Current {} ===== *****".format(self._debug_count))
@@ -242,10 +246,10 @@ class MinibatchBufferNew:
         # if self.cur_max_ttl < self.max_ttl:
         #     self.cur_max_ttl += 1
 
-        self._debug_count += 1
-
         if self.is_empty():
-            self.fill()
+            self.load()
+
+        self._debug_count += 1
 
         buf = self.buffers[self.idx]
         self.ttl[self.idx] -= 1

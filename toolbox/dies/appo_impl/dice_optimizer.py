@@ -297,24 +297,55 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             sample_timesteps[ws_id] = 0
             train_timesteps[ws_id] = 0
 
-            batch_count = 0
-            for train_batch in aggregator.iter_train_batches():
-                batch_count += 1
-                sample_timesteps[ws_id] += train_batch.count
-                learner.inqueue.put(train_batch)
-
-                if (learner.weights_updated
-                        and aggregator.should_broadcast()):
-                    aggregator.broadcast_new_weights()
+            while True:
+                batch_count, step_count = _send_train_batch_to_learner(
+                    aggregator, learner)
+                print("Send {} batch with {} steps to learner".format(
+                    batch_count, step_count))
+                if (batch_count > 0) or (not self.sync_sampling):
+                    break
+            sample_timesteps[ws_id] += step_count
 
         for ws_id, learner in self.learner_set.items():
             batch_count = 0
-            while not learner.outqueue.empty():
-                count = learner.outqueue.get()
-                batch_count += 1
-                train_timesteps[ws_id] += count
+            if self.sync_sampling:
+
+                while learner.outqueue.empty():
+                    time.sleep(0.02)
+
+                while not learner.outqueue.empty():
+                    count = learner.outqueue.get()
+                    if count is None:
+                        print("****************** We receive None!!!")
+                        break
+                    batch_count += 1
+                    print(
+                        "Get {} batch from learner output queue. This "
+                        "batch contain {} steps.".format(
+                            batch_count, count))
+                    train_timesteps[ws_id] += count
+
+            else:
+                while not learner.outqueue.empty():
+                    count = learner.outqueue.get()
+                    batch_count += 1
+                    print("Get {} batch from learner output queue.".format(
+                        batch_count))
+                    train_timesteps[ws_id] += count
 
         return sample_timesteps, train_timesteps
+
+
+def _send_train_batch_to_learner(aggregator, learner):
+    batch_count = 0
+    step_count = 0
+    for train_batch in aggregator.iter_train_batches():
+        batch_count += 1
+        step_count += train_batch.count
+        learner.inqueue.put(train_batch)
+        if (learner.weights_updated and aggregator.should_broadcast()):
+            aggregator.broadcast_new_weights()
+    return batch_count, step_count
 
 
 def wrap_dict_list(dict_list):

@@ -25,7 +25,6 @@ dice_appo_default_config = merge_dicts(
 
         "num_agents": 1,  # Control the agent population size
         "num_sgd_iter": 10,  # In PPO this is 10
-        # "minibatch_buffer_size": 1,
         "train_batch_size": 500,
         "sample_batch_size": 50,
 

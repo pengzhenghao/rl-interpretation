@@ -80,6 +80,7 @@ class DRAggregatorBase:
                 much data at once.
         """
         assert self.started
+        already_sent_out = False
         # ev is the rollout worker
         for ev, sample_batch in self._augment_with_replay(
                 self.sample_tasks.completed_prefetch(
@@ -100,6 +101,7 @@ class DRAggregatorBase:
                     # If sync sampling is set, return batch and then stop.
                     # You need to call start at the outside.
                     # return [train_batch]
+                    already_sent_out = True
                     yield train_batch
                 else:
                     yield train_batch
@@ -118,6 +120,12 @@ class DRAggregatorBase:
                     self.replay_batches[self.replay_index] = sample_batch
                     self.replay_index += 1
                     self.replay_index %= self.replay_buffer_num_slots
+
+            if already_sent_out and self.sync_sampling:
+                print(
+                    "In actor, we detect you have already sent out training "
+                    "batch. So we stop launching more sampling.")
+                continue
 
             ev.set_weights.remote(self.broadcasted_weights)
             self.num_weight_syncs += 1
