@@ -11,10 +11,13 @@ pytest==4.3.1
 ray==0.7.4
 tensorboard==1.14.0
 yapf==0.27
-numpy
+numpy==1.16.1
 ray[debug]
 mujoco-py<2.1,>=2.0
 gym[mujoco]
 gym[box2d]
 pandas
 yattag
+box2d-py==2.3.8
+sklearn
+seaborn

@@ -729,8 +729,8 @@ class ImageEncoder(object):
             'libx264',
             '-pix_fmt',
             'yuv420p',
-            '-crf',
-            '0',
+            # '-crf',
+            # '0',
             self.output_path
         )
 
