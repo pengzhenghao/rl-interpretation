@@ -379,10 +379,16 @@ def draw_all_result(result_dict, choose_index=None, config=None,
     index_ckpt_map = {}
     fig_dict = {}
     for i, (k, v) in enumerate(result_dict.items()):
+        print("Current Drawing Index {}, Name {}".format(i, k))
+
         if (choose_index is not None) and (i not in choose_index):
+            print(
+                "Skip a agent because it's index {} is not in choosen "
+                "indices {}."
+                .format(i, choose_index))
             continue
-        if len(v['frame']) > 800 and i > 10:
-            continue
+        # if len(v['frame']) > 800 and i > 10:
+        #     continue
         new_frame_list = v['frame']
         velocity = v['velocity']
 
