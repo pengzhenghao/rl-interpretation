@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function, \
 
 import os
 import pickle
+import sys
 
 from ray.rllib.agents.registry import get_agent_class
 from ray.tune.util import merge_dicts
@@ -11,6 +12,11 @@ from toolbox.ablate.tf_model import PPOAgentWithMask, register_fc_with_mask
 from toolbox.evaluate.tf_model import PPOAgentWithActivation, model_config, \
     register_fc_with_activation
 from toolbox.utils import has_gpu
+
+sys.path.append("/home/zhpeng/novel-rl/sunhao_project_vis")
+# This line only exist in sunhao_project_vis branch.
+from toolbox.sunhao_project_vis.sunhao_agent_wrapper import \
+    SunAgentWrapper, SUNHAO_AGENT_NAME
 
 
 def build_config(
@@ -52,6 +58,8 @@ def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
     if callable(agent_type):
         # We assume this is the agent_maker function which take no zero
         # argument and return the agent.
+        print("Detected a function as the agent_type, we"
+              "restore an agent by calling it: ", agent_type)
         agent = agent_type()
     else:
         if agent_type == "PPOAgentWithActivation":
@@ -60,6 +68,9 @@ def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
         elif agent_type == "PPOAgentWithMask":
             cls = PPOAgentWithMask
             change_model = "fc_with_mask"
+        elif agent_type == SUNHAO_AGENT_NAME:
+            cls = SunAgentWrapper
+            change_model = None
         else:
             cls = get_agent_class(run_name)
             change_model = None
