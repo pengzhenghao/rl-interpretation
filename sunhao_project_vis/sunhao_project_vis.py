@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from toolbox.env.env_maker import get_env_maker
 from toolbox.visualize.multiple_exposure import draw_one_exp, collect_frame
 
-SUNHAO_AGENT_NAME = "SunAgentWrapper"
+SUNHAO_AGENT_NAME = "SunhaoWrapper"
 
 
 class conf(object):
