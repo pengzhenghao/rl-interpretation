@@ -181,8 +181,9 @@ class GridVideoRecorder(object):
         env.close()
         agent.stop()
 
-        if env_name == "BipedalWalker-v2":
-            period_source = np.stack(extra_info['period_info'])
+        period_info = extra_info['period_info']
+        if period_info:
+            period_source = np.stack(period_info)
             period = get_period(period_source, self.fps)
             print(
                 "period for agent <{}> is {}, its len is {}".format(
@@ -298,16 +299,17 @@ class GridVideoRecorder(object):
                 # new_frames = copy.deepcopy(frames)
                 # new_extra_info = copy.deepcopy(extra_info)
 
-                # del frames
-                # del extra_info
-
-                period_source = np.stack(new_extra_info['period_info'])
-                period = get_period(period_source, self.fps)
-                print(
-                    "period for agent <{}> is {}, its len is {}".format(
-                        name, period, len(new_frames)
+                period_info = new_extra_info['period_info']
+                if period_info:
+                    period_source = np.stack(period_info)
+                    period = get_period(period_source, self.fps)
+                    print(
+                        "period for agent <{}> is {}, its len is {}".format(
+                            name, period, len(new_frames)
+                        )
                     )
-                )
+                else:
+                    period = 100
 
                 frames_info = {
                     "frames":
