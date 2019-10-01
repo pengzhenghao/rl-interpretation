@@ -64,10 +64,13 @@ def build_walkerv3(require_shadow=False):
     env = MujocoWrapper(env)
     return env
 
+from gym.envs.mujoco.walker2d_v3 import Walker2dEnv
 
 def get_env_maker(name, require_render=False):
     if require_render and name == "BipedalWalker-v2":
         return build_opencv_bipedal_walker
+    if require_render and name == "Walker2d-v3":
+        return Walker2dEnv
     return ENV_MAKER_LOOKUP[name]
 
 

@@ -491,6 +491,9 @@ def rollout(
             # Otherwise see error: pyarrow.lib.ArrowInvalid
             if require_frame:
                 frame = env.render(**kwargs).copy()
+
+                # Only used for sunhao wrapper
+                frame = frame[100:, ...]
                 frames.append(frame)
             if require_trajectory:
                 trajectory.append([obs, action, next_obs, reward, done])
