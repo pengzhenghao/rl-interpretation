@@ -87,7 +87,7 @@ def collect_frame_batch(pair_list, vis_env, agent_name, num_steps=200,
                 ckpt, rew))
             now = time.time()
 
-        agent = SunAgentWrapper(ckpt, vis_env)
+        agent = SunAgentWrapper(config={'ckpt': ckpt}, env=vis_env)
         agent.config['env'] = vis_env
 
         new_frame_list, velocity, extra_info_dict, frames_dict = \

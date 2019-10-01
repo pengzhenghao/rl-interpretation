@@ -143,18 +143,31 @@ class SunPolicyWrapper(object):
 class SunAgentWrapper(object):
     _name = SUNHAO_AGENT_NAME
 
-    def __init__(self, ckpt, env_name):
-        env = get_env_maker(env_name)()
-        num_inputs = env.observation_space.shape[0]
-        num_actions = env.action_space.shape[0]
-        num_units = eval(re.search(r"_(\d+)hidden", ckpt).group(1))
+    def __init__(self, config=None, env=None, other=None):
+        self.env = get_env_maker(env)()
+        self.network = None
 
+        config = {'ckpt': None} if config is None else config
+
+        print("The config of sunhao agent: ", config)
+        if 'ckpt' not in config:
+            config['ckpt'] = None
+        if config['ckpt'] is None:
+            print("The given checkpoint is None.")
+        else:
+            self._init(config['ckpt'])
+        self.config = config
+        self.config['env'] = env
+        self.policy = SunPolicyWrapper()
+
+    def _init(self, ckpt):
+        num_inputs = self.env.observation_space.shape[0]
+        num_actions = self.env.action_space.shape[0]
+        num_units = eval(re.search(r"_(\d+)hidden", ckpt).group(1))
         self.network = ActorCritic(num_inputs, num_actions,
                                    config=conf(num_units, 0.0),
                                    layer_norm=args.layer_norm)
-        self.restore(ckpt)
-        self.config = {'env': env_name}
-        self.policy = SunPolicyWrapper()
+        self.network.load_state_dict(torch.load(ckpt))
 
     def compute_action(self, a_obs, prev_action=None, prev_reward=None,
                        policy_id=None, full_fetch=None):
@@ -175,4 +188,7 @@ class SunAgentWrapper(object):
         pass
 
     def restore(self, ckpt):
-        self.network.load_state_dict(torch.load(ckpt))
+        if self.network is None:
+            self._init(ckpt)
+        else:
+            self.network.load_state_dict(torch.load(ckpt))
