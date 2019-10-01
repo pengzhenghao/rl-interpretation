@@ -135,6 +135,9 @@ class FakeActionSpace(object):
         return None
 
 
+import ray
+
+
 class SunPolicyWrapper(object):
     def __init__(self):
         self.action_space = FakeActionSpace()
@@ -146,31 +149,44 @@ class SunAgentWrapper(object):
     def __init__(self, config=None, env=None, other=None):
         self.env = get_env_maker(env)()
         self.network = None
+        self.initialized = False
 
         config = {'ckpt': None} if config is None else config
 
         print("The config of sunhao agent: ", config)
         if 'ckpt' not in config:
             config['ckpt'] = None
+        self.ckpt = config['ckpt']
         if config['ckpt'] is None:
             print("The given checkpoint is None.")
         else:
-            self._init(config['ckpt'])
+            self.ckpt = None
+
+        if self.ckpt is not None:
+            self._init()
+
         self.config = config
         self.config['env'] = env
         self.policy = SunPolicyWrapper()
 
-    def _init(self, ckpt):
+    def _init(self):
+        ckpt = self.ckpt
         num_inputs = self.env.observation_space.shape[0]
         num_actions = self.env.action_space.shape[0]
         num_units = eval(re.search(r"_(\d+)hidden", ckpt).group(1))
         self.network = ActorCritic(num_inputs, num_actions,
                                    config=conf(num_units, 0.0),
                                    layer_norm=args.layer_norm)
-        self.network.load_state_dict(torch.load(ckpt))
+        if ckpt is not None:
+            self._load_state_dict(ckpt)
+
+        self.initialized = True
 
     def compute_action(self, a_obs, prev_action=None, prev_reward=None,
                        policy_id=None, full_fetch=None):
+        if not self.initialized:
+            self._init()
+        # print("In compute_action, after init")
         self.network.eval()
         action_mean, action_logstd, value = self.network((
             torch.as_tensor(
@@ -188,7 +204,25 @@ class SunAgentWrapper(object):
         pass
 
     def restore(self, ckpt):
+        if ckpt != self.ckpt:
+            if ckpt is None:
+                ckpt = self.ckpt
+            else:
+                self.ckpt = ckpt
         if self.network is None:
-            self._init(ckpt)
+            self._init()
         else:
-            self.network.load_state_dict(torch.load(ckpt))
+            self._load_state_dict(ckpt)
+
+    def _load_state_dict(self, ckpt):
+        # print("In load_state_dict, the cuda is ava is:",
+        #       torch.cuda.is_available())
+        # if not torch.cuda.is_available():
+        #     print("Current torch.cuda.is_available is false."
+        #           " Ray resources: ", ray.available_resources())
+        # print("Before loadstatedict, ray resour", ray.available_resources())
+        self.network.load_state_dict(
+            torch.load(ckpt, map_location=torch.device('cpu'))
+        )
+                                     # map_location=torch.device('cpu'))
+        # print("After loadstatedict")
