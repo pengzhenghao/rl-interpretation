@@ -268,7 +268,8 @@ class VideoRecorder(object):
     def _build_grid_of_frames(
             self, frames_dict, extra_info_dict, require_text
     ):
-        self._add_things_on_backgaround(frames_dict, extra_info_dict)
+        if require_text:
+            self._add_things_on_backgaround(frames_dict, extra_info_dict)
         for idx, (title, frames_info) in \
                 enumerate(frames_dict.items()):
 

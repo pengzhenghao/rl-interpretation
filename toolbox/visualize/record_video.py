@@ -542,7 +542,8 @@ def generate_grid_of_videos(
         require_text=True,
         local_mode=False,
         steps=int(1e10),
-        num_workers=5
+        num_workers=5,
+        fps=None
 ):
     if name_callback is not None:
         assert callable(name_callback)
@@ -554,7 +555,7 @@ def generate_grid_of_videos(
     gvr = GridVideoRecorder(
         video_path=video_prefix,
         local_mode=local_mode,
-        fps=FPS,
+        fps=fps or FPS,
         require_full_frame=require_full_frame
     )
     frames_dict, extra_info_dict = gvr.generate_frames(
