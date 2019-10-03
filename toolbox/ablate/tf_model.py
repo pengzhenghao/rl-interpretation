@@ -296,7 +296,6 @@ class AddDefaultMask(object):
 
 class ModifiedInputTensorMixin(object):
     """Mixin for TFPolicy that adds entropy coeff decay."""
-
     @override(TFPolicy)
     def _build_compute_actions(
             self,
@@ -325,6 +324,13 @@ class ModifiedInputTensorMixin(object):
                 prev_reward_batch is not None:
             builder.add_feed_dict({self._prev_reward_input: prev_reward_batch})
         builder.add_feed_dict({self._is_training: False})
+
+        if mask_batch is None:
+            assert self.default_mask_dict is not None
+            mask_batch = {
+                k: np.tile(v, (obs_batch.shape[0], 1))
+                for k, v in self.default_mask_dict.items()
+            }
 
         assert isinstance(mask_batch, dict), mask_batch
         # assert
@@ -364,11 +370,19 @@ class ModifiedInputTensorMixin(object):
         )
         return builder.get(fetches)
 
+class AddMaskInfoMixinForPolicy(object):
+    def get_mask_info(self):
+        ret = OrderedDict()
+        for name, tensor in \
+                self.model.mask_placeholder_dict.items():
+            ret[name] = tensor.shape.as_list()
+        return ret
 
 model_config = {"custom_model": "fc_with_mask", "custom_options": {}}
 
 
 def setup_mixins(policy, obs_space, action_space, config):
+    AddDefaultMask.__init__(policy)
     ValueNetworkMixin_modified.__init__(
         policy, obs_space, action_space, config
     )
@@ -378,7 +392,8 @@ def setup_mixins(policy, obs_space, action_space, config):
     )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
     ModifiedInputTensorMixin.__init__(policy)
-    AddDefaultMask.__init__(policy)
+    AddMaskInfoMixinForPolicy.__init__(policy)
+
 
 
 ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
@@ -395,7 +410,8 @@ PPOTFPolicyWithMask = build_tf_policy(
     before_loss_init=setup_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin_modified, ModifiedInputTensorMixin, AddDefaultMask
+        ValueNetworkMixin_modified, ModifiedInputTensorMixin, AddDefaultMask,
+        AddMaskInfoMixinForPolicy
     ]
 )
 
