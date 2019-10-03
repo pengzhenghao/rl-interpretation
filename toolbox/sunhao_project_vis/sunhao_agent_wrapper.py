@@ -143,6 +143,9 @@ class SunPolicyWrapper(object):
         self.action_space = FakeActionSpace()
 
 
+from collections import OrderedDict
+
+
 class SunAgentWrapper(object):
     _name = SUNHAO_AGENT_NAME
 
@@ -221,8 +224,21 @@ class SunAgentWrapper(object):
         #     print("Current torch.cuda.is_available is false."
         #           " Ray resources: ", ray.available_resources())
         # print("Before loadstatedict, ray resour", ray.available_resources())
-        self.network.load_state_dict(
-            torch.load(ckpt, map_location=torch.device('cpu'))
-        )
+
+        old_state = torch.load(ckpt, map_location=torch.device('cpu'))
+        new_state_keys = self.network.state_dict().keys()
+        modified_state = OrderedDict()
+        for key in new_state_keys:
+            modified_state[key] = old_state[key]
+        try:
+            self.network.load_state_dict(
+                modified_state
+            )
+        except RuntimeError as e:
+            print("Old state keys {}, new state keys {}".format(
+                old_state.keys(), self.network.state_dict().keys()
+            ))
+            raise e
+
                                      # map_location=torch.device('cpu'))
         # print("After loadstatedict")
