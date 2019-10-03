@@ -95,7 +95,7 @@ class CollectFramesWorker(object):
             config,
             ckpt,
             render_mode="rgb_array",
-            rerun_if_steps_is_not_enough=False
+            ideal_steps=None
     ):
         """
         This function create one agent and return one frame sequence.
@@ -110,17 +110,26 @@ class CollectFramesWorker(object):
         # TODO allow multiple iters.
 
         agent = restore_agent(run_name, ckpt, env_name, config)
-        env = env_maker()
-        result = rollout(
-            agent,
-            env,
-            env_name,
-            self.num_steps,
-            require_frame=True,
-            require_full_frame=self.require_full_frame,
-            render_mode=render_mode
-        )
-        frames, extra_info = result['frames'], result['frame_extra_info']
+        for i in range(4):
+            env = env_maker(seed=i)
+            result = rollout(
+                agent,
+                env,
+                env_name,
+                self.num_steps,
+                require_frame=True,
+                require_full_frame=self.require_full_frame,
+                render_mode=render_mode
+            )
+            frames, extra_info = result['frames'], result['frame_extra_info']
+            if (ideal_steps is None) or (len(frames) > ideal_steps):
+                break
+            else:
+                print("In collect_frames, current frame length is {} and "
+                      "we expect length {}. So we rerun the rollout "
+                      "with different seed {}.".format(
+                    len(frames), ideal_steps, i + 1)
+                )
         env.close()
         agent.stop()
         return frames, extra_info
@@ -243,7 +252,7 @@ class GridVideoRecorder(object):
             args_config=None,
             num_workers=10,
             render_mode="rgb_array",
-            rerun_if_steps_is_not_enough=False
+            ideal_steps=None
     ):
 
         assert isinstance(name_ckpt_mapping, OrderedDict), \
@@ -282,7 +291,8 @@ class GridVideoRecorder(object):
                 is_es_agent = run_name == "ES"
                 config = build_config(ckpt, args_config, is_es_agent)
                 object_id_dict[name] = workers[incre].collect_frames.remote(
-                    run_name, env_name, env_maker, config, ckpt, render_mode
+                    run_name, env_name, env_maker, config, ckpt, render_mode,
+                    ideal_steps=ideal_steps
                 )
                 print(
                     "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
@@ -358,7 +368,8 @@ class GridVideoRecorder(object):
         }
         return frames_dict, new_extra_info_dict
 
-    def generate_video(self, frames_dict, extra_info_dict, require_text=True, test_mode=False):
+    def generate_video(self, frames_dict, extra_info_dict, require_text=True,
+                       test_mode=False):
         print(
             "Start generating grid containing {} videos.".format(
                 len(frames_dict)
@@ -600,7 +611,7 @@ def generate_grid_of_videos(
         name_row_mapping=name_row_mapping,
         name_loc_mapping=name_loc_mapping,
         num_workers=num_workers,
-        rerun_if_steps_is_not_enough=rerun_if_steps_is_not_enough
+        ideal_steps=steps if rerun_if_steps_is_not_enough else None
     )
     path = gvr.generate_video(frames_dict, extra_info_dict, require_text,
                               test_mode=test_mode)

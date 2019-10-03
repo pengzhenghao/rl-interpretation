@@ -15,18 +15,22 @@ DEFAULT_SEED = 0
 
 
 def make_build_gym_env(env_name):
-    def build_bipedal_walker(useless=None):
+    def build_bipedal_walker(seed=None):
+        if seed is None:
+            seed = DEFAULT_SEED
         env = gym.make(env_name)
-        env.seed(DEFAULT_SEED)
+        env.seed(seed)
         return env
 
     return build_bipedal_walker
 
 build_bipedal_walker = make_build_gym_env("BipedalWalker-v2")
 
-def build_opencv_bipedal_walker(useless=None):
+def build_opencv_bipedal_walker(seed=None):
+    if seed is None:
+        seed = DEFAULT_SEED
     env = BipedalWalkerWrapper()
-    env.seed(DEFAULT_SEED)
+    env.seed(seed)
     return env
 
 
