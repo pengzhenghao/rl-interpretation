@@ -493,7 +493,7 @@ def rollout(
                 frame = env.render(**kwargs).copy()
 
                 # Only used for sunhao wrapper
-                frame = frame[100:, ...]
+                frame = frame[130:-37, 20:-20, ::-1]
                 frames.append(frame)
             if require_trajectory:
                 trajectory.append([obs, action, next_obs, reward, done])

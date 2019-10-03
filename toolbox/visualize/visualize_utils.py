@@ -27,7 +27,7 @@ ORIGINAL_VIDEO_WIDTH = 1920
 ORIGINAL_VIDEO_HEIGHT = 1080
 
 VIDEO_WIDTH_EDGE = 100
-VIDEO_HEIGHT_EDGE = 60
+VIDEO_HEIGHT_EDGE = 20
 # VIDEO_WIDTH_EDGE = 0
 # VIDEO_HEIGHT_EDGE = 0
 
@@ -111,7 +111,8 @@ class VideoRecorder(object):
             generate_gif=False,
             # gif_mode=None,
             fps=50,
-            scale=None
+            scale=None,
+            test_mode=False
     ):
         # self.grids = int | dict
         # if int, then it represent the number of videos
@@ -141,6 +142,7 @@ class VideoRecorder(object):
                 path = f.name
         self.path = path
         self.base_path = base_path
+        self.test_mode = test_mode
 
         # path_base, actual_ext = os.path.splitext(self.path)
 
@@ -188,6 +190,9 @@ class VideoRecorder(object):
             timestep = [timestep]
         assert isinstance(timestep, list)
 
+        if self.test_mode:
+            timestep = [0]
+
         if not rotate:
             for t in timestep:
                 cv2.putText(
@@ -219,8 +224,12 @@ class VideoRecorder(object):
                 for frames_info in frames_dict.values()
             ]
         ) + self.extra_num_frames
+
+        if self.test_mode:
+            video_length = 1
+
         self.background = np.zeros(
-            (video_length, ORIGINAL_VIDEO_HEIGHT, ORIGINAL_VIDEO_WIDTH, 4),
+            (video_length, ORIGINAL_VIDEO_HEIGHT, ORIGINAL_VIDEO_WIDTH, 3),
             dtype='uint8'
         )
 
@@ -315,13 +324,20 @@ class VideoRecorder(object):
                     ) for frame in frames
                 ]
                 frames = np.stack(frames)
-
-            self.background[:len(frames), \
-            height[0]:height[1], width[0]: width[1],
-            2::-1] = frames
+            if self.test_mode:
+                self.background[0, \
+                height[0]:height[1], width[0]: width[1],
+                2::-1] = frames[0]
+            else:
+                self.background[:len(frames), \
+                height[0]:height[1], width[0]: width[1],
+                2::-1] = frames
 
             # filled the extra number of frames
-            self.background[len(frames):, height[0]:height[1], width[0]:
+            if self.test_mode:
+                pass
+            else:
+                self.background[len(frames):, height[0]:height[1], width[0]:
                             width[1], 2::-1] = frames[-1]
             if require_text:
                 for information in extra_info_dict.values():
@@ -385,6 +401,8 @@ class VideoRecorder(object):
         self._build_background(frames_dict)
 
         self._build_grid_of_frames(frames_dict, extra_info_dict, require_text)
+        if self.test_mode:
+            return self.background[0]
 
         now = time.time()
         start = now
@@ -559,23 +577,26 @@ class VideoRecorder(object):
         wv_over_wf = VIDEO_WIDTH / self.width
         hv_over_hf = VIDEO_HEIGHT / self.height
 
-        search_range = [2, 1.5] + np.arange(1, 0, -0.01).tolist()
-        for potential in search_range:
-            # potential = 1, 0.9, ...
-            if specify_grids:
-                num_envs = None
-                if wv_over_wf / potential >= self.grids['col'] \
-                        and hv_over_hf / potential >= self.grids['row']:
-                    break
-            else:
-                num_envs = self.grids
-                if (floor(wv_over_wf / potential) *
-                        floor(hv_over_hf / potential) >= num_envs):
-                    break
-            if potential == 0:
-                raise ValueError()
-        print("Sacle = ", potential)
-        scale = potential
+        # For sunhao modification
+        # search_range = [2, 1.5] + np.arange(1, 0, -0.01).tolist()
+        # for potential in search_range:
+        #     # potential = 1, 0.9, ...
+        #     if specify_grids:
+        #         num_envs = None
+        #         if wv_over_wf / potential >= self.grids['col'] \
+        #                 and hv_over_hf / potential >= self.grids['row']:
+        #             break
+        #     else:
+        #         num_envs = self.grids
+        #         if (floor(wv_over_wf / potential) *
+        #                 floor(hv_over_hf / potential) >= num_envs):
+        #             break
+        #     if potential == 0:
+        #         raise ValueError()
+        # print("Sacle = ", potential)
+        # scale = potential
+        num_envs = None
+        scale = 0.6
 
         assert scale != 0
         # else:
@@ -603,14 +624,24 @@ class VideoRecorder(object):
         assert num_cols * frame_width <= VIDEO_WIDTH
         assert num_rows * frame_height <= VIDEO_HEIGHT
 
-        width_margin = (VIDEO_WIDTH - num_cols * frame_width) / (num_cols + 1)
-        height_margin = (VIDEO_HEIGHT -
-                         num_rows * frame_height) / (num_rows + 1)
-        width_margin = int(width_margin)
-        height_margin = int(height_margin)
+        # width_margin = (VIDEO_WIDTH - num_cols * frame_width) / (num_cols + 1)
+        # height_margin = (VIDEO_HEIGHT -
+        #                  num_rows * frame_height) / (num_rows + 1)
+        # width_margin = int(width_margin)
+        # height_margin = int(height_margin)
+        # Modified SUNHAO
+        width_margin = height_margin = 8
+
+        print("We use the width_margin: {}, height_margin: {}".format(
+            width_margin, height_margin)
+        )
 
         frame_range = []
+        caption_offset = 0
         for i in range(num_envs):
+
+            if i%12 == 0:
+                caption_offset += 100
 
             row_id, col_id = self._get_location(i)
 
@@ -621,9 +652,9 @@ class VideoRecorder(object):
                 {
                     "height": [
                         (height_margin + frame_height) * row_id +
-                        height_margin + VIDEO_HEIGHT_EDGE,
+                        height_margin + VIDEO_HEIGHT_EDGE + caption_offset,
                         (height_margin + frame_height) * (row_id + 1) +
-                        VIDEO_HEIGHT_EDGE
+                        VIDEO_HEIGHT_EDGE + caption_offset
                     ],
                     "width": [
                         (width_margin + frame_width) * col_id +
