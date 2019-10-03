@@ -82,7 +82,8 @@ class CollectFramesWorker(object):
         # self.run_name = run_name
         # self.env_maker = env_maker
         # self.env_name = env_name
-        self.num_steps = num_steps
+        # self.num_steps = num_steps
+        self.num_steps = 3000
         self.num_iters = num_iters
         self.seed = seed
         self.require_full_frame = require_full_frame
@@ -95,7 +96,8 @@ class CollectFramesWorker(object):
             config,
             ckpt,
             render_mode="rgb_array",
-            ideal_steps=None
+            ideal_steps=None,
+            random_seed=False
     ):
         """
         This function create one agent and return one frame sequence.
@@ -110,8 +112,17 @@ class CollectFramesWorker(object):
         # TODO allow multiple iters.
 
         agent = restore_agent(run_name, ckpt, env_name, config)
-        for i in range(4):
-            env = env_maker(seed=i)
+        # if ideal_steps is not None:
+        tmp_frames = []
+        tmp_extra_info = []
+
+        # We allow 10 attemps.
+        for i in range(10):
+            if random_seed:
+                seed = np.random.randint(0, 10000)
+            else:
+                seed = i
+            env = env_maker(seed=seed)
             result = rollout(
                 agent,
                 env,
@@ -122,13 +133,21 @@ class CollectFramesWorker(object):
                 render_mode=render_mode
             )
             frames, extra_info = result['frames'], result['frame_extra_info']
+
+            if len(frames) > len(tmp_frames):
+                tmp_frames = copy.deepcopy(frames)
+                tmp_extra_info = copy.deepcopy(extra_info)
+
             if (ideal_steps is None) or (len(frames) > ideal_steps):
+                frames = tmp_frames
+                extra_info = tmp_extra_info
                 break
             else:
                 print("In collect_frames, current frame length is {} and "
                       "we expect length {}. So we rerun the rollout "
-                      "with different seed {}.".format(
-                    len(frames), ideal_steps, i + 1)
+                      "with different seed {}."
+                      " Current length of potential 'frames' is {}".format(
+                    len(frames), ideal_steps, i + 1, len(tmp_frames))
                 )
         env.close()
         agent.stop()
@@ -252,7 +271,8 @@ class GridVideoRecorder(object):
             args_config=None,
             num_workers=10,
             render_mode="rgb_array",
-            ideal_steps=None
+            ideal_steps=None,
+            random_seed=False
     ):
 
         assert isinstance(name_ckpt_mapping, OrderedDict), \
@@ -292,7 +312,7 @@ class GridVideoRecorder(object):
                 config = build_config(ckpt, args_config, is_es_agent)
                 object_id_dict[name] = workers[incre].collect_frames.remote(
                     run_name, env_name, env_maker, config, ckpt, render_mode,
-                    ideal_steps=ideal_steps
+                    ideal_steps=ideal_steps, random_seed=random_seed
                 )
                 print(
                     "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
@@ -611,7 +631,8 @@ def generate_grid_of_videos(
         name_row_mapping=name_row_mapping,
         name_loc_mapping=name_loc_mapping,
         num_workers=num_workers,
-        ideal_steps=steps if rerun_if_steps_is_not_enough else None
+        ideal_steps=steps if rerun_if_steps_is_not_enough else None,
+        random_seed=rerun_if_steps_is_not_enough
     )
     path = gvr.generate_video(frames_dict, extra_info_dict, require_text,
                               test_mode=test_mode)
