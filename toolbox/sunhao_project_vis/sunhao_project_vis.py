@@ -11,8 +11,10 @@ from toolbox.sunhao_project_vis.sunhao_agent_wrapper import SunAgentWrapper
 from toolbox.visualize.multiple_exposure import draw_one_exp, collect_frame
 
 
-def read_ckpt_dir(ckpt_dir, env_name):
+def read_ckpt_dir(ckpt_dir, env_name, disable_hopper_special=False):
     hopper_special_process = env_name.startswith("Hopper")
+    if disable_hopper_special:
+        hopper_special_process = False
 
     ckpt_list = os.listdir(ckpt_dir)
     ppo_result = []
