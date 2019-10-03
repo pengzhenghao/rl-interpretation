@@ -113,7 +113,8 @@ class VideoRecorder(object):
             # gif_mode=None,
             fps=50,
             scale=None,
-            test_mode=False
+            test_mode=False,
+            four_lines=False
     ):
         # self.grids = int | dict
         # if int, then it represent the number of videos
@@ -127,6 +128,7 @@ class VideoRecorder(object):
         self.last_frame = None
         self.num_cols = None
         self.num_rows = None
+        self.four_lines = four_lines
         self.generate_gif = generate_gif
         # if self.generate_gif:
         # assert gif_mode in self.allow_gif_mode
@@ -642,8 +644,12 @@ class VideoRecorder(object):
         caption_offset = 0
         for i in range(num_envs):
 
-            if i % 12 == 0:
-                caption_offset += 100
+            if not self.four_lines:
+                if i % 12 == 0:
+                    caption_offset += 100
+            else:
+                if i % 6 == 0:
+                    caption_offset += 50
 
             row_id, col_id = self._get_location(i)
 

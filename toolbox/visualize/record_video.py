@@ -389,7 +389,7 @@ class GridVideoRecorder(object):
         return frames_dict, new_extra_info_dict
 
     def generate_video(self, frames_dict, extra_info_dict, require_text=True,
-                       test_mode=False):
+                       test_mode=False, four_lines=False):
         print(
             "Start generating grid containing {} videos.".format(
                 len(frames_dict)
@@ -408,7 +408,8 @@ class GridVideoRecorder(object):
             max_row = max([row + 1 for row, _ in locations])
             max_col = max([col + 1 for _, col in locations])
             grids = {"col": max_col, "row": max_row}
-        vr = VideoRecorder(self.video_path, grids=grids, fps=self.fps, test_mode=test_mode)
+        vr = VideoRecorder(self.video_path, grids=grids, fps=self.fps,
+                           test_mode=test_mode, four_lines=four_lines)
         path = vr.generate_video(frames_dict, extra_info_dict, require_text)
         # if we are at test_mode, then 'path' is a frame.
         return path
@@ -606,7 +607,8 @@ def generate_grid_of_videos(
         num_workers=5,
         fps=None,
         test_mode=False,
-        rerun_if_steps_is_not_enough=False
+        rerun_if_steps_is_not_enough=False,
+        four_lines=False
 ):
     if name_callback is not None:
         assert callable(name_callback)
@@ -635,7 +637,7 @@ def generate_grid_of_videos(
         random_seed=rerun_if_steps_is_not_enough
     )
     path = gvr.generate_video(frames_dict, extra_info_dict, require_text,
-                              test_mode=test_mode)
+                              test_mode=test_mode, four_lines=four_lines)
     gvr.close()
     print("Video has been saved at: <{}>".format(path))
     return path

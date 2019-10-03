@@ -328,7 +328,7 @@ class ModifiedInputTensorMixin(object):
         if mask_batch is None:
             assert self.default_mask_dict is not None
             mask_batch = {
-                k: np.tile(v, (obs_batch.shape[0], 1))
+                k: np.tile(v, (len(obs_batch), 1))
                 for k, v in self.default_mask_dict.items()
             }
 
