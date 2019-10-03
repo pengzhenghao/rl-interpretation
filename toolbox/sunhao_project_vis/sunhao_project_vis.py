@@ -15,13 +15,10 @@ def read_ckpt_dir(ckpt_dir, env_name, disable_hopper_special=False):
     hopper_special_process = env_name.startswith("Hopper")
     if disable_hopper_special:
         hopper_special_process = False
-
     ckpt_list = os.listdir(ckpt_dir)
     ppo_result = []
     our_result = []
-
     is_WSR_TNB_directory = "WSR_TNB" in ckpt_dir
-
     for ckpt in ckpt_list:
         if hopper_special_process:
             print("special process hopper, the ckpt is:", ckpt)
@@ -29,20 +26,21 @@ def read_ckpt_dir(ckpt_dir, env_name, disable_hopper_special=False):
                 continue
             if "0.0drop" not in ckpt:
                 continue
-
         ckpt = os.path.join(ckpt_dir, ckpt)
-
         threshold = 0.6 if env_name.startswith("Hopper") else (
             1.3 if env_name.startswith("HalfCheetah") else 1.1  # Walker
         )
-
         rew = _read_reward_file(ckpt, threshold, is_WSR_TNB_directory)
         if rew is not None:
             if "Early" in ckpt:
                 our_result.append([ckpt, rew])
             else:
                 ppo_result.append([ckpt, rew])
+    if not ppo_result:
+        print("PPO result is empty. We have not found the ckpt for baseline.")
     return ppo_result, our_result
+
+
 
 
 def _read_reward_file(original_ckpt, default_th, is_WSR_TNB_directory=False):
@@ -57,6 +55,8 @@ def _read_reward_file(original_ckpt, default_th, is_WSR_TNB_directory=False):
             rew_file = rew_file.replace("Suc_256", "Suc_rwds_256")
         elif "10hidden" in rew_file:
             rew_file = rew_file.replace("Suc_10", "Suc_rwds_10")
+        elif "64hidden" in rew_file:
+            rew_file = rew_file.replace("Suc_64", "Suc_rwds_64")
         else:
             raise NotImplementedError("We assume the name contain '256hidden'"
                                       " or '10hidden'")
