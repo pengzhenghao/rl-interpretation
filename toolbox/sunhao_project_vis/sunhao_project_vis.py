@@ -53,7 +53,13 @@ def _read_reward_file(original_ckpt, default_th, is_WSR_TNB_directory=False):
         return None
 
     if is_WSR_TNB_directory:
-        rew_file = rew_file.replace("Suc_256", "Suc_rwds_256")
+        if "256hidden" in rew_file:
+            rew_file = rew_file.replace("Suc_256", "Suc_rwds_256")
+        elif "10hidden" in rew_file:
+            rew_file = rew_file.replace("Suc_10", "Suc_rwds_10")
+        else:
+            raise NotImplementedError("We assume the name contain '256hidden'"
+                                      " or '10hidden'")
     else:
         if "EarlyStop" in original_ckpt:
             rew_file = rew_file.replace("EarlyStopPolicy_Suc",
