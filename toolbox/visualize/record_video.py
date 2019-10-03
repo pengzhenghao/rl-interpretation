@@ -94,7 +94,8 @@ class CollectFramesWorker(object):
             env_maker,
             config,
             ckpt,
-            render_mode="rgb_array"
+            render_mode="rgb_array",
+            rerun_if_steps_is_not_enough=False
     ):
         """
         This function create one agent and return one frame sequence.
@@ -241,7 +242,8 @@ class GridVideoRecorder(object):
             name_loc_mapping=None,
             args_config=None,
             num_workers=10,
-            render_mode="rgb_array"
+            render_mode="rgb_array",
+            rerun_if_steps_is_not_enough=False
     ):
 
         assert isinstance(name_ckpt_mapping, OrderedDict), \
@@ -572,7 +574,8 @@ def generate_grid_of_videos(
         steps=int(1e10),
         num_workers=5,
         fps=None,
-        test_mode=False
+        test_mode=False,
+        rerun_if_steps_is_not_enough=False
 ):
     if name_callback is not None:
         assert callable(name_callback)
@@ -597,6 +600,7 @@ def generate_grid_of_videos(
         name_row_mapping=name_row_mapping,
         name_loc_mapping=name_loc_mapping,
         num_workers=num_workers,
+        rerun_if_steps_is_not_enough=rerun_if_steps_is_not_enough
     )
     path = gvr.generate_video(frames_dict, extra_info_dict, require_text,
                               test_mode=test_mode)
