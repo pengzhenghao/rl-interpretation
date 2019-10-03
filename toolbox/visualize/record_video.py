@@ -395,6 +395,31 @@ class GridVideoRecorder(object):
     def close(self):
         ray.shutdown()
 
+class SunhaoVideoRecorder(GridVideoRecorder):
+
+    def generate_video(self, frames_dict, extra_info_dict, require_text=True):
+        print(
+            "Start generating grid containing {} videos.".format(
+                len(frames_dict)
+            )
+        )
+        locations = [f_info['loc'] for f_info in frames_dict.values()]
+
+        unique_locations = set(locations)
+        no_specify_location = len(unique_locations) == 1 and next(
+            iter(unique_locations)
+        ) is None
+        assert len(unique_locations) == len(locations) or no_specify_location
+        if no_specify_location:
+            grids = len(frames_dict)
+        else:
+            max_row = max([row + 1 for row, _ in locations])
+            max_col = max([col + 1 for _, col in locations])
+            grids = {"col": max_col, "row": max_row}
+        vr = VideoRecorder(self.video_path, grids=grids, fps=self.fps)
+        path = vr.generate_video(frames_dict, extra_info_dict, require_text)
+        return path
+
 
 def _build_name_row_mapping(cluster_dict):
     """
@@ -498,7 +523,8 @@ def generate_video_of_cluster(
         max_num_cols=8,
         local_mode=False,
         steps=int(1e10),
-        num_workers=5
+        num_workers=5,
+        require_text=True
 ):
     name_ckpt_mapping = get_name_ckpt_mapping(yaml_path, num_agents)
 
@@ -526,7 +552,8 @@ def generate_video_of_cluster(
         name_callback=None,
         local_mode=local_mode,
         steps=steps,
-        num_workers=num_workers
+        num_workers=num_workers,
+        require_text=require_text
     )
 
 

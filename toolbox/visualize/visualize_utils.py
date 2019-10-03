@@ -209,6 +209,8 @@ class VideoRecorder(object):
                 canvas[t] += text_img[:, ::-1, :].swapaxes(0, 1)
 
     def _build_background(self, frames_dict):
+        # self.background is a numpy array with shape
+        # [video len, height, width, 4]
         assert self.frames_per_sec is not None
         self.extra_num_frames = 5 * int(self.frames_per_sec)
         video_length = max(
@@ -609,8 +611,8 @@ class VideoRecorder(object):
 
         frame_range = []
         for i in range(num_envs):
-            row_id = int(i / num_cols)
-            col_id = int(i % num_cols)
+
+            row_id, col_id = self._get_location(i)
 
             assert row_id < num_rows, (row_id, num_rows)
             assert col_id < num_cols, (col_id, num_cols)
@@ -654,6 +656,105 @@ class VideoRecorder(object):
             self.broken = True
         else:
             self.empty = False
+
+class SunhaoVideoRecorder(VideoRecorder):
+
+
+    def _build_frame_range(self):
+        specify_grids = not isinstance(self.grids, int)
+
+        # if not specify_grids:
+        wv_over_wf = VIDEO_WIDTH / self.width
+        hv_over_hf = VIDEO_HEIGHT / self.height
+
+        search_range = [2, 1.5] + np.arange(1, 0, -0.01).tolist()
+        for potential in search_range:
+            # potential = 1, 0.9, ...
+            if specify_grids:
+                num_envs = None
+                if wv_over_wf / potential >= self.grids['col'] \
+                        and hv_over_hf / potential >= self.grids['row']:
+                    break
+            else:
+                num_envs = self.grids
+                if (floor(wv_over_wf / potential) *
+                        floor(hv_over_hf / potential) >= num_envs):
+                    break
+            if potential == 0:
+                raise ValueError()
+        print("Sacle = ", potential)
+        scale = potential
+
+        assert scale != 0
+        # else:
+
+        num_cols = int(VIDEO_WIDTH / floor(self.width * scale))
+        num_rows = int(VIDEO_HEIGHT / floor(self.height * scale))
+
+        if num_envs is None:
+            num_envs = num_rows * num_cols
+        else:
+            num_rows = min(num_rows, int(np.ceil(num_envs / num_cols)))
+
+        # num_envs = num_rows * num_cols
+
+        if specify_grids:
+            assert num_rows >= self.grids['row']
+            assert num_cols >= self.grids['col']
+        self.num_rows = num_rows
+        self.num_cols = num_cols
+        frame_width = int(self.width * scale)
+        frame_height = int(self.height * scale)
+
+        assert num_rows * num_cols >= num_envs, \
+            "row {}, col {}, envs {}".format(num_rows, num_cols, num_envs)
+        assert num_cols * frame_width <= VIDEO_WIDTH
+        assert num_rows * frame_height <= VIDEO_HEIGHT
+
+        width_margin = (VIDEO_WIDTH - num_cols * frame_width) / (num_cols + 1)
+        height_margin = (VIDEO_HEIGHT - num_rows * frame_height) / (num_rows + 1)
+        width_margin = int(width_margin)
+        height_margin = int(height_margin)
+
+        frame_range = []
+        for i in range(num_envs):
+
+            if i % 10 == 0 and i != 0:
+                pass
+                # now it is the special margin.
+
+
+            row_id = int(i / num_cols)
+            col_id = int(i % num_cols)
+
+            assert row_id < num_rows, (row_id, num_rows)
+            assert col_id < num_cols, (col_id, num_cols)
+
+            frame_range.append(
+                {
+                    "height": [
+                        (height_margin + frame_height) * row_id +
+                        height_margin + VIDEO_HEIGHT_EDGE,
+                        (height_margin + frame_height) * (row_id + 1) +
+                        VIDEO_HEIGHT_EDGE
+                    ],
+                    "width": [
+                        (width_margin + frame_width) * col_id +
+                        width_margin + VIDEO_WIDTH_EDGE,
+                        (width_margin + frame_width) * (col_id + 1) +
+                        VIDEO_WIDTH_EDGE
+                    ],
+                    "column":
+                    col_id,
+                    "row":
+                    row_id,
+                    "index":
+                    i
+                }
+            )
+        self.frame_range = frame_range
+        self.scale = scale
+
 
 
 class ImageEncoder(object):
