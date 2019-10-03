@@ -70,8 +70,6 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
 
-                activation_list.append(last_layer)
-
                 mask_name = "fc_{}_mask".format(i)
                 mask_input = tf.keras.layers.Input(
                     shape=size,
@@ -81,6 +79,8 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                 assert last_layer.shape.as_list() == mask_input.shape.as_list()
 
                 last_layer = tf.multiply(last_layer, mask_input)
+
+                activation_list.append(last_layer)
                 i += 1
 
             layer_out = tf.keras.layers.Dense(
@@ -99,14 +99,14 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
 
-                activation_list.append(last_layer)
-
                 mask_name = "fc_{}_mask".format(i)
                 mask_input = tf.keras.layers.Input(shape=size, name=mask_name)
                 mask_placeholder_dict[mask_name] = mask_input
 
                 assert last_layer.shape.as_list() == mask_input.shape.as_list()
                 last_layer = tf.multiply(last_layer, mask_input)
+
+                activation_list.append(last_layer)
 
                 i += 1
             layer_out = tf.keras.layers.Dense(

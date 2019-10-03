@@ -56,10 +56,11 @@ class ClusterFinder(object):
         assert self.best_k is not None, "Call ClusterFinder.set(k) to set " \
                                         "the best number of cluster."
         if not self.initialized:
-            assert self.fits is None
-            self.fits = dict()
-            self.fits[self.best_k] = KMeans(n_clusters=self.best_k
-                                            ).fit(self.cluster_df)
+            if self.fits is None:
+                assert self.fits is None
+                self.fits = dict()
+                self.fits[self.best_k] = KMeans(n_clusters=self.best_k
+                                                ).fit(self.cluster_df)
 
         assert self.best_k in self.fits
         prediction = self.fits[self.best_k].predict(self.cluster_df)
