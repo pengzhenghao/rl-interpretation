@@ -76,7 +76,7 @@ def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
             change_model = None
         is_es_agent = run_name == "ES"
         config = build_config(ckpt, extra_config, is_es_agent, change_model)
-        print("The chonfig of restored agent: ", config)
+        print("The config of restored agent: ", config)
         agent = cls(env=env_name, config=config)
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
