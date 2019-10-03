@@ -20,8 +20,9 @@ def read_ckpt_dir(ckpt_dir, env_name, disable_hopper_special=False):
     ppo_result = []
     our_result = []
 
-    for ckpt in ckpt_list:
+    is_WSR_TNB_directory = "WSR_TNB" in ckpt_dir
 
+    for ckpt in ckpt_list:
         if hopper_special_process:
             print("special process hopper, the ckpt is:", ckpt)
             if "10hidden" not in ckpt:
@@ -35,7 +36,7 @@ def read_ckpt_dir(ckpt_dir, env_name, disable_hopper_special=False):
             1.3 if env_name.startswith("HalfCheetah") else 1.1  # Walker
         )
 
-        rew = _read_reward_file(ckpt, threshold)
+        rew = _read_reward_file(ckpt, threshold, is_WSR_TNB_directory)
         if rew is not None:
             if "Early" in ckpt:
                 our_result.append([ckpt, rew])
@@ -44,23 +45,28 @@ def read_ckpt_dir(ckpt_dir, env_name, disable_hopper_special=False):
     return ppo_result, our_result
 
 
-def _read_reward_file(orginal_ckpt, default_th):
-    rew_file = orginal_ckpt.replace("CheckPoints", "Rwds")
+def _read_reward_file(original_ckpt, default_th, is_WSR_TNB_directory=False):
+    rew_file = original_ckpt.replace("CheckPoints", "Rwds")
     if re.search(r"_\d+_", rew_file):
         return None
+    if "temp" in original_ckpt:
+        return None
 
-    if "EarlyStop" in orginal_ckpt:
-        rew_file = rew_file.replace("EarlyStopPolicy_Suc",
-                                    "EarlyStopPolicy_Suc_rwds")
-
-        if "0.0drop_prob" not in rew_file:
-            if ("reward_threshold" not in rew_file) and (
-                    "threshold" not in rew_file):
-                rew_file = rew_file.replace("hidden_",
-                                            "hidden_{}threshold_".format(
-                                                default_th))
+    if is_WSR_TNB_directory:
+        rew_file = rew_file.replace("Suc_256", "Suc_rwds_256")
     else:
-        rew_file = rew_file.replace("checkpoint", "rwds")
+        if "EarlyStop" in original_ckpt:
+            rew_file = rew_file.replace("EarlyStopPolicy_Suc",
+                                        "EarlyStopPolicy_Suc_rwds")
+
+            if "0.0drop_prob" not in rew_file:
+                if ("reward_threshold" not in rew_file) and (
+                        "threshold" not in rew_file):
+                    rew_file = rew_file.replace("hidden_",
+                                                "hidden_{}threshold_".format(
+                                                    default_th))
+        else:
+            rew_file = rew_file.replace("checkpoint", "rwds")
     with open(rew_file, "r") as f:
         data = csv.reader(f)
         last_line = list(data)[-1]
