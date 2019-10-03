@@ -378,7 +378,7 @@ def setup_mixins(policy, obs_space, action_space, config):
     )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
     ModifiedInputTensorMixin.__init__(policy)
-    AddDefaultMask.__init__()
+    AddDefaultMask.__init__(policy)
 
 
 ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
