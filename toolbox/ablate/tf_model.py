@@ -288,10 +288,22 @@ register_fc_with_mask()
 class AddDefaultMask(object):
     def __init__(self):
         self.default_mask_dict = None
+        self.batchsize_mask_dict = {}
 
     def set_default_mask(self, mask_dict):
         assert mask_dict.keys() == self.model.mask_placeholder_dict.keys()
         self.default_mask_dict = mask_dict
+
+    def add_batchsize_mask_dict(self, batchsize):
+        if batchsize not in self.batchsize_mask_dict:
+            assert self.default_mask_dict is not None
+            mask_batch = {
+                k: np.tile(v, (batchsize, 1))
+                for k, v in self.default_mask_dict.items()
+            }
+            self.batchsize_mask_dict[batchsize] = mask_batch
+        return self.batchsize_mask_dict[batchsize]
+
 
 
 class ModifiedInputTensorMixin(object):
@@ -325,12 +337,15 @@ class ModifiedInputTensorMixin(object):
             builder.add_feed_dict({self._prev_reward_input: prev_reward_batch})
         builder.add_feed_dict({self._is_training: False})
 
+        # if mask_batch is None:
+        #     assert self.default_mask_dict is not None
+        #     mask_batch = {
+        #         k: np.tile(v, (len(obs_batch), 1))
+        #         for k, v in self.default_mask_dict.items()
+        #     }
+
         if mask_batch is None:
-            assert self.default_mask_dict is not None
-            mask_batch = {
-                k: np.tile(v, (len(obs_batch), 1))
-                for k, v in self.default_mask_dict.items()
-            }
+            mask_batch = self.add_batchsize_mask_dict(len(obs_batch))
 
         assert isinstance(mask_batch, dict), mask_batch
         # assert

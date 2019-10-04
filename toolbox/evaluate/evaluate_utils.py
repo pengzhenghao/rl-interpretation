@@ -14,9 +14,15 @@ from toolbox.evaluate.tf_model import PPOAgentWithActivation, model_config, \
 from toolbox.utils import has_gpu
 
 sys.path.append("/home/zhpeng/novel-rl/sunhao_project_vis")
-# This line only exist in sunhao_project_vis branch.
-from toolbox.sunhao_project_vis.sunhao_agent_wrapper import \
-    SunAgentWrapper, SUNHAO_AGENT_NAME
+
+
+
+try:
+    # This line only exist in sunhao_project_vis branch.
+    from toolbox.sunhao_project_vis.sunhao_agent_wrapper import \
+        SunAgentWrapper, SUNHAO_AGENT_NAME
+except ModuleNotFoundError:
+    print("Torch is not install!")
 
 
 def build_config(
