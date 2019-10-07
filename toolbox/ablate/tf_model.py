@@ -29,8 +29,7 @@ from ray.rllib.utils.tf_ops import make_tf_callable
 from ray.rllib.utils.tf_run_builder import TFRunBuilder
 
 from toolbox.modified_rllib.tf_policy_template import build_tf_policy
-# from toolbox.modified_rllib.trainer_template import build_trainer
-from ray.rllib.agents.trainer_template import build_trainer
+from toolbox.modified_rllib.trainer_template import build_trainer
 
 tf = try_import_tf()
 
@@ -71,8 +70,6 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
 
-                activation_list.append(last_layer)
-
                 mask_name = "fc_{}_mask".format(i)
                 mask_input = tf.keras.layers.Input(
                     shape=size,
@@ -82,6 +79,8 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                 assert last_layer.shape.as_list() == mask_input.shape.as_list()
 
                 last_layer = tf.multiply(last_layer, mask_input)
+
+                activation_list.append(last_layer)
                 i += 1
 
             layer_out = tf.keras.layers.Dense(
@@ -100,14 +99,14 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
 
-                activation_list.append(last_layer)
-
                 mask_name = "fc_{}_mask".format(i)
                 mask_input = tf.keras.layers.Input(shape=size, name=mask_name)
                 mask_placeholder_dict[mask_name] = mask_input
 
                 assert last_layer.shape.as_list() == mask_input.shape.as_list()
                 last_layer = tf.multiply(last_layer, mask_input)
+
+                activation_list.append(last_layer)
 
                 i += 1
             layer_out = tf.keras.layers.Dense(
@@ -289,15 +288,26 @@ register_fc_with_mask()
 class AddDefaultMask(object):
     def __init__(self):
         self.default_mask_dict = None
+        self.batchsize_mask_dict = {}
 
     def set_default_mask(self, mask_dict):
         assert mask_dict.keys() == self.model.mask_placeholder_dict.keys()
         self.default_mask_dict = mask_dict
 
+    def add_batchsize_mask_dict(self, batchsize):
+        if batchsize not in self.batchsize_mask_dict:
+            assert self.default_mask_dict is not None
+            mask_batch = {
+                k: np.tile(v, (batchsize, 1))
+                for k, v in self.default_mask_dict.items()
+            }
+            self.batchsize_mask_dict[batchsize] = mask_batch
+        return self.batchsize_mask_dict[batchsize]
+
+
 
 class ModifiedInputTensorMixin(object):
     """Mixin for TFPolicy that adds entropy coeff decay."""
-
     @override(TFPolicy)
     def _build_compute_actions(
             self,
@@ -326,6 +336,16 @@ class ModifiedInputTensorMixin(object):
                 prev_reward_batch is not None:
             builder.add_feed_dict({self._prev_reward_input: prev_reward_batch})
         builder.add_feed_dict({self._is_training: False})
+
+        # if mask_batch is None:
+        #     assert self.default_mask_dict is not None
+        #     mask_batch = {
+        #         k: np.tile(v, (len(obs_batch), 1))
+        #         for k, v in self.default_mask_dict.items()
+        #     }
+
+        if mask_batch is None:
+            mask_batch = self.add_batchsize_mask_dict(len(obs_batch))
 
         assert isinstance(mask_batch, dict), mask_batch
         # assert
@@ -365,11 +385,19 @@ class ModifiedInputTensorMixin(object):
         )
         return builder.get(fetches)
 
+class AddMaskInfoMixinForPolicy(object):
+    def get_mask_info(self):
+        ret = OrderedDict()
+        for name, tensor in \
+                self.model.mask_placeholder_dict.items():
+            ret[name] = tensor.shape.as_list()
+        return ret
 
 model_config = {"custom_model": "fc_with_mask", "custom_options": {}}
 
 
 def setup_mixins(policy, obs_space, action_space, config):
+    AddDefaultMask.__init__(policy)
     ValueNetworkMixin_modified.__init__(
         policy, obs_space, action_space, config
     )
@@ -379,7 +407,8 @@ def setup_mixins(policy, obs_space, action_space, config):
     )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
     ModifiedInputTensorMixin.__init__(policy)
-    AddDefaultMask.__init__(policy)
+    AddMaskInfoMixinForPolicy.__init__(policy)
+
 
 
 ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
@@ -396,7 +425,8 @@ PPOTFPolicyWithMask = build_tf_policy(
     before_loss_init=setup_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin_modified, ModifiedInputTensorMixin, AddDefaultMask
+        ValueNetworkMixin_modified, ModifiedInputTensorMixin, AddDefaultMask,
+        AddMaskInfoMixinForPolicy
     ]
 )
 
