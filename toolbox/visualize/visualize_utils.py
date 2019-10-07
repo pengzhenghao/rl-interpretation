@@ -442,6 +442,7 @@ class VideoRecorder(object):
         for idx, (title, frames_info) in \
                 enumerate(frames_dict.items()):
             frames = frames_info['frames']
+            frames = frames[..., ::-1]
             width = (0, extra_info_dict['frame_info']['width'])
             height = (0, extra_info_dict['frame_info']['width'])
 
