@@ -1,6 +1,8 @@
 """
-This filed is copied from ray.rllib.rollout but with many modification.
+This filed is copied from ray.rllib.rollout but with little modification.
 """
+# !/usr/bin/env python
+
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -348,10 +350,11 @@ def rollout(
     policy_agent_mapping = default_policy_agent_mapping
 
     if hasattr(agent, "workers"):
+        # env = agent.workers.local_worker().env
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-            ]["policy_mapping_fn"]
+                                                ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -361,6 +364,7 @@ def rollout(
             for p, m in policy_map.items()
         }
     else:
+        # env = gym.make(env_name)
         multiagent = False
         policy = agent.policy
         state_init = {DEFAULT_POLICY_ID: None}
@@ -424,7 +428,6 @@ def rollout(
                         agent_id, policy_agent_mapping(agent_id)
                     )
                     p_use_lstm = use_lstm[policy_id]
-
                     if p_use_lstm:
                         a_action, p_state, a_info = agent.compute_action(
                             a_obs,
@@ -439,8 +442,6 @@ def rollout(
                         if agent._name == "ES":
                             a_action = agent.compute_action(a_obs)
                         else:
-
-                            print("Starting to compute_action!!!")
                             a_action, _, a_info = agent.compute_action(
                                 a_obs,
                                 prev_action=prev_actions[agent_id],
@@ -448,9 +449,6 @@ def rollout(
                                 policy_id=policy_id,
                                 full_fetch=True
                             )
-
-                    print("Finish to compute_action!!!")
-
                     a_action = _flatten_action(a_action)  # tuple actions
                     action_dict[agent_id] = a_action
                     prev_actions[agent_id] = a_action
@@ -530,7 +528,7 @@ def several_agent_rollout(
         seed=0,
         num_workers=10,
         force_rewrite=False,
-        return_data=True,
+        return_data=False,
         require_activation=True,
         _num_agents=None
 ):
@@ -554,6 +552,8 @@ def several_agent_rollout(
     for iteration in range(num_iteration):
         start = iteration * num_workers
         end = min((iteration + 1) * num_workers, num_agents)
+        # obj_ids = []
+        # workers = []
         obj_ids_dict = {}
         for i, (name, ckpt_dict) in \
                 enumerate(agent_ckpt_dict_range[start:end]):
@@ -590,7 +590,10 @@ def several_agent_rollout(
 
         for (name, obj_id), worker in zip(obj_ids_dict.items(), workers):
             trajectory_list = copy.deepcopy(ray.get(obj_id))
+            # for obj_id in obj_ids:
+            #     trajectory_list.append(ray.get(obj_id))
             return_dict[name] = trajectory_list
+            # worker.close.remote()
             print(
                 "[{}/{}] (+{:.1f}s/{:.1f}s) Collected {} rollouts from agent"
                 " <{}>".format(
@@ -605,6 +608,9 @@ def several_agent_rollout(
 
 
 if __name__ == "__main__":
+    # test_serveral_agent_rollout(True)
+    # exit(0)
+    # _test_es_agent_compatibility()
     parser = argparse.ArgumentParser()
     parser.add_argument("--yaml-path", required=True, type=str)
     parser.add_argument("--seed", type=int, default=0)
@@ -612,11 +618,10 @@ if __name__ == "__main__":
     parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--num-gpus", '-g', type=int, default=4)
     parser.add_argument("--force-rewrite", action="store_true")
-    parser.add_argument("--test-mode", action="store_true")
     args = parser.parse_args()
     assert args.yaml_path.endswith("yaml")
 
-    initialize_ray(num_gpus=args.num_gpus, test_mode=args.test_mode)
+    initialize_ray(num_gpus=args.num_gpus)
     several_agent_rollout(
         args.yaml_path, args.num_rollouts, args.seed, args.num_workers,
         args.force_rewrite
