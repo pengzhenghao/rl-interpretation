@@ -24,7 +24,6 @@ from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, build_trainer, \
 
 from ray.rllib.models import ModelCatalog
 
-
 # from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 # class MyModelClass(TFModelV2):
@@ -137,10 +136,6 @@ def vf_preds_and_logits_fetches_new(policy):
         SampleBatch.VF_PREDS: policy.model.value_function(),
         BEHAVIOUR_LOGITS: policy.model.last_output(),
     }
-    # ret = {
-    #     SampleBatch.VF_PREDS: policy.value_function,
-    #     BEHAVIOUR_LOGITS: policy.model_out,
-    # }
     activation_tensors = policy.model.activation()
     activations = {
         "layer{}".format(i): t
@@ -170,7 +165,7 @@ PPOTFPolicyWithActivation = build_tf_policy(
     ]
 )
 
-ppo_agent_default_config = DEFAULT_CONFIG.copy()
+ppo_agent_default_config = DEFAULT_CONFIG
 ppo_agent_default_config['model'].update(model_config)
 PPOAgentWithActivation = build_trainer(
     name="PPOWithActivation",
@@ -195,10 +190,5 @@ register_fc_with_activation()
 def test_ppo():
     from toolbox.utils import initialize_ray
     initialize_ray(test_mode=True)
-    po = PPOAgentWithActivation(env="BipedalWalker-v2",
-                                config={"model": model_config})
+    po = PPOAgentWithActivation(env="BipedalWalker-v2", config=model_config)
     return po
-
-
-if __name__ == '__main__':
-    test_ppo()
