@@ -31,16 +31,17 @@ def pad(vec, padding_value, padding_length):
     vec = np.asarray(vec)
     assert vec.ndim == 1
     vec[np.isnan(vec)] = padding_value
-    back = np.empty((padding_length,))
+    back = np.empty((padding_length, ))
     back.fill(padding_value)
     end = min(len(vec), padding_length)
     back[:end] = vec[:end]
     return back
 
 
-def stack_fft(obs, act, normalize, use_log=True,
-              padding_value=None,
-              padding_length=None):
+def stack_fft(
+        obs, act, normalize, use_log=True, padding_value=None,
+        padding_length=None
+):
     obs = np.asarray(obs)
     act = np.asarray(act)
 
@@ -173,7 +174,9 @@ class FFTWorker(object):
         if padding is not None:
             assert padding_value is not None
             assert padding_length is not None
-            self.postprocess_func = lambda vec: pad(vec, padding_value, padding_length)
+            self.postprocess_func = lambda vec: pad(
+                vec, padding_value, padding_length
+            )
         else:
             self.postprocess_func = lambda x: x
 

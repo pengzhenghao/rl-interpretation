@@ -99,7 +99,9 @@ def test_gif_generation():
     name_ckpt_mapping = get_name_ckpt_mapping(yaml, number=2)
 
     gvr = GridVideoRecorder(
-        video_path="../../data/vis/gif/test-2-agents", local_mode=True, fps=FPS
+        video_path="../../data/vis/gif/test-2-agents",
+        local_mode=True,
+        fps=FPS
     )
 
     frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)

@@ -15,7 +15,9 @@ def _build_dataframe(matrix, xlabel, ylabel):
     return data
 
 
-def draw_heatmap(matrix1, xlabel="x", ylabel="y", dpi=72, matrix2=None, title=None):
+def draw_heatmap(
+        matrix1, xlabel="x", ylabel="y", dpi=72, matrix2=None, title=None
+):
     data = _build_dataframe(matrix1, xlabel, ylabel)
     if matrix2 is None:
         f, ax = plt.subplots(figsize=(12, 12), dpi=dpi)

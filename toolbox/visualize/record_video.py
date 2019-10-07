@@ -142,11 +142,13 @@ class CollectFramesWorker(object):
                 extra_info = tmp_extra_info
                 break
             else:
-                print("In collect_frames, current frame length is {} and "
-                      "we expect length {}. So we rerun the rollout "
-                      "with different seed {}."
-                      " Current length of potential 'frames' is {}".format(
-                    len(frames), ideal_steps, i + 1, len(tmp_frames))
+                print(
+                    "In collect_frames, current frame length is {} and "
+                    "we expect length {}. So we rerun the rollout "
+                    "with different seed {}."
+                    " Current length of potential 'frames' is {}".format(
+                        len(frames), ideal_steps, i + 1, len(tmp_frames)
+                    )
                 )
         env.close()
         agent.stop()
@@ -310,8 +312,14 @@ class GridVideoRecorder(object):
                 is_es_agent = run_name == "ES"
                 config = build_config(ckpt, args_config, is_es_agent)
                 object_id_dict[name] = workers[incre].collect_frames.remote(
-                    run_name, env_name, env_maker, config, ckpt, render_mode,
-                    ideal_steps=ideal_steps, random_seed=random_seed
+                    run_name,
+                    env_name,
+                    env_maker,
+                    config,
+                    ckpt,
+                    render_mode,
+                    ideal_steps=ideal_steps,
+                    random_seed=random_seed
                 )
                 print(
                     "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
@@ -387,8 +395,14 @@ class GridVideoRecorder(object):
         }
         return frames_dict, new_extra_info_dict
 
-    def generate_video(self, frames_dict, extra_info_dict, require_text=True,
-                       test_mode=False, four_lines=False):
+    def generate_video(
+            self,
+            frames_dict,
+            extra_info_dict,
+            require_text=True,
+            test_mode=False,
+            four_lines=False
+    ):
         print(
             "Start generating grid containing {} videos.".format(
                 len(frames_dict)
@@ -407,8 +421,13 @@ class GridVideoRecorder(object):
             max_row = max([row + 1 for row, _ in locations])
             max_col = max([col + 1 for _, col in locations])
             grids = {"col": max_col, "row": max_row}
-        vr = VideoRecorder(self.video_path, grids=grids, fps=self.fps,
-                           test_mode=test_mode, four_lines=four_lines)
+        vr = VideoRecorder(
+            self.video_path,
+            grids=grids,
+            fps=self.fps,
+            test_mode=test_mode,
+            four_lines=four_lines
+        )
         path = vr.generate_video(frames_dict, extra_info_dict, require_text)
         # if we are at test_mode, then 'path' is a frame.
         return path
@@ -610,8 +629,13 @@ def generate_grid_of_videos(
         ideal_steps=steps if rerun_if_steps_is_not_enough else None,
         random_seed=rerun_if_steps_is_not_enough
     )
-    path = gvr.generate_video(frames_dict, extra_info_dict, require_text,
-                              test_mode=test_mode, four_lines=four_lines)
+    path = gvr.generate_video(
+        frames_dict,
+        extra_info_dict,
+        require_text,
+        test_mode=test_mode,
+        four_lines=four_lines
+    )
     gvr.close()
     print("Video has been saved at: <{}>".format(path))
     return path

@@ -16,27 +16,15 @@ VELOCITY_RETRIEVE_LIST = [
 ]
 
 halfcheetah_config = dict(
-    start=0,
-    interval=300,
-    skip_frame=20,
-    alpha=0.25,
-    velocity_multiplier=7
+    start=0, interval=300, skip_frame=20, alpha=0.25, velocity_multiplier=7
 )
 
 walker_config = dict(
-    start=0,
-    interval=None,
-    skip_frame=30,
-    alpha=0.25,
-    velocity_multiplier=10
+    start=0, interval=None, skip_frame=30, alpha=0.25, velocity_multiplier=10
 )
 
 hopper_config = dict(
-    start=0,
-    interval=None,
-    skip_frame=30,
-    alpha=0.48,
-    velocity_multiplier=10
+    start=0, interval=None, skip_frame=30, alpha=0.48, velocity_multiplier=10
 )
 
 ENV_RENDER_CONFIG_LOOKUP = {
@@ -114,7 +102,7 @@ def collect_frame(
 ):
     output_path = "/tmp/tmp_{}_{}_{}_{}".format(
         agent_name, vis_env_name, num_steps or "inf-steps", reward_threshold
-                                  or "-inf"
+        or "-inf"
     )  # temporary output_path and make no different.
 
     if reward_threshold is None:
@@ -181,7 +169,7 @@ def draw_one_exp(frame_list, velocity, draw_config=None):
         draw_frame_list = frame_list[start:start + interval].copy()
 
     if velocity is None:
-        velocity = np.ones((len(draw_frame_list),))
+        velocity = np.ones((len(draw_frame_list), ))
 
     alpha_dim = 3
     information = []
@@ -275,16 +263,16 @@ def generate_multiple_exposure(
     default_config = ENV_RENDER_CONFIG_LOOKUP[env_name].copy()
     default_config.update(render_config or {})
 
-    canvas = draw_one_exp(frame_list=new_frame_list,
-                          velocity=velocity,
-                          config=default_config)
+    canvas = draw_one_exp(
+        frame_list=new_frame_list, velocity=velocity, config=default_config
+    )
 
     if put_text:
         real_reward = extra_info_dict['reward'][agent_name][-1]
         title = "{}, Episode Reward: {:.2f}".format(agent_name, real_reward)
         canvas = cv2.putText(
-            canvas, title, (20, canvas.shape[0] - 2),
-            cv2.FONT_HERSHEY_SIMPLEX, 2.2, (0, 0, 0, 255), 2
+            canvas, title, (20, canvas.shape[0] - 2), cv2.FONT_HERSHEY_SIMPLEX,
+            2.2, (0, 0, 0, 255), 2
         )
 
     alpha = np.tile(canvas[..., 3:], [1, 1, 3]) / 255  # in range [0, 1]

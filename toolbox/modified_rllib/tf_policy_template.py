@@ -128,6 +128,7 @@ def build_tf_policy(
 
     original_kwargs = locals().copy()
     base = add_mixins(DynamicTFPolicy, mixins)
+
     # print("name: {}, mixins: {}".format(name, mixins))
 
     class policy_cls(base):

@@ -52,8 +52,10 @@ def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
     if callable(agent_type):
         # We assume this is the agent_maker function which take no zero
         # argument and return the agent.
-        print("Detected a function as the agent_type, we"
-              "restore an agent by calling it: ", agent_type)
+        print(
+            "Detected a function as the agent_type, we"
+            "restore an agent by calling it: ", agent_type
+        )
         agent = agent_type()
     else:
         if agent_type == "PPOAgentWithActivation":

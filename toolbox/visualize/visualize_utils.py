@@ -341,8 +341,7 @@ class VideoRecorder(object):
                 pass
             else:
                 self.background[len(frames):, height[0]:height[1], width[0]:
-                                                                   width[1],
-                2::-1] = frames[-1]
+                                width[1], 2::-1] = frames[-1]
             if require_text:
                 for information in extra_info_dict.values():
                     if 'pos_ratio' not in information:
@@ -637,8 +636,10 @@ class VideoRecorder(object):
         # Modified SUNHAO
         width_margin = height_margin = 8
 
-        print("We use the width_margin: {}, height_margin: {}".format(
-            width_margin, height_margin)
+        print(
+            "We use the width_margin: {}, height_margin: {}".format(
+                width_margin, height_margin
+            )
         )
 
         frame_range = []
@@ -672,11 +673,11 @@ class VideoRecorder(object):
                         VIDEO_WIDTH_EDGE
                     ],
                     "column":
-                        col_id,
+                    col_id,
                     "row":
-                        row_id,
+                    row_id,
                     "index":
-                        i
+                    i
                 }
             )
         self.frame_range = frame_range
@@ -699,7 +700,6 @@ class VideoRecorder(object):
 
 
 class SunhaoVideoRecorder(VideoRecorder):
-
     def _build_frame_range(self):
         specify_grids = not isinstance(self.grids, int)
 
@@ -752,8 +752,8 @@ class SunhaoVideoRecorder(VideoRecorder):
         assert num_rows * frame_height <= VIDEO_HEIGHT
 
         width_margin = (VIDEO_WIDTH - num_cols * frame_width) / (num_cols + 1)
-        height_margin = (VIDEO_HEIGHT - num_rows * frame_height) / (
-                    num_rows + 1)
+        height_margin = (VIDEO_HEIGHT -
+                         num_rows * frame_height) / (num_rows + 1)
         width_margin = int(width_margin)
         height_margin = int(height_margin)
 
@@ -785,11 +785,11 @@ class SunhaoVideoRecorder(VideoRecorder):
                         VIDEO_WIDTH_EDGE
                     ],
                     "column":
-                        col_id,
+                    col_id,
                     "row":
-                        row_id,
+                    row_id,
                     "index":
-                        i
+                    i
                 }
             )
         self.frame_range = frame_range
@@ -832,15 +832,15 @@ class ImageEncoder(object):
     def version_info(self):
         return {
             'backend':
-                self.backend,
+            self.backend,
             'version':
-                str(
-                    subprocess.check_output(
-                        [self.backend, '-version'], stderr=subprocess.STDOUT
-                    )
-                ),
+            str(
+                subprocess.check_output(
+                    [self.backend, '-version'], stderr=subprocess.STDOUT
+                )
+            ),
             'cmdline':
-                self.cmdline
+            self.cmdline
         }
 
     def start(self):
@@ -891,7 +891,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                    format(type(frame), frame)
+                format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(

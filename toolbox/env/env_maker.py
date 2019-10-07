@@ -7,11 +7,12 @@ try:
         HalfCheetahV2NoBackground, HalfCheetahV3NoBackground, \
         HopperV3NoBackground, Walker2dV3NoBackground
 except gym.error.DependencyNotInstalled:
-    print("Filed to import mujoco environment wrapper. "
-          "This may because you didn't install mujoco_py.")
+    print(
+        "Filed to import mujoco environment wrapper. "
+        "This may because you didn't install mujoco_py."
+    )
 
 DEFAULT_SEED = 0
-
 
 
 def make_build_gym_env(env_name):
@@ -24,7 +25,9 @@ def make_build_gym_env(env_name):
 
     return build_bipedal_walker
 
+
 build_bipedal_walker = make_build_gym_env("BipedalWalker-v2")
+
 
 def build_opencv_bipedal_walker(seed=None):
     if seed is None:

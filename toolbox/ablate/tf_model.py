@@ -305,9 +305,9 @@ class AddDefaultMask(object):
         return self.batchsize_mask_dict[batchsize]
 
 
-
 class ModifiedInputTensorMixin(object):
     """Mixin for TFPolicy that adds entropy coeff decay."""
+
     @override(TFPolicy)
     def _build_compute_actions(
             self,
@@ -385,6 +385,7 @@ class ModifiedInputTensorMixin(object):
         )
         return builder.get(fetches)
 
+
 class AddMaskInfoMixinForPolicy(object):
     def get_mask_info(self):
         ret = OrderedDict()
@@ -392,6 +393,7 @@ class AddMaskInfoMixinForPolicy(object):
                 self.model.mask_placeholder_dict.items():
             ret[name] = tensor.shape.as_list()
         return ret
+
 
 model_config = {"custom_model": "fc_with_mask", "custom_options": {}}
 
@@ -408,7 +410,6 @@ def setup_mixins(policy, obs_space, action_space, config):
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
     ModifiedInputTensorMixin.__init__(policy)
     AddMaskInfoMixinForPolicy.__init__(policy)
-
 
 
 ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
