@@ -14,7 +14,7 @@ import ray
 from toolbox.env.env_wrapper import BipedalWalkerWrapper
 from toolbox.evaluate.evaluate_utils import build_config, \
     restore_agent
-from toolbox.evaluate.rollout import rollout, ENV_NAME_PERIOD_FEATURE_LOOKUP
+from toolbox.evaluate.rollout import rollout
 from toolbox.process_data.process_data import get_name_ckpt_mapping
 from toolbox.represent.process_fft import get_period
 from toolbox.utils import initialize_ray
@@ -94,7 +94,9 @@ class CollectFramesWorker(object):
             env_maker,
             config,
             ckpt,
-            render_mode="rgb_array"
+            render_mode="rgb_array",
+            ideal_steps=None,
+            random_seed=False
     ):
         """
         This function create one agent and return one frame sequence.
@@ -109,20 +111,54 @@ class CollectFramesWorker(object):
         # TODO allow multiple iters.
 
         agent = restore_agent(run_name, ckpt, env_name, config)
-        env = env_maker()
-        result = rollout(
-            agent,
-            env,
-            env_name,
-            self.num_steps,
-            require_frame=True,
-            require_full_frame=self.require_full_frame,
-            render_mode=render_mode
-        )
-        frames, extra_info = result['frames'], result['frame_extra_info']
+        # if ideal_steps is not None:
+        tmp_frames = []
+        tmp_extra_info = []
+
+        # We allow 10 attemps.
+        for i in range(10):
+            if random_seed:
+                seed = np.random.randint(0, 10000)
+            else:
+                seed = i
+            env = env_maker(seed=seed)
+            result = rollout(
+                agent,
+                env,
+                env_name,
+                self.num_steps,
+                require_frame=True,
+                require_full_frame=self.require_full_frame,
+                render_mode=render_mode
+            )
+            frames, extra_info = result['frames'], result['frame_extra_info']
+
+            if len(frames) > len(tmp_frames):
+                tmp_frames = copy.deepcopy(frames)
+                tmp_extra_info = copy.deepcopy(extra_info)
+
+            if (ideal_steps is None) or (len(frames) > ideal_steps):
+                frames = tmp_frames
+                extra_info = tmp_extra_info
+                break
+            else:
+                print("In collect_frames, current frame length is {} and "
+                      "we expect length {}. So we rerun the rollout "
+                      "with different seed {}."
+                      " Current length of potential 'frames' is {}".format(
+                    len(frames), ideal_steps, i + 1, len(tmp_frames))
+                )
         env.close()
         agent.stop()
         return frames, extra_info
+
+
+# from utils import _generate_gif
+
+# def test_generate_gif():
+#     data = np.random.randint(0, 256, (500, 100, 100, 4), dtype='uint8')
+#     _generate_gif(data, "tmp_delete_me.gif")
+
 
 class GridVideoRecorder(object):
     def __init__(
@@ -143,9 +179,11 @@ class GridVideoRecorder(object):
             render_mode="rgb_array",
             require_trajectory=False
     ):
+        config = agent.config
 
-        env_name = agent.config["env"]
+        env_name = config["env"]
         env_maker = get_env_maker(env_name, require_render=True)
+
         env = env_maker()
 
         if seed is not None:
@@ -164,7 +202,6 @@ class GridVideoRecorder(object):
                 render_mode=render_mode
             )
         )
-
         frames, extra_info = result['frames'], result['frame_extra_info']
         if require_trajectory:
             extra_info['trajectory'] = result['trajectory']
@@ -172,8 +209,9 @@ class GridVideoRecorder(object):
         env.close()
         agent.stop()
 
-        if env_name in ENV_NAME_PERIOD_FEATURE_LOOKUP.keys():
-            period_source = np.stack(extra_info['period_info'])
+        period_info = extra_info['period_info']
+        if period_info:
+            period_source = np.stack(period_info)
             period = get_period(period_source, self.fps)
             print(
                 "period for agent <{}> is {}, its len is {}".format(
@@ -181,7 +219,7 @@ class GridVideoRecorder(object):
                 )
             )
         else:
-            period = None
+            period = 100
 
         frames_info = {
             "frames": frames,
@@ -231,7 +269,9 @@ class GridVideoRecorder(object):
             name_loc_mapping=None,
             args_config=None,
             num_workers=10,
-            render_mode="rgb_array"
+            render_mode="rgb_array",
+            ideal_steps=None,
+            random_seed=False
     ):
 
         assert isinstance(name_ckpt_mapping, OrderedDict), \
@@ -270,7 +310,8 @@ class GridVideoRecorder(object):
                 is_es_agent = run_name == "ES"
                 config = build_config(ckpt, args_config, is_es_agent)
                 object_id_dict[name] = workers[incre].collect_frames.remote(
-                    run_name, env_name, env_maker, config, ckpt, render_mode
+                    run_name, env_name, env_maker, config, ckpt, render_mode,
+                    ideal_steps=ideal_steps, random_seed=random_seed
                 )
                 print(
                     "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
@@ -284,10 +325,14 @@ class GridVideoRecorder(object):
 
             for incre, (name, object_id) in enumerate(object_id_dict.items()):
                 new_frames, new_extra_info = copy.deepcopy(ray.get(object_id))
-                # To avoid memory leakage. This deepcopy is really important!
 
-                if env_name in ENV_NAME_PERIOD_FEATURE_LOOKUP.keys():
-                    period_source = np.stack(new_extra_info['period_info'])
+                # To avoid memory leakage. This part is really important!
+                # new_frames = copy.deepcopy(frames)
+                # new_extra_info = copy.deepcopy(extra_info)
+
+                period_info = new_extra_info['period_info']
+                if period_info:
+                    period_source = np.stack(period_info)
                     period = get_period(period_source, self.fps)
                     print(
                         "period for agent <{}> is {}, its len is {}".format(
@@ -295,7 +340,7 @@ class GridVideoRecorder(object):
                         )
                     )
                 else:
-                    period = None
+                    period = 100
 
                 frames_info = {
                     "frames":
@@ -342,7 +387,8 @@ class GridVideoRecorder(object):
         }
         return frames_dict, new_extra_info_dict
 
-    def generate_video(self, frames_dict, extra_info_dict, require_text=True):
+    def generate_video(self, frames_dict, extra_info_dict, require_text=True,
+                       test_mode=False, four_lines=False):
         print(
             "Start generating grid containing {} videos.".format(
                 len(frames_dict)
@@ -361,8 +407,10 @@ class GridVideoRecorder(object):
             max_row = max([row + 1 for row, _ in locations])
             max_col = max([col + 1 for _, col in locations])
             grids = {"col": max_col, "row": max_row}
-        vr = VideoRecorder(self.video_path, grids=grids, fps=self.fps)
+        vr = VideoRecorder(self.video_path, grids=grids, fps=self.fps,
+                           test_mode=test_mode, four_lines=four_lines)
         path = vr.generate_video(frames_dict, extra_info_dict, require_text)
+        # if we are at test_mode, then 'path' is a frame.
         return path
 
     def generate_gif(self, frames_dict, extra_info_dict):
@@ -484,7 +532,8 @@ def generate_video_of_cluster(
         max_num_cols=8,
         local_mode=False,
         steps=int(1e10),
-        num_workers=5
+        num_workers=5,
+        require_text=True
 ):
     name_ckpt_mapping = get_name_ckpt_mapping(yaml_path, num_agents)
 
@@ -512,7 +561,8 @@ def generate_video_of_cluster(
         name_callback=None,
         local_mode=local_mode,
         steps=steps,
-        num_workers=num_workers
+        num_workers=num_workers,
+        require_text=require_text
     )
 
 
@@ -528,7 +578,11 @@ def generate_grid_of_videos(
         require_text=True,
         local_mode=False,
         steps=int(1e10),
-        num_workers=5
+        num_workers=5,
+        fps=None,
+        test_mode=False,
+        rerun_if_steps_is_not_enough=False,
+        four_lines=False
 ):
     if name_callback is not None:
         assert callable(name_callback)
@@ -540,9 +594,11 @@ def generate_grid_of_videos(
     gvr = GridVideoRecorder(
         video_path=video_prefix,
         local_mode=local_mode,
-        fps=FPS,
+        fps=fps or FPS,
         require_full_frame=require_full_frame
     )
+    if test_mode:
+        steps = 1
     frames_dict, extra_info_dict = gvr.generate_frames(
         name_ckpt_mapping,
         num_steps=steps,
@@ -551,8 +607,11 @@ def generate_grid_of_videos(
         name_row_mapping=name_row_mapping,
         name_loc_mapping=name_loc_mapping,
         num_workers=num_workers,
+        ideal_steps=steps if rerun_if_steps_is_not_enough else None,
+        random_seed=rerun_if_steps_is_not_enough
     )
-    path = gvr.generate_video(frames_dict, extra_info_dict, require_text)
+    path = gvr.generate_video(frames_dict, extra_info_dict, require_text,
+                              test_mode=test_mode, four_lines=four_lines)
     gvr.close()
     print("Video has been saved at: <{}>".format(path))
     return path

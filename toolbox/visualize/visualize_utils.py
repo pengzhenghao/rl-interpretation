@@ -12,18 +12,23 @@ import time
 # import uuid
 from math import floor
 
-import IPython
 import cv2
 import numpy as np
 import ray
 from PIL import Image
 from gym import logger, error
 
+# import sys
+# sys.path.append("../")
+# from gym.envs.box2d import BipedalWalker
+# from ray.rllib.agents.registry import get_agent_class
+# from ray.tune.util import merge_dicts
+
 ORIGINAL_VIDEO_WIDTH = 1920
 ORIGINAL_VIDEO_HEIGHT = 1080
 
 VIDEO_WIDTH_EDGE = 100
-VIDEO_HEIGHT_EDGE = 60
+VIDEO_HEIGHT_EDGE = 20
 # VIDEO_WIDTH_EDGE = 0
 # VIDEO_HEIGHT_EDGE = 0
 
@@ -107,7 +112,9 @@ class VideoRecorder(object):
             generate_gif=False,
             # gif_mode=None,
             fps=50,
-            scale=None
+            scale=None,
+            test_mode=False,
+            four_lines=False
     ):
         # self.grids = int | dict
         # if int, then it represent the number of videos
@@ -121,6 +128,7 @@ class VideoRecorder(object):
         self.last_frame = None
         self.num_cols = None
         self.num_rows = None
+        self.four_lines = four_lines
         self.generate_gif = generate_gif
         # if self.generate_gif:
         # assert gif_mode in self.allow_gif_mode
@@ -137,6 +145,7 @@ class VideoRecorder(object):
                 path = f.name
         self.path = path
         self.base_path = base_path
+        self.test_mode = test_mode
 
         # path_base, actual_ext = os.path.splitext(self.path)
 
@@ -184,6 +193,9 @@ class VideoRecorder(object):
             timestep = [timestep]
         assert isinstance(timestep, list)
 
+        if self.test_mode:
+            timestep = [0]
+
         if not rotate:
             for t in timestep:
                 cv2.putText(
@@ -205,6 +217,8 @@ class VideoRecorder(object):
                 canvas[t] += text_img[:, ::-1, :].swapaxes(0, 1)
 
     def _build_background(self, frames_dict):
+        # self.background is a numpy array with shape
+        # [video len, height, width, 4]
         assert self.frames_per_sec is not None
         self.extra_num_frames = 5 * int(self.frames_per_sec)
         video_length = max(
@@ -213,8 +227,12 @@ class VideoRecorder(object):
                 for frames_info in frames_dict.values()
             ]
         ) + self.extra_num_frames
+
+        if self.test_mode:
+            video_length = 1
+
         self.background = np.zeros(
-            (video_length, ORIGINAL_VIDEO_HEIGHT, ORIGINAL_VIDEO_WIDTH, 4),
+            (video_length, ORIGINAL_VIDEO_HEIGHT, ORIGINAL_VIDEO_WIDTH, 3),
             dtype='uint8'
         )
 
@@ -264,7 +282,8 @@ class VideoRecorder(object):
     def _build_grid_of_frames(
             self, frames_dict, extra_info_dict, require_text
     ):
-        self._add_things_on_backgaround(frames_dict, extra_info_dict)
+        if require_text:
+            self._add_things_on_backgaround(frames_dict, extra_info_dict)
         for idx, (title, frames_info) in \
                 enumerate(frames_dict.items()):
 
@@ -308,15 +327,22 @@ class VideoRecorder(object):
                     ) for frame in frames
                 ]
                 frames = np.stack(frames)
-
-            self.background[:len(frames), \
-            height[0]:height[1], width[0]: width[1],
-            2::-1] = frames
+            if self.test_mode:
+                self.background[0, \
+                height[0]:height[1], width[0]: width[1],
+                2::-1] = frames[0]
+            else:
+                self.background[:len(frames), \
+                height[0]:height[1], width[0]: width[1],
+                2::-1] = frames
 
             # filled the extra number of frames
-            self.background[len(frames):, height[0]:height[1], width[0]:
-                                                               width[1],
-            2::-1] = frames[-1]
+            if self.test_mode:
+                pass
+            else:
+                self.background[len(frames):, height[0]:height[1], width[0]:
+                                                                   width[1],
+                2::-1] = frames[-1]
             if require_text:
                 for information in extra_info_dict.values():
                     if 'pos_ratio' not in information:
@@ -379,6 +405,8 @@ class VideoRecorder(object):
         self._build_background(frames_dict)
 
         self._build_grid_of_frames(frames_dict, extra_info_dict, require_text)
+        if self.test_mode:
+            return self.background[0]
 
         now = time.time()
         start = now
@@ -413,8 +441,8 @@ class VideoRecorder(object):
         num_workers = 16
         for idx, (title, frames_info) in \
                 enumerate(frames_dict.items()):
-            frames = frames_info['frames'].copy()
-            # Copy frame to avoid the put_text modified the original image
+            frames = frames_info['frames']
+            frames = frames[..., ::-1]
             width = (0, extra_info_dict['frame_info']['width'])
             height = (0, extra_info_dict['frame_info']['width'])
 
@@ -550,6 +578,131 @@ class VideoRecorder(object):
 
         specify_grids = not isinstance(self.grids, int)
 
+        # For sunhao modification
+        # if not specify_grids:
+        # wv_over_wf = VIDEO_WIDTH / self.width
+        # hv_over_hf = VIDEO_HEIGHT / self.height
+        # search_range = [2, 1.5] + np.arange(1, 0, -0.01).tolist()
+        # for potential in search_range:
+        #     # potential = 1, 0.9, ...
+        #     if specify_grids:
+        #         num_envs = None
+        #         if wv_over_wf / potential >= self.grids['col'] \
+        #                 and hv_over_hf / potential >= self.grids['row']:
+        #             break
+        #     else:
+        #         num_envs = self.grids
+        #         if (floor(wv_over_wf / potential) *
+        #                 floor(hv_over_hf / potential) >= num_envs):
+        #             break
+        #     if potential == 0:
+        #         raise ValueError()
+        # print("Sacle = ", potential)
+        # scale = potential
+        num_envs = None
+        scale = 0.6
+
+        assert scale != 0
+        # else:
+
+        num_cols = int(VIDEO_WIDTH / floor(self.width * scale))
+        num_rows = int(VIDEO_HEIGHT / floor(self.height * scale))
+
+        if num_envs is None:
+            num_envs = num_rows * num_cols
+        else:
+            num_rows = min(num_rows, int(np.ceil(num_envs / num_cols)))
+
+        # num_envs = num_rows * num_cols
+
+        if specify_grids:
+            assert num_rows >= self.grids['row']
+            assert num_cols >= self.grids['col']
+        self.num_rows = num_rows
+        self.num_cols = num_cols
+        frame_width = int(self.width * scale)
+        frame_height = int(self.height * scale)
+
+        assert num_rows * num_cols >= num_envs, \
+            "row {}, col {}, envs {}".format(num_rows, num_cols, num_envs)
+        assert num_cols * frame_width <= VIDEO_WIDTH
+        assert num_rows * frame_height <= VIDEO_HEIGHT
+
+        # width_margin = (VIDEO_WIDTH - num_cols * frame_width) / (num_cols
+        # + 1)
+        # height_margin = (VIDEO_HEIGHT -
+        #                  num_rows * frame_height) / (num_rows + 1)
+        # width_margin = int(width_margin)
+        # height_margin = int(height_margin)
+        # Modified SUNHAO
+        width_margin = height_margin = 8
+
+        print("We use the width_margin: {}, height_margin: {}".format(
+            width_margin, height_margin)
+        )
+
+        frame_range = []
+        caption_offset = 0
+        for i in range(num_envs):
+
+            if not self.four_lines:
+                if i % 12 == 0:
+                    caption_offset += 100
+            else:
+                if i % 6 == 0:
+                    caption_offset += 50
+
+            row_id, col_id = self._get_location(i)
+
+            assert row_id < num_rows, (row_id, num_rows)
+            assert col_id < num_cols, (col_id, num_cols)
+
+            frame_range.append(
+                {
+                    "height": [
+                        (height_margin + frame_height) * row_id +
+                        height_margin + VIDEO_HEIGHT_EDGE + caption_offset,
+                        (height_margin + frame_height) * (row_id + 1) +
+                        VIDEO_HEIGHT_EDGE + caption_offset
+                    ],
+                    "width": [
+                        (width_margin + frame_width) * col_id +
+                        width_margin + VIDEO_WIDTH_EDGE,
+                        (width_margin + frame_width) * (col_id + 1) +
+                        VIDEO_WIDTH_EDGE
+                    ],
+                    "column":
+                        col_id,
+                    "row":
+                        row_id,
+                    "index":
+                        i
+                }
+            )
+        self.frame_range = frame_range
+        self.scale = scale
+
+    def _encode_image_frame(self, frame):
+        if not self.encoder:
+            self.encoder = ImageEncoder(
+                self.path, frame.shape, self.frames_per_sec
+            )
+        try:
+            self.encoder.capture_frame(frame)
+        except error.InvalidFrame as e:
+            logger.warn(
+                'Tried to pass invalid video frame, marking as broken: %s', e
+            )
+            self.broken = True
+        else:
+            self.empty = False
+
+
+class SunhaoVideoRecorder(VideoRecorder):
+
+    def _build_frame_range(self):
+        specify_grids = not isinstance(self.grids, int)
+
         # if not specify_grids:
         wv_over_wf = VIDEO_WIDTH / self.width
         hv_over_hf = VIDEO_HEIGHT / self.height
@@ -599,13 +752,18 @@ class VideoRecorder(object):
         assert num_rows * frame_height <= VIDEO_HEIGHT
 
         width_margin = (VIDEO_WIDTH - num_cols * frame_width) / (num_cols + 1)
-        height_margin = (VIDEO_HEIGHT -
-                         num_rows * frame_height) / (num_rows + 1)
+        height_margin = (VIDEO_HEIGHT - num_rows * frame_height) / (
+                    num_rows + 1)
         width_margin = int(width_margin)
         height_margin = int(height_margin)
 
         frame_range = []
         for i in range(num_envs):
+
+            if i % 10 == 0 and i != 0:
+                pass
+                # now it is the special margin.
+
             row_id = int(i / num_cols)
             col_id = int(i % num_cols)
 
@@ -636,21 +794,6 @@ class VideoRecorder(object):
             )
         self.frame_range = frame_range
         self.scale = scale
-
-    def _encode_image_frame(self, frame):
-        if not self.encoder:
-            self.encoder = ImageEncoder(
-                self.path, frame.shape, self.frames_per_sec
-            )
-        try:
-            self.encoder.capture_frame(frame)
-        except error.InvalidFrame as e:
-            logger.warn(
-                'Tried to pass invalid video frame, marking as broken: %s', e
-            )
-            self.broken = True
-        else:
-            self.empty = False
 
 
 class ImageEncoder(object):
@@ -729,8 +872,10 @@ class ImageEncoder(object):
             'libx264',
             '-pix_fmt',
             'yuv420p',
-            # '-crf',
-            # '0',
+            '-crf',
+            '18',
+            # '-vtag',
+            # 'hvc1',
             self.output_path
         )
 
@@ -774,25 +919,3 @@ class ImageEncoder(object):
             logger.error(
                 "VideoRecorder encoder exited with status {}".format(ret)
             )
-
-
-def display_gif(gif_path):
-    with open(gif_path, 'rb') as f:
-        IPython.display.display(
-            IPython.display.Image(data=f.read(), format='png')
-        )
-
-
-def imshow(img, reverse=True):
-    if reverse:
-        img = img[..., ::-1]
-    _, ret = cv2.imencode('.png', img)
-    i = IPython.display.Image(data=ret)
-    IPython.display.display(i)
-
-
-def display_gif(gif_path):
-    with open(gif_path, 'rb') as f:
-        IPython.display.display(
-            IPython.display.Image(data=f.read(), format='png')
-        )
