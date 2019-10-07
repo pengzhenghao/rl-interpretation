@@ -13,15 +13,24 @@ except gym.error.DependencyNotInstalled:
 DEFAULT_SEED = 0
 
 
-def build_bipedal_walker(useless=None):
-    env = gym.make("BipedalWalker-v2")
-    env.seed(DEFAULT_SEED)
-    return env
 
+def make_build_gym_env(env_name):
+    def build_bipedal_walker(seed=None):
+        if seed is None:
+            seed = DEFAULT_SEED
+        env = gym.make(env_name)
+        env.seed(seed)
+        return env
 
-def build_opencv_bipedal_walker(useless=None):
+    return build_bipedal_walker
+
+build_bipedal_walker = make_build_gym_env("BipedalWalker-v2")
+
+def build_opencv_bipedal_walker(seed=None):
+    if seed is None:
+        seed = DEFAULT_SEED
     env = BipedalWalkerWrapper()
-    env.seed(DEFAULT_SEED)
+    env.seed(seed)
     return env
 
 
@@ -68,11 +77,13 @@ def build_walkerv3(require_shadow=False):
 def get_env_maker(name, require_render=False):
     if require_render and name == "BipedalWalker-v2":
         return build_opencv_bipedal_walker
+    if require_render:
+        return make_build_gym_env(name)
     return ENV_MAKER_LOOKUP[name]
 
 
 ENV_MAKER_LOOKUP = {
-    "BipedalWalker-v2": build_bipedal_walker,
+    "BipedalWalker-v2": make_build_gym_env("BipedalWalker-v2"),
     "HalfCheetah-v2-shadow": lambda: build_halfcheetahv2(True),
     "HalfCheetah-v2": build_halfcheetahv2,
     "HalfCheetah-v3": build_halfcheetahv3,
