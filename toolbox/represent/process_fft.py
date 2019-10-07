@@ -27,7 +27,20 @@ def compute_fft(y):
     return yf2
 
 
-def stack_fft(obs, act, normalize, use_log=True):
+def pad(vec, padding_value, padding_length):
+    vec = np.asarray(vec)
+    assert vec.ndim == 1
+    vec[np.isnan(vec)] = padding_value
+    back = np.empty((padding_length,))
+    back.fill(padding_value)
+    end = min(len(vec), padding_length)
+    back[:end] = vec[:end]
+    return back
+
+
+def stack_fft(obs, act, normalize, use_log=True,
+              padding_value=None,
+              padding_length=None):
     obs = np.asarray(obs)
     act = np.asarray(act)
 
@@ -57,6 +70,10 @@ def stack_fft(obs, act, normalize, use_log=True):
     # obs = [total timesteps, num of channels]
     for ind, y in enumerate(obs.T):
         yf2 = compute_fft(y)
+
+        if (padding_value is not None) and (padding_length is not None):
+            yf2 = pad(yf2, padding_value, padding_length)
+
         yf2 = parse(yf2)
         data_col.append(yf2)
         label_col.extend(["Obs {}".format(ind)] * len(yf2))
@@ -64,6 +81,9 @@ def stack_fft(obs, act, normalize, use_log=True):
 
     for ind, y in enumerate(act.T):
         yf2 = compute_fft(y)
+        if (padding_value is not None) and (padding_length is not None):
+            yf2 = pad(yf2, padding_value, padding_length)
+
         yf2 = parse(yf2)
         data_col.append(yf2)
         label_col.extend(["Act {}".format(ind)] * len(yf2))
@@ -99,6 +119,7 @@ def get_period(source, fps):
         fre = compute_fft(y)
         fre[0] = -np.inf
         period = len(y) / fre.argmax()  # * (fps / len(y))  # in Hz
+        # period = freq
         ret.append(period)
     return float(np.mean(ret))
 
@@ -152,18 +173,7 @@ class FFTWorker(object):
         if padding is not None:
             assert padding_value is not None
             assert padding_length is not None
-
-            def pad(vec):
-                vec = np.asarray(vec)
-                assert vec.ndim == 1
-                vec[np.isnan(vec)] = padding_value
-                back = np.empty((padding_length, ))
-                back.fill(padding_value)
-                end = min(len(vec), padding_length)
-                back[:end] = vec[:end]
-                return back
-
-            self.postprocess_func = pad
+            self.postprocess_func = lambda vec: pad(vec, padding_value, padding_length)
         else:
             self.postprocess_func = lambda x: x
 
