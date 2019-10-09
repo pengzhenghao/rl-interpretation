@@ -109,6 +109,40 @@ def test_restore_agent_with_mask():
     return ret
 
 
+from toolbox.evaluate.symbolic_agent import add_gaussian_perturbation
+import copy
+
+
+def get_policy_network_output(agent, obs):
+    act, _, info = agent.get_policy().compute_actions(obs)
+    print(info.keys())
+    return info['behaviour_logits']
+
+
+def test_add_gaussian_perturbation():
+    initialize_ray(test_mode=True)
+    agent = restore_agent_with_mask("PPO", None, "BipedalWalker-v2")
+
+    act = np.ones((1, 24))
+
+    old_response = copy.deepcopy(get_policy_network_output(agent, act))
+    old_response2 = copy.deepcopy(get_policy_network_output(agent, act))
+    agent = add_gaussian_perturbation(agent, 1.0, 0.0, 1997)
+    new_response = copy.deepcopy(get_policy_network_output(agent, act))
+
+    np.testing.assert_array_equal(old_response, old_response2)
+    np.testing.assert_array_equal(old_response, new_response)
+
+    agent2 = add_gaussian_perturbation(agent, 1.0, 1, 1997)
+    new_response2 = copy.deepcopy(get_policy_network_output(agent2, act))
+
+    np.testing.assert_raises(AssertionError,
+                             np.testing.assert_array_equal,
+                             old_response,
+                             new_response2)
+
+
 if __name__ == '__main__':
     # r = test_efficient_rollout_from_worker()
-    ret = test_restore_agent_with_mask()
+    # ret = test_restore_agent_with_mask()
+    test_add_gaussian_perturbation()
