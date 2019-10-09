@@ -142,7 +142,65 @@ def test_add_gaussian_perturbation():
                              new_response2)
 
 
+from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
+from toolbox.process_data.process_data import read_yaml
+
+
+def test_MaskSymbolicAgent_local():
+    initialize_ray(test_mode=True)
+
+    name_ckpt_mapping = read_yaml("../../data/yaml/test-2-agents.yaml")
+
+    ckpt_info = next(iter(name_ckpt_mapping.values()))
+
+    sa = MaskSymbolicAgent(ckpt_info)
+
+    agent = sa.get()
+
+    callback_info = {
+        "method": 'normal',
+        'mean': 1.,
+        "std": 1.,
+        "seed": 1997
+    }
+
+    sa2 = MaskSymbolicAgent(ckpt_info, callback_info)
+
+    agent2 = sa2.get()
+
+
+def test_MaskSymbolicAgent_remote():
+    initialize_ray(test_mode=True)
+
+    @ray.remote
+    def get_agent(sa):
+        agent = sa.get()
+        print("success")
+        return True
+
+    name_ckpt_mapping = read_yaml("../../data/yaml/test-2-agents.yaml")
+
+    # ckpt_info = next(iter(name_ckpt_mapping.values()))
+
+    callback_info = {
+        "method": 'normal',
+        'mean': 1.,
+        "std": 1.,
+        "seed": 1997
+    }
+    obidlist = []
+
+    for name, ckpt_info in name_ckpt_mapping.items():
+        sa = MaskSymbolicAgent(ckpt_info, callback_info)
+        obid = get_agent.remote(sa)
+        obidlist.append(obid)
+
+    ray.get(obidlist)
+
+
 if __name__ == '__main__':
     # r = test_efficient_rollout_from_worker()
     # ret = test_restore_agent_with_mask()
-    test_add_gaussian_perturbation()
+    # test_add_gaussian_perturbation()
+    # test_MaskSymbolicAgent_local()
+    test_MaskSymbolicAgent_remote()
