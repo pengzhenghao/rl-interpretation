@@ -109,7 +109,7 @@ def test_restore_agent_with_mask():
     return ret
 
 
-from toolbox.evaluate.symbolic_agent import add_gaussian_perturbation
+# from toolbox.evaluate.symbolic_agent import add_gaussian_perturbation
 import copy
 
 
@@ -127,13 +127,13 @@ def test_add_gaussian_perturbation():
 
     old_response = copy.deepcopy(get_policy_network_output(agent, act))
     old_response2 = copy.deepcopy(get_policy_network_output(agent, act))
-    agent = add_gaussian_perturbation(agent, 1.0, 0.0, 1997)
+    agent = MaskSymbolicAgent.add_gaussian_perturbation(agent, 1.0, 0.0, 1997)
     new_response = copy.deepcopy(get_policy_network_output(agent, act))
 
     np.testing.assert_array_equal(old_response, old_response2)
     np.testing.assert_array_equal(old_response, new_response)
 
-    agent2 = add_gaussian_perturbation(agent, 1.0, 1, 1997)
+    agent2 = MaskSymbolicAgent.add_gaussian_perturbation(agent, 1.0, 1, 1997)
     new_response2 = copy.deepcopy(get_policy_network_output(agent2, act))
 
     np.testing.assert_raises(
@@ -155,13 +155,13 @@ def test_MaskSymbolicAgent_local():
 
     sa = MaskSymbolicAgent(ckpt_info)
 
-    agent = sa.get()
+    agent = sa.get()['agent']
 
     callback_info = {"method": 'normal', 'mean': 1., "std": 1., "seed": 1997}
 
     sa2 = MaskSymbolicAgent(ckpt_info, callback_info)
 
-    agent2 = sa2.get()
+    agent2 = sa2.get()['agent']
 
 
 def test_MaskSymbolicAgent_remote():
@@ -169,7 +169,7 @@ def test_MaskSymbolicAgent_remote():
 
     @ray.remote
     def get_agent(sa):
-        agent = sa.get()
+        agent = sa.get()['agent']
         print("success")
         return True
 
@@ -191,6 +191,6 @@ def test_MaskSymbolicAgent_remote():
 if __name__ == '__main__':
     # r = test_efficient_rollout_from_worker()
     # ret = test_restore_agent_with_mask()
-    # test_add_gaussian_perturbation()
-    # test_MaskSymbolicAgent_local()
+    test_add_gaussian_perturbation()
+    test_MaskSymbolicAgent_local()
     test_MaskSymbolicAgent_remote()

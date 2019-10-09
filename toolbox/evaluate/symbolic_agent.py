@@ -35,6 +35,10 @@ class MaskSymbolicAgent(SymbolicAgentBase):
     def __init__(self, ckpt_info, mask_callback_info=None):
         super(MaskSymbolicAgent, self).__init__()
         self.ckpt_info = ckpt_info
+        self.agent_info = self.ckpt_info.copy()
+        self.agent_info['agent'] = None
+        self.agent_info['parent'] = self.ckpt_info['name']
+        self.agent_info['mask'] = None
 
         if mask_callback_info is None:
             self.mask_callback = None
@@ -68,10 +72,9 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             assert callable(self.mask_callback)
             self.agent = self.mask_callback(self.agent)
 
-        self.agent_info.update(ckpt)
+        # self.agent_info.update(ckpt)
         self.agent_info['agent'] = self.agent
-        self.agent_info['id'] = 0
-        self.agent_info['parent'] = self.ckpt_info['name']
+        # self.agent_info['id'] = 0
         self.agent_info['mask'] = mask_dict
 
-        return self.agent
+        return self.agent_info
