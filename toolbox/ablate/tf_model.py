@@ -291,8 +291,12 @@ class AddDefaultMask(object):
         self.batchsize_mask_dict = {}
 
     def set_default_mask(self, mask_dict):
+        assert mask_dict is not None
         assert mask_dict.keys() == self.model.mask_placeholder_dict.keys()
         self.default_mask_dict = mask_dict
+        self.batchsize_mask_dict.clear()
+        print("Successfully set the default mask to: ",
+              {k: v.mean() for k, v in mask_dict.items()})
 
     def add_batchsize_mask_dict(self, batchsize):
         if batchsize not in self.batchsize_mask_dict:
