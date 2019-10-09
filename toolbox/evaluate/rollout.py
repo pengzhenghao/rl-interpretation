@@ -327,7 +327,7 @@ Modification:
     1. use iteration as the termination criterion
     2. pass an environment object which can be different from env_name
 """
-
+from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 
 def rollout(
         agent,
@@ -348,6 +348,11 @@ def rollout(
         num_steps = 3000
 
     policy_agent_mapping = default_policy_agent_mapping
+
+    if isinstance(agent, SymbolicAgentBase):
+        agent = agent.get()['agent']
+        print("Successfully restore agent at remote worker "
+              "from symbolic agent!")
 
     if hasattr(agent, "workers"):
         # env = agent.workers.local_worker().env
