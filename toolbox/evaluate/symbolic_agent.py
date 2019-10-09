@@ -54,7 +54,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
 
     def get(self):
         if self.initialized:
-            return self.agent
+            return self.agent_info
         ckpt = self.ckpt_info
         run_name = ckpt['run_name']
         ckpt_path = ckpt['path']
