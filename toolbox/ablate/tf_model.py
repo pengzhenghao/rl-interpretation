@@ -296,7 +296,16 @@ class AddDefaultMask(object):
 
     def add_batchsize_mask_dict(self, batchsize):
         if batchsize not in self.batchsize_mask_dict:
-            assert self.default_mask_dict is not None
+            # assert self.default_mask_dict is not None
+
+            if self.default_mask_dict is None:
+                mask_template = self.get_mask_info()
+                self.set_default_mask({
+                    k: np.ones(shape[1:]) for k, shape in mask_template.items()
+                })
+                print("Since you don't set the default mask, "
+                      "we set it to ones.")
+
             mask_batch = {
                 k: np.tile(v, (batchsize, 1))
                 for k, v in self.default_mask_dict.items()
