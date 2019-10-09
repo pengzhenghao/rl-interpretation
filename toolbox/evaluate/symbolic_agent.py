@@ -4,7 +4,6 @@ from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 
 
 class SymbolicAgentBase:
-
     def __init__(self):
         self.agent = None
         self.agent_info = {}
@@ -59,11 +58,11 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         self.agent = restore_agent_with_mask(run_name, ckpt_path, env_name)
 
         mask_template = self.agent.get_mask_info()
-        mask_dict = {k: np.ones((shape[1],)) for k, shape in
-                     mask_template.items()}
-        self.agent.get_policy().set_default_mask(
-            mask_dict
-        )
+        mask_dict = {
+            k: np.ones((shape[1], ))
+            for k, shape in mask_template.items()
+        }
+        self.agent.get_policy().set_default_mask(mask_dict)
 
         if self.mask_callback is not None:
             assert callable(self.mask_callback)

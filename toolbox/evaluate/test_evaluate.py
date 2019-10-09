@@ -136,10 +136,10 @@ def test_add_gaussian_perturbation():
     agent2 = add_gaussian_perturbation(agent, 1.0, 1, 1997)
     new_response2 = copy.deepcopy(get_policy_network_output(agent2, act))
 
-    np.testing.assert_raises(AssertionError,
-                             np.testing.assert_array_equal,
-                             old_response,
-                             new_response2)
+    np.testing.assert_raises(
+        AssertionError, np.testing.assert_array_equal, old_response,
+        new_response2
+    )
 
 
 from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
@@ -157,12 +157,7 @@ def test_MaskSymbolicAgent_local():
 
     agent = sa.get()
 
-    callback_info = {
-        "method": 'normal',
-        'mean': 1.,
-        "std": 1.,
-        "seed": 1997
-    }
+    callback_info = {"method": 'normal', 'mean': 1., "std": 1., "seed": 1997}
 
     sa2 = MaskSymbolicAgent(ckpt_info, callback_info)
 
@@ -182,12 +177,7 @@ def test_MaskSymbolicAgent_remote():
 
     # ckpt_info = next(iter(name_ckpt_mapping.values()))
 
-    callback_info = {
-        "method": 'normal',
-        'mean': 1.,
-        "std": 1.,
-        "seed": 1997
-    }
+    callback_info = {"method": 'normal', 'mean': 1., "std": 1., "seed": 1997}
     obidlist = []
 
     for name, ckpt_info in name_ckpt_mapping.items():

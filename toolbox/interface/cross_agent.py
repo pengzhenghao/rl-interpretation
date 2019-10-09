@@ -15,7 +15,8 @@ class CrossAgentAnalyst:
     methods = {
         "represent": ["fft_represent", "naive_represent"],
         "similarity": ["cka_similarity"],
-        "distance": ["js_distance", "cka_distance", "naive_represent_distance"]
+        "distance":
+        ["js_distance", "cka_distance", "naive_represent_distance"]
     }
 
     def __init__(self):
@@ -23,15 +24,18 @@ class CrossAgentAnalyst:
         self.computed_result = {}
         for k, name_list in self.methods.items():
             self.computed_result[k] = {
-                method_name: None for method_name in name_list
+                method_name: None
+                for method_name in name_list
             }
 
         self.rollout_dataset = None
 
     def _check_input(self):
         if self.rollout_dataset is None:
-            print("Data is not loaded! Please call feed(...) before "
-                  "doing anything!")
+            print(
+                "Data is not loaded! Please call feed(...) before "
+                "doing anything!"
+            )
             return False
         return True
 
@@ -52,5 +56,3 @@ class CrossAgentAnalyst:
 
     def cka_similarity(self):
         pass
-
-
