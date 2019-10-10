@@ -120,6 +120,11 @@ def get_dbscan_precision(
             (len(cluster_set) >= num_parent) and \
             (-1 not in cluster_set):
         trust = True
+        print("Detected Unqualified Clustering Result! The precision {},"
+              "the # of cluster of parents {},"
+              " the set of parents' cluster {}".format(
+            precision, len(cluster_set), cluster_set)
+        )
 
     return precision, prediction, parent_cluster_dict, trust
 
