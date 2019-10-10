@@ -2,6 +2,7 @@
 This file contain the interface to cross-agent analysis.
 """
 from collections import OrderedDict
+from collections.abc import Iterable as IterableClass
 
 import numpy as np
 from sklearn import decomposition
@@ -14,6 +15,24 @@ DEFAULT_CONFIG = {
     "num_samples": 100,
     "pca_dim": 50
 }
+
+
+def get_kl_divergence(dist1, dist2):
+    assert dist1.ndim == 2
+    assert dist2.ndim == 2
+
+    source_mean, source_log_std = np.split(dist1, 2, axis=1)
+    target_mean, target_log_std = np.split(dist2, 2, axis=1)
+
+    kl_divergence = np.sum(
+        target_log_std - source_log_std +
+        (np.square(source_log_std) + np.square(source_mean - target_mean))
+        / (2.0 * np.square(target_log_std) + 1e-9) - 0.5,
+        axis=1
+    )
+    kl_divergence = np.clip(kl_divergence, 0.0, 1e38)  # to avoid inf
+    averaged_kl_divergence = np.mean(kl_divergence)
+    return averaged_kl_divergence
 
 
 class CrossAgentAnalyst:
@@ -40,8 +59,15 @@ class CrossAgentAnalyst:
     methods = {
         "representation": ["fft", "naive", "fft_pca", "naive_pca"],
         "similarity": ["cka_similarity"],
-        "distance":
-            ["js_distance", "cka_distance", "naive_represent_distance"]
+        "distance": [
+            "sunhao",
+            "js",
+            "cka",
+            "naive",
+            "naive",
+            "fft",
+            "fft_pca"
+        ]
     }
 
     def __init__(self, config=None):
@@ -152,7 +178,54 @@ class CrossAgentAnalyst:
         self.agent_replay_dict = agent_replay_dict
 
     def naive_representation(self):
-        pass
+        if self.computed_results['representation']['naive'] is not None:
+            return self.computed_results['representation']['naive']
+
+        agent_naive_represent_dict = OrderedDict()
+        if self.agent_replay_dict is None:
+            raise ValueError(
+                "You have not replay all agents on the joint dataset yet! "
+                "Please call "
+                "CrossAgentAnalyst.replay(name_agent_info_mapping or "
+                "name_symbolic_agent_mapping) to replay!")
+
+        for name, replay_act in self.agent_replay_dict.items():
+            agent_naive_represent_dict[name] = replay_act.flatten()
+
+        self.computed_results['representation']['naive'] = \
+            agent_naive_represent_dict
+
+        self.computed_results['representation'][
+            'naive_pca'] = self._reduce_dimension(agent_naive_represent_dict)
+
+        self.computed_results['distance']['naive'] = \
+            self._get_distance_from_representation(
+                self.computed_results['representation']['naive'])
+
+        self.computed_results['distance']['naive_pca'] = \
+            self._get_distance_from_representation(
+                self.computed_results['representation']['naive_pca'])
+
+        print(
+            "Successfully finish representation.naive / "
+            "representation.naive_pca / distance.naive / distance.naive_pca")
+
+        return agent_naive_represent_dict
+
+    def naive_pca_representation(self):
+        if self.computed_results['representation']['naive_pca'] is None:
+            self.naive_representation()
+        return self.computed_results['representation']['naive_pca']
+
+    def naive_representation_distance(self):
+        if self.computed_results['distance']['naive'] is None:
+            self.naive_representation()
+        return self.computed_results['distance']['naive']
+
+    def naive_pca_distance(self):
+        if self.computed_results['distance']['naive_pca'] is None:
+            self.naive_representation()
+        return self.computed_results['distance']['naive_pca']
 
     def fft_representation(self):
         if self.computed_results['representation']['fft'] is not None:
@@ -174,33 +247,138 @@ class CrossAgentAnalyst:
         self.computed_results['representation']['fft'] = \
             agent_fft_represent_dict
 
+        self.computed_results['representation'][
+            'fft_pca'] = self._reduce_dimension(agent_fft_represent_dict)
+
+        self.computed_results['distance']['fft'] = \
+            self._get_distance_from_representation(
+                self.computed_results['representation']['fft'])
+
+        self.computed_results['distance']['fft_pca'] = \
+            self._get_distance_from_representation(
+                self.computed_results['representation']['fft_pca'])
+
+        print(
+            "Successfully finish representation.fft / representation.fft_pca "
+            "/ distance.fft / distance.fft_pca")
         return agent_fft_represent_dict
 
     def fft_pca_representation(self):
-        if self.computed_results['representation']['fft_pca'] is not None:
-            return self.computed_results['representation']['fft_pca']
-
-        if self.computed_results['representation']['fft'] is None:
+        if self.computed_results['representation']['fft_pca'] is None:
             self.fft_representation()
+        return self.computed_results['representation']['fft_pca']
 
-        repr_list_tmp = \
-            list(self.computed_results['representation']['fft'].values())
+    def fft_representation_distance(self):
+        if self.computed_results['distance']['fft'] is None:
+            self.fft_representation()
+        return self.computed_results['distance']['fft']
 
+    def fft_pca_distance(self):
+        if self.computed_results['distance']['fft_pca'] is None:
+            self.fft_representation()
+        return self.computed_results['distance']['fft_pca']
+
+    def _reduce_dimension(self, input_dict):
+        assert input_dict.keys() == self.agent_rollout_dict.keys()
+
+        repr_list_tmp = list(input_dict.values())
         if self.config['pca_dim'] > len(repr_list_tmp):
             print(
-                "!!![ERROR] the pca_dim should not less than "
-                "num_samples!!!!!!")
+                "[WARNING] the pca_dim should not less than "
+                "num_samples!!! You call for pca_dim {}, "
+                "but only have {} samples.".format(
+                    self.config['pca_dim'], len(repr_list_tmp)))
         pca_dim = min(self.config['pca_dim'], len(repr_list_tmp))
-        fft_pca_result = decomposition.PCA(pca_dim).fit_transform(
+        pca_result = decomposition.PCA(pca_dim).fit_transform(
             np.stack(repr_list_tmp))
+        ret = OrderedDict()
+        for i, name in enumerate(input_dict.keys()):
+            ret[name] = pca_result[i]
 
-        agent_fft_pca_represent_dict = OrderedDict()
-        for i, name in enumerate(self.agent_rollout_dict.keys()):
-            agent_fft_pca_represent_dict[name] = fft_pca_result[i]
+        return ret
 
-        self.computed_results['representation'][
-            'fft_pca'] = agent_fft_pca_represent_dict
-        return agent_fft_pca_represent_dict
+    def _get_distance_from_representation(self, input_dict):
+        assert isinstance(input_dict, OrderedDict)
+        assert input_dict.keys() == self.agent_rollout_dict.keys()
+        iterable = list(input_dict.values())
+        apply_function = lambda x, y: np.linalg.norm(x - y)
+        return self._build_matrix(iterable, apply_function)
+
+    def _build_matrix(self, iterable, apply_function, default_value=0):
+        """
+        This is a convient function to build a sysmetry function.
+        """
+        assert isinstance(iterable, IterableClass)
+        length = len(iterable)
+        assert length == len(self.agent_rollout_dict)
+        matrix = np.empty((length, length))
+        matrix.fill(default_value)
+        for i1 in range(length - 1):
+            for i2 in range(i1, length):
+                repr1 = iterable[i1]
+                repr2 = iterable[i2]
+                result = apply_function(repr1, repr2)
+                matrix[i1, i2] = result
+                matrix[i2, i1] = result
+        return matrix
 
     def cka_similarity(self):
         pass
+
+    def js_distance(self):
+        # https://stats.stackexchange.com/questions/7630/clustering-should-i
+        # -use-the-jensen-shannon-divergence-or-its-square
+        # square root is a real distance measurement.
+
+        assert isinstance(self.agent_replay_info_dict, OrderedDict)
+
+        num_samples = self.config['num_samples']
+        length = len(self.agent_replay_info_dict)
+        js_matrix = np.zeros((length, length))
+        flatten = [v['behaviour_logits'] for v in
+                   self.agent_replay_info_dict.values()]
+
+        for i1 in range(len(flatten) - 1):
+            source = flatten[i1][i1 * num_samples: (i1 + 1) * num_samples]
+            for i2 in range(i1, len(flatten)):
+                target = flatten[i2][i2 * num_samples: (i2 + 1) * num_samples]
+                average_distribution_source = \
+                    (source +
+                     flatten[i2][i1 * num_samples: (i1 + 1) * num_samples]
+                     ) / 2
+                average_distribution_target = \
+                    (target +
+                     flatten[i1][i2 * num_samples: (i2 + 1) * num_samples]
+                     ) / 2
+
+                js_divergence = get_kl_divergence(
+                    source, average_distribution_source
+                ) + get_kl_divergence(
+                    target, average_distribution_target
+                )
+
+                js_divergence = js_divergence / 2
+                js_matrix[i1, i2] = js_divergence
+                js_matrix[i2, i1] = js_divergence
+        js_matrix = np.sqrt(js_matrix)
+        self.computed_results['distance']['js'] = js_matrix
+        return js_matrix
+
+    def sunhao_distance(self):
+        flatten = list(self.agent_replay_dict.values())
+        apply_function = lambda x, y: np.linalg.norm(x - y)
+        sunhao_matrix = self._build_matrix(flatten, apply_function)
+        self.computed_results['distance']['sunhao_distance'] = sunhao_matrix
+        return sunhao_matrix
+
+    # Some Public APIs
+    def fft(self):
+        self.fft_representation()
+        return True
+
+    def naive(self):
+        self.naive_representation()
+        return True
+
+    def get(self):
+        return self.computed_results
