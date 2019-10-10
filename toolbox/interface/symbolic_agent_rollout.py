@@ -26,18 +26,7 @@ num_samples = 200  # From each agent's dataset
 pca_dim = 50
 
 
-def main(args):
-    yaml_path = args.yaml_path
-    num_agents = args.num_agents
-    num_rollouts = args.num_rollouts
-    num_workers = args.num_workers
-    num_children = args.num_children
-
-    normal_std = args.std
-    normal_mean = args.mean
-
-    dir_name = args.output_path
-
+def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers, num_children, normal_std, normal_mean, dir_name):
     initialize_ray(num_gpus=4, test_mode=False)
 
     name_ckpt_mapping = read_yaml(yaml_path, number=num_agents, mode="uniform")
@@ -84,8 +73,10 @@ def main(args):
     dump_obj = [rollout_ret, spawned_agents]
     with open(file_name, 'wb') as f:
         pickle.dump(dump_obj, f)
-    with open(osp.join(dir_name, "args"), 'w') as f:
-        f.write(args)
+    # with open(osp.join(dir_name, "args"), 'w') as f:
+    #     f.write(args)
+
+    return rollout_ret, spawned_agents
 
 
 if __name__ == '__main__':
@@ -102,4 +93,18 @@ if __name__ == '__main__':
     parser.add_argument("--mean", type=float, default=1.0)
     args = parser.parse_args()
 
-    main(args)
+    yaml_path = args.yaml_path
+    num_agents = args.num_agents
+    num_rollouts = args.num_rollouts
+    num_workers = args.num_workers
+    num_children = args.num_children
+
+    normal_std = args.std
+    normal_mean = args.mean
+
+    dir_name = args.output_path
+
+    symbolic_agent_rollout(
+        yaml_path, num_agents, num_rollouts, num_workers, num_children,
+        normal_std, normal_mean, dir_name
+    )
