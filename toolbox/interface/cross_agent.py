@@ -37,7 +37,7 @@ def get_kl_divergence(dist1, dist2):
     return averaged_kl_divergence
 
 
-def _kmeans_parse_prediction(prediction, agent_info_dict):
+def _parse_prediction_to_precision(prediction, agent_info_dict):
     parent_cluster_dict = {}
     correct_predict = 0
 
@@ -75,7 +75,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict):
         prediction = cluster_finder.predict()
 
         precision, parent_cluster_dict, correct_predict = \
-            _kmeans_parse_prediction(
+            _parse_prediction_to_precision(
                 prediction, agent_info_dict)
 
         if precision > best_precision:
@@ -110,7 +110,7 @@ def get_dbscan_precision(
     }
 
     precision, parent_cluster_dict, correct_predict = \
-        _kmeans_parse_prediction(prediction, agent_info_dict)
+        _parse_prediction_to_precision(prediction, agent_info_dict)
 
     return precision, prediction, parent_cluster_dict
 
@@ -520,6 +520,11 @@ class CrossAgentAnalyst:
             )
             cluster_df_dict[method_name] = copy.deepcopy(cluster_df)
 
+        self.cluster_representation_cluster_df_dict = cluster_df_dict
+        self.cluster_representation_prediction_dict = representation_prediction_dict
+        self.cluster_representation_precision_dict = representation_precision_dict
+        self.cluster_representation_parent_cluster_dict = representation_parent_cluster_dict
+
         return representation_precision_dict, \
                representation_prediction_dict, \
                representation_parent_cluster_dict, \
@@ -542,6 +547,10 @@ class CrossAgentAnalyst:
             precision_dict[method_name] = precision
             prediction_dict[method_name] = prediction
             parent_cluster_dict[method_name] = parent_cluster
+
+        self.cluster_distance_precision_dict = precision_dict
+        self.cluster_distance_prediction_dict = prediction_dict
+        self.cluster_distance_parent_cluster_dict = parent_cluster_dict
 
         return precision_dict, prediction_dict, parent_cluster_dict
 
@@ -654,6 +663,22 @@ class CrossAgentAnalyst:
         return_dict['computed_result'] = copy.deepcopy(self.get())
         return_dict['representation'] = \
             return_dict['computed_result']['representation']
-        return_dict['metric'] = agent_level_summary.groupby('label').mean()
+
+        metric_value_dict = \
+            agent_level_summary.groupby('label').mean().to_dict()['value']
+        # metric_value_dict['']
+        return_dict['metric'] = metric_value_dict
+
+
+        return_dict['cluster_representation'] = {
+            "cluster_df_dict": self.cluster_representation_cluster_df_dict,
+            "prediction_dict": self.cluster_representation_prediction_dict
+        }
+
+        return_dict['cluster_result'] = {
+
+        }
+
+
         return return_dict
 
