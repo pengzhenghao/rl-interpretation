@@ -59,8 +59,8 @@ def _parse_prediction_to_precision(prediction, agent_info_dict):
     return precision, parent_cluster_dict, correct_predict
 
 
-def get_k_means_clustering_precision(representation_dict, agent_info_dict):
-    num_agents = len(representation_dict)
+def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_clusters):
+    # num_agents = len(representation_dict)
 
     best_precision = float('-inf')
     best_prediction, best_parent_cluster_dict = None, None
@@ -70,7 +70,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict):
     for i in range(5):
 
         cluster_finder = ClusterFinder(cluster_df, max_num_cluster=5)
-        cluster_finder.set(num_agents)
+        cluster_finder.set(num_clusters)
 
         prediction = cluster_finder.predict()
 
@@ -523,10 +523,12 @@ class CrossAgentAnalyst:
             for k, agent in self.name_agent_info_mapping.items()
         }
 
+        num_clusters = len(self.parent_agent_indices)
+
         for method_name, repr_dict in \
                 self.computed_results['representation'].items():
             precision, prediction, parent_cluster_dict, cluster_df = \
-                get_k_means_clustering_precision(repr_dict, agent_info_dict)
+                get_k_means_clustering_precision(repr_dict, agent_info_dict, num_clusters)
             representation_precision_dict[method_name] = precision
             representation_prediction_dict[method_name] = copy.deepcopy(
                 prediction
