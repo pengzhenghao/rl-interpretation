@@ -297,7 +297,7 @@ class AddDefaultMask(object):
         self.batchsize_mask_dict.clear()
         print(
             "Successfully set the default mask to: ",
-            {k: v.mean()
+            {k: (v.mean(), v.std())
              for k, v in mask_dict.items()}
         )
 

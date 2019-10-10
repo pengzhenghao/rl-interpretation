@@ -17,19 +17,20 @@ class SymbolicAgentBase:
 
 
 class MaskSymbolicAgent(SymbolicAgentBase):
-    @staticmethod
-    def add_gaussian_perturbation(agent, mean, std, seed=None):
-        mask_template = agent.get_mask_info()
-        if seed is not None:
-            random_state = np.random.RandomState(seed)
-        else:
-            random_state = np.random
-        mask = {}
-        for mask_name, shape in mask_template.items():
-            mask[mask_name] = \
-                random_state.normal(loc=mean, scale=std,
-                                    size=shape[1:])
-        agent.get_policy().set_default_mask(mask)
+
+    def add_gaussian_perturbation(self, agent, mean, std, seed=None):
+        if self.mask is None:
+            mask_template = agent.get_mask_info()
+            if seed is not None:
+                random_state = np.random.RandomState(seed)
+            else:
+                random_state = np.random
+            self.mask = {}
+            for mask_name, shape in mask_template.items():
+                self.mask[mask_name] = \
+                    random_state.normal(loc=mean, scale=std,
+                                        size=shape[1:])
+        agent.get_policy().set_default_mask(self.mask)
         return agent
 
     def __init__(self, ckpt_info, mask_callback_info=None):
@@ -39,6 +40,8 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         self.agent_info['agent'] = None
         self.agent_info['parent'] = self.ckpt_info['name']
         self.agent_info['mask'] = None
+
+        self.mask = None
         self.mask_callback_info = mask_callback_info
         # self.mask_callback = None
         # if mask_callback_info is not None:
@@ -57,17 +60,16 @@ class MaskSymbolicAgent(SymbolicAgentBase):
                 k: np.ones((shape[1],))
                 for k, shape in mask_template.items()
             }
+            self.mask = mask_dict
             agent.get_policy().set_default_mask(mask_dict)
             return agent
 
-
     def clear(self):
         if self.initialized:
-            del self.agent
             self.agent = None
             self.agent_info['agent'] = None
-            self.agent_info['mask'] = None
-
+            # we do not clear the mask, so that the agent is maintained and
+            # recoverable! This is really important.
 
     def get(self):
         if self.initialized:
@@ -81,7 +83,9 @@ class MaskSymbolicAgent(SymbolicAgentBase):
 
         # self.agent_info.update(ckpt)
         self.agent_info['agent'] = self.agent
+        self.agent_info['mask'] = self.mask
+
         # self.agent_info['id'] = 0
-        self.agent_info['mask'] = self.agent.get_policy().default_mask_dict
+        # self.agent_info['mask'] = self.agent.get_policy().default_mask_dict
 
         return self.agent_info
