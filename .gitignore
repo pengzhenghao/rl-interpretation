@@ -5,5 +5,6 @@ __pycache__/
 data/
 toolbox/test/fake-ckpt1
 toolbox/test/fake-ckpt2
+notebooks/
 /data/
 /rl_interpretation_toolbox.egg-info/
