@@ -418,11 +418,12 @@ def quick_rollout_from_symbolic_agents(
                 )
                 now_t = time.time()
             obj_id_dict.clear()
-            print_count += count
+            print_count = count + 1
+
 
     for i, (name, obj_id) in enumerate(obj_id_dict.items()):
         agent_rollout_dict[name] = ray.get(obj_id)
-        count += 1
+        # count += 1
         print(
             "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from "
             "agent"
