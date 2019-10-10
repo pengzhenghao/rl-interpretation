@@ -76,7 +76,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict):
 
         precision, parent_cluster_dict, correct_predict = \
             _kmeans_parse_prediction(
-            prediction, agent_info_dict)
+                prediction, agent_info_dict)
 
         if precision > best_precision:
             best_precision = precision
@@ -194,7 +194,7 @@ class CrossAgentAnalyst:
             return False
         return True
 
-    def feed(self, agent_rollout_dict):
+    def feed(self, agent_rollout_dict, name_agent_info_mapping):
         """
         1. store the data
         2. build the joint dataset
@@ -264,8 +264,10 @@ class CrossAgentAnalyst:
             i for i, name in enumerate(self.agent_rollout_dict.keys())
             if name.endswith("child=0")
         ]
+        self.name_index_mapping = {
+            k: i for i, k in enumerate(self.agent_rollout_dict.keys())
+        }
 
-    def replay(self, name_agent_info_mapping):
         assert name_agent_info_mapping.keys() == self.agent_rollout_dict.keys()
         # replay
         agent_replay_dict = OrderedDict()
@@ -282,6 +284,7 @@ class CrossAgentAnalyst:
 
         self.agent_replay_info_dict = agent_replay_info_dict
         self.agent_replay_dict = agent_replay_dict
+        self.name_agent_info_mapping = name_agent_info_mapping.copy()
 
     def naive_representation(self):
         if self.computed_results['representation']['naive'] is not None:
@@ -492,7 +495,7 @@ class CrossAgentAnalyst:
         return sunhao_matrix
 
     # Cluster existing data
-    def cluster_representation(self, name_agent_info_mapping):
+    def cluster_representation(self):
 
         representation_precision_dict = OrderedDict()
         representation_prediction_dict = OrderedDict()
@@ -501,7 +504,7 @@ class CrossAgentAnalyst:
 
         agent_info_dict = {
             k: agent.agent_info
-            for k, agent in name_agent_info_mapping.items()
+            for k, agent in self.name_agent_info_mapping.items()
         }
 
         for method_name, repr_dict in \
@@ -522,10 +525,10 @@ class CrossAgentAnalyst:
                representation_parent_cluster_dict, \
                cluster_df_dict
 
-    def cluster_distance(self, name_agent_info_mapping):
+    def cluster_distance(self):
         agent_info_dict = {
             k: agent.agent_info
-            for k, agent in name_agent_info_mapping.items()
+            for k, agent in self.name_agent_info_mapping.items()
         }
 
         precision_dict = OrderedDict()
@@ -572,7 +575,7 @@ class CrossAgentAnalyst:
     # def cluster_representation(self):
     #     cluster_representation()
 
-    def summary(self):
+    def agent_level_summary(self):
         """
         {
             method-class-name: {
@@ -583,19 +586,10 @@ class CrossAgentAnalyst:
         """
         dataframe = []
 
-        # collect reward and length
-        # episode_length_mean = OrderedDict()
-        # episode_length_std = OrderedDict()
-        # episode_length_list = OrderedDict()
-        #
-        # episode_reward_mean = OrderedDict()
-        # episode_reward_std = OrderedDict()
-        # episode_reward_list = OrderedDict()
-
         for name, roll_list in self.agent_rollout_dict.items():
-
             # mean length
-            episode_length = [len(rollout['trajectory']) for rollout in roll_list]
+            episode_length = [len(rollout['trajectory']) for rollout in
+                              roll_list]
 
             dataframe.append({
                 "label": "episode_length_mean",
@@ -608,16 +602,6 @@ class CrossAgentAnalyst:
                 "value": np.std(episode_length),
                 "agent": name
             })
-
-            # dataframe.append({
-            #     "label": "episode_length_mean",
-            #     "value": np.mean(episode_length),
-            #     "agent": name
-            # })
-
-            # episode_length_mean[name] = np.mean(episode_length)
-            # episode_length_std[name] = np.std(episode_length)
-            # episode_length_list[name] = episode_length
 
             episode_reward = [
                 sum([transition[-2] for transition in rollout['trajectory']])
@@ -635,17 +619,41 @@ class CrossAgentAnalyst:
                 "value": np.std(episode_reward),
                 "agent": name
             })
-            # episode_reward_mean[name] = np.mean(episode_reward)
-            # episode_reward_std[name] = np.std(episode_reward)
-            # episode_reward_list[name] = episode_reward
 
-        # return_dict['episode_reward_mean'] = episode_reward_mean
-        # return_dict['episode']
+        for my_id, (name, agent) in enumerate(
+                self.name_agent_info_mapping.items()):
+            parent_real_name = agent.agent_info['parent'] + " child=0"
+            parent_index = self.name_index_mapping[parent_real_name]
 
-        # collect within-family and cross-family distance
+            for method_name, matrix in self.computed_results[
+                'distance'].items():
+                distance = matrix[my_id, parent_index]
+                dataframe.append({
+                    "label": "{}_to_parent".format(method_name),
+                    "value": distance,
+                    "agent": name
+                })
 
-        # js_within = OrderedDict()
-        # js_cross = OrderedDict()
+                dataframe.append({
+                    "label": "{}_mean".format(method_name),
+                    "value": np.mean(matrix[my_id]),
+                    "agent": name
+                })
 
-        self.computed_results['distance']['js']
+                dataframe.append({
+                    "label": "{}_std".format(method_name),
+                    "value": np.std(matrix[my_id]),
+                    "agent": name
+                })
+        return pd.DataFrame(dataframe)
+
+    def summary(self):
+        agent_level_summary = self.agent_level_summary()
+        return_dict = dict()
+        return_dict['agent_level_summary'] = agent_level_summary
+        return_dict['computed_result'] = copy.deepcopy(self.get())
+        return_dict['representation'] = \
+            return_dict['computed_result']['representation']
+        return_dict['metric'] = agent_level_summary.groupby('label').mean()
+        return return_dict
 

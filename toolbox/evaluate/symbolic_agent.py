@@ -39,18 +39,29 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         self.agent_info['agent'] = None
         self.agent_info['parent'] = self.ckpt_info['name']
         self.agent_info['mask'] = None
+        self.mask_callback_info = mask_callback_info
+        # self.mask_callback = None
+        # if mask_callback_info is not None:
+        #     self.setup_mask_callback(mask_callback_info)
 
-        if mask_callback_info is None:
-            self.mask_callback = None
+    def mask_callback(self, agent):
+        if self.mask_callback_info is not None:
+            return self.add_gaussian_perturbation(
+                agent, self.mask_callback_info['mean'],
+                self.mask_callback_info['std'],
+                self.mask_callback_info['seed']
+            )
         else:
-            assert isinstance(mask_callback_info, dict)
-            assert mask_callback_info['method'] == 'normal'
-            self.mask_callback = \
-                lambda a: self.add_gaussian_perturbation(
-                    a, mask_callback_info['mean'],
-                    mask_callback_info['std'],
-                    mask_callback_info['seed']
-                )
+            return agent
+
+
+    def clear(self):
+        if self.initialized:
+            del self.agent
+            self.agent = None
+            self.agent_info['agent'] = None
+            self.agent_info['mask'] = None
+
 
     def get(self):
         if self.initialized:
@@ -68,13 +79,13 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         }
         self.agent.get_policy().set_default_mask(mask_dict)
 
-        if self.mask_callback is not None:
-            assert callable(self.mask_callback)
-            self.agent = self.mask_callback(self.agent)
+        # if self.mask_callback is not None:
+        #     assert callable(self.mask_callback)
+        self.agent = self.mask_callback(self.agent)
 
         # self.agent_info.update(ckpt)
         self.agent_info['agent'] = self.agent
         # self.agent_info['id'] = 0
-        self.agent_info['mask'] = mask_dict
+        self.agent_info['mask'] = self.agent.get_policy().default_mask_dict
 
         return self.agent_info
