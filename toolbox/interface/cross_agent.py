@@ -1,18 +1,19 @@
 """
 This file contain the interface to cross-agent analysis.
 """
+import copy
 from collections import OrderedDict
 from collections.abc import Iterable as IterableClass
 
 import numpy as np
+import pandas as pd
 from sklearn import decomposition
 
+from toolbox.cluster.process_cluster import ClusterFinder
 from toolbox.evaluate.replay import agent_replay
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.represent.process_fft import stack_fft, parse_df
 from toolbox.represent.process_similarity import get_cka
-
-from toolbox.cluster.process_cluster import ClusterFinder
 
 DEFAULT_CONFIG = {"num_samples": 100, "pca_dim": 50}
 
@@ -33,6 +34,56 @@ def get_kl_divergence(dist1, dist2):
     kl_divergence = np.clip(kl_divergence, 0.0, 1e38)  # to avoid inf
     averaged_kl_divergence = np.mean(kl_divergence)
     return averaged_kl_divergence
+
+
+def get_k_means_clustering_precision(representation_dict, agent_info_dict):
+    num_agents = len(representation_dict)
+
+    best_precision = float('-inf')
+    best_cluster_df, best_prediction, best_parent_cluster_dict = None, None, \
+                                                                 None
+    best_correct_predict = 0
+
+    cluster_df = pd.DataFrame(representation_dict).T
+    for i in range(10):
+
+        cluster_finder = ClusterFinder(cluster_df, max_num_cluster=5)
+        cluster_finder.set(num_agents)
+
+        prediction = cluster_finder.predict()
+        parent_cluster_dict = {}
+        correct_predict = 0
+
+        for name, pred_info in prediction.items():
+            parent = agent_info_dict[name]['parent']
+            parent_cluster_dict[parent] = None
+
+        for parent_name in parent_cluster_dict.keys():
+            parent_name_real_name = parent_name + " child=0"
+            parent_cluster_dict[parent_name] = \
+                prediction[parent_name_real_name]['cluster']
+
+        for name, pred_info in prediction.items():
+            parent = agent_info_dict[name]['parent']
+            parent_id = parent_cluster_dict[parent]
+            predict_id = pred_info['cluster']
+            correct_predict += int(predict_id == parent_id)
+        precision = correct_predict / len(prediction)
+
+        if precision > best_precision:
+            best_precision = precision
+            best_cluster_df, best_prediction, best_parent_cluster_dict = \
+                cluster_df, prediction, parent_cluster_dict
+            best_correct_predict = correct_predict
+
+    print(
+        "Precision: {}. Identical Cluster {}/{}. Different Parent Cluster {} "
+        "[total {}].".format(
+            best_precision, best_correct_predict, len(best_prediction),
+            set(best_parent_cluster_dict.values()), num_agents
+        )
+    )
+    return best_precision, best_prediction, best_parent_cluster_dict
 
 
 class CrossAgentAnalyst:
@@ -203,10 +254,10 @@ class CrossAgentAnalyst:
 
         self.computed_results['distance']['naive_l1'] = \
             self._build_matrix(
-                iterable=list(self.computed_results['representation']['naive'].values()),
-                apply_function = lambda x, y: np.linalg.norm(x - y, ord=1)
+                iterable=list(
+                    self.computed_results['representation']['naive'].values()),
+                apply_function=lambda x, y: np.linalg.norm(x - y, ord=1)
             )
-
 
         self.computed_results['distance']['naive_pca'] = \
             self._get_distance_from_representation(
@@ -384,7 +435,32 @@ class CrossAgentAnalyst:
         return sunhao_matrix
 
     # Cluster existing data
-    # def
+    def cluster_representation(self, name_agent_info_mapping):
+
+        representation_precision_dict = OrderedDict()
+        representation_prediction_dict = OrderedDict()
+        representation_parent_cluster_dict = OrderedDict()
+
+        agent_info_dict = {
+            k: agent.agent_info
+            for k, agent in name_agent_info_mapping.items()
+        }
+
+        for method_name, repr_dict in self.computed_results['representation'
+                                                            ].items():
+            precision, prediction, parent_cluster_dict = \
+                get_k_means_clustering_precision(repr_dict, agent_info_dict)
+            representation_precision_dict[method_name] = precision
+            representation_prediction_dict[method_name] = copy.deepcopy(
+                prediction
+            )
+            representation_parent_cluster_dict[method_name] = copy.deepcopy(
+                parent_cluster_dict
+            )
+
+        return representation_precision_dict, \
+               representation_prediction_dict, \
+               representation_parent_cluster_dict
 
     # Some Public APIs
     def fft(self):
@@ -413,5 +489,5 @@ class CrossAgentAnalyst:
         self.cka()
         return self.get()
 
-    def cluster_representation(self):
-        pass
+    # def cluster_representation(self):
+    #     cluster_representation()
