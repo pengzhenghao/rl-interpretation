@@ -348,9 +348,15 @@ def remote_rollout(
         render_mode="rgb_array"
 ):
     ret_list = []
+
+    print("In remote_rollout, the agent type: {}, IS SYMBOBASE {}".format(
+        type(agent), isinstance(agent, SymbolicAgentBase)
+    ))
+
     if isinstance(agent, SymbolicAgentBase):
         assert not agent.initialized
-        agent = agent.get()
+        agent = agent.get()['agent']
+        print("SymbolicAgent is restored.")
     for i in range(num_rollouts):
         ret = rollout(
             agent, env, env_name, num_steps, require_frame, require_trajectory,
@@ -371,6 +377,7 @@ def quick_rollout_from_symbolic_agents(
     now_t = start_t = time.time()
 
     count = 0
+    print_count = 0
 
     for name, agent in name_symbolic_agent_mapping.items():
 
@@ -381,6 +388,8 @@ def quick_rollout_from_symbolic_agents(
             env = env_wrapper(env)
 
         assert not agent.initialized
+
+        assert isinstance(agent, SymbolicAgentBase)
 
         obj_id_dict[name] = remote_rollout.remote(
             agent,
@@ -393,29 +402,30 @@ def quick_rollout_from_symbolic_agents(
         )
         count += 1
         if count % num_workers == 0:
-            for name, obj_id in obj_id_dict.items():
+            for i, (name, obj_id) in enumerate(obj_id_dict.items()):
                 agent_rollout_dict[name] = ray.get(obj_id)
                 print(
                     "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts "
                     "from "
                     "agent"
                     " <{}>".format(
-                        count, len(name_symbolic_agent_mapping),
+                        i + print_count, len(name_symbolic_agent_mapping),
                         time.time() - now_t,
                         time.time() - start_t, num_rollouts, name
                     )
                 )
                 now_t = time.time()
             obj_id_dict.clear()
+            print_count += count
 
-    for name, obj_id in obj_id_dict.items():
+    for i, (name, obj_id) in enumerate(obj_id_dict.items()):
         agent_rollout_dict[name] = ray.get(obj_id)
         count += 1
         print(
             "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from "
             "agent"
             " <{}>".format(
-                count, len(name_symbolic_agent_mapping),
+                print_count + i, len(name_symbolic_agent_mapping),
                 time.time() - now_t,
                 time.time() - start_t, num_rollouts, name
             )
