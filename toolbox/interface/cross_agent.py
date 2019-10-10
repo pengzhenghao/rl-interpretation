@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from sklearn import decomposition
 
+from sklearn.cluster import DBSCAN
+
 from toolbox.cluster.process_cluster import ClusterFinder
 from toolbox.evaluate.replay import agent_replay
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
@@ -36,6 +38,29 @@ def get_kl_divergence(dist1, dist2):
     return averaged_kl_divergence
 
 
+def _kmeans_parse_prediction(prediction, agent_info_dict):
+    parent_cluster_dict = {}
+    correct_predict = 0
+
+    for name, pred_info in prediction.items():
+        parent = agent_info_dict[name]['parent']
+        parent_cluster_dict[parent] = None
+
+    for parent_name in parent_cluster_dict.keys():
+        parent_name_real_name = parent_name + " child=0"
+        parent_cluster_dict[parent_name] = \
+            prediction[parent_name_real_name]['cluster']
+
+    for name, pred_info in prediction.items():
+        parent = agent_info_dict[name]['parent']
+        parent_id = parent_cluster_dict[parent]
+        predict_id = pred_info['cluster']
+        correct_predict += int(predict_id == parent_id)
+    precision = correct_predict / len(prediction)
+    return precision, parent_cluster_dict, correct_predict
+
+
+
 def get_k_means_clustering_precision(representation_dict, agent_info_dict):
     num_agents = len(representation_dict)
 
@@ -51,29 +76,13 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict):
         cluster_finder.set(num_agents)
 
         prediction = cluster_finder.predict()
-        parent_cluster_dict = {}
-        correct_predict = 0
 
-        for name, pred_info in prediction.items():
-            parent = agent_info_dict[name]['parent']
-            parent_cluster_dict[parent] = None
-
-        for parent_name in parent_cluster_dict.keys():
-            parent_name_real_name = parent_name + " child=0"
-            parent_cluster_dict[parent_name] = \
-                prediction[parent_name_real_name]['cluster']
-
-        for name, pred_info in prediction.items():
-            parent = agent_info_dict[name]['parent']
-            parent_id = parent_cluster_dict[parent]
-            predict_id = pred_info['cluster']
-            correct_predict += int(predict_id == parent_id)
-        precision = correct_predict / len(prediction)
+        precision, parent_cluster_dict, correct_predict = _kmeans_parse_prediction(prediction, agent_info_dict)
 
         if precision > best_precision:
             best_precision = precision
-            best_cluster_df, best_prediction, best_parent_cluster_dict = \
-                cluster_df, prediction, parent_cluster_dict
+            best_prediction, best_parent_cluster_dict = \
+                 prediction, parent_cluster_dict
             best_correct_predict = correct_predict
 
     print(
@@ -85,6 +94,129 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict):
     )
     return best_precision, best_prediction, best_parent_cluster_dict
 
+
+
+def get_dbscan_precision(agent_info_dict, matrix, eps, min_samples, soft=False):
+
+    clustering = DBSCAN(
+        eps=eps, min_samples=min_samples, metric="precomputed"
+    ).fit_predict(matrix)
+
+    prediction = {
+        k: {"cluster": c} for k, c in zip(agent_info_dict.keys(), clustering)
+    }
+
+    precision, parent_cluster_dict, correct_predict = \
+        _kmeans_parse_prediction(prediction, agent_info_dict)
+
+    cluster_set = set(parent_cluster_dict.values())
+
+    return precision, prediction, parent_cluster_dict
+
+    # if soft or (precision > 0.1) and (len(cluster_set) > 4) and (
+    #         -1 not in cluster_set):
+    #     print(
+    #         "Precision: {}. Identical Cluster {}/{}. Different Parent "
+    #         "Cluster {} [total {}].".format(
+    #             precision, correct_predict, len(matrix), cluster_set,
+    #             len(matrix)
+    #         ))
+    #     preci = True
+    # else:
+    #     preci = False
+
+    # return matrix, clustering, parent_cluster_dict, preci
+
+
+def get_dbscan_precision_from_representation(
+        representation, eps, min_samples, soft=False
+):
+    clustering = DBSCAN(eps=eps, min_samples=min_samples).fit_predict(
+        representation)
+
+    parent_cluster_dict = {}
+
+    correct_predict = 0
+
+    for i, (name, agent_info) in enumerate(spawned_agents.items()):
+        cluster = clustering[i]
+        if name.endswith("child=0"):
+            parent = agent_info['parent']
+            parent_cluster_dict[parent] = cluster
+
+    for i, (name, agent_info) in enumerate(spawned_agents.items()):
+        cluster = clustering[i]
+        parent = agent_info['parent']
+        parent_id = parent_cluster_dict[parent]
+        correct_predict += int(cluster == parent_id)
+
+    precision = correct_predict / len(matrix)
+    cluster_set = set(parent_cluster_dict.values())
+
+    if soft or (precision > 0.1) and (len(cluster_set) > 4) and (
+            -1 not in cluster_set):
+        print(
+            "Precision: {}. Identical Cluster {}/{}. Different Parent "
+            "Cluster {} [total {}].".format(
+                precision, correct_predict, len(matrix), cluster_set,
+                len(matrix)
+            ))
+        preci = True
+    else:
+        preci = False
+
+    return matrix, clustering, parent_cluster_dict, preci
+
+
+def grid_search(agent_info_dict, matrix, soft=False, search=30):
+
+    # TODO we can add a binary search here.
+
+    best_precision = float('-inf')
+    best_prediction = None
+    best_parent_cluster_dict = None
+
+    for min_samples in [1, 2, 3]:
+
+        count = 0
+        eps_candidates = np.linspace(1e-6, matrix.max(), 10).tolist()
+
+
+        while count < search and eps_candidates:
+            eps = eps_candidates.pop(0)
+            precision, prediction, parent_cluster_dict = get_dbscan_precision(
+                agent_info_dict, matrix, eps, min_samples, soft
+            )
+            count += 1
+
+            if precision > best_precision:
+                best_precision = precision
+                best_prediction = prediction
+                best_parent_cluster_dict = parent_cluster_dict
+
+    return best_precision, best_prediction, best_parent_cluster_dict
+
+
+
+
+            # if flag or soft:
+            #     print("EPS: {}, min_samples: {}\n".format(eps, min_samples))
+
+
+def grid_search_from_representation(repr_dict, soft=False, search=10):
+    rep = np.stack(list(repr_dict.values()))
+
+    eps_candidates = np.linspace(1e-6, np.abs(rep).max(), 10).tolist()
+    count = 0
+
+    while eps_candidates and count < search:
+
+        for min_samples in [1, 2, 3]:
+            *_, flag = get_dbscan_precision_from_representation(rep, eps,
+                                                                min_samples,
+                                                                soft)
+            if flag or soft:
+                print("EPS: {}, min_samples: {}\n".format(eps, min_samples))
 
 class CrossAgentAnalyst:
     """
@@ -461,6 +593,28 @@ class CrossAgentAnalyst:
         return representation_precision_dict, \
                representation_prediction_dict, \
                representation_parent_cluster_dict
+
+    def cluster_distance(self, name_agent_info_mapping):
+        agent_info_dict = {
+            k: agent.agent_info
+            for k, agent in name_agent_info_mapping.items()
+        }
+
+        precision_dict = OrderedDict()
+        prediction_dict = OrderedDict()
+        parent_cluster_dict = OrderedDict()
+
+
+        for method_name, matrix in self.computed_results['distance'].items():
+            print('matrix form: ', type(matrix), matrix.shape)
+            precision, prediction, parent_cluster = \
+                grid_search(agent_info_dict, matrix)
+            precision_dict[method_name] = precision
+            prediction_dict[method_name] = prediction
+            parent_cluster_dict[method_name] = parent_cluster
+
+        return precision_dict, prediction_dict, parent_cluster_dict
+
 
     # Some Public APIs
     def fft(self):
