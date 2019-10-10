@@ -10,7 +10,7 @@ from sklearn import decomposition
 from toolbox.evaluate.replay import agent_replay
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.represent.process_fft import stack_fft, parse_df
-
+from toolbox.represent.process_similarity import get_cka
 DEFAULT_CONFIG = {
     "num_samples": 100,
     "pca_dim": 50
@@ -62,9 +62,11 @@ class CrossAgentAnalyst:
         "distance": [
             "sunhao",
             "js",
+            "cka_reciprocal",
             "cka",
             "naive",
-            "naive",
+            "naive_pca",
+            "naive_l1",
             "fft",
             "fft_pca"
         ]
@@ -202,6 +204,13 @@ class CrossAgentAnalyst:
             self._get_distance_from_representation(
                 self.computed_results['representation']['naive'])
 
+        self.computed_results['distance']['naive_l1'] = \
+            self._build_matrix(
+                iterable=list(self.computed_results['representation']['naive'].values()),
+                apply_function = lambda x, y: np.linalg.norm(x - y, ord=1)
+            )
+
+
         self.computed_results['distance']['naive_pca'] = \
             self._get_distance_from_representation(
                 self.computed_results['representation']['naive_pca'])
@@ -323,7 +332,24 @@ class CrossAgentAnalyst:
         return matrix
 
     def cka_similarity(self):
-        pass
+        agent_activation_dict = OrderedDict()
+
+        for name, replay_result in self.agent_replay_info_dict.items():
+            activation = replay_result['layer1']
+            agent_activation_dict[name] = activation
+
+        iterable = list(agent_activation_dict.values())
+        apply_function = get_cka
+        cka_similarity = self._build_matrix(iterable, apply_function, 1.0)
+
+        self.computed_results['similarity']['cka'] = cka_similarity
+        self.computed_results['distance']['cka'] = \
+            np.clip(1 - cka_similarity, 0.0, None)
+        self.computed_results['distance']['cka_reciprocal'] = \
+            1 / (cka_similarity + 1e-9)
+        return cka_similarity
+
+
 
     def js_distance(self):
         # https://stats.stackexchange.com/questions/7630/clustering-should-i
@@ -378,6 +404,18 @@ class CrossAgentAnalyst:
 
     def naive(self):
         self.naive_representation()
+        return True
+
+    def sunhao(self):
+        self.sunhao_distance()
+        return True
+
+    def js(self):
+        self.js_distance()
+        return True
+
+    def cka(self):
+        self.cka_similarity()
         return True
 
     def get(self):
