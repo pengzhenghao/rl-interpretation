@@ -571,3 +571,81 @@ class CrossAgentAnalyst:
 
     # def cluster_representation(self):
     #     cluster_representation()
+
+    def summary(self):
+        """
+        {
+            method-class-name: {
+                method1: one_value
+                method2: one_value
+            }
+        }
+        """
+        dataframe = []
+
+        # collect reward and length
+        # episode_length_mean = OrderedDict()
+        # episode_length_std = OrderedDict()
+        # episode_length_list = OrderedDict()
+        #
+        # episode_reward_mean = OrderedDict()
+        # episode_reward_std = OrderedDict()
+        # episode_reward_list = OrderedDict()
+
+        for name, roll_list in self.agent_rollout_dict.items():
+
+            # mean length
+            episode_length = [len(rollout['trajectory']) for rollout in roll_list]
+
+            dataframe.append({
+                "label": "episode_length_mean",
+                "value": np.mean(episode_length),
+                "agent": name
+            })
+
+            dataframe.append({
+                "label": "episode_length_std",
+                "value": np.std(episode_length),
+                "agent": name
+            })
+
+            # dataframe.append({
+            #     "label": "episode_length_mean",
+            #     "value": np.mean(episode_length),
+            #     "agent": name
+            # })
+
+            # episode_length_mean[name] = np.mean(episode_length)
+            # episode_length_std[name] = np.std(episode_length)
+            # episode_length_list[name] = episode_length
+
+            episode_reward = [
+                sum([transition[-2] for transition in rollout['trajectory']])
+                for rollout in roll_list
+            ]
+
+            dataframe.append({
+                "label": "episode_reward_mean",
+                "value": np.mean(episode_reward),
+                "agent": name
+            })
+
+            dataframe.append({
+                "label": "episode_reward_std",
+                "value": np.std(episode_reward),
+                "agent": name
+            })
+            # episode_reward_mean[name] = np.mean(episode_reward)
+            # episode_reward_std[name] = np.std(episode_reward)
+            # episode_reward_list[name] = episode_reward
+
+        # return_dict['episode_reward_mean'] = episode_reward_mean
+        # return_dict['episode']
+
+        # collect within-family and cross-family distance
+
+        # js_within = OrderedDict()
+        # js_cross = OrderedDict()
+
+        self.computed_results['distance']['js']
+
