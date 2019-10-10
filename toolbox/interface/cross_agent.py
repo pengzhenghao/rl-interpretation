@@ -115,7 +115,7 @@ def get_dbscan_precision(
     return precision, prediction, parent_cluster_dict
 
 
-def grid_search(agent_info_dict, matrix, soft=False, search=30):
+def grid_search_dbscan_cluster(agent_info_dict, matrix, soft=False, search=30):
     # TODO we can add a binary search here.
 
     best_precision = float('-inf')
@@ -543,7 +543,7 @@ class CrossAgentAnalyst:
         for method_name, matrix in self.computed_results['distance'].items():
             print('matrix form: ', type(matrix), matrix.shape)
             precision, prediction, parent_cluster = \
-                grid_search(agent_info_dict, matrix)
+                grid_search_dbscan_cluster(agent_info_dict, matrix)
             precision_dict[method_name] = precision
             prediction_dict[method_name] = prediction
             parent_cluster_dict[method_name] = parent_cluster
