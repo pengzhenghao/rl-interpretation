@@ -69,7 +69,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_c
     cluster_df = pd.DataFrame(representation_dict).T
     for i in range(5):
 
-        cluster_finder = ClusterFinder(cluster_df, max_num_cluster=5)
+        cluster_finder = ClusterFinder(cluster_df, max_num_cluster=num_clusters)
         cluster_finder.set(num_clusters)
 
         prediction = cluster_finder.predict()
@@ -88,7 +88,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_c
         "Precision: {}. Identical Cluster {}/{}. Different Parent Cluster {} "
         "[total {}].".format(
             best_precision, best_correct_predict, len(best_prediction),
-            set(best_parent_cluster_dict.values()), num_agents
+            set(best_parent_cluster_dict.values()), num_clusters
         )
     )
     return best_precision, best_prediction, best_parent_cluster_dict, \
@@ -294,9 +294,9 @@ class CrossAgentAnalyst:
             if isinstance(agent_info, SymbolicAgentBase):
                 agent_info = agent_info.get()
 
-            act = agent_replay(agent_info['agent'], self.joint_obs_dataset)
-            agent_replay_dict[name] = act[0]
-            agent_replay_info_dict[name] = act[1]
+            act, infos = agent_replay(agent_info['agent'], self.joint_obs_dataset)
+            agent_replay_dict[name] = act
+            agent_replay_info_dict[name] = infos
 
         self.agent_replay_info_dict = agent_replay_info_dict
         self.agent_replay_dict = agent_replay_dict

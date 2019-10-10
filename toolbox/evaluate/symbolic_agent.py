@@ -52,6 +52,12 @@ class MaskSymbolicAgent(SymbolicAgentBase):
                 self.mask_callback_info['seed']
             )
         else:
+            mask_template = agent.get_mask_info()
+            mask_dict = {
+                k: np.ones((shape[1],))
+                for k, shape in mask_template.items()
+            }
+            agent.get_policy().set_default_mask(mask_dict)
             return agent
 
 
@@ -71,16 +77,6 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         ckpt_path = ckpt['path']
         env_name = ckpt['env_name']
         self.agent = restore_agent_with_mask(run_name, ckpt_path, env_name)
-
-        mask_template = self.agent.get_mask_info()
-        mask_dict = {
-            k: np.ones((shape[1], ))
-            for k, shape in mask_template.items()
-        }
-        self.agent.get_policy().set_default_mask(mask_dict)
-
-        # if self.mask_callback is not None:
-        #     assert callable(self.mask_callback)
         self.agent = self.mask_callback(self.agent)
 
         # self.agent_info.update(ckpt)
