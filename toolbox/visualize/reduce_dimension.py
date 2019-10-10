@@ -68,16 +68,16 @@ def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None):
     return plot_df, result
 
 
-def draw(plot_df, show=True, save=None):
+def draw(plot_df, show=True, save=None, title=None):
     three_dimensional = 'z' in plot_df.columns
     if three_dimensional:
-        _draw_3d(plot_df, show, save)
+        _draw_3d(plot_df, show, save, title)
     else:
-        _draw_2d(plot_df, show, save)
+        _draw_2d(plot_df, show, save, title)
     print("Drew!")
 
 
-def _draw_2d(plot_df, show=True, save=None):
+def _draw_2d(plot_df, show=True, save=None, title=None):
     plt.figure(figsize=(12, 10), dpi=300)
     num_clusters = len(plot_df.cluster.unique())
     palette = sns.color_palette(n_colors=num_clusters)
@@ -89,7 +89,8 @@ def _draw_2d(plot_df, show=True, save=None):
         data=plot_df,
         legend="full"
     )
-    ax.set_title(_get_title(plot_df))
+    title = "[{}]".format(title) if title is not None else ""
+    ax.set_title(title + _get_title(plot_df))
     if save is not None:
         assert save.endswith('png')
         plt.savefig(save, dpi=300)
@@ -97,7 +98,7 @@ def _draw_2d(plot_df, show=True, save=None):
         plt.show()
 
 
-def _draw_3d(plot_df, show=True, save=None):
+def _draw_3d(plot_df, show=True, save=None, title=None):
     from mpl_toolkits.mplot3d import Axes3D
     use_less_var = Axes3D
 
@@ -116,8 +117,8 @@ def _draw_3d(plot_df, show=True, save=None):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.legend()
-
-    ax.set_title(_get_title(plot_df))
+    title = "[{}]".format(title) if title is not None else ""
+    ax.set_title(title + _get_title(plot_df))
     if save is not None:
         assert save.endswith('png')
         plt.savefig(save, dpi=300)
