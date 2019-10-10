@@ -96,7 +96,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict):
 
 
 def get_dbscan_precision(
-        agent_info_dict, matrix, eps, min_samples, soft=False
+        agent_info_dict, matrix, eps, min_samples, num_parent,
 ):
     clustering = DBSCAN(
         eps=eps, min_samples=min_samples, metric="precomputed"
@@ -112,7 +112,16 @@ def get_dbscan_precision(
     precision, parent_cluster_dict, correct_predict = \
         _parse_prediction_to_precision(prediction, agent_info_dict)
 
-    return precision, prediction, parent_cluster_dict
+    cluster_set = set(parent_cluster_dict.values())
+
+    num_agents = len(agent_info_dict)
+    trust = False
+    if precision > (num_parent / num_agents) and \
+            (len(cluster_set) >= num_parent) and \
+            (-1 not in cluster_set):
+        trust = True
+
+    return precision, prediction, parent_cluster_dict, trust
 
 
 def grid_search_dbscan_cluster(agent_info_dict, matrix, soft=False, search=30):
@@ -129,16 +138,18 @@ def grid_search_dbscan_cluster(agent_info_dict, matrix, soft=False, search=30):
 
         while count < search and eps_candidates:
             eps = eps_candidates.pop(0)
-            precision, prediction, parent_cluster_dict = get_dbscan_precision(
+            precision, prediction, parent_cluster_dict, trust = \
+                get_dbscan_precision(
                 agent_info_dict, matrix, eps, min_samples, soft
             )
             count += 1
 
-            if precision > best_precision:
+            if trust and precision > best_precision:
                 best_precision = precision
                 best_prediction = prediction
                 best_parent_cluster_dict = parent_cluster_dict
-
+    if best_prediction is None:
+        return 0.0, prediction, parent_cluster_dict
     return best_precision, best_prediction, best_parent_cluster_dict
 
 
@@ -521,9 +532,12 @@ class CrossAgentAnalyst:
             cluster_df_dict[method_name] = copy.deepcopy(cluster_df)
 
         self.cluster_representation_cluster_df_dict = cluster_df_dict
-        self.cluster_representation_prediction_dict = representation_prediction_dict
-        self.cluster_representation_precision_dict = representation_precision_dict
-        self.cluster_representation_parent_cluster_dict = representation_parent_cluster_dict
+        self.cluster_representation_prediction_dict = \
+            representation_prediction_dict
+        self.cluster_representation_precision_dict = \
+            representation_precision_dict
+        self.cluster_representation_parent_cluster_dict = \
+            representation_parent_cluster_dict
 
         return representation_precision_dict, \
                representation_prediction_dict, \
@@ -669,7 +683,6 @@ class CrossAgentAnalyst:
         # metric_value_dict['']
         return_dict['metric'] = metric_value_dict
 
-
         return_dict['cluster_representation'] = {
             "cluster_df_dict": self.cluster_representation_cluster_df_dict,
             "prediction_dict": self.cluster_representation_prediction_dict
@@ -679,6 +692,4 @@ class CrossAgentAnalyst:
 
         }
 
-
         return return_dict
-
