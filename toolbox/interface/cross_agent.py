@@ -14,12 +14,7 @@ from toolbox.represent.process_similarity import get_cka
 
 from toolbox.cluster.process_cluster import ClusterFinder
 
-
-
-DEFAULT_CONFIG = {
-    "num_samples": 100,
-    "pca_dim": 50
-}
+DEFAULT_CONFIG = {"num_samples": 100, "pca_dim": 50}
 
 
 def get_kl_divergence(dist1, dist2):
@@ -31,8 +26,8 @@ def get_kl_divergence(dist1, dist2):
 
     kl_divergence = np.sum(
         target_log_std - source_log_std +
-        (np.square(source_log_std) + np.square(source_mean - target_mean))
-        / (2.0 * np.square(target_log_std) + 1e-9) - 0.5,
+        (np.square(source_log_std) + np.square(source_mean - target_mean)) /
+        (2.0 * np.square(target_log_std) + 1e-9) - 0.5,
         axis=1
     )
     kl_divergence = np.clip(kl_divergence, 0.0, 1e38)  # to avoid inf
@@ -65,15 +60,8 @@ class CrossAgentAnalyst:
         "representation": ["fft", "naive", "fft_pca", "naive_pca"],
         "similarity": ["cka"],
         "distance": [
-            "sunhao",
-            "js",
-            "cka_reciprocal",
-            "cka",
-            "naive",
-            "naive_pca",
-            "naive_l1",
-            "fft",
-            "fft_pca"
+            "sunhao", "js", "cka_reciprocal", "cka", "naive", "naive_pca",
+            "naive_l1", "fft", "fft_pca"
         ]
     }
 
@@ -109,17 +97,20 @@ class CrossAgentAnalyst:
         """
 
         if self.initialized:
-            print("The CrossAgentAnalyst should only be initialized once!"
-                  "But you have fed data before with keys: {}."
-                  "Please re-instantialized CrossAgentAnalyst.".format(
-                self.agent_rollout_dict.keys()
-            ))
+            print(
+                "The CrossAgentAnalyst should only be initialized once!"
+                "But you have fed data before with keys: {}."
+                "Please re-instantialized CrossAgentAnalyst.".format(
+                    self.agent_rollout_dict.keys()
+                )
+            )
             raise ValueError(
                 "The CrossAgentAnalyst should only be initialized once!"
                 "But you have fed data before with keys: {}."
                 "Please re-instantialized CrossAgentAnalyst.".format(
                     self.agent_rollout_dict.keys()
-                ))
+                )
+            )
 
         self.initialized = True
         # check the agent_rollout_dict's format
@@ -194,7 +185,8 @@ class CrossAgentAnalyst:
                 "You have not replay all agents on the joint dataset yet! "
                 "Please call "
                 "CrossAgentAnalyst.replay(name_agent_info_mapping or "
-                "name_symbolic_agent_mapping) to replay!")
+                "name_symbolic_agent_mapping) to replay!"
+            )
 
         for name, replay_act in self.agent_replay_dict.items():
             agent_naive_represent_dict[name] = replay_act.flatten()
@@ -222,7 +214,8 @@ class CrossAgentAnalyst:
 
         print(
             "Successfully finish representation.naive / "
-            "representation.naive_pca / distance.naive / distance.naive_pca")
+            "representation.naive_pca / distance.naive / distance.naive_pca"
+        )
 
         return agent_naive_represent_dict
 
@@ -252,10 +245,12 @@ class CrossAgentAnalyst:
                 traj = roll['trajectory']
                 obs = np.stack([t[0] for t in traj])
                 act = np.stack([t[1] for t in traj])
-                df = stack_fft(obs, act, 'std', padding_value=0.0,
-                               padding_length=500)
+                df = stack_fft(
+                    obs, act, 'std', padding_value=0.0, padding_length=500
+                )
                 data_frame = df if data_frame is None else data_frame.append(
-                    df, ignore_index=True)
+                    df, ignore_index=True
+                )
             reprensentation = parse_df(data_frame)
             agent_fft_represent_dict[name] = reprensentation
         self.computed_results['representation']['fft'] = \
@@ -274,7 +269,8 @@ class CrossAgentAnalyst:
 
         print(
             "Successfully finish representation.fft / representation.fft_pca "
-            "/ distance.fft / distance.fft_pca")
+            "/ distance.fft / distance.fft_pca"
+        )
         return agent_fft_represent_dict
 
     def _reduce_dimension(self, input_dict):
@@ -286,10 +282,13 @@ class CrossAgentAnalyst:
                 "[WARNING] the pca_dim should not less than "
                 "num_samples!!! You call for pca_dim {}, "
                 "but only have {} samples.".format(
-                    self.config['pca_dim'], len(repr_list_tmp)))
+                    self.config['pca_dim'], len(repr_list_tmp)
+                )
+            )
         pca_dim = min(self.config['pca_dim'], len(repr_list_tmp))
         pca_result = decomposition.PCA(pca_dim).fit_transform(
-            np.stack(repr_list_tmp))
+            np.stack(repr_list_tmp)
+        )
         ret = OrderedDict()
         for i, name in enumerate(input_dict.keys()):
             ret[name] = pca_result[i]
@@ -339,8 +338,6 @@ class CrossAgentAnalyst:
             1 / (cka_similarity + 1e-9)
         return cka_similarity
 
-
-
     def js_distance(self):
         # https://stats.stackexchange.com/questions/7630/clustering-should-i
         # -use-the-jensen-shannon-divergence-or-its-square
@@ -351,13 +348,14 @@ class CrossAgentAnalyst:
         num_samples = self.config['num_samples']
         length = len(self.agent_replay_info_dict)
         js_matrix = np.zeros((length, length))
-        flatten = [v['behaviour_logits'] for v in
-                   self.agent_replay_info_dict.values()]
+        flatten = [
+            v['behaviour_logits'] for v in self.agent_replay_info_dict.values()
+        ]
 
         for i1 in range(len(flatten) - 1):
-            source = flatten[i1][i1 * num_samples: (i1 + 1) * num_samples]
+            source = flatten[i1][i1 * num_samples:(i1 + 1) * num_samples]
             for i2 in range(i1, len(flatten)):
-                target = flatten[i2][i2 * num_samples: (i2 + 1) * num_samples]
+                target = flatten[i2][i2 * num_samples:(i2 + 1) * num_samples]
                 average_distribution_source = \
                     (source +
                      flatten[i2][i1 * num_samples: (i1 + 1) * num_samples]
@@ -369,9 +367,7 @@ class CrossAgentAnalyst:
 
                 js_divergence = get_kl_divergence(
                     source, average_distribution_source
-                ) + get_kl_divergence(
-                    target, average_distribution_target
-                )
+                ) + get_kl_divergence(target, average_distribution_target)
 
                 js_divergence = js_divergence / 2
                 js_matrix[i1, i2] = js_divergence
@@ -388,7 +384,7 @@ class CrossAgentAnalyst:
         return sunhao_matrix
 
     # Cluster existing data
-    def
+    # def
 
     # Some Public APIs
     def fft(self):

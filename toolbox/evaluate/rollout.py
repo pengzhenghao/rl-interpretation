@@ -349,9 +349,11 @@ def remote_rollout(
 ):
     ret_list = []
 
-    print("In remote_rollout, the agent type: {}, IS SYMBOBASE {}".format(
-        type(agent), isinstance(agent, SymbolicAgentBase)
-    ))
+    print(
+        "In remote_rollout, the agent type: {}, IS SYMBOBASE {}".format(
+            type(agent), isinstance(agent, SymbolicAgentBase)
+        )
+    )
 
     if isinstance(agent, SymbolicAgentBase):
         assert not agent.initialized

@@ -111,12 +111,9 @@ def get_representation(data_frame, label_list, postprocess):
 def parse_df(data_frame):
     label_list = sorted(
         data_frame.label.unique(),
-        key=lambda s: int(s[4:]) + (
-            -1e6 if s.startswith('Obs') else +1e6)
+        key=lambda s: int(s[4:]) + (-1e6 if s.startswith('Obs') else +1e6)
     )
-    repr_dict = get_representation(
-        data_frame, label_list, lambda x: x
-    )
+    repr_dict = get_representation(data_frame, label_list, lambda x: x)
     return repr_dict
 
 
