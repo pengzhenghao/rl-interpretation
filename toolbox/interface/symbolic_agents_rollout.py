@@ -1,15 +1,15 @@
 import copy
+import os.path as osp
+import pickle
 from collections import OrderedDict
 
 from toolbox import initialize_ray
 # from toolbox.evaluate.rollout import rollout
-# from toolbox.env.mujoco_wrapper import MujocoWrapper
+from toolbox.env.mujoco_wrapper import MujocoWrapper
 from toolbox.evaluate.rollout import quick_rollout_from_symbolic_agents
 from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
 from toolbox.process_data.process_data import read_yaml
 
-import pickle
-import os.path as osp
 # from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 
 # num_agents = 2
@@ -88,14 +88,18 @@ def main(args):
         f.write(args)
 
 
-
-
-
 if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", default=1, type=int)
+    parser.add_argument("--yaml-path", required=True, type=str)
+    parser.add_argument("--output-path", required=True, type=str)
+    parser.add_argument("--num-agents", type=int, default=10)
+    parser.add_argument("--num-workers", type=int, default=10)
+    parser.add_argument("--num-children", type=int, default=9)
+    parser.add_argument("--num-rollouts", type=int, default=10)
+    parser.add_argument("--std", type=float, required=True)
+    parser.add_argument("--mean", type=float, default=1.0)
     args = parser.parse_args()
 
-
+    main(args)
