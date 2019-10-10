@@ -1,4 +1,5 @@
 import copy
+import os
 import os.path as osp
 import pickle
 from collections import OrderedDict
@@ -26,7 +27,8 @@ num_samples = 200  # From each agent's dataset
 pca_dim = 50
 
 
-def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers, num_children, normal_std, normal_mean, dir_name):
+def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers,
+                           num_children, normal_std, normal_mean, dir_name):
     initialize_ray(num_gpus=4, test_mode=False)
 
     name_ckpt_mapping = read_yaml(yaml_path, number=num_agents, mode="uniform")
@@ -46,7 +48,7 @@ def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers, num
         spawned_agents[child_name] = copy.deepcopy(
             master_agent)
 
-        master_agent_ckpt = master_agent.agent_info['path']
+        master_agent_ckpt = master_agent.agent_info
 
         for index in range(1, 1 + num_children):
             child_name = name + " child={}".format(index)
@@ -64,6 +66,8 @@ def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers, num
 
     for k, a in spawned_agents.items():
         a.clear()
+
+    os.makedirs(dir_name, exist_ok=True)
 
     file_name = osp.join(
         dir_name, "{}agents_{}rollouts_{}children_{}mean_{}std.pkl".format(
