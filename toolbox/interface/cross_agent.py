@@ -11,6 +11,11 @@ from toolbox.evaluate.replay import agent_replay
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.represent.process_fft import stack_fft, parse_df
 from toolbox.represent.process_similarity import get_cka
+
+from toolbox.cluster.process_cluster import ClusterFinder
+
+
+
 DEFAULT_CONFIG = {
     "num_samples": 100,
     "pca_dim": 50
@@ -58,7 +63,7 @@ class CrossAgentAnalyst:
 
     methods = {
         "representation": ["fft", "naive", "fft_pca", "naive_pca"],
-        "similarity": ["cka_similarity"],
+        "similarity": ["cka"],
         "distance": [
             "sunhao",
             "js",
@@ -272,21 +277,6 @@ class CrossAgentAnalyst:
             "/ distance.fft / distance.fft_pca")
         return agent_fft_represent_dict
 
-    def fft_pca_representation(self):
-        if self.computed_results['representation']['fft_pca'] is None:
-            self.fft_representation()
-        return self.computed_results['representation']['fft_pca']
-
-    def fft_representation_distance(self):
-        if self.computed_results['distance']['fft'] is None:
-            self.fft_representation()
-        return self.computed_results['distance']['fft']
-
-    def fft_pca_distance(self):
-        if self.computed_results['distance']['fft_pca'] is None:
-            self.fft_representation()
-        return self.computed_results['distance']['fft_pca']
-
     def _reduce_dimension(self, input_dict):
         assert input_dict.keys() == self.agent_rollout_dict.keys()
 
@@ -394,29 +384,38 @@ class CrossAgentAnalyst:
         flatten = list(self.agent_replay_dict.values())
         apply_function = lambda x, y: np.linalg.norm(x - y)
         sunhao_matrix = self._build_matrix(flatten, apply_function)
-        self.computed_results['distance']['sunhao_distance'] = sunhao_matrix
+        self.computed_results['distance']['sunhao'] = sunhao_matrix
         return sunhao_matrix
+
+    # Cluster existing data
+    def
 
     # Some Public APIs
     def fft(self):
         self.fft_representation()
-        return True
 
     def naive(self):
         self.naive_representation()
-        return True
 
     def sunhao(self):
         self.sunhao_distance()
-        return True
 
     def js(self):
         self.js_distance()
-        return True
 
     def cka(self):
         self.cka_similarity()
-        return True
 
     def get(self):
         return self.computed_results
+
+    def walkthrough(self):
+        self.fft()
+        self.naive()
+        self.js()
+        self.sunhao()
+        self.cka()
+        return self.get()
+
+    def cluster_representation(self):
+        pass
