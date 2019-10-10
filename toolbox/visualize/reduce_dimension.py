@@ -17,7 +17,7 @@ DEFAULT_METHOD = {
 }
 
 
-def reduce_dimension(data, prediction, three_dimensional=False):
+def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None):
     """
 
     :param data: dataframe with shape [num_agents, num_features]
@@ -28,7 +28,7 @@ def reduce_dimension(data, prediction, three_dimensional=False):
     method = DEFAULT_METHOD
     perplexity = method['perplexity']
     n_iter = method['n_iter']
-    pca_dim = method['pca_dim']
+    pca_dim = method['pca_dim'] if pca_dim is None else pca_dim
     tsne_dim = 3 if three_dimensional else 2
 
     print('Running pca')
