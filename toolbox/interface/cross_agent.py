@@ -141,25 +141,6 @@ def grid_search(agent_info_dict, matrix, soft=False, search=30):
 
     return best_precision, best_prediction, best_parent_cluster_dict
 
-    # if flag or soft:
-    #     print("EPS: {}, min_samples: {}\n".format(eps, min_samples))
-
-
-def grid_search_from_representation(repr_dict, soft=False, search=10):
-    rep = np.stack(list(repr_dict.values()))
-
-    eps_candidates = np.linspace(1e-6, np.abs(rep).max(), 10).tolist()
-    count = 0
-
-    while eps_candidates and count < search:
-
-        for min_samples in [1, 2, 3]:
-            *_, flag = get_dbscan_precision_from_representation(
-                rep, eps, min_samples, soft
-            )
-            if flag or soft:
-                print("EPS: {}, min_samples: {}\n".format(eps, min_samples))
-
 
 class CrossAgentAnalyst:
     """
@@ -223,13 +204,6 @@ class CrossAgentAnalyst:
         """
 
         if self.initialized:
-            print(
-                "The CrossAgentAnalyst should only be initialized once!"
-                "But you have fed data before with keys: {}."
-                "Please re-instantialized CrossAgentAnalyst.".format(
-                    self.agent_rollout_dict.keys()
-                )
-            )
             raise ValueError(
                 "The CrossAgentAnalyst should only be initialized once!"
                 "But you have fed data before with keys: {}."
@@ -282,6 +256,14 @@ class CrossAgentAnalyst:
         self.agent_obs_dict = agent_obs_dict
         self.joint_act_dataset = joint_act_dataset
         self.joint_obs_dataset = joint_obs_dataset
+        self.parent_agent_names = [
+            name for name in self.agent_rollout_dict.keys()
+            if name.endswith("child=0")
+        ]
+        self.parent_agent_indices = [
+            i for i, name in enumerate(self.agent_rollout_dict.keys())
+            if name.endswith("child=0")
+        ]
 
     def replay(self, name_agent_info_mapping):
         assert name_agent_info_mapping.keys() == self.agent_rollout_dict.keys()
