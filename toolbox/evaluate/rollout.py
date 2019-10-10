@@ -377,7 +377,7 @@ def quick_rollout_from_symbolic_agents(
     now_t = start_t = time.time()
 
     count = 0
-    print_count = 0
+    print_count = 1
 
     for name, agent in name_symbolic_agent_mapping.items():
 
