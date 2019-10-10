@@ -65,8 +65,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict):
     num_agents = len(representation_dict)
 
     best_precision = float('-inf')
-    best_cluster_df, best_prediction, best_parent_cluster_dict = None, None, \
-                                                                 None
+    best_prediction, best_parent_cluster_dict = None, None
     best_correct_predict = 0
 
     cluster_df = pd.DataFrame(representation_dict).T
@@ -92,7 +91,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict):
             set(best_parent_cluster_dict.values()), num_agents
         )
     )
-    return best_precision, best_prediction, best_parent_cluster_dict
+    return best_precision, best_prediction, best_parent_cluster_dict, cluster_df
 
 
 
@@ -572,6 +571,7 @@ class CrossAgentAnalyst:
         representation_precision_dict = OrderedDict()
         representation_prediction_dict = OrderedDict()
         representation_parent_cluster_dict = OrderedDict()
+        cluster_df_dict = OrderedDict()
 
         agent_info_dict = {
             k: agent.agent_info
@@ -580,7 +580,7 @@ class CrossAgentAnalyst:
 
         for method_name, repr_dict in self.computed_results['representation'
                                                             ].items():
-            precision, prediction, parent_cluster_dict = \
+            precision, prediction, parent_cluster_dict, cluster_df = \
                 get_k_means_clustering_precision(repr_dict, agent_info_dict)
             representation_precision_dict[method_name] = precision
             representation_prediction_dict[method_name] = copy.deepcopy(
@@ -589,10 +589,12 @@ class CrossAgentAnalyst:
             representation_parent_cluster_dict[method_name] = copy.deepcopy(
                 parent_cluster_dict
             )
+            cluster_df_dict[method_name] = copy.deepcopy(cluster_df)
 
         return representation_precision_dict, \
                representation_prediction_dict, \
-               representation_parent_cluster_dict
+               representation_parent_cluster_dict, \
+               cluster_df_dict
 
     def cluster_distance(self, name_agent_info_mapping):
         agent_info_dict = {
