@@ -46,7 +46,7 @@ def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers, num
         spawned_agents[child_name] = copy.deepcopy(
             master_agent)
 
-        master_agent_ckpt = master_agent.agent_info['ckpt']
+        master_agent_ckpt = master_agent.agent_info['path']
 
         for index in range(1, 1 + num_children):
             child_name = name + " child={}".format(index)
@@ -76,7 +76,7 @@ def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers, num
     # with open(osp.join(dir_name, "args"), 'w') as f:
     #     f.write(args)
 
-    return rollout_ret, spawned_agents
+    return rollout_ret, spawned_agents, file_name
 
 
 if __name__ == '__main__':
