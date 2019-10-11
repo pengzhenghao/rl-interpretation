@@ -74,13 +74,16 @@ def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers,
             num_agents, num_rollouts, num_children, normal_mean, normal_std)
     )
 
-    dump_obj = [rollout_ret, spawned_agents]
+    dump_obj = rollout_ret
+    # dump_obj = [rollout_ret, spawned_agents]
     with open(file_name, 'wb') as f:
         pickle.dump(dump_obj, f)
+
+    return rollout_ret, file_name
     # with open(osp.join(dir_name, "args"), 'w') as f:
     #     f.write(args)
 
-    return rollout_ret, spawned_agents, file_name
+    # return rollout_ret, spawned_agents, file_name
 
 
 if __name__ == '__main__':

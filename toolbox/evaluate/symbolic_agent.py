@@ -19,17 +19,18 @@ class SymbolicAgentBase:
 class MaskSymbolicAgent(SymbolicAgentBase):
 
     def add_gaussian_perturbation(self, agent, mean, std, seed=None):
-        if self.mask is None:
-            mask_template = agent.get_mask_info()
-            if seed is not None:
-                random_state = np.random.RandomState(seed)
-            else:
-                random_state = np.random
-            self.mask = {}
-            for mask_name, shape in mask_template.items():
-                self.mask[mask_name] = \
-                    random_state.normal(loc=mean, scale=std,
-                                        size=shape[1:])
+        # if self.mask is None:
+        assert self.mask is None
+        mask_template = agent.get_mask_info()
+        if seed is not None:
+            random_state = np.random.RandomState(seed)
+        else:
+            random_state = np.random
+        self.mask = {}
+        for mask_name, shape in mask_template.items():
+            self.mask[mask_name] = \
+                random_state.normal(loc=mean, scale=std,
+                                    size=shape[1:])
         agent.get_policy().set_default_mask(self.mask)
         return agent
 
@@ -48,13 +49,11 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         #     self.setup_mask_callback(mask_callback_info)
 
     def mask_callback(self, agent):
-        if self.mask_callback_info is not None:
-            return self.add_gaussian_perturbation(
-                agent, self.mask_callback_info['mean'],
-                self.mask_callback_info['std'],
-                self.mask_callback_info['seed']
-            )
-        else:
+        if self.mask is not None:
+            agent.get_policy().set_default_mask(self.mask)
+            return agent
+        elif self.mask_callback_info is None:
+            # initialize with all ones.
             mask_template = agent.get_mask_info()
             mask_dict = {
                 k: np.ones((shape[1],))
@@ -63,6 +62,13 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             self.mask = mask_dict
             agent.get_policy().set_default_mask(mask_dict)
             return agent
+        else:
+            return self.add_gaussian_perturbation(
+                agent, self.mask_callback_info['mean'],
+                self.mask_callback_info['std'],
+                self.mask_callback_info['seed']
+            )
+
 
     def clear(self):
         if self.initialized:
@@ -74,6 +80,9 @@ class MaskSymbolicAgent(SymbolicAgentBase):
     def get(self):
         if self.initialized:
             return self.agent_info
+        if not self.initialized and self.mask is not None:
+            print("Symbolic Agent is not initialized but the mask exist,"
+                  "which means it is once initialized but then cleared.")
         ckpt = self.ckpt_info
         run_name = ckpt['run_name']
         ckpt_path = ckpt['path']

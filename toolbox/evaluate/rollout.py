@@ -357,16 +357,21 @@ def remote_rollout(
 
     if isinstance(agent, SymbolicAgentBase):
         assert not agent.initialized
-        agent = agent.get()['agent']
+        real_agent = agent.get()['agent']
         print("SymbolicAgent is restored.")
+    else:
+        real_agent = agent
     for i in range(num_rollouts):
         ret = rollout(
-            agent, env, env_name, num_steps, require_frame, require_trajectory,
+            real_agent, env, env_name, num_steps, require_frame, require_trajectory,
             require_extra_info, require_full_frame, require_env_state,
             render_mode
         )
         ret_list.append(ret)
-    return ret_list
+    if isinstance(agent, SymbolicAgentBase):
+        agent.clear()
+        return ret_list, copy.deepcopy(agent)
+    return ret_list, None
 
 
 def quick_rollout_from_symbolic_agents(
