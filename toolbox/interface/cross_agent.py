@@ -96,7 +96,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_c
 
 
 def get_dbscan_precision(
-        agent_info_dict, matrix, eps, min_samples, num_parent,
+        agent_info_dict, matrix, eps, min_samples
 ):
     clustering = DBSCAN(
         eps=eps, min_samples=min_samples, metric="precomputed"
@@ -114,12 +114,17 @@ def get_dbscan_precision(
 
     cluster_set = set(parent_cluster_dict.values())
 
+    num_parents = len(
+        [k for k in agent_info_dict.keys() if k.endswith('child=0')]
+    )
+
     num_agents = len(agent_info_dict)
     trust = False
-    if precision > (num_parent / num_agents) and \
-            (len(cluster_set) >= num_parent) and \
+    if precision > (num_parents / num_agents) and \
+            (len(cluster_set) >= num_parents) and \
             (-1 not in cluster_set):
         trust = True
+    else:
         print("Detected Unqualified Clustering Result! The precision {},"
               "the # of cluster of parents {},"
               " the set of parents' cluster {}".format(
@@ -129,7 +134,7 @@ def get_dbscan_precision(
     return precision, prediction, parent_cluster_dict, trust
 
 
-def grid_search_dbscan_cluster(agent_info_dict, matrix, soft=False, search=30):
+def grid_search_dbscan_cluster(agent_info_dict, matrix, search=30):
     # TODO we can add a binary search here.
 
     best_precision = float('-inf')
@@ -145,7 +150,7 @@ def grid_search_dbscan_cluster(agent_info_dict, matrix, soft=False, search=30):
             eps = eps_candidates.pop(0)
             precision, prediction, parent_cluster_dict, trust = \
                 get_dbscan_precision(
-                agent_info_dict, matrix, eps, min_samples, soft
+                agent_info_dict, matrix, eps, min_samples
             )
             count += 1
 
