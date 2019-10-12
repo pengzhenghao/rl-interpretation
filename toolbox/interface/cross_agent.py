@@ -66,6 +66,10 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_c
     best_prediction, best_parent_cluster_dict = None, None
     best_correct_predict = 0
 
+    num_parents = len(
+        [k for k in agent_info_dict.keys() if k.endswith('child=0')]
+    )
+
     cluster_df = pd.DataFrame(representation_dict).T
     for i in range(5):
 
@@ -78,11 +82,25 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_c
             _parse_prediction_to_precision(
                 prediction, agent_info_dict)
 
-        if precision > best_precision:
+        if precision > best_precision and \
+                len(parent_cluster_dict) > 1 and \
+                -1 not in parent_cluster_dict:
             best_precision = precision
             best_prediction, best_parent_cluster_dict = \
                 prediction, parent_cluster_dict
             best_correct_predict = correct_predict
+
+    # trust = False
+    # if precision > (num_parents / num_agents) and \
+    #         (len(cluster_set) > 1) and \
+    #         (-1 not in cluster_set):
+    #     trust = True
+    # else:
+    if best_prediction is None:
+        print("Detected Unqualified Clustering Result!")
+        best_precision = precision
+        best_prediction = prediction
+        best_parent_cluster_dict = parent_cluster_dict
 
     print(
         "Precision: {}. Identical Cluster {}/{}. Different Parent Cluster {} "
@@ -119,16 +137,16 @@ def get_dbscan_precision(
     )
 
     num_agents = len(agent_info_dict)
+
     trust = False
     if precision > (num_parents / num_agents) and \
-            (len(cluster_set) >= num_parents) and \
+            (len(cluster_set) > 1) and \
             (-1 not in cluster_set):
         trust = True
     else:
-        print("Detected Unqualified Clustering Result! The precision {},"
-              "the # of cluster of parents {},"
-              " the set of parents' cluster {}".format(
-            precision, len(cluster_set), cluster_set)
+        print("Detected Unqualified Clustering Result! The precision {}, "
+              "the set of parents' cluster {}".format(
+            precision, cluster_set)
         )
 
     return precision, prediction, parent_cluster_dict, trust
