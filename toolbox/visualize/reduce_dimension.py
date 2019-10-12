@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas
 import seaborn as sns
 from sklearn import decomposition, manifold
-
+import numpy as np
 DEFAULT_METHOD = {
     "name": "pca_tsne",
     "pca_dim": 50,
@@ -37,6 +37,8 @@ def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None,
         pca_result = decomposition.PCA(pca_dim).fit_transform(data)
     else:
         assert isinstance(precomputed_pca, decomposition.PCA)
+        print("Detected precomputed PCA instance! "
+              "We will use it to conduct dimension reduction!")
         pca_result = precomputed_pca.transform(data)
 
     print('Running tsne')
@@ -73,17 +75,23 @@ def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None,
     return plot_df, result
 
 
-def draw(plot_df, show=True, save=None, title=None):
+def draw(plot_df, show=True, save=None, title=None, return_array=False, dpi=300, **kwargs):
     three_dimensional = 'z' in plot_df.columns
     if three_dimensional:
-        _draw_3d(plot_df, show, save, title)
+        return _draw_3d(plot_df, show, save, title, return_array, dpi)
     else:
-        _draw_2d(plot_df, show, save, title)
-    print("Drew!")
+        return _draw_2d(plot_df, show, save, title, return_array, dpi, **kwargs)
+    # print("Drew!")
 
 
-def _draw_2d(plot_df, show=True, save=None, title=None):
-    plt.figure(figsize=(12, 10), dpi=300)
+def _draw_2d(plot_df, show=True, save=None, title=None, return_array=False, dpi=300, xlim=None, ylim=None):
+    fig = plt.figure(figsize=(12, 10), dpi=dpi)
+
+    if xlim is not None:
+        plt.xlim(xlim)
+    if ylim is not None:
+        plt.ylim(ylim)
+
     num_clusters = len(plot_df.cluster.unique())
     palette = sns.color_palette(n_colors=num_clusters)
     ax = sns.scatterplot(
@@ -101,6 +109,11 @@ def _draw_2d(plot_df, show=True, save=None, title=None):
         plt.savefig(save, dpi=300)
     if show:
         plt.show()
+    if return_array:
+        # fig = plt.gcf()
+        fig.canvas.draw()
+        figarr = np.array(fig.canvas.renderer.buffer_rgba())[..., [2, 1, 0, 3]]
+        return figarr
 
 
 def _draw_3d(plot_df, show=True, save=None, title=None):
