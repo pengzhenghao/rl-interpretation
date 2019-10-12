@@ -410,7 +410,7 @@ def quick_rollout_from_symbolic_agents(
         count += 1
         if count % num_workers == 0:
             for i, (name, obj_id) in enumerate(obj_id_dict.items()):
-                agent_rollout_dict[name] = ray.get(obj_id)
+                agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))
                 print(
                     "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts "
                     "from "
@@ -427,7 +427,7 @@ def quick_rollout_from_symbolic_agents(
 
 
     for i, (name, obj_id) in enumerate(obj_id_dict.items()):
-        agent_rollout_dict[name] = ray.get(obj_id)
+        agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))
         # count += 1
         print(
             "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from "
