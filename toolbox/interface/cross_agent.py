@@ -97,13 +97,14 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_c
     #     trust = True
     # else:
     if best_prediction is None:
-        print("Detected Unqualified Clustering Result!")
+        # print("Detected Unqualified Clustering Result!")
         best_precision = precision
         best_prediction = prediction
         best_parent_cluster_dict = parent_cluster_dict
 
     print(
-        "Precision: {}. Identical Cluster {}/{}. Different Parent Cluster {} "
+        "[K-Means Clustering] Precision: {}. Identical Cluster {}/{}. "
+        "Different Parent Cluster {} "
         "[total {}].".format(
             best_precision, best_correct_predict, len(best_prediction),
             set(best_parent_cluster_dict.values()), num_clusters
@@ -143,11 +144,11 @@ def get_dbscan_precision(
             (len(cluster_set) > 1) and \
             (-1 not in cluster_set):
         trust = True
-    else:
-        print("Detected Unqualified Clustering Result! The precision {}, "
-              "the set of parents' cluster {}".format(
-            precision, cluster_set)
-        )
+    # else:
+    #     print("Detected Unqualified Clustering Result! The precision {}, "
+    #           "the set of parents' cluster {}".format(
+    #         precision, cluster_set)
+    #     )
 
     return precision, prediction, parent_cluster_dict, trust
 
