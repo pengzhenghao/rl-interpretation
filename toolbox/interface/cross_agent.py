@@ -311,18 +311,24 @@ class CrossAgentAnalyst:
         # replay
         agent_replay_dict = OrderedDict()
         agent_replay_info_dict = OrderedDict()
-        for i, (name, agent_info) in \
+        for i, (name, symbolic_agent) in \
                 enumerate(name_agent_info_mapping.items()):
 
-            if isinstance(agent_info, SymbolicAgentBase):
-                agent_info = agent_info.get()
+            if isinstance(symbolic_agent, SymbolicAgentBase):
+                agent = symbolic_agent.get()['agent']
+            else:
+                raise NotImplementedError()
 
-            act, infos = agent_replay(agent_info['agent'], self.joint_obs_dataset)
+            act, infos = agent_replay(agent, self.joint_obs_dataset)
             agent_replay_dict[name] = act
             agent_replay_info_dict[name] = infos
 
         self.agent_replay_info_dict = agent_replay_info_dict
         self.agent_replay_dict = agent_replay_dict
+
+        for agent in name_agent_info_mapping.values():
+            agent.clear()
+
         self.name_agent_info_mapping = name_agent_info_mapping.copy()
 
     def naive_representation(self):
