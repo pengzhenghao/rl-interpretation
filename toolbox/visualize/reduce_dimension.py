@@ -17,7 +17,8 @@ DEFAULT_METHOD = {
 }
 
 
-def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None):
+def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None,
+                     precomputed_pca=None):
     """
 
     :param data: dataframe with shape [num_agents, num_features]
@@ -32,7 +33,11 @@ def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None):
     tsne_dim = 3 if three_dimensional else 2
 
     print('Running pca')
-    pca_result = decomposition.PCA(pca_dim).fit_transform(data)
+    if precomputed_pca is None:
+        pca_result = decomposition.PCA(pca_dim).fit_transform(data)
+    else:
+        assert isinstance(precomputed_pca, decomposition.PCA)
+        pca_result = precomputed_pca.transform(data)
 
     print('Running tsne')
     result = manifold.TSNE(
