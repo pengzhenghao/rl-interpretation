@@ -89,7 +89,7 @@ def draw(plot_df, show=True, save=None, title=None, return_array=False, dpi=300,
     # print("Drew!")
 
 
-def _draw_2d(plot_df, show=True, save=None, title=None, return_array=False, dpi=300, xlim=None, ylim=None):
+def _draw_2d(plot_df, show=True, save=None, title=None, return_array=False, dpi=300, xlim=None, ylim=None, **kwargs):
     fig = plt.figure(figsize=(12, 10), dpi=dpi)
 
     if xlim is not None:
@@ -108,6 +108,37 @@ def _draw_2d(plot_df, show=True, save=None, title=None, return_array=False, dpi=
         data=plot_df,
         legend="full"
     )
+
+    if kwargs['emphasis_parent']:
+        emphasis_parent = plot_df.copy()
+
+        flag_list = []
+        for name in emphasis_parent.agent:
+            flag = name.endswith('child=0')
+            flag_list.append(flag)
+
+        emphasis_parent = emphasis_parent[flag_list]
+
+        palette = sns.color_palette(
+            n_colors=len(emphasis_parent.cluster.unique())
+        )
+
+        # print('len platter: {}, len parents {}'.format(len(palette), len(emphasis_parent)))
+
+        # palette = sns.color_palette(n_colors=len(emphasis_parent.cluster.unique()))
+        ax = sns.scatterplot(
+            x="x",
+            y="y",
+            hue="cluster",
+            style="cluster",
+            s=200,
+            palette=palette,
+            data=emphasis_parent,
+            legend=False,
+            ax=ax
+        )
+
+
     title = "[{}]".format(title) if title is not None else ""
     ax.set_title(title + _get_title(plot_df))
     if save is not None:
