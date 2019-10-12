@@ -4,14 +4,14 @@ This file contain the interface to cross-agent analysis.
 import copy
 from collections import OrderedDict
 from collections.abc import Iterable as IterableClass
-
+import ray
 import numpy as np
 import pandas as pd
 from sklearn import decomposition
 from sklearn.cluster import DBSCAN
 
 from toolbox.cluster.process_cluster import ClusterFinder
-from toolbox.evaluate.replay import agent_replay
+from toolbox.evaluate.replay import remote_symbolic_replay
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.represent.process_fft import stack_fft, parse_df
 from toolbox.represent.process_similarity import get_cka
@@ -311,17 +311,28 @@ class CrossAgentAnalyst:
         # replay
         agent_replay_dict = OrderedDict()
         agent_replay_info_dict = OrderedDict()
+
+        num_worker = 10
+        obj_ids = OrderedDict()
+
         for i, (name, symbolic_agent) in \
                 enumerate(name_agent_info_mapping.items()):
 
-            if isinstance(symbolic_agent, SymbolicAgentBase):
-                agent = symbolic_agent.get()['agent']
-            else:
-                raise NotImplementedError()
+            obj_id = remote_symbolic_replay.remote(
+                symbolic_agent, self.joint_obs_dataset
+            )
+            obj_ids[name] = obj_id
 
-            act, infos = agent_replay(agent, self.joint_obs_dataset)
-            agent_replay_dict[name] = act
-            agent_replay_info_dict[name] = infos
+            if len(obj_ids)>=num_worker:
+                for key, obj_id in obj_ids.items():
+                    act, infos = copy.deepcopy(ray.get(obj_id))
+                    agent_replay_dict[key] = act
+                    agent_replay_info_dict[key] = infos
+                obj_ids.clear()
+        for key, obj_id in obj_ids.items():
+            act, infos = copy.deepcopy(ray.get(obj_id))
+            agent_replay_dict[key] = act
+            agent_replay_info_dict[key] = infos
 
         self.agent_replay_info_dict = agent_replay_info_dict
         self.agent_replay_dict = agent_replay_dict
