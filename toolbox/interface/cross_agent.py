@@ -163,7 +163,7 @@ def grid_search_dbscan_cluster(agent_info_dict, matrix, search=30):
     for min_samples in [1, 2, 3]:
 
         count = 0
-        eps_candidates = np.linspace(1e-6, matrix.max(), 10).tolist()
+        eps_candidates = np.linspace(1e-6, max(matrix.max(), 1e-2), 10).tolist()
 
         while count < search and eps_candidates:
             eps = eps_candidates.pop(0)

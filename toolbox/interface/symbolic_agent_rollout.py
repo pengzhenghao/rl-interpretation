@@ -23,8 +23,8 @@ from toolbox.process_data.process_data import read_yaml
 # normal_mean = 1.0
 
 # spawn_seed = 0
-num_samples = 200  # From each agent's dataset
-pca_dim = 50
+# num_samples = 200  # From each agent's dataset
+# pca_dim = 50
 
 
 def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers,
