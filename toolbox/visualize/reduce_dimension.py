@@ -18,7 +18,7 @@ DEFAULT_METHOD = {
 
 
 def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None,
-                     precomputed_pca=None):
+                     precomputed_pca=None, computed_embedding=None):
     """
 
     :param data: dataframe with shape [num_agents, num_features]
@@ -32,23 +32,28 @@ def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None,
     pca_dim = method['pca_dim'] if pca_dim is None else pca_dim
     tsne_dim = 3 if three_dimensional else 2
 
-    print('Running pca')
-    if precomputed_pca is None:
-        pca_result = decomposition.PCA(pca_dim).fit_transform(data)
-    else:
-        assert isinstance(precomputed_pca, decomposition.PCA)
-        print("Detected precomputed PCA instance! "
-              "We will use it to conduct dimension reduction!")
-        pca_result = precomputed_pca.transform(data)
+    if computed_embedding is None:
+        print('Running pca')
+        if precomputed_pca is None:
+            pca_result = decomposition.PCA(pca_dim).fit_transform(data)
+        else:
+            assert isinstance(precomputed_pca, decomposition.PCA)
+            print("Detected precomputed PCA instance! "
+                  "We will use it to conduct dimension reduction!")
+            pca_result = precomputed_pca.transform(data)
 
-    print('Running tsne')
-    result = manifold.TSNE(
-        n_components=tsne_dim,
-        perplexity=perplexity,
-        verbose=2,
-        random_state=0,
-        n_iter=n_iter
-    ).fit_transform(pca_result)
+        print('Running tsne')
+        result = manifold.TSNE(
+            n_components=tsne_dim,
+            perplexity=perplexity,
+            verbose=2,
+            random_state=0,
+            n_iter=n_iter
+        ).fit_transform(pca_result)
+    else:
+        result = computed_embedding
+
+    assert data.shape[0] == result.shape[0]
     print(
         'Reduction Completed! data.shape={} result.shape={}'.format(
             data.shape, result.shape
@@ -98,6 +103,7 @@ def _draw_2d(plot_df, show=True, save=None, title=None, return_array=False, dpi=
         x="x",
         y="y",
         hue="cluster",
+        style="cluster",
         palette=palette,
         data=plot_df,
         legend="full"
