@@ -1,11 +1,16 @@
+import copy
+import os
+import os.path as osp
 import time
-import uuid
 from collections import OrderedDict
 
-import os.path as osp
+import IPython
+# from IPython.display import Image
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import ray
 import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
@@ -14,13 +19,6 @@ from toolbox.interface.cross_agent import CrossAgentAnalyst
 from toolbox.interface.symbolic_agent_rollout import symbolic_agent_rollout
 from toolbox.visualize.reduce_dimension import reduce_dimension, draw
 from toolbox.visualize.visualize_utils import _generate_gif as generate_gif
-
-# from IPython.display import Image
-import cv2
-import IPython
-import os
-import copy
-
 
 # num_agents = 2
 # yaml_path = "../data/yaml/0915-halfcheetah-ppo-20-agents.yaml"
@@ -33,18 +31,15 @@ import copy
 # dir_name = "./TMP"
 
 
-
 num_agents = 20
 yaml_path = "../data/yaml/0915-halfcheetah-ppo-20-agents.yaml"
 num_rollouts = 10
 num_children = 19
-num_workers = 10
+num_workers = 16
 normal_mean = 1.0
 pca_dim = 50
 std_search_range = np.linspace(0.0, 2, 61)
 dir_name = "../notebooks/1013-scale-distance-relationship-LARGE"
-
-
 
 fig_dir_name = osp.join(dir_name, 'fig')
 
@@ -56,7 +51,6 @@ std_ret_dict = {}
 
 now = start = time.time()
 # std_load_obj_dict = OrderedDict()
-
 
 
 # std_caa_dict = OrderedDict()
@@ -78,27 +72,25 @@ for i, std in enumerate(std_search_range):
         std, normal_mean, dir_name
     )
 
-
     agent_rollout_dict = OrderedDict()
     name_agent_info_mapping = OrderedDict()
     for key, (rd, ag) in rollout_ret.items():
         agent_rollout_dict[key] = rd
         name_agent_info_mapping[key] = ag
 
+    print("[STD={}] Prepared to create CAA".format(std))
+
     caa = CrossAgentAnalyst()
     caa.feed(agent_rollout_dict, name_agent_info_mapping)
+    print("[STD={}] After feed CAA".format(std))
     result = caa.walkthrough()
     caa.cluster_representation()
     caa.cluster_distance()
 
     smr = copy.deepcopy(caa.summary())
 
+    print("[STD={}] Collect Summary from CAA".format(std))
     std_summary_dict[std] = smr
-
-
-
-
-
 
     precision_dict = caa.cluster_representation_precision_dict
     parent_cluster_dict = caa.cluster_representation_parent_cluster_dict
@@ -130,7 +122,6 @@ for i, std in enumerate(std_search_range):
         d = copy.deepcopy(d)
         cluster_dataframe.append(d)
 
-
     joint_cluster_df_dict[std] = copy.deepcopy(
         caa.cluster_representation_cluster_df_dict)
 
@@ -140,23 +131,22 @@ for i, std in enumerate(std_search_range):
 
     # joint_cluster_df = pd.concat(joint_cluster_df)
 
+    print("[STD={}] Prepared to delete CAA".format(std))
     del caa
 
+    print("[STD={}] After delete CAA".format(std))
     print("[{}/{}] (+{:.2f}s/{:.2f}s) Finshed std: {}! Save at: <{}>".format(
         i + 1, len(std_search_range), time.time() - now, time.time() - start,
         std,
         path
     ))
 
+    ray.shutdown()
+
 for std, path in std_ret_dict.items():
     print("Std: {}, Path: {}".format(std, path))
 
-
 cluster_dataframe = pd.DataFrame(cluster_dataframe)
-
-
-
-
 
 dataframe = []
 for std, summary in std_summary_dict.items():
@@ -182,8 +172,6 @@ for label in labellist:
             d['y_norm'] = (d['y'] - ymin) / (ymax - ymin + 1e-12)
 dataframe = pd.DataFrame(dataframe)
 
-
-
 dash_styles = ["",
                (4, 1.5),
                (1, 1),
@@ -192,6 +180,8 @@ dash_styles = ["",
                (5, 1, 2, 1, 2, 1),
                (2, 2, 3, 1.5),
                (1, 2.5, 3, 1.2)] * 3
+
+
 def draw11():
     plt.figure(figsize=(12, 8), dpi=300)
     sns.lineplot(x='x', y='y_norm', hue='label', data=dataframe, style='label',
@@ -199,40 +189,40 @@ def draw11():
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     plt.title("Scale of STD of Turbulence vs Distance / Reward")
     plt.savefig(osp.join(fig_dir_name, "std_vs_distance_reward.png"), dpi=300)
-draw11()
 
+
+draw11()
 
 
 # cluster_dataframe = []
 # for std, caa in std_caa_dict.items():
-    # precision_dict = caa.cluster_representation_precision_dict
-    # parent_cluster_dict = caa.cluster_representation_parent_cluster_dict
-    # #     method_precision_dict = {}
-    # for (method, predict), accu in zip(parent_cluster_dict.items(),
-    #                                    precision_dict.values()):
-    #     num_clusters = len(set(predict.values()))
-    #     d = {
-    #         "num_clusters": num_clusters,
-    #         "precision": accu,
-    #         "method": "repr." + method,
-    #         "std": std
-    #     }
-    #     cluster_dataframe.append(d)
-    #
-    # precision_dict = caa.cluster_distance_precision_dict
-    # parent_cluster_dict = caa.cluster_distance_parent_cluster_dict
-    # #     method_precision_dict = {}
-    # for (method, predict), accu in zip(parent_cluster_dict.items(),
-    #                                    precision_dict.values()):
-    #     num_clusters = len(set(predict.values()))
-    #     d = {
-    #         "num_clusters": num_clusters,
-    #         "precision": accu,
-    #         "method": "dist." + method,
-    #         "std": std
-    #     }
-    #     cluster_dataframe.append(d)
-
+# precision_dict = caa.cluster_representation_precision_dict
+# parent_cluster_dict = caa.cluster_representation_parent_cluster_dict
+# #     method_precision_dict = {}
+# for (method, predict), accu in zip(parent_cluster_dict.items(),
+#                                    precision_dict.values()):
+#     num_clusters = len(set(predict.values()))
+#     d = {
+#         "num_clusters": num_clusters,
+#         "precision": accu,
+#         "method": "repr." + method,
+#         "std": std
+#     }
+#     cluster_dataframe.append(d)
+#
+# precision_dict = caa.cluster_distance_precision_dict
+# parent_cluster_dict = caa.cluster_distance_parent_cluster_dict
+# #     method_precision_dict = {}
+# for (method, predict), accu in zip(parent_cluster_dict.items(),
+#                                    precision_dict.values()):
+#     num_clusters = len(set(predict.values()))
+#     d = {
+#         "num_clusters": num_clusters,
+#         "precision": accu,
+#         "method": "dist." + method,
+#         "std": std
+#     }
+#     cluster_dataframe.append(d)
 
 
 def draw22():
@@ -240,12 +230,17 @@ def draw22():
 
     sns.lineplot(data=cluster_dataframe, x='std', y='precision', hue='method',
                  ci=None, legend=False)
-    sns.scatterplot(data=cluster_dataframe, x='std', y='precision', hue='method',
+    sns.scatterplot(data=cluster_dataframe, x='std', y='precision',
+                    hue='method',
                     size='num_clusters')
 
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    plt.savefig(osp.join(fig_dir_name, "std_scale_vs_cluster_precision.png"), dpi=300)
+    plt.savefig(osp.join(fig_dir_name, "std_scale_vs_cluster_precision.png"),
+                dpi=300)
+
+
 draw22()
+
 
 # def display_gif(gif_path):
 #     with open(gif_path, 'rb') as f:
@@ -361,4 +356,5 @@ def get_figarr(method):
 
 for method in ['fft', 'naive', 'fft_pca', 'naive_pca']:
     figarr_list = get_figarr(method)
-    generate_gif(np.stack(figarr_list), osp.join(fig_dir_name, "ani_{}.gif".format(method)), fps=1)
+    generate_gif(np.stack(figarr_list),
+                 osp.join(fig_dir_name, "ani_{}.gif".format(method)), fps=1)

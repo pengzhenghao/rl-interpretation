@@ -19,7 +19,7 @@ def _replay(obs, run_name, ckpt, env_name, require_activation=True):
     act, infos = agent_replay(agent, obs)
     return act, infos
 
-@ray.remote
+# @ray.remote
 def remote_symbolic_replay(symbolic_agent, obs):
     assert isinstance(symbolic_agent, SymbolicAgentBase)
     agent = symbolic_agent.get()['agent']

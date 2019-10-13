@@ -10,6 +10,7 @@ import pandas as pd
 from sklearn import decomposition
 from sklearn.cluster import DBSCAN
 
+from toolbox.utils import has_gpu
 from toolbox.cluster.process_cluster import ClusterFinder
 from toolbox.evaluate.replay import remote_symbolic_replay
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
@@ -257,6 +258,7 @@ class CrossAgentAnalyst:
             )
 
         self.initialized = True
+
         # check the agent_rollout_dict's format
         assert isinstance(agent_rollout_dict, dict)
         rollout_list = next(iter(agent_rollout_dict.values()))
@@ -270,6 +272,7 @@ class CrossAgentAnalyst:
         assert isinstance(traj[0][-1], bool)  # this is the done flag.
 
         # build the joint dataset
+        print("[INSIDE CAA] prepared to build the joint dataset")
         agent_obs_dict = OrderedDict()
         agent_act_dict = OrderedDict()
         num_samples = self.config['num_samples']
@@ -314,16 +317,22 @@ class CrossAgentAnalyst:
 
         assert name_agent_info_mapping.keys() == self.agent_rollout_dict.keys()
         # replay
+
+        print("[INSIDE CAA] prepared to replay the joint dataset")
         agent_replay_dict = OrderedDict()
         agent_replay_info_dict = OrderedDict()
 
         num_worker = 10
         obj_ids = OrderedDict()
 
+        remote_symbolic_replay_remote = ray.remote(num_gpus=3.8/num_worker if has_gpu() else 0)(
+            remote_symbolic_replay
+        )
+
         for i, (name, symbolic_agent) in \
                 enumerate(name_agent_info_mapping.items()):
 
-            obj_id = remote_symbolic_replay.remote(
+            obj_id = remote_symbolic_replay_remote.remote(
                 symbolic_agent, self.joint_obs_dataset
             )
             obj_ids[name] = obj_id
@@ -334,6 +343,9 @@ class CrossAgentAnalyst:
                     agent_replay_dict[key] = act
                     agent_replay_info_dict[key] = infos
                 obj_ids.clear()
+                print("[INSIDE CAA] Replay [{}/{}] agents.".format(
+                    i, len(name_agent_info_mapping)
+                ))
         for key, obj_id in obj_ids.items():
             act, infos = copy.deepcopy(ray.get(obj_id))
             agent_replay_dict[key] = act
@@ -342,6 +354,8 @@ class CrossAgentAnalyst:
         self.agent_replay_info_dict = agent_replay_info_dict
         self.agent_replay_dict = agent_replay_dict
 
+
+        print("[INSIDE CAA] prepared to clear all agent")
         for agent in name_agent_info_mapping.values():
             agent.clear()
 

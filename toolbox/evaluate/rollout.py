@@ -333,7 +333,7 @@ from collections import OrderedDict
 from toolbox.env.env_maker import make_build_gym_env
 
 
-@ray.remote(num_return_vals=1)
+# @ray.remote(num_return_vals=1)
 def remote_rollout(
         agent,
         num_rollouts,
@@ -386,6 +386,10 @@ def quick_rollout_from_symbolic_agents(
     count = 0
     print_count = 1
 
+    remote_rollout_remote = ray.remote(
+        num_gpus=3.8 / num_workers if has_gpu() else 0
+    )(remote_rollout)
+
     for name, agent in name_symbolic_agent_mapping.items():
 
         env_name = agent.agent_info['env_name']
@@ -398,14 +402,14 @@ def quick_rollout_from_symbolic_agents(
 
         assert isinstance(agent, SymbolicAgentBase)
 
-        obj_id_dict[name] = remote_rollout.remote(
+        obj_id_dict[name] = remote_rollout_remote.remote(
             agent,
             num_rollouts,
             env,
             env_name,
             require_trajectory=True,
             require_extra_info=True,
-            require_env_state=True
+            require_env_state=False  # It seems we don't use it ?? 1013
         )
         count += 1
         if count % num_workers == 0:
@@ -439,7 +443,7 @@ def quick_rollout_from_symbolic_agents(
             )
         )
         now_t = time.time()
-
+    obj_id_dict.clear()
     return agent_rollout_dict
 
 

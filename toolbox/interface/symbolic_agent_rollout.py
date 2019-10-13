@@ -29,7 +29,18 @@ from toolbox.process_data.process_data import read_yaml
 
 def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers,
                            num_children, normal_std, normal_mean, dir_name):
+    file_name = osp.join(
+        dir_name, "{}agents_{}rollouts_{}children_{}mean_{}std.pkl".format(
+            num_agents, num_rollouts, num_children, normal_mean, normal_std)
+    )
+
     initialize_ray(num_gpus=4, test_mode=False)
+
+    if os.path.exists(file_name):
+        with open(file_name, 'rb') as f:
+            rollout_ret = pickle.load(f)
+        return rollout_ret, file_name
+
 
     name_ckpt_mapping = read_yaml(yaml_path, number=num_agents, mode="uniform")
     master_agents = OrderedDict()
@@ -68,11 +79,6 @@ def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers,
         a.clear()
 
     os.makedirs(dir_name, exist_ok=True)
-
-    file_name = osp.join(
-        dir_name, "{}agents_{}rollouts_{}children_{}mean_{}std.pkl".format(
-            num_agents, num_rollouts, num_children, normal_mean, normal_std)
-    )
 
     dump_obj = rollout_ret
     # dump_obj = [rollout_ret, spawned_agents]
