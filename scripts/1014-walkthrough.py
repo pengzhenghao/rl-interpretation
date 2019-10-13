@@ -39,7 +39,7 @@ num_workers = 16
 normal_mean = 1.0
 pca_dim = 50
 std_search_range = np.linspace(0.0, 2, 51)
-dir_name = "../notebooks/1013-scale-distance-relationship-LARGE"
+dir_name = "../notebooks/1014-scale-distance-relationship-LARGE"
 
 fig_dir_name = osp.join(dir_name, 'fig')
 
