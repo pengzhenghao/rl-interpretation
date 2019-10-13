@@ -234,6 +234,10 @@ class CrossAgentAnalyst:
             return False
         return True
 
+    def clear(self):
+        del self.agent_rollout_dict
+        self.agent_rollout_dict = None
+
     def feed(self, agent_rollout_dict, name_agent_info_mapping):
         """
         1. store the data
@@ -603,7 +607,7 @@ class CrossAgentAnalyst:
         parent_cluster_dict = OrderedDict()
 
         for method_name, matrix in self.computed_results['distance'].items():
-            print('matrix form: ', type(matrix), matrix.shape)
+            # print('matrix form: ', type(matrix), matrix.shape)
             precision, prediction, parent_cluster = \
                 grid_search_dbscan_cluster(agent_info_dict, matrix)
             precision_dict[method_name] = precision

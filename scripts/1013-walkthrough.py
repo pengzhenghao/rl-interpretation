@@ -19,75 +19,65 @@ from toolbox.visualize.visualize_utils import _generate_gif as generate_gif
 import cv2
 import IPython
 import os
+import copy
+
+
+# num_agents = 2
+# yaml_path = "../data/yaml/0915-halfcheetah-ppo-20-agents.yaml"
+# num_rollouts = 2
+# num_children = 2
+# num_workers = 10
+# normal_mean = 1.0
+# pca_dim = 3
+# std_search_range = np.linspace(0.0, 2, 2)
+# dir_name = "./TMP"
+
+
 
 num_agents = 20
 yaml_path = "../data/yaml/0915-halfcheetah-ppo-20-agents.yaml"
 num_rollouts = 10
 num_children = 19
 num_workers = 10
-
-# normal_std = 0.1
 normal_mean = 1.0
-
-spawn_seed = 0
-num_samples = 200  # From each agent's dataset
 pca_dim = 50
-
-
-# dir_name = "./"
+std_search_range = np.linspace(0.0, 2, 61)
 dir_name = "../notebooks/1013-scale-distance-relationship-LARGE"
+
+
+
 fig_dir_name = osp.join(dir_name, 'fig')
 
 os.makedirs(dir_name, exist_ok=True)
 os.makedirs(fig_dir_name, exist_ok=True)
 
-std_search_range = np.linspace(0.0, 2, 61)
 # std_search_range = np.linspace(0.0, 2, 3)
 std_ret_dict = {}
 
 now = start = time.time()
-std_load_obj_dict = OrderedDict()
+# std_load_obj_dict = OrderedDict()
+
+
+
+# std_caa_dict = OrderedDict()
+std_summary_dict = OrderedDict()
+cluster_dataframe = []
+joint_cluster_df_dict = OrderedDict()
+joint_prediction_dict_dict = OrderedDict()
 
 for i, std in enumerate(std_search_range):
     print("[{}/{}] (+{:.2f}s/{:.2f}s) We are searching std: {}.".format(
         i + 1, len(std_search_range), time.time() - now, time.time() - start,
         std
     ))
+
     now = time.time()
-    a, path = symbolic_agent_rollout(
+    rollout_ret, path = symbolic_agent_rollout(
         yaml_path, num_agents, num_rollouts,
         num_workers, num_children,
         std, normal_mean, dir_name
     )
 
-    std_load_obj_dict[std] = a
-
-    print("[{}/{}] (+{:.2f}s/{:.2f}s) Finshed std: {}! Save at: <{}>".format(
-        i + 1, len(std_search_range), time.time() - now, time.time() - start,
-        std,
-        path
-    ))
-    std_ret_dict[std] = path
-
-for std, path in std_ret_dict.items():
-    print("Std: {}, Path: {}".format(std, path))
-
-
-
-std_caa_dict = OrderedDict()
-std_summary_dict = OrderedDict()
-
-now = start = time.time()
-
-for i, (std, load_obj) in enumerate(std_load_obj_dict.items()):
-
-    print("[{}/{}] (+{:.2f}s/{:.2f}s) Current std: {}.".format(
-        i + 1, len(std_load_obj_dict), time.time() - now, time.time() - start,
-        std
-    ))
-    now = time.time()
-
-    rollout_ret = load_obj
 
     agent_rollout_dict = OrderedDict()
     name_agent_info_mapping = OrderedDict()
@@ -98,62 +88,18 @@ for i, (std, load_obj) in enumerate(std_load_obj_dict.items()):
     caa = CrossAgentAnalyst()
     caa.feed(agent_rollout_dict, name_agent_info_mapping)
     result = caa.walkthrough()
-    prs, prd, pac, cdf = caa.cluster_representation()
-    ret = caa.cluster_distance()
-    smr = caa.summary()
+    caa.cluster_representation()
+    caa.cluster_distance()
 
-    std_caa_dict[std] = caa
+    smr = copy.deepcopy(caa.summary())
+
     std_summary_dict[std] = smr
 
-dataframe = []
 
-for std, summary in std_summary_dict.items():
-    data = summary['metric'].copy()
-    for k, v in data.items():
-        if k.endswith('std'):
-            continue
-        dataframe.append({
-            'x': std,
-            'y': v,
-            'label': k
-        })
 
-labellist = list(data.keys())
 
-for label in labellist:
-    if label.endswith('std'):
-        continue
-    ylist = [d['y'] for d in dataframe if d['label'] == label]
-    ymin = min(ylist)
-    ymax = max(ylist)
 
-    for d in dataframe:
-        if d['label'] == label:
-            d['y_norm'] = (d['y'] - ymin) / (ymax - ymin + 1e-12)
 
-dataframe = pd.DataFrame(dataframe)
-
-dash_styles = ["",
-               (4, 1.5),
-               (1, 1),
-               (3, 1, 1.5, 1),
-               (5, 1, 1, 1),
-               (5, 1, 2, 1, 2, 1),
-               (2, 2, 3, 1.5),
-               (1, 2.5, 3, 1.2)] * 3
-
-def draw11():
-    plt.figure(figsize=(12, 8), dpi=300)
-    sns.lineplot(x='x', y='y_norm', hue='label', data=dataframe, style='label',
-                 dashes=dash_styles)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    plt.title("Scale of STD of Turbulence vs Distance / Reward")
-    plt.savefig(osp.join(fig_dir_name, "std_vs_distance_reward.png"), dpi=300)
-
-draw11()
-
-cluster_dataframe = []
-for std, caa in std_caa_dict.items():
     precision_dict = caa.cluster_representation_precision_dict
     parent_cluster_dict = caa.cluster_representation_parent_cluster_dict
     #     method_precision_dict = {}
@@ -166,6 +112,7 @@ for std, caa in std_caa_dict.items():
             "method": "repr." + method,
             "std": std
         }
+        d = copy.deepcopy(d)
         cluster_dataframe.append(d)
 
     precision_dict = caa.cluster_distance_precision_dict
@@ -180,10 +127,112 @@ for std, caa in std_caa_dict.items():
             "method": "dist." + method,
             "std": std
         }
+        d = copy.deepcopy(d)
         cluster_dataframe.append(d)
-#     method_precision_dict[method] = [num_clusters, accu]
+
+
+    joint_cluster_df_dict[std] = copy.deepcopy(
+        caa.cluster_representation_cluster_df_dict)
+
+    joint_prediction_dict_dict[std] = copy.deepcopy(
+        caa.cluster_representation_prediction_dict
+    )
+
+    # joint_cluster_df = pd.concat(joint_cluster_df)
+
+    del caa
+
+    print("[{}/{}] (+{:.2f}s/{:.2f}s) Finshed std: {}! Save at: <{}>".format(
+        i + 1, len(std_search_range), time.time() - now, time.time() - start,
+        std,
+        path
+    ))
+
+for std, path in std_ret_dict.items():
+    print("Std: {}, Path: {}".format(std, path))
+
 
 cluster_dataframe = pd.DataFrame(cluster_dataframe)
+
+
+
+
+
+dataframe = []
+for std, summary in std_summary_dict.items():
+    data = summary['metric'].copy()
+    for k, v in data.items():
+        if k.endswith('std'):
+            continue
+        dataframe.append({
+            'x': std,
+            'y': v,
+            'label': k
+        })
+labellist = list(data.keys())
+for label in labellist:
+    if label.endswith('std'):
+        continue
+    ylist = [d['y'] for d in dataframe if d['label'] == label]
+    ymin = min(ylist)
+    ymax = max(ylist)
+
+    for d in dataframe:
+        if d['label'] == label:
+            d['y_norm'] = (d['y'] - ymin) / (ymax - ymin + 1e-12)
+dataframe = pd.DataFrame(dataframe)
+
+
+
+dash_styles = ["",
+               (4, 1.5),
+               (1, 1),
+               (3, 1, 1.5, 1),
+               (5, 1, 1, 1),
+               (5, 1, 2, 1, 2, 1),
+               (2, 2, 3, 1.5),
+               (1, 2.5, 3, 1.2)] * 3
+def draw11():
+    plt.figure(figsize=(12, 8), dpi=300)
+    sns.lineplot(x='x', y='y_norm', hue='label', data=dataframe, style='label',
+                 dashes=dash_styles)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    plt.title("Scale of STD of Turbulence vs Distance / Reward")
+    plt.savefig(osp.join(fig_dir_name, "std_vs_distance_reward.png"), dpi=300)
+draw11()
+
+
+
+# cluster_dataframe = []
+# for std, caa in std_caa_dict.items():
+    # precision_dict = caa.cluster_representation_precision_dict
+    # parent_cluster_dict = caa.cluster_representation_parent_cluster_dict
+    # #     method_precision_dict = {}
+    # for (method, predict), accu in zip(parent_cluster_dict.items(),
+    #                                    precision_dict.values()):
+    #     num_clusters = len(set(predict.values()))
+    #     d = {
+    #         "num_clusters": num_clusters,
+    #         "precision": accu,
+    #         "method": "repr." + method,
+    #         "std": std
+    #     }
+    #     cluster_dataframe.append(d)
+    #
+    # precision_dict = caa.cluster_distance_precision_dict
+    # parent_cluster_dict = caa.cluster_distance_parent_cluster_dict
+    # #     method_precision_dict = {}
+    # for (method, predict), accu in zip(parent_cluster_dict.items(),
+    #                                    precision_dict.values()):
+    #     num_clusters = len(set(predict.values()))
+    #     d = {
+    #         "num_clusters": num_clusters,
+    #         "precision": accu,
+    #         "method": "dist." + method,
+    #         "std": std
+    #     }
+    #     cluster_dataframe.append(d)
+
 
 
 def draw22():
@@ -196,7 +245,6 @@ def draw22():
 
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     plt.savefig(osp.join(fig_dir_name, "std_scale_vs_cluster_precision.png"), dpi=300)
-
 draw22()
 
 # def display_gif(gif_path):
@@ -251,8 +299,13 @@ def align_plot_df(plot_df):
 def get_figarr(method):
     std_plot_df_dict = OrderedDict()
 
-    joint_cluster_df = [caa.cluster_representation_cluster_df_dict[method]
-                        for caa in std_caa_dict.values()]
+    # joint_cluster_df = [caa.cluster_representation_cluster_df_dict[method]
+    #                     for caa in std_caa_dict.values()]
+
+    joint_cluster_df = [
+        dfdict[method] for dfdict in joint_cluster_df_dict.values()
+    ]
+
     joint_cluster_df = pd.concat(joint_cluster_df)
 
     precomputed_pca = PCA(pca_dim).fit_transform(joint_cluster_df)
@@ -266,9 +319,13 @@ def get_figarr(method):
 
     index_count = 0
 
-    for std, caa in std_caa_dict.items():
-        cluster_df = caa.cluster_representation_cluster_df_dict[method]
-        prediction = caa.cluster_representation_prediction_dict[method]
+    for (std, cluster_df), prediction in \
+            zip(joint_cluster_df_dict.items(),
+                joint_prediction_dict_dict.values()):
+        cluster_df = cluster_df[method]
+        prediction = prediction[method]
+        # cluster_df = caa.cluster_representation_cluster_df_dict[method]
+        # prediction = caa.cluster_representation_prediction_dict[method]
 
         interval = cluster_df.shape[0]
 
