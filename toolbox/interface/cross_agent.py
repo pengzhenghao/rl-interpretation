@@ -316,13 +316,13 @@ class CrossAgentAnalyst:
         }
 
         assert name_agent_info_mapping.keys() == self.agent_rollout_dict.keys()
-        # replay
 
+        # replay
         print("[INSIDE CAA] prepared to replay the joint dataset")
         agent_replay_dict = OrderedDict()
         agent_replay_info_dict = OrderedDict()
 
-        num_worker = 10
+        num_worker = 16
         obj_ids = OrderedDict()
 
         remote_symbolic_replay_remote = ray.remote(num_gpus=3.8/num_worker if has_gpu() else 0)(

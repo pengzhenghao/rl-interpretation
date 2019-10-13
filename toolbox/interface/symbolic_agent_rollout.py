@@ -27,8 +27,11 @@ from toolbox.process_data.process_data import read_yaml
 # pca_dim = 50
 
 
-def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers,
-                           num_children, normal_std, normal_mean, dir_name):
+def symbolic_agent_rollout(
+        yaml_path, num_agents, num_rollouts, num_workers,
+        num_children, normal_std, normal_mean, dir_name,
+        clear_at_end=True, store=True
+):
     file_name = osp.join(
         dir_name, "{}agents_{}rollouts_{}children_{}mean_{}std.pkl".format(
             num_agents, num_rollouts, num_children, normal_mean, normal_std)
@@ -75,21 +78,18 @@ def symbolic_agent_rollout(yaml_path, num_agents, num_rollouts, num_workers,
         MujocoWrapper
     )
 
-    for k, a in spawned_agents.items():
-        a.clear()
+    if clear_at_end:
+        for k, a in spawned_agents.items():
+            a.clear()
 
     os.makedirs(dir_name, exist_ok=True)
 
-    dump_obj = rollout_ret
-    # dump_obj = [rollout_ret, spawned_agents]
-    with open(file_name, 'wb') as f:
-        pickle.dump(dump_obj, f)
+    if store:
+        dump_obj = rollout_ret
+        with open(file_name, 'wb') as f:
+            pickle.dump(dump_obj, f)
 
     return rollout_ret, file_name
-    # with open(osp.join(dir_name, "args"), 'w') as f:
-    #     f.write(args)
-
-    # return rollout_ret, spawned_agents, file_name
 
 
 if __name__ == '__main__':
