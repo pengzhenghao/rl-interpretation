@@ -433,11 +433,11 @@ def setup_mixins(policy, obs_space, action_space, config):
     AddMaskInfoMixinForPolicy.__init__(policy)
 
 
-ppo_default_config = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
-ppo_default_config['model'].update(model_config)
+ppo_default_config_with_mask = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
+ppo_default_config_with_mask['model'].update(model_config)
 PPOTFPolicyWithMask = build_tf_policy(
     name="PPOTFPolicyWithMask",
-    get_default_config=lambda: ppo_default_config,
+    get_default_config=lambda: ppo_default_config_with_mask,
     loss_fn=ppo_surrogate_loss,
     stats_fn=kl_and_loss_stats,
     extra_action_fetches_fn=vf_preds_and_logits_fetches_new,
@@ -462,11 +462,11 @@ class AddMaskInfoMixin(object):
         return ret
 
 
-ppo_agent_default_config = DEFAULT_CONFIG
-ppo_agent_default_config['model'].update(model_config)
+ppo_agent_default_config_with_mask = DEFAULT_CONFIG
+ppo_agent_default_config_with_mask['model'].update(model_config)
 PPOAgentWithMask = build_trainer(
     name="PPOWithMask",
-    default_config=ppo_agent_default_config,
+    default_config=ppo_agent_default_config_with_mask,
     default_policy=PPOTFPolicyWithMask,
 
     # make_policy_optimizer=choose_policy_optimizer,
