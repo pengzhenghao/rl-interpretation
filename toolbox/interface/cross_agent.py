@@ -509,14 +509,17 @@ class CrossAgentAnalyst:
     def cka_similarity(self):
         agent_activation_dict = OrderedDict()
 
+        print("[CAA.cka_similarity] start to collect activation")
         for name, replay_result in self.agent_replay_info_dict.items():
             activation = replay_result['layer1']
             agent_activation_dict[name] = activation
 
+        print("[CAA.cka_similarity] start to compute")
         iterable = list(agent_activation_dict.values())
         apply_function = get_cka
         cka_similarity = self._build_matrix(iterable, apply_function, 1.0)
 
+        print("[CAA.cka_similarity] start to return")
         self.computed_results['similarity']['cka'] = cka_similarity
         self.computed_results['distance']['cka'] = \
             np.clip(1 - cka_similarity, 0.0, None)
@@ -654,11 +657,22 @@ class CrossAgentAnalyst:
         return self.computed_results
 
     def walkthrough(self):
+        print("[CAA.walkthrough] Start fft representation")
         self.fft()
+
+        print("[CAA.walkthrough] Start naive representation")
         self.naive()
+
+        print("[CAA.walkthrough] Start JS distance")
         self.js()
+
+        print("[CAA.walkthrough] Start sunhao distance")
         self.sunhao()
+
+        print("[CAA.walkthrough] Start cka similarity")
         self.cka()
+
+        print("[CAA.walkthrough] prepare to return from this function.")
         return self.get()
 
     # def cluster_representation(self):
@@ -693,7 +707,7 @@ class CrossAgentAnalyst:
             })
 
             episode_reward = [
-                sum([transition[-2] for transition in rollout['trajectory']])
+                np.sum([transition[-2] for transition in rollout['trajectory']])
                 for rollout in roll_list
             ]
 
@@ -737,25 +751,32 @@ class CrossAgentAnalyst:
         return pd.DataFrame(dataframe)
 
     def summary(self):
+        print("[CAA.summary] Start collect agent_level_summary")
         agent_level_summary = self.agent_level_summary()
         return_dict = dict()
         return_dict['agent_level_summary'] = agent_level_summary
+        print("[CAA.summary] Start collect computed result")
         return_dict['computed_result'] = copy.deepcopy(self.get())
         return_dict['representation'] = \
             return_dict['computed_result']['representation']
 
+        print("[CAA.summary] Start collect metric_value_dict")
         metric_value_dict = \
             agent_level_summary.groupby('label').mean().to_dict()['value']
         # metric_value_dict['']
         return_dict['metric'] = metric_value_dict
 
+        print("[CAA.summary] Start collect cluster_representation")
         return_dict['cluster_representation'] = {
-            "cluster_df_dict": self.cluster_representation_cluster_df_dict,
-            "prediction_dict": self.cluster_representation_prediction_dict
+            "cluster_df_dict": copy.deepcopy(
+                self.cluster_representation_cluster_df_dict),
+            "prediction_dict": copy.deepcopy(
+                self.cluster_representation_prediction_dict)
         }
 
         return_dict['cluster_result'] = {
 
         }
+        print("[CAA.summary] Start to leave")
 
         return return_dict

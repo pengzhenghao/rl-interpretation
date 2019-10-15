@@ -40,10 +40,12 @@ def symbolic_agent_rollout(
     initialize_ray(num_gpus=4, test_mode=False)
 
     if os.path.exists(file_name):
+        "File Dected! We will load rollout results from <{}>".format(
+            file_name
+        )
         with open(file_name, 'rb') as f:
             rollout_ret = pickle.load(f)
         return rollout_ret, file_name
-
 
     name_ckpt_mapping = read_yaml(yaml_path, number=num_agents, mode="uniform")
     master_agents = OrderedDict()

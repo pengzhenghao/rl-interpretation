@@ -5,16 +5,15 @@ https://github.com/google-research/google-research/tree/master
 /representation_similarity
 
 """
+import os
 import pickle
 
 import numpy as np
-import os
-
-from toolbox.process_data.process_data import read_yaml
-from toolbox.evaluate.rollout import several_agent_rollout
-from toolbox.utils import initialize_ray, get_random_string
 
 from toolbox.evaluate.replay import several_agent_replay
+from toolbox.evaluate.rollout import several_agent_rollout
+from toolbox.process_data.process_data import read_yaml
+from toolbox.utils import initialize_ray, get_random_string
 
 ACTIVATION_DATA_PREFIX = "layer"
 
@@ -49,7 +48,7 @@ def gram_rbf(x, threshold=1.0):
     #
     sq_distances = -2 * dot_products + sq_norms[:, None] + sq_norms[None, :]
     sq_median_distance = np.median(sq_distances)
-    return np.exp(-sq_distances / (2 * threshold**2 * sq_median_distance))
+    return np.exp(-sq_distances / (2 * threshold ** 2 * sq_median_distance))
 
 
 def center_gram(gram, unbiased=False):
@@ -128,12 +127,13 @@ def _debiased_dot_product_similarity_helper(
     # This formula can be derived by manipulating the unbiased estimator from
     # Song et al. (2007).
     return (
-        xty - n / (n - 2.) * sum_squared_rows_x.dot(sum_squared_rows_y) +
-        squared_norm_x * squared_norm_y / ((n - 1) * (n - 2))
+            xty - n / (n - 2.) * sum_squared_rows_x.dot(sum_squared_rows_y) +
+            squared_norm_x * squared_norm_y / ((n - 1) * (n - 2))
     )
 
 
-def feature_space_linear_cka(features_x, features_y, debiased=False):
+def feature_space_linear_cka(features_x, features_y, debiased=False,
+                             verbose=True):
     """Compute CKA with a linear kernel, in feature space.
 
     This is typically faster than computing the Gram matrix when there are
@@ -149,10 +149,14 @@ def feature_space_linear_cka(features_x, features_y, debiased=False):
     Returns:
       The value of CKA between X and Y.
     """
+    if verbose: print("[get_cka] start to reduce mean")
     features_x = features_x - np.mean(features_x, 0, keepdims=True)
     features_y = features_y - np.mean(features_y, 0, keepdims=True)
 
-    dot_product_similarity = np.linalg.norm(features_x.T.dot(features_y))**2
+    if verbose: print("[get_cka] start to compute dot-product-simi")
+    dot_product_similarity = np.linalg.norm(features_x.T.dot(features_y)) ** 2
+
+    if verbose: print("[get_cka] start to normalize x, y")
     normalization_x = np.linalg.norm(features_x.T.dot(features_x))
     normalization_y = np.linalg.norm(features_y.T.dot(features_y))
 
@@ -171,17 +175,18 @@ def feature_space_linear_cka(features_x, features_y, debiased=False):
         )
         normalization_x = np.sqrt(
             _debiased_dot_product_similarity_helper(
-                normalization_x**2, sum_squared_rows_x, sum_squared_rows_x,
+                normalization_x ** 2, sum_squared_rows_x, sum_squared_rows_x,
                 squared_norm_x, squared_norm_x, n
             )
         )
         normalization_y = np.sqrt(
             _debiased_dot_product_similarity_helper(
-                normalization_y**2, sum_squared_rows_y, sum_squared_rows_y,
+                normalization_y ** 2, sum_squared_rows_y, sum_squared_rows_y,
                 squared_norm_y, squared_norm_y, n
             )
         )
 
+    if verbose: print("[get_cka] start to return")
     return dot_product_similarity / (normalization_x * normalization_y)
 
 
@@ -336,7 +341,8 @@ def cca(features_x, features_y):
     qx, _ = np.linalg.qr(features_x)  # Or use SVD with full_matrices=False.
     qy, _ = np.linalg.qr(features_y)
     return np.linalg.norm(qx.T.dot(qy)
-                          )**2 / min(features_x.shape[1], features_y.shape[1])
+                          ) ** 2 / min(features_x.shape[1],
+                                       features_y.shape[1])
 
 
 def test_origin():
@@ -361,11 +367,11 @@ def test_origin():
 
     print(
         'Linear CKA from Examples (Debiased): {:.5f}'.
-        format(cka_from_examples_debiased)
+            format(cka_from_examples_debiased)
     )
     print(
         'Linear CKA from Features (Debiased): {:.5f}'.
-        format(cka_from_features_debiased)
+            format(cka_from_features_debiased)
     )
 
     np.testing.assert_almost_equal(

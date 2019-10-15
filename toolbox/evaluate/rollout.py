@@ -337,7 +337,8 @@ from toolbox.env.env_maker import make_build_gym_env
 def remote_rollout(
         agent,
         num_rollouts,
-        env,
+        # env,
+        env_wrapper,
         env_name,
         num_steps=None,
         require_frame=False,
@@ -349,11 +350,11 @@ def remote_rollout(
 ):
     ret_list = []
 
-    print(
-        "In remote_rollout, the agent type: {}, IS SYMBOBASE {}".format(
-            type(agent), isinstance(agent, SymbolicAgentBase)
-        )
-    )
+    # print(
+    #     "In remote_rollout, the agent type: {}, IS SYMBOBASE {}".format(
+    #         type(agent), isinstance(agent, SymbolicAgentBase)
+    #     )
+    # )
 
     if isinstance(agent, SymbolicAgentBase):
         assert not agent.initialized
@@ -361,6 +362,12 @@ def remote_rollout(
         print("SymbolicAgent is restored.")
     else:
         real_agent = agent
+
+    env = make_build_gym_env(env_name)(seed=0)
+
+    if env_wrapper is not None:
+        env = env_wrapper(env)
+
     for i in range(num_rollouts):
         ret = rollout(
             real_agent, env, env_name, num_steps, require_frame, require_trajectory,
@@ -393,10 +400,10 @@ def quick_rollout_from_symbolic_agents(
     for name, agent in name_symbolic_agent_mapping.items():
 
         env_name = agent.agent_info['env_name']
-        env = make_build_gym_env(env_name)(seed=0)
+        # env = make_build_gym_env(env_name)(seed=0)
 
-        if env_wrapper is not None:
-            env = env_wrapper(env)
+        # if env_wrapper is not None:
+        #     env = env_wrapper(env)
 
         assert not agent.initialized
 
@@ -405,7 +412,8 @@ def quick_rollout_from_symbolic_agents(
         obj_id_dict[name] = remote_rollout_remote.remote(
             agent,
             num_rollouts,
-            env,
+            # env,
+            env_wrapper,
             env_name,
             require_trajectory=True,
             require_extra_info=True,
