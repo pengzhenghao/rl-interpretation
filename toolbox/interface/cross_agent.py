@@ -19,6 +19,35 @@ from toolbox.represent.process_similarity import get_cka
 
 DEFAULT_CONFIG = {"num_samples": 100, "pca_dim": 50}
 
+from numba import njit, prange
+
+@njit(parallel=True)
+def _build_cka_matrix(iterable, length):
+    matrix = np.ones((length, length))
+    normalization_dict = np.empty((length,))
+
+    for x in prange(length):
+        normalization_dict[x] = \
+            np.linalg.norm(iterable[x].T.dot(iterable[x]))
+
+    print("[_build_cka_matrix] Finish collect norm of each entry.")
+
+    for i1 in prange(length - 1):
+        print("Current Row: ", i1)
+        for i2 in prange(i1, length):
+            features_x = iterable[i1]
+            features_y = iterable[i2]
+            dot_product_similarity = np.linalg.norm(
+                features_x.T.dot(features_y)) ** 2
+
+            result = dot_product_similarity / (
+                        normalization_dict[i1] * normalization_dict[i2])
+
+            matrix[i1, i2] = result
+            matrix[i2, i1] = result
+
+    return matrix
+
 
 def get_kl_divergence(dist1, dist2):
     assert dist1.ndim == 2
@@ -509,15 +538,24 @@ class CrossAgentAnalyst:
     def cka_similarity(self):
         agent_activation_dict = OrderedDict()
 
+        selected_surfix = ["child=0", "child=1", "child=2", "child=3", "child=4"]
+
         print("[CAA.cka_similarity] start to collect activation")
         for name, replay_result in self.agent_replay_info_dict.items():
+            if name.split(" ")[-1] in selected_surfix:
+                print("[CAA.cka_similarity] Selected agent for cka: <{}>".format(name))
             activation = replay_result['layer1']
             agent_activation_dict[name] = activation
 
-        print("[CAA.cka_similarity] start to compute")
+        print("[CAA.cka_similarity] start to compute. Agent number: {}".format(
+            len(agent_activation_dict)
+        ))
         iterable = list(agent_activation_dict.values())
-        apply_function = get_cka
-        cka_similarity = self._build_matrix(iterable, apply_function, 1.0)
+        # apply_function = get_cka
+        cka_similarity = _build_cka_matrix(
+            iterable - np.mean(iterable, axis=1, keepdims=True),
+            len(iterable)
+        )
 
         print("[CAA.cka_similarity] start to return")
         self.computed_results['similarity']['cka'] = cka_similarity
