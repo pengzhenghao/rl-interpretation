@@ -4,7 +4,7 @@ import ray
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 
 from toolbox.env.env_maker import get_env_maker
-from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
+from toolbox.evaluate.evaluate_utils import restore_agent_with_mask, restore_policy_with_mask
 from toolbox.evaluate.rollout import RolloutWorkerWrapper, \
     several_agent_rollout, rollout, make_worker, efficient_rollout_from_worker
 from toolbox.utils import initialize_ray
@@ -188,9 +188,47 @@ def test_MaskSymbolicAgent_remote():
     ray.get(obidlist)
 
 
+def test_restore_agent_and_restore_policy():
+
+    initialize_ray(test_mode=True)
+
+    name_ckpt_mapping = read_yaml("../../data/yaml/test-2-agents.yaml")
+    ckpt_info = next(iter(name_ckpt_mapping.values()))
+
+    pure_agent = restore_agent_with_mask(
+        "PPO", ckpt_info['path'], "BipedalWalker-v2"
+    )
+
+    policy = restore_policy_with_mask("PPO", ckpt_info['path'], "BipedalWalker-v2")
+
+
+    np.testing.assert_almost_equal(
+        pure_agent.get_policy().get_state(),
+        policy.get_state()
+    )
+
+    for i in range(10):
+        a = np.random.random((10, 24))
+        pr, _, infopr = policy.compute_actions(a)
+        ar, _, infoar = pure_agent.get_policy().compute_actions(a)
+        #     print(infopr.keys())
+        np.testing.assert_almost_equal(infopr['behaviour_logits'],
+                                       infoar['behaviour_logits'])
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
     # r = test_efficient_rollout_from_worker()
     # ret = test_restore_agent_with_mask()
-    test_add_gaussian_perturbation()
-    test_MaskSymbolicAgent_local()
-    test_MaskSymbolicAgent_remote()
+    # test_add_gaussian_perturbation()
+    # test_MaskSymbolicAgent_local()
+    # test_MaskSymbolicAgent_remote()
+    test_restore_agent_and_restore_policy()

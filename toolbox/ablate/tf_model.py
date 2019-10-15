@@ -416,7 +416,6 @@ class AddMaskInfoMixinForPolicy(object):
         return ret
 
 
-model_config = {"custom_model": "fc_with_mask", "custom_options": {}}
 
 
 def setup_mixins(policy, obs_space, action_space, config):
@@ -433,11 +432,22 @@ def setup_mixins(policy, obs_space, action_space, config):
     AddMaskInfoMixinForPolicy.__init__(policy)
 
 
-ppo_default_config_with_mask = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
-ppo_default_config_with_mask['model'].update(model_config)
+model_config = {
+    "model": {"custom_model": "fc_with_mask", "custom_options": {}}
+}
+from ray.tune.util import merge_dicts
+
+ppo_agent_default_config_with_mask = merge_dicts(
+    DEFAULT_CONFIG, model_config
+)
+
+
+
+# ppo_default_config_with_mask = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
+# ppo_default_config_with_mask['model'].update(model_config)
 PPOTFPolicyWithMask = build_tf_policy(
     name="PPOTFPolicyWithMask",
-    get_default_config=lambda: ppo_default_config_with_mask,
+    get_default_config=lambda: ppo_agent_default_config_with_mask,
     loss_fn=ppo_surrogate_loss,
     stats_fn=kl_and_loss_stats,
     extra_action_fetches_fn=vf_preds_and_logits_fetches_new,
@@ -462,8 +472,9 @@ class AddMaskInfoMixin(object):
         return ret
 
 
-ppo_agent_default_config_with_mask = DEFAULT_CONFIG
-ppo_agent_default_config_with_mask['model'].update(model_config)
+
+
+# ppo_agent_default_config_with_mask['model'].update(model_config)
 PPOAgentWithMask = build_trainer(
     name="PPOWithMask",
     default_config=ppo_agent_default_config_with_mask,
