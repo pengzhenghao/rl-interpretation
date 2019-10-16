@@ -51,7 +51,8 @@ def build_config(
     return config
 
 
-def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
+def _restore(agent_type, run_name, ckpt, env_name, extra_config=None,
+             existing_agent=None):
     assert isinstance(agent_type, str) or callable(agent_type)
     if callable(agent_type):
         # We assume this is the agent_maker function which take no zero
@@ -61,6 +62,8 @@ def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
             "restore an agent by calling it: ", agent_type
         )
         agent = agent_type()
+    elif existing_agent is not None:
+        agent = existing_agent
     else:
         if agent_type == "PPOAgentWithActivation":
             cls = PPOAgentWithActivation
@@ -81,33 +84,33 @@ def _restore(agent_type, run_name, ckpt, env_name, extra_config=None):
     return agent
 
 
-def restore_agent_with_mask(run_name, ckpt, env_name, extra_config=None):
+def restore_agent_with_mask(run_name, ckpt, env_name, extra_config=None, existing_agent=None):
     register_fc_with_mask()
-    return _restore("PPOAgentWithMask", run_name, ckpt, env_name, extra_config)
+    return _restore("PPOAgentWithMask", run_name, ckpt, env_name, extra_config, existing_agent)
 
 
-def restore_policy_with_mask(run_name, ckpt, env_name, extra_config=None):
-    assert run_name == "PPO"
-    register_fc_with_mask()
-    env = get_env_maker(env_name)()
-    with Graph().as_default():
-        # This is a workaround to avoid variable multiple init.
-        p = PPOTFPolicyWithMask(env.observation_space, env.action_space,
-                                ppo_agent_default_config_with_mask)
-        if ckpt is not None:
-            path = os.path.abspath(os.path.expanduser(ckpt))
-            wkload = pickle.load(open(path, 'rb'))['worker']
-            state = pickle.loads(wkload)['state']['default_policy']
-            p.set_state(state)
-    return p
+# def restore_policy_with_mask(run_name, ckpt, env_name, extra_config=None):
+#     assert run_name == "PPO"
+#     register_fc_with_mask()
+#     env = get_env_maker(env_name)()
+#     with Graph().as_default():
+#         # This is a workaround to avoid variable multiple init.
+#         p = PPOTFPolicyWithMask(env.observation_space, env.action_space,
+#                                 ppo_agent_default_config_with_mask)
+#         if ckpt is not None:
+#             path = os.path.abspath(os.path.expanduser(ckpt))
+#             wkload = pickle.load(open(path, 'rb'))['worker']
+#             state = pickle.loads(wkload)['state']['default_policy']
+#             p.set_state(state)
+#     return p
 
 
-def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None):
+def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None, existing_agent=None):
     register_fc_with_activation()
     return _restore(
-        "PPOAgentWithActivation", run_name, ckpt, env_name, extra_config
+        "PPOAgentWithActivation", run_name, ckpt, env_name, extra_config, existing_agent
     )
 
 
-def restore_agent(run_name, ckpt, env_name, extra_config=None):
-    return _restore(run_name, run_name, ckpt, env_name, extra_config)
+def restore_agent(run_name, ckpt, env_name, extra_config=None, existing_agent=None):
+    return _restore(run_name, run_name, ckpt, env_name, extra_config, existing_agent)

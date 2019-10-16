@@ -4,7 +4,7 @@ import ray
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 
 from toolbox.env.env_maker import get_env_maker
-from toolbox.evaluate.evaluate_utils import restore_agent_with_mask, restore_policy_with_mask
+from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 from toolbox.evaluate.rollout import RolloutWorkerWrapper, \
     several_agent_rollout, rollout, make_worker, efficient_rollout_from_worker
 from toolbox.utils import initialize_ray
@@ -106,7 +106,27 @@ def test_restore_agent_with_mask():
         np.array([obs]), mask_batch=mask_batch
     )
 
-    return ret
+    agent2 = restore_agent_with_mask(
+        "PPO", "~/ray_results/0810-20seeds/PPO_BipedalWa"
+               "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
+               "2/checkpoint_313/checkpoint-313",
+        env_name, existing_agent=agent)
+
+    ret2 = agent2.get_policy().compute_actions(
+        np.array([obs]), mask_batch=mask_batch
+    )
+
+    agent3 = restore_agent_with_mask(
+        "PPO", "~/ray_results/0810-20seeds/PPO_BipedalWa"
+               "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
+               "2/checkpoint_313/checkpoint-313",
+        env_name, existing_agent=agent)
+
+    ret3 = agent3.get_policy().compute_actions(
+        np.array([obs]), mask_batch=mask_batch
+    )
+
+    return ret, ret2, ret3
 
 
 # from toolbox.evaluate.symbolic_agent import add_gaussian_perturbation
@@ -188,47 +208,40 @@ def test_MaskSymbolicAgent_remote():
     ray.get(obidlist)
 
 
-def test_restore_agent_and_restore_policy():
-
-    initialize_ray(test_mode=True)
-
-    name_ckpt_mapping = read_yaml("../../data/yaml/test-2-agents.yaml")
-    ckpt_info = next(iter(name_ckpt_mapping.values()))
-
-    pure_agent = restore_agent_with_mask(
-        "PPO", ckpt_info['path'], "BipedalWalker-v2"
-    )
-
-    policy = restore_policy_with_mask("PPO", ckpt_info['path'], "BipedalWalker-v2")
-
-
-    np.testing.assert_almost_equal(
-        pure_agent.get_policy().get_state(),
-        policy.get_state()
-    )
-
-    for i in range(10):
-        a = np.random.random((10, 24))
-        pr, _, infopr = policy.compute_actions(a)
-        ar, _, infoar = pure_agent.get_policy().compute_actions(a)
-        #     print(infopr.keys())
-        np.testing.assert_almost_equal(infopr['behaviour_logits'],
-                                       infoar['behaviour_logits'])
-
-
-
-
-
-
-
-
-
+# def test_restore_agent_and_restore_policy():
+#
+#     initialize_ray(test_mode=True)
+#
+#     name_ckpt_mapping = read_yaml("../../data/yaml/test-2-agents.yaml")
+#     ckpt_info = next(iter(name_ckpt_mapping.values()))
+#
+#     pure_agent = restore_agent_with_mask(
+#         "PPO", ckpt_info['path'], "BipedalWalker-v2"
+#     )
+#
+#     # policy = restore_policy_with_mask("PPO", ckpt_info['path'],
+#     "BipedalWalker-v2")
+#
+#
+#     np.testing.assert_almost_equal(
+#         pure_agent.get_policy().get_state(),
+#         policy.get_state()
+#     )
+#
+#     for i in range(10):
+#         a = np.random.random((10, 24))
+#         pr, _, infopr = policy.compute_actions(a)
+#         ar, _, infoar = pure_agent.get_policy().compute_actions(a)
+#         #     print(infopr.keys())
+#         np.testing.assert_almost_equal(infopr['behaviour_logits'],
+#                                        infoar['behaviour_logits'])
 
 
 if __name__ == '__main__':
-    r = test_efficient_rollout_from_worker()
-    ret = test_restore_agent_with_mask()
-    test_add_gaussian_perturbation()
-    test_MaskSymbolicAgent_local()
-    test_MaskSymbolicAgent_remote()
-    test_restore_agent_and_restore_policy()
+    # r = test_efficient_rollout_from_worker()
+    # ret = test_restore_agent_with_mask()
+    # test_add_gaussian_perturbation()
+    # test_MaskSymbolicAgent_local()
+    # test_MaskSymbolicAgent_remote()
+    # test_restore_agent_and_restore_policy()
+    ret1, ret2, ret3 = test_restore_agent_with_mask()
