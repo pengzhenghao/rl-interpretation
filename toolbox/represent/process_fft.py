@@ -108,6 +108,15 @@ def get_representation(data_frame, label_list, postprocess):
     return ret
 
 
+def parse_df(data_frame):
+    label_list = sorted(
+        data_frame.label.unique(),
+        key=lambda s: int(s[4:]) + (-1e6 if s.startswith('Obs') else +1e6)
+    )
+    repr_dict = get_representation(data_frame, label_list, lambda x: x)
+    return repr_dict
+
+
 def get_period(source, fps):
     # Compute the period of BipedalWalker-v2's agent.
     # We observe the observation[7, 12] to get the frequency.

@@ -5,16 +5,15 @@ https://github.com/google-research/google-research/tree/master
 /representation_similarity
 
 """
+import os
 import pickle
 
 import numpy as np
-import os
-
-from toolbox.process_data.process_data import read_yaml
-from toolbox.evaluate.rollout import several_agent_rollout
-from toolbox.utils import initialize_ray, get_random_string
 
 from toolbox.evaluate.replay import several_agent_replay
+from toolbox.evaluate.rollout import several_agent_rollout
+from toolbox.process_data.process_data import read_yaml
+from toolbox.utils import initialize_ray, get_random_string
 
 ACTIVATION_DATA_PREFIX = "layer"
 
@@ -133,7 +132,9 @@ def _debiased_dot_product_similarity_helper(
     )
 
 
-def feature_space_linear_cka(features_x, features_y, debiased=False):
+def feature_space_linear_cka(
+        features_x, features_y, debiased=False, verbose=True
+):
     """Compute CKA with a linear kernel, in feature space.
 
     This is typically faster than computing the Gram matrix when there are
@@ -149,10 +150,14 @@ def feature_space_linear_cka(features_x, features_y, debiased=False):
     Returns:
       The value of CKA between X and Y.
     """
+    if verbose: print("[get_cka] start to reduce mean")
     features_x = features_x - np.mean(features_x, 0, keepdims=True)
     features_y = features_y - np.mean(features_y, 0, keepdims=True)
 
+    if verbose: print("[get_cka] start to compute dot-product-simi")
     dot_product_similarity = np.linalg.norm(features_x.T.dot(features_y))**2
+
+    if verbose: print("[get_cka] start to normalize x, y")
     normalization_x = np.linalg.norm(features_x.T.dot(features_x))
     normalization_y = np.linalg.norm(features_y.T.dot(features_y))
 
@@ -182,6 +187,7 @@ def feature_space_linear_cka(features_x, features_y, debiased=False):
             )
         )
 
+    if verbose: print("[get_cka] start to return")
     return dot_product_similarity / (normalization_x * normalization_y)
 
 

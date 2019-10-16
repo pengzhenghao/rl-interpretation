@@ -327,6 +327,131 @@ Modification:
     1. use iteration as the termination criterion
     2. pass an environment object which can be different from env_name
 """
+from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
+from collections import OrderedDict
+
+from toolbox.env.env_maker import make_build_gym_env
+
+
+# @ray.remote(num_return_vals=1)
+def remote_rollout(
+        agent,
+        num_rollouts,
+        # env,
+        env_wrapper,
+        env_name,
+        num_steps=None,
+        require_frame=False,
+        require_trajectory=False,
+        require_extra_info=False,
+        require_full_frame=False,
+        require_env_state=False,
+        render_mode="rgb_array"
+):
+    ret_list = []
+
+    # print(
+    #     "In remote_rollout, the agent type: {}, IS SYMBOBASE {}".format(
+    #         type(agent), isinstance(agent, SymbolicAgentBase)
+    #     )
+    # )
+
+    if isinstance(agent, SymbolicAgentBase):
+        assert not agent.initialized
+        real_agent = agent.get()['agent']
+        print("SymbolicAgent is restored.")
+    else:
+        real_agent = agent
+
+    env = make_build_gym_env(env_name)(seed=0)
+
+    if env_wrapper is not None:
+        env = env_wrapper(env)
+
+    for i in range(num_rollouts):
+        ret = rollout(
+            real_agent, env, env_name, num_steps, require_frame,
+            require_trajectory, require_extra_info, require_full_frame,
+            require_env_state, render_mode
+        )
+        ret_list.append(ret)
+    if isinstance(agent, SymbolicAgentBase):
+        agent.clear()
+        return ret_list, copy.deepcopy(agent)
+    return ret_list, None
+
+
+def quick_rollout_from_symbolic_agents(
+        name_symbolic_agent_mapping, num_rollouts, num_workers=5,
+        env_wrapper=None
+):
+    obj_id_dict = OrderedDict()
+
+    agent_rollout_dict = OrderedDict()
+    now_t = start_t = time.time()
+
+    count = 0
+    print_count = 1
+
+    remote_rollout_remote = ray.remote(
+        num_gpus=3.8 / num_workers if has_gpu() else 0
+    )(remote_rollout)
+
+    for name, agent in name_symbolic_agent_mapping.items():
+
+        env_name = agent.agent_info['env_name']
+        # env = make_build_gym_env(env_name)(seed=0)
+
+        # if env_wrapper is not None:
+        #     env = env_wrapper(env)
+
+        assert not agent.initialized
+
+        assert isinstance(agent, SymbolicAgentBase)
+
+        obj_id_dict[name] = remote_rollout_remote.remote(
+            agent,
+            num_rollouts,
+            # env,
+            env_wrapper,
+            env_name,
+            require_trajectory=True,
+            require_extra_info=True,
+            require_env_state=False  # It seems we don't use it ?? 1013
+        )
+        count += 1
+        if count % num_workers == 0:
+            for i, (name, obj_id) in enumerate(obj_id_dict.items()):
+                agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))
+                print(
+                    "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts "
+                    "from "
+                    "agent"
+                    " <{}>".format(
+                        i + print_count, len(name_symbolic_agent_mapping),
+                        time.time() - now_t,
+                        time.time() - start_t, num_rollouts, name
+                    )
+                )
+                now_t = time.time()
+            obj_id_dict.clear()
+            print_count = count + 1
+
+    for i, (name, obj_id) in enumerate(obj_id_dict.items()):
+        agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))
+        # count += 1
+        print(
+            "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from "
+            "agent"
+            " <{}>".format(
+                print_count + i, len(name_symbolic_agent_mapping),
+                time.time() - now_t,
+                time.time() - start_t, num_rollouts, name
+            )
+        )
+        now_t = time.time()
+    obj_id_dict.clear()
+    return agent_rollout_dict
 
 
 def rollout(
@@ -348,6 +473,13 @@ def rollout(
         num_steps = 3000
 
     policy_agent_mapping = default_policy_agent_mapping
+
+    if isinstance(agent, SymbolicAgentBase):
+        agent = agent.get()['agent']
+        print(
+            "Successfully restore agent at remote worker "
+            "from symbolic agent!"
+        )
 
     if hasattr(agent, "workers"):
         # env = agent.workers.local_worker().env

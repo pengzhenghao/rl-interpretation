@@ -9,6 +9,7 @@ from toolbox.evaluate.evaluate_utils import restore_agent_with_activation, \
     restore_agent
 from toolbox.process_data.process_data import read_yaml
 from toolbox.utils import has_gpu
+from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 
 
 def _replay(obs, run_name, ckpt, env_name, require_activation=True):
@@ -18,6 +19,13 @@ def _replay(obs, run_name, ckpt, env_name, require_activation=True):
         agent = restore_agent(run_name, ckpt, env_name)
     act, infos = agent_replay(agent, obs)
     return act, infos
+
+
+# @ray.remote
+def remote_symbolic_replay(symbolic_agent, obs):
+    assert isinstance(symbolic_agent, SymbolicAgentBase)
+    agent = symbolic_agent.get()['agent']
+    return agent_replay(agent, obs)
 
 
 def agent_replay(agent, obs):

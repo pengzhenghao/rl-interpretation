@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas
 import seaborn as sns
 from sklearn import decomposition, manifold
-
+import numpy as np
 DEFAULT_METHOD = {
     "name": "pca_tsne",
     "pca_dim": 50,
@@ -17,7 +17,14 @@ DEFAULT_METHOD = {
 }
 
 
-def reduce_dimension(data, prediction, three_dimensional=False):
+def reduce_dimension(
+        data,
+        prediction,
+        three_dimensional=False,
+        pca_dim=None,
+        precomputed_pca=None,
+        computed_embedding=None
+):
     """
 
     :param data: dataframe with shape [num_agents, num_features]
@@ -28,20 +35,33 @@ def reduce_dimension(data, prediction, three_dimensional=False):
     method = DEFAULT_METHOD
     perplexity = method['perplexity']
     n_iter = method['n_iter']
-    pca_dim = method['pca_dim']
+    pca_dim = method['pca_dim'] if pca_dim is None else pca_dim
     tsne_dim = 3 if three_dimensional else 2
 
-    print('Running pca')
-    pca_result = decomposition.PCA(pca_dim).fit_transform(data)
+    if computed_embedding is None:
+        print('Running pca')
+        if precomputed_pca is None:
+            pca_result = decomposition.PCA(pca_dim).fit_transform(data)
+        else:
+            assert isinstance(precomputed_pca, decomposition.PCA)
+            print(
+                "Detected precomputed PCA instance! "
+                "We will use it to conduct dimension reduction!"
+            )
+            pca_result = precomputed_pca.transform(data)
 
-    print('Running tsne')
-    result = manifold.TSNE(
-        n_components=tsne_dim,
-        perplexity=perplexity,
-        verbose=2,
-        random_state=0,
-        n_iter=n_iter
-    ).fit_transform(pca_result)
+        print('Running tsne')
+        result = manifold.TSNE(
+            n_components=tsne_dim,
+            perplexity=perplexity,
+            verbose=2,
+            random_state=0,
+            n_iter=n_iter
+        ).fit_transform(pca_result)
+    else:
+        result = computed_embedding
+
+    assert data.shape[0] == result.shape[0]
     print(
         'Reduction Completed! data.shape={} result.shape={}'.format(
             data.shape, result.shape
@@ -68,36 +88,99 @@ def reduce_dimension(data, prediction, three_dimensional=False):
     return plot_df, result
 
 
-def draw(plot_df, show=True, save=None):
+def draw(
+        plot_df,
+        show=True,
+        save=None,
+        title=None,
+        return_array=False,
+        dpi=300,
+        **kwargs
+):
     three_dimensional = 'z' in plot_df.columns
     if three_dimensional:
-        _draw_3d(plot_df, show, save)
+        return _draw_3d(plot_df, show, save, title, return_array, dpi)
     else:
-        _draw_2d(plot_df, show, save)
-    print("Drew!")
+        return _draw_2d(
+            plot_df, show, save, title, return_array, dpi, **kwargs
+        )
+    # print("Drew!")
 
 
-def _draw_2d(plot_df, show=True, save=None):
-    plt.figure(figsize=(12, 10), dpi=300)
+def _draw_2d(
+        plot_df,
+        show=True,
+        save=None,
+        title=None,
+        return_array=False,
+        dpi=300,
+        xlim=None,
+        ylim=None,
+        **kwargs
+):
+    fig = plt.figure(figsize=(12, 10), dpi=dpi)
+
+    if xlim is not None:
+        plt.xlim(xlim)
+    if ylim is not None:
+        plt.ylim(ylim)
+
     num_clusters = len(plot_df.cluster.unique())
     palette = sns.color_palette(n_colors=num_clusters)
     ax = sns.scatterplot(
         x="x",
         y="y",
         hue="cluster",
+        style="cluster",
         palette=palette,
         data=plot_df,
         legend="full"
     )
-    ax.set_title(_get_title(plot_df))
+
+    if kwargs['emphasis_parent']:
+        emphasis_parent = plot_df.copy()
+
+        flag_list = []
+        for name in emphasis_parent.agent:
+            flag = name.endswith('child=0')
+            flag_list.append(flag)
+
+        emphasis_parent = emphasis_parent[flag_list]
+
+        palette = sns.color_palette(
+            n_colors=len(emphasis_parent.cluster.unique())
+        )
+
+        # print('len platter: {}, len parents {}'.format(len(palette), len(emphasis_parent)))
+
+        # palette = sns.color_palette(n_colors=len(emphasis_parent.cluster.unique()))
+        ax = sns.scatterplot(
+            x="x",
+            y="y",
+            hue="cluster",
+            style="cluster",
+            s=200,
+            palette=palette,
+            data=emphasis_parent,
+            legend=False,
+            ax=ax
+        )
+
+    title = "[{}]".format(title) if title is not None else ""
+    ax.set_title(title + _get_title(plot_df))
     if save is not None:
         assert save.endswith('png')
         plt.savefig(save, dpi=300)
     if show:
         plt.show()
+    if return_array:
+        # fig = plt.gcf()
+        fig.canvas.draw()
+        figarr = np.array(fig.canvas.renderer.buffer_rgba())[..., [2, 1, 0, 3]]
+        return figarr
 
 
-def _draw_3d(plot_df, show=True, save=None):
+def _draw_3d(plot_df, show=True, save=None, title=None):
     from mpl_toolkits.mplot3d import Axes3D
     use_less_var = Axes3D
 
@@ -116,8 +199,8 @@ def _draw_3d(plot_df, show=True, save=None):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.legend()
-
-    ax.set_title(_get_title(plot_df))
+    title = "[{}]".format(title) if title is not None else ""
+    ax.set_title(title + _get_title(plot_df))
     if save is not None:
         assert save.endswith('png')
         plt.savefig(save, dpi=300)
