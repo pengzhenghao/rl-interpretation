@@ -47,7 +47,7 @@ class _RemoteSymbolicReplayWorker:
 
 
 class RemoteSymbolicReplayManager:
-    def __init__(self, num_workers, total_num=None):
+    def __init__(self, num_workers, total_num=None, log_interval=50):
         self.num_workers = num_workers
         num_gpus = 3.8 / num_workers if has_gpu() else 0
         self.workers = [
@@ -61,6 +61,7 @@ class RemoteSymbolicReplayManager:
         self.finish_count = 0
         self.now = self.start = time.time()
         self.total_num = total_num
+        self.log_interval = log_interval
 
     def replay(self, index, symbolic_agent, obs):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
@@ -77,11 +78,12 @@ class RemoteSymbolicReplayManager:
             self.ret_dict[name] = ret
 
             self.finish_count += 1
-            print("[{}/{}] (+{:.2f}s/{:.2f}s) Finish replay: {}!".format(
-                self.finish_count, self.total_num, time.time() - self.now,
-                time.time() - self.start, name
-            ))
-            self.now = time.time()
+            if self.finish_count % self.log_interval == 0:
+                print("[{}/{}] (+{:.2f}s/{:.2f}s) Finish replay: {}!".format(
+                    self.finish_count, self.total_num, time.time() - self.now,
+                    time.time() - self.start, name
+                ))
+                self.now = time.time()
         self.obj_dict.clear()
 
     def get_result(self):

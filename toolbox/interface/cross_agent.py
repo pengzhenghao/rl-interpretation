@@ -7,14 +7,12 @@ from collections.abc import Iterable as IterableClass
 
 import numpy as np
 import pandas as pd
-import ray
 from sklearn import decomposition
 from sklearn.cluster import DBSCAN
 
 from toolbox.cluster.process_cluster import ClusterFinder
-from toolbox.evaluate.replay import remote_symbolic_replay
+from toolbox.evaluate.replay import RemoteSymbolicReplayManager
 from toolbox.represent.process_fft import stack_fft, parse_df
-from toolbox.utils import has_gpu
 
 DEFAULT_CONFIG = {"num_samples": 100, "pca_dim": 50}
 
@@ -33,7 +31,8 @@ def _build_cka_matrix(iterable, length):
     print("[_build_cka_matrix] Finish collect norm of each entry.")
 
     for i1 in prange(length - 1):
-        print("Current Row: ", i1)
+        if (i1 + 1) % 100 == 0:
+            print("[CAA.build_cka_matrix] Current Row: ", i1)
         for i2 in prange(i1, length):
             features_x = iterable[i1]
             features_y = iterable[i2]
@@ -102,7 +101,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict,
     )
 
     cluster_df = pd.DataFrame(representation_dict).T
-    for i in range(5):
+    for i in range(3):
 
         cluster_finder = ClusterFinder(cluster_df,
                                        max_num_cluster=num_clusters)
@@ -351,38 +350,47 @@ class CrossAgentAnalyst:
 
         # replay
         print("[INSIDE CAA] prepared to replay the joint dataset")
-        agent_replay_dict = OrderedDict()
-        agent_replay_info_dict = OrderedDict()
 
         num_worker = 16
-        obj_ids = OrderedDict()
+        # obj_ids = OrderedDict()
+        # remote_symbolic_replay_remote = ray.remote(
+        #     num_gpus=3.8 / num_worker if has_gpu() else 0)(
+        #     remote_symbolic_replay
+        # )
 
-        remote_symbolic_replay_remote = ray.remote(
-            num_gpus=3.8 / num_worker if has_gpu() else 0)(
-            remote_symbolic_replay
+        replay_manager = RemoteSymbolicReplayManager(
+            num_worker, total_num=len(name_agent_info_mapping)
         )
 
         for i, (name, symbolic_agent) in \
                 enumerate(name_agent_info_mapping.items()):
+            replay_manager.replay(name, symbolic_agent, self.joint_obs_dataset)
 
-            obj_id = remote_symbolic_replay_remote.remote(
-                symbolic_agent, self.joint_obs_dataset
-            )
-            obj_ids[name] = obj_id
+            # obj_id = remote_symbolic_replay_remote.remote(
+            #     symbolic_agent, self.joint_obs_dataset
+            # )
+            # obj_ids[name] = obj_id
 
-            if len(obj_ids) >= num_worker:
-                for key, obj_id in obj_ids.items():
-                    act, infos = copy.deepcopy(ray.get(obj_id))
-                    agent_replay_dict[key] = act
-                    agent_replay_info_dict[key] = infos
-                obj_ids.clear()
-                print("[INSIDE CAA] Replay [{}/{}] agents.".format(
-                    i, len(name_agent_info_mapping)
-                ))
-        for key, obj_id in obj_ids.items():
-            act, infos = copy.deepcopy(ray.get(obj_id))
-            agent_replay_dict[key] = act
-            agent_replay_info_dict[key] = infos
+            # if len(obj_ids) >= num_worker:
+            #     for key, obj_id in obj_ids.items():
+            #         act, infos = copy.deepcopy(ray.get(obj_id))
+            #         agent_replay_dict[key] = act
+            #         agent_replay_info_dict[key] = infos
+            #     obj_ids.clear()
+            #     print("[INSIDE CAA] Replay [{}/{}] agents.".format(
+            #         i, len(name_agent_info_mapping)
+            #     ))
+        # for key, obj_id in obj_ids.items():
+        #     act, infos = copy.deepcopy(ray.get(obj_id))
+        #     agent_replay_dict[key] = act
+        #     agent_replay_info_dict[key] = infos
+
+        replay_result = replay_manager.get_result()
+        agent_replay_dict = OrderedDict()
+        agent_replay_info_dict = OrderedDict()
+        for name, (act, infos) in replay_result.items():
+            agent_replay_dict[name] = act
+            agent_replay_info_dict[name] = infos
 
         self.agent_replay_info_dict = agent_replay_info_dict
         self.agent_replay_dict = agent_replay_dict
