@@ -4,22 +4,22 @@ This file contain the interface to cross-agent analysis.
 import copy
 from collections import OrderedDict
 from collections.abc import Iterable as IterableClass
-import ray
+
 import numpy as np
 import pandas as pd
+import ray
 from sklearn import decomposition
 from sklearn.cluster import DBSCAN
 
-from toolbox.utils import has_gpu
 from toolbox.cluster.process_cluster import ClusterFinder
 from toolbox.evaluate.replay import remote_symbolic_replay
-from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.represent.process_fft import stack_fft, parse_df
-from toolbox.represent.process_similarity import get_cka
+from toolbox.utils import has_gpu
 
 DEFAULT_CONFIG = {"num_samples": 100, "pca_dim": 50}
 
 from numba import njit, prange
+
 
 @njit(parallel=True)
 def _build_cka_matrix(iterable, length):
@@ -41,7 +41,7 @@ def _build_cka_matrix(iterable, length):
                 features_x.T.dot(features_y)) ** 2
 
             result = dot_product_similarity / (
-                        normalization_dict[i1] * normalization_dict[i2])
+                    normalization_dict[i1] * normalization_dict[i2])
 
             matrix[i1, i2] = result
             matrix[i2, i1] = result
@@ -89,7 +89,8 @@ def _parse_prediction_to_precision(prediction, agent_info_dict):
     return precision, parent_cluster_dict, correct_predict
 
 
-def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_clusters):
+def get_k_means_clustering_precision(representation_dict, agent_info_dict,
+                                     num_clusters):
     # num_agents = len(representation_dict)
 
     best_precision = float('-inf')
@@ -103,7 +104,8 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_c
     cluster_df = pd.DataFrame(representation_dict).T
     for i in range(5):
 
-        cluster_finder = ClusterFinder(cluster_df, max_num_cluster=num_clusters)
+        cluster_finder = ClusterFinder(cluster_df,
+                                       max_num_cluster=num_clusters)
         cluster_finder.set(num_clusters)
 
         prediction = cluster_finder.predict()
@@ -193,14 +195,15 @@ def grid_search_dbscan_cluster(agent_info_dict, matrix, search=30):
     for min_samples in [1, 2, 3]:
 
         count = 0
-        eps_candidates = np.linspace(1e-6, max(matrix.max(), 1e-2), 10).tolist()
+        eps_candidates = np.linspace(1e-6, max(matrix.max(), 1e-2),
+                                     10).tolist()
 
         while count < search and eps_candidates:
             eps = eps_candidates.pop(0)
             precision, prediction, parent_cluster_dict, trust = \
                 get_dbscan_precision(
-                agent_info_dict, matrix, eps, min_samples
-            )
+                    agent_info_dict, matrix, eps, min_samples
+                )
             count += 1
 
             if trust and precision > best_precision:
@@ -354,7 +357,8 @@ class CrossAgentAnalyst:
         num_worker = 16
         obj_ids = OrderedDict()
 
-        remote_symbolic_replay_remote = ray.remote(num_gpus=3.8/num_worker if has_gpu() else 0)(
+        remote_symbolic_replay_remote = ray.remote(
+            num_gpus=3.8 / num_worker if has_gpu() else 0)(
             remote_symbolic_replay
         )
 
@@ -366,7 +370,7 @@ class CrossAgentAnalyst:
             )
             obj_ids[name] = obj_id
 
-            if len(obj_ids)>=num_worker:
+            if len(obj_ids) >= num_worker:
                 for key, obj_id in obj_ids.items():
                     act, infos = copy.deepcopy(ray.get(obj_id))
                     agent_replay_dict[key] = act
@@ -382,7 +386,6 @@ class CrossAgentAnalyst:
 
         self.agent_replay_info_dict = agent_replay_info_dict
         self.agent_replay_dict = agent_replay_dict
-
 
         print("[INSIDE CAA] prepared to clear all agent")
         for agent in name_agent_info_mapping.values():
@@ -543,7 +546,9 @@ class CrossAgentAnalyst:
         print("[CAA.cka_similarity] start to collect activation")
         for name, replay_result in self.agent_replay_info_dict.items():
             if name.split(" ")[-1] in selected_surfix:
-                print("[CAA.cka_similarity] Selected agent for cka: <{}>".format(name))
+                print(
+                    "[CAA.cka_similarity] Selected agent for cka: <{}>".format(
+                        name))
                 activation = replay_result['layer1']
                 agent_activation_dict[name] = activation
 
@@ -557,13 +562,36 @@ class CrossAgentAnalyst:
             len(iterable)
         )
 
+        print("[CAA.cka_similarity] start to build the aggregated cka matrix.")
+        num_agents = len(self.agent_replay_info_dict)
+        child_names = set(
+            [name.split(" ")[-1]
+             for name in self.agent_replay_info_dict.keys()
+             if name.split(" ")[-1].startswith("child")
+             ]
+        )
+        num_childs = len(child_names)
+        num_parents = num_agents / num_childs
+        assert int(num_parents) == num_parents
+        num_parents = int(num_parents)
+        base_matrix = np.ones((num_agents, num_agents))
+        assert len(cka_similarity) / len(selected_surfix) == num_parents
+        for x in range(num_agents):
+            if x % num_childs < len(selected_surfix):
+                for y in range(num_agents):
+                    if y % num_childs < len(selected_surfix):
+                        idx = int(x / num_childs) + (x % num_childs)
+                        idy = int(y / num_childs) + (y % num_childs)
+                        cka_result = cka_similarity[idx, idy]
+                        base_matrix[x, y] = cka_result
+
         print("[CAA.cka_similarity] start to return")
-        self.computed_results['similarity']['cka'] = cka_similarity
+        self.computed_results['similarity']['cka'] = base_matrix
         self.computed_results['distance']['cka'] = \
-            np.clip(1 - cka_similarity, 0.0, None)
+            np.clip(1 - base_matrix, 0.0, None)
         self.computed_results['distance']['cka_reciprocal'] = \
-            1 / (cka_similarity + 1e-9)
-        return cka_similarity
+            1 / (base_matrix + 1e-9)
+        return base_matrix
 
     def js_distance(self):
         # https://stats.stackexchange.com/questions/7630/clustering-should-i
@@ -628,7 +656,8 @@ class CrossAgentAnalyst:
         for method_name, repr_dict in \
                 self.computed_results['representation'].items():
             precision, prediction, parent_cluster_dict, cluster_df = \
-                get_k_means_clustering_precision(repr_dict, agent_info_dict, num_clusters)
+                get_k_means_clustering_precision(repr_dict, agent_info_dict,
+                                                 num_clusters)
             representation_precision_dict[method_name] = precision
             representation_prediction_dict[method_name] = copy.deepcopy(
                 prediction
@@ -745,7 +774,8 @@ class CrossAgentAnalyst:
             })
 
             episode_reward = [
-                np.sum([transition[-2] for transition in rollout['trajectory']])
+                np.sum(
+                    [transition[-2] for transition in rollout['trajectory']])
                 for rollout in roll_list
             ]
 
