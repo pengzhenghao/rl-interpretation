@@ -155,27 +155,21 @@ def test_MaskSymbolicAgent_local():
 
     sa = MaskSymbolicAgent(ckpt_info)
 
-    agent = sa.get()['policy']
+    agent = sa.get()['agent']
 
     callback_info = {"method": 'normal', 'mean': 1., "std": 1., "seed": 1997}
 
     sa2 = MaskSymbolicAgent(ckpt_info, callback_info)
 
-    agent2 = sa2.get()['policy']
+    agent2 = sa2.get()['agent']
 
 
 def test_MaskSymbolicAgent_remote():
     initialize_ray(test_mode=True)
 
-    # @ray.remote
-    # def get_agent(sa):
-    #     agent = sa.get()['agent']
-    #     print("success")
-    #     return True
-
     @ray.remote
-    def get_policy(sa):
-        policy = sa.get()['policy']
+    def get_agent(sa):
+        agent = sa.get()['agent']
         print("success")
         return True
 
@@ -188,7 +182,7 @@ def test_MaskSymbolicAgent_remote():
 
     for name, ckpt_info in name_ckpt_mapping.items():
         sa = MaskSymbolicAgent(ckpt_info, callback_info)
-        obid = get_policy.remote(sa)
+        obid = get_agent.remote(sa)
         obidlist.append(obid)
 
     ray.get(obidlist)
@@ -205,12 +199,12 @@ def test_restore_agent_and_restore_policy():
         "PPO", ckpt_info['path'], "BipedalWalker-v2"
     )
 
-    policy = restore_policy_with_mask(
-        "PPO", ckpt_info['path'], "BipedalWalker-v2"
-    )
+    policy = restore_policy_with_mask("PPO", ckpt_info['path'], "BipedalWalker-v2")
+
 
     np.testing.assert_almost_equal(
-        pure_agent.get_policy().get_state(), policy.get_state()
+        pure_agent.get_policy().get_state(),
+        policy.get_state()
     )
 
     for i in range(10):
@@ -218,9 +212,17 @@ def test_restore_agent_and_restore_policy():
         pr, _, infopr = policy.compute_actions(a)
         ar, _, infoar = pure_agent.get_policy().compute_actions(a)
         #     print(infopr.keys())
-        np.testing.assert_almost_equal(
-            infopr['behaviour_logits'], infoar['behaviour_logits']
-        )
+        np.testing.assert_almost_equal(infopr['behaviour_logits'],
+                                       infoar['behaviour_logits'])
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == '__main__':

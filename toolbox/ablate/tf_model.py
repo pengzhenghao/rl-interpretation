@@ -416,6 +416,8 @@ class AddMaskInfoMixinForPolicy(object):
         return ret
 
 
+
+
 def setup_mixins(policy, obs_space, action_space, config):
     AddDefaultMask.__init__(policy)
     ValueNetworkMixin_modified.__init__(
@@ -431,14 +433,15 @@ def setup_mixins(policy, obs_space, action_space, config):
 
 
 model_config = {
-    "model": {
-        "custom_model": "fc_with_mask",
-        "custom_options": {}
-    }
+    "model": {"custom_model": "fc_with_mask", "custom_options": {}}
 }
 from ray.tune.util import merge_dicts
 
-ppo_agent_default_config_with_mask = merge_dicts(DEFAULT_CONFIG, model_config)
+ppo_agent_default_config_with_mask = merge_dicts(
+    DEFAULT_CONFIG, model_config
+)
+
+
 
 # ppo_default_config_with_mask = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
 # ppo_default_config_with_mask['model'].update(model_config)
@@ -467,6 +470,8 @@ class AddMaskInfoMixin(object):
                 self.get_policy().model.mask_placeholder_dict.items():
             ret[name] = tensor.shape.as_list()
         return ret
+
+
 
 
 # ppo_agent_default_config_with_mask['model'].update(model_config)

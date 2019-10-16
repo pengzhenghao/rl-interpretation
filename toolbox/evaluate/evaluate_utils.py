@@ -17,7 +17,6 @@ from tensorflow import Graph
 from toolbox.ablate.tf_model import \
     PPOTFPolicyWithMask, ppo_agent_default_config_with_mask
 
-
 def build_config(
         ckpt, extra_config=None, is_es_agent=False, change_model=None
 ):
@@ -93,10 +92,8 @@ def restore_policy_with_mask(run_name, ckpt, env_name, extra_config=None):
     env = get_env_maker(env_name)()
     with Graph().as_default():
         # This is a workaround to avoid variable multiple init.
-        p = PPOTFPolicyWithMask(
-            env.observation_space, env.action_space,
-            ppo_agent_default_config_with_mask
-        )
+        p = PPOTFPolicyWithMask(env.observation_space, env.action_space,
+                                ppo_agent_default_config_with_mask)
         if ckpt is not None:
             path = os.path.abspath(os.path.expanduser(ckpt))
             wkload = pickle.load(open(path, 'rb'))['worker']
