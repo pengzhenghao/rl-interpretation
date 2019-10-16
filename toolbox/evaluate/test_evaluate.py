@@ -226,9 +226,9 @@ def test_restore_agent_and_restore_policy():
 
 
 if __name__ == '__main__':
-    # r = test_efficient_rollout_from_worker()
-    # ret = test_restore_agent_with_mask()
-    # test_add_gaussian_perturbation()
-    # test_MaskSymbolicAgent_local()
-    # test_MaskSymbolicAgent_remote()
+    r = test_efficient_rollout_from_worker()
+    ret = test_restore_agent_with_mask()
+    test_add_gaussian_perturbation()
+    test_MaskSymbolicAgent_local()
+    test_MaskSymbolicAgent_remote()
     test_restore_agent_and_restore_policy()
