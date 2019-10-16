@@ -155,21 +155,27 @@ def test_MaskSymbolicAgent_local():
 
     sa = MaskSymbolicAgent(ckpt_info)
 
-    agent = sa.get()['agent']
+    agent = sa.get()['policy']
 
     callback_info = {"method": 'normal', 'mean': 1., "std": 1., "seed": 1997}
 
     sa2 = MaskSymbolicAgent(ckpt_info, callback_info)
 
-    agent2 = sa2.get()['agent']
+    agent2 = sa2.get()['policy']
 
 
 def test_MaskSymbolicAgent_remote():
     initialize_ray(test_mode=True)
 
+    # @ray.remote
+    # def get_agent(sa):
+    #     agent = sa.get()['agent']
+    #     print("success")
+    #     return True
+
     @ray.remote
-    def get_agent(sa):
-        agent = sa.get()['agent']
+    def get_policy(sa):
+        policy = sa.get()['policy']
         print("success")
         return True
 
@@ -182,7 +188,7 @@ def test_MaskSymbolicAgent_remote():
 
     for name, ckpt_info in name_ckpt_mapping.items():
         sa = MaskSymbolicAgent(ckpt_info, callback_info)
-        obid = get_agent.remote(sa)
+        obid = get_policy.remote(sa)
         obidlist.append(obid)
 
     ray.get(obidlist)
