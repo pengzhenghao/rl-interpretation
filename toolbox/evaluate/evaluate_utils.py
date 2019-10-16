@@ -89,20 +89,20 @@ def restore_agent_with_mask(run_name, ckpt, env_name, extra_config=None, existin
     return _restore("PPOAgentWithMask", run_name, ckpt, env_name, extra_config, existing_agent)
 
 
-# def restore_policy_with_mask(run_name, ckpt, env_name, extra_config=None):
-#     assert run_name == "PPO"
-#     register_fc_with_mask()
-#     env = get_env_maker(env_name)()
-#     with Graph().as_default():
-#         # This is a workaround to avoid variable multiple init.
-#         p = PPOTFPolicyWithMask(env.observation_space, env.action_space,
-#                                 ppo_agent_default_config_with_mask)
-#         if ckpt is not None:
-#             path = os.path.abspath(os.path.expanduser(ckpt))
-#             wkload = pickle.load(open(path, 'rb'))['worker']
-#             state = pickle.loads(wkload)['state']['default_policy']
-#             p.set_state(state)
-#     return p
+def restore_policy_with_mask(run_name, ckpt, env_name, extra_config=None):
+    assert run_name == "PPO"
+    register_fc_with_mask()
+    env = get_env_maker(env_name)()
+    with Graph().as_default():
+        # This is a workaround to avoid variable multiple init.
+        p = PPOTFPolicyWithMask(env.observation_space, env.action_space,
+                                ppo_agent_default_config_with_mask)
+        if ckpt is not None:
+            path = os.path.abspath(os.path.expanduser(ckpt))
+            wkload = pickle.load(open(path, 'rb'))['worker']
+            state = pickle.loads(wkload)['state']['default_policy']
+            p.set_state(state)
+    return path
 
 
 def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None, existing_agent=None):

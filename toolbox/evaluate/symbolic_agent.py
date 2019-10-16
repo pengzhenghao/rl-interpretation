@@ -77,7 +77,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             # we do not clear the mask, so that the agent is maintained and
             # recoverable! This is really important.
 
-    def get(self):
+    def get(self, existing_agent=None):
         if self.initialized:
             return self.agent_info
         if not self.initialized and self.mask is not None:
@@ -87,7 +87,8 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         run_name = ckpt['run_name']
         ckpt_path = ckpt['path']
         env_name = ckpt['env_name']
-        self.agent = restore_agent_with_mask(run_name, ckpt_path, env_name)
+        self.agent = restore_agent_with_mask(run_name, ckpt_path, env_name,
+                                             existing_agent=existing_agent)
         self.agent = self.mask_callback(self.agent)
 
         # self.agent_info.update(ckpt)

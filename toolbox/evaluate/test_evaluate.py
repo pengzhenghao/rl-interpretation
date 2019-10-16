@@ -3,6 +3,8 @@ import numpy as np
 import ray
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 
+from collections import OrderedDict
+
 from toolbox.env.env_maker import get_env_maker
 from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 from toolbox.evaluate.rollout import RolloutWorkerWrapper, \
@@ -236,6 +238,33 @@ def test_MaskSymbolicAgent_remote():
 #         np.testing.assert_almost_equal(infopr['behaviour_logits'],
 #                                        infoar['behaviour_logits'])
 
+def test_RemoteSymbolicReplayManager():
+
+    initialize_ray(test_mode=True)
+    from toolbox.evaluate.replay import RemoteSymbolicReplayManager as RSRM
+
+    n = 22
+    yaml_path = "data/yaml/ppo-300-agents.yaml"
+
+    rsrm = RSRM(10, n)
+
+    name_ckpt_mapping = read_yaml(yaml_path, 22)
+    agents = OrderedDict()
+    for name, ckpt in name_ckpt_mapping.items():
+        agent = MaskSymbolicAgent(ckpt)
+        agents[name] = agent
+
+    obs = np.ones((100, 24))
+    for name, sa in agents.items():
+        rsrm.replay(name, sa, obs)
+
+    ret = rsrm.get_result()
+    return ret
+
+
+
+
+
 
 if __name__ == '__main__':
     # r = test_efficient_rollout_from_worker()
@@ -244,4 +273,5 @@ if __name__ == '__main__':
     # test_MaskSymbolicAgent_local()
     # test_MaskSymbolicAgent_remote()
     # test_restore_agent_and_restore_policy()
-    ret1, ret2, ret3 = test_restore_agent_with_mask()
+    # ret1, ret2, ret3 = test_restore_agent_with_mask()
+    ret = test_RemoteSymbolicReplayManager()
