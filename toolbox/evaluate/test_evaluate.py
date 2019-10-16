@@ -205,12 +205,12 @@ def test_restore_agent_and_restore_policy():
         "PPO", ckpt_info['path'], "BipedalWalker-v2"
     )
 
-    policy = restore_policy_with_mask("PPO", ckpt_info['path'], "BipedalWalker-v2")
-
+    policy = restore_policy_with_mask(
+        "PPO", ckpt_info['path'], "BipedalWalker-v2"
+    )
 
     np.testing.assert_almost_equal(
-        pure_agent.get_policy().get_state(),
-        policy.get_state()
+        pure_agent.get_policy().get_state(), policy.get_state()
     )
 
     for i in range(10):
@@ -218,17 +218,9 @@ def test_restore_agent_and_restore_policy():
         pr, _, infopr = policy.compute_actions(a)
         ar, _, infoar = pure_agent.get_policy().compute_actions(a)
         #     print(infopr.keys())
-        np.testing.assert_almost_equal(infopr['behaviour_logits'],
-                                       infoar['behaviour_logits'])
-
-
-
-
-
-
-
-
-
+        np.testing.assert_almost_equal(
+            infopr['behaviour_logits'], infoar['behaviour_logits']
+        )
 
 
 if __name__ == '__main__':

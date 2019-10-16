@@ -21,10 +21,11 @@ DEFAULT_CONFIG = {"num_samples": 100, "pca_dim": 50}
 
 from numba import njit, prange
 
+
 @njit(parallel=True)
 def _build_cka_matrix(iterable, length):
     matrix = np.ones((length, length))
-    normalization_dict = np.empty((length,))
+    normalization_dict = np.empty((length, ))
 
     for x in prange(length):
         normalization_dict[x] = \
@@ -38,10 +39,12 @@ def _build_cka_matrix(iterable, length):
             features_x = iterable[i1]
             features_y = iterable[i2]
             dot_product_similarity = np.linalg.norm(
-                features_x.T.dot(features_y)) ** 2
+                features_x.T.dot(features_y)
+            )**2
 
             result = dot_product_similarity / (
-                        normalization_dict[i1] * normalization_dict[i2])
+                normalization_dict[i1] * normalization_dict[i2]
+            )
 
             matrix[i1, i2] = result
             matrix[i2, i1] = result
@@ -89,7 +92,9 @@ def _parse_prediction_to_precision(prediction, agent_info_dict):
     return precision, parent_cluster_dict, correct_predict
 
 
-def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_clusters):
+def get_k_means_clustering_precision(
+        representation_dict, agent_info_dict, num_clusters
+):
     # num_agents = len(representation_dict)
 
     best_precision = float('-inf')
@@ -103,7 +108,9 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_c
     cluster_df = pd.DataFrame(representation_dict).T
     for i in range(5):
 
-        cluster_finder = ClusterFinder(cluster_df, max_num_cluster=num_clusters)
+        cluster_finder = ClusterFinder(
+            cluster_df, max_num_cluster=num_clusters
+        )
         cluster_finder.set(num_clusters)
 
         prediction = cluster_finder.predict()
@@ -144,9 +151,7 @@ def get_k_means_clustering_precision(representation_dict, agent_info_dict, num_c
            cluster_df
 
 
-def get_dbscan_precision(
-        agent_info_dict, matrix, eps, min_samples
-):
+def get_dbscan_precision(agent_info_dict, matrix, eps, min_samples):
     clustering = DBSCAN(
         eps=eps, min_samples=min_samples, metric="precomputed"
     ).fit_predict(matrix)
@@ -193,7 +198,8 @@ def grid_search_dbscan_cluster(agent_info_dict, matrix, search=30):
     for min_samples in [1, 2, 3]:
 
         count = 0
-        eps_candidates = np.linspace(1e-6, max(matrix.max(), 1e-2), 10).tolist()
+        eps_candidates = np.linspace(1e-6, max(matrix.max(), 1e-2),
+                                     10).tolist()
 
         while count < search and eps_candidates:
             eps = eps_candidates.pop(0)
@@ -341,7 +347,8 @@ class CrossAgentAnalyst:
             if name.endswith("child=0")
         ]
         self.name_index_mapping = {
-            k: i for i, k in enumerate(self.agent_rollout_dict.keys())
+            k: i
+            for i, k in enumerate(self.agent_rollout_dict.keys())
         }
 
         assert name_agent_info_mapping.keys() == self.agent_rollout_dict.keys()
@@ -354,9 +361,9 @@ class CrossAgentAnalyst:
         num_worker = 16
         obj_ids = OrderedDict()
 
-        remote_symbolic_replay_remote = ray.remote(num_gpus=3.8/num_worker if has_gpu() else 0)(
-            remote_symbolic_replay
-        )
+        remote_symbolic_replay_remote = ray.remote(
+            num_gpus=3.8 / num_worker if has_gpu() else 0
+        )(remote_symbolic_replay)
 
         for i, (name, symbolic_agent) in \
                 enumerate(name_agent_info_mapping.items()):
@@ -366,15 +373,17 @@ class CrossAgentAnalyst:
             )
             obj_ids[name] = obj_id
 
-            if len(obj_ids)>=num_worker:
+            if len(obj_ids) >= num_worker:
                 for key, obj_id in obj_ids.items():
                     act, infos = copy.deepcopy(ray.get(obj_id))
                     agent_replay_dict[key] = act
                     agent_replay_info_dict[key] = infos
                 obj_ids.clear()
-                print("[INSIDE CAA] Replay [{}/{}] agents.".format(
-                    i, len(name_agent_info_mapping)
-                ))
+                print(
+                    "[INSIDE CAA] Replay [{}/{}] agents.".format(
+                        i, len(name_agent_info_mapping)
+                    )
+                )
         for key, obj_id in obj_ids.items():
             act, infos = copy.deepcopy(ray.get(obj_id))
             agent_replay_dict[key] = act
@@ -382,7 +391,6 @@ class CrossAgentAnalyst:
 
         self.agent_replay_info_dict = agent_replay_info_dict
         self.agent_replay_dict = agent_replay_dict
-
 
         print("[INSIDE CAA] prepared to clear all agent")
         for agent in name_agent_info_mapping.values():
@@ -538,23 +546,29 @@ class CrossAgentAnalyst:
     def cka_similarity(self):
         agent_activation_dict = OrderedDict()
 
-        selected_surfix = ["child=0", "child=1", "child=2", "child=3", "child=4"]
+        selected_surfix = [
+            "child=0", "child=1", "child=2", "child=3", "child=4"
+        ]
 
         print("[CAA.cka_similarity] start to collect activation")
         for name, replay_result in self.agent_replay_info_dict.items():
             if name.split(" ")[-1] in selected_surfix:
-                print("[CAA.cka_similarity] Selected agent for cka: <{}>".format(name))
+                print(
+                    "[CAA.cka_similarity] Selected agent for cka: <{}>".
+                    format(name)
+                )
             activation = replay_result['layer1']
             agent_activation_dict[name] = activation
 
-        print("[CAA.cka_similarity] start to compute. Agent number: {}".format(
-            len(agent_activation_dict)
-        ))
+        print(
+            "[CAA.cka_similarity] start to compute. Agent number: {}".format(
+                len(agent_activation_dict)
+            )
+        )
         iterable = list(agent_activation_dict.values())
         # apply_function = get_cka
         cka_similarity = _build_cka_matrix(
-            iterable - np.mean(iterable, axis=1, keepdims=True),
-            len(iterable)
+            iterable - np.mean(iterable, axis=1, keepdims=True), len(iterable)
         )
 
         print("[CAA.cka_similarity] start to return")
@@ -729,63 +743,79 @@ class CrossAgentAnalyst:
 
         for name, roll_list in self.agent_rollout_dict.items():
             # mean length
-            episode_length = [len(rollout['trajectory']) for rollout in
-                              roll_list]
-
-            dataframe.append({
-                "label": "episode_length_mean",
-                "value": np.mean(episode_length),
-                "agent": name
-            })
-
-            dataframe.append({
-                "label": "episode_length_std",
-                "value": np.std(episode_length),
-                "agent": name
-            })
-
-            episode_reward = [
-                np.sum([transition[-2] for transition in rollout['trajectory']])
-                for rollout in roll_list
+            episode_length = [
+                len(rollout['trajectory']) for rollout in roll_list
             ]
 
-            dataframe.append({
-                "label": "episode_reward_mean",
-                "value": np.mean(episode_reward),
-                "agent": name
-            })
+            dataframe.append(
+                {
+                    "label": "episode_length_mean",
+                    "value": np.mean(episode_length),
+                    "agent": name
+                }
+            )
 
-            dataframe.append({
-                "label": "episode_reward_std",
-                "value": np.std(episode_reward),
-                "agent": name
-            })
+            dataframe.append(
+                {
+                    "label": "episode_length_std",
+                    "value": np.std(episode_length),
+                    "agent": name
+                }
+            )
 
-        for my_id, (name, agent) in enumerate(
-                self.name_agent_info_mapping.items()):
+            episode_reward = [
+                np.sum(
+                    [transition[-2] for transition in rollout['trajectory']]
+                ) for rollout in roll_list
+            ]
+
+            dataframe.append(
+                {
+                    "label": "episode_reward_mean",
+                    "value": np.mean(episode_reward),
+                    "agent": name
+                }
+            )
+
+            dataframe.append(
+                {
+                    "label": "episode_reward_std",
+                    "value": np.std(episode_reward),
+                    "agent": name
+                }
+            )
+
+        for my_id, (name,
+                    agent) in enumerate(self.name_agent_info_mapping.items()):
             parent_real_name = agent.agent_info['parent'] + " child=0"
             parent_index = self.name_index_mapping[parent_real_name]
 
-            for method_name, matrix in self.computed_results[
-                'distance'].items():
+            for method_name, matrix in self.computed_results['distance'].items(
+            ):
                 distance = matrix[my_id, parent_index]
-                dataframe.append({
-                    "label": "{}_to_parent".format(method_name),
-                    "value": distance,
-                    "agent": name
-                })
+                dataframe.append(
+                    {
+                        "label": "{}_to_parent".format(method_name),
+                        "value": distance,
+                        "agent": name
+                    }
+                )
 
-                dataframe.append({
-                    "label": "{}_mean".format(method_name),
-                    "value": np.mean(matrix[my_id]),
-                    "agent": name
-                })
+                dataframe.append(
+                    {
+                        "label": "{}_mean".format(method_name),
+                        "value": np.mean(matrix[my_id]),
+                        "agent": name
+                    }
+                )
 
-                dataframe.append({
-                    "label": "{}_std".format(method_name),
-                    "value": np.std(matrix[my_id]),
-                    "agent": name
-                })
+                dataframe.append(
+                    {
+                        "label": "{}_std".format(method_name),
+                        "value": np.std(matrix[my_id]),
+                        "agent": name
+                    }
+                )
         return pd.DataFrame(dataframe)
 
     def summary(self):
@@ -806,15 +836,13 @@ class CrossAgentAnalyst:
 
         print("[CAA.summary] Start collect cluster_representation")
         return_dict['cluster_representation'] = {
-            "cluster_df_dict": copy.deepcopy(
-                self.cluster_representation_cluster_df_dict),
-            "prediction_dict": copy.deepcopy(
-                self.cluster_representation_prediction_dict)
+            "cluster_df_dict":
+            copy.deepcopy(self.cluster_representation_cluster_df_dict),
+            "prediction_dict":
+            copy.deepcopy(self.cluster_representation_prediction_dict)
         }
 
-        return_dict['cluster_result'] = {
-
-        }
+        return_dict['cluster_result'] = {}
         print("[CAA.summary] Start to leave")
 
         return return_dict
