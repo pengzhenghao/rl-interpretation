@@ -48,9 +48,8 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         agent.get_policy().set_default_mask(self.mask)
         return agent
 
-    def add_gaussian_perturbation_for_policy(
-            self, policy, mean, std, seed=None
-    ):
+
+    def add_gaussian_perturbation_for_policy(self, policy, mean, std, seed=None):
         # if self.mask is None:
         assert self.mask is None
         mask_template = policy.get_mask_info()
@@ -74,7 +73,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             # initialize with all ones.
             mask_template = agent.get_mask_info()
             mask_dict = {
-                k: np.ones((shape[1], ))
+                k: np.ones((shape[1],))
                 for k, shape in mask_template.items()
             }
             self.mask = mask_dict
@@ -83,7 +82,8 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         else:
             return self.add_gaussian_perturbation(
                 agent, self.mask_callback_info['mean'],
-                self.mask_callback_info['std'], self.mask_callback_info['seed']
+                self.mask_callback_info['std'],
+                self.mask_callback_info['seed']
             )
 
     def mask_callback_for_policy(self, policy):
@@ -94,7 +94,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             # initialize with all ones.
             mask_template = policy.get_mask_info()
             mask_dict = {
-                k: np.ones((shape[1], ))
+                k: np.ones((shape[1],))
                 for k, shape in mask_template.items()
             }
             self.mask = mask_dict
@@ -103,8 +103,10 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         else:
             return self.add_gaussian_perturbation_for_policy(
                 policy, self.mask_callback_info['mean'],
-                self.mask_callback_info['std'], self.mask_callback_info['seed']
+                self.mask_callback_info['std'],
+                self.mask_callback_info['seed']
             )
+
 
     def clear(self):
         if self.initialized:
@@ -118,10 +120,8 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         if self.initialized:
             return self.agent_info
         if not self.initialized and self.mask is not None:
-            print(
-                "Symbolic Agent is not initialized but the mask exist,"
-                "which means it is once initialized but then cleared."
-            )
+            print("Symbolic Agent is not initialized but the mask exist,"
+                  "which means it is once initialized but then cleared.")
         ckpt = self.ckpt_info
         run_name = ckpt['run_name']
         ckpt_path = ckpt['path']
