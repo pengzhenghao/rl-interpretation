@@ -538,14 +538,14 @@ class CrossAgentAnalyst:
     def cka_similarity(self):
         agent_activation_dict = OrderedDict()
 
-        selected_surfix = ["child=0", "child=1", "child=2", "child=3", "child=4"]
+        selected_surfix = ["child=0", "child=1", "child=2"]
 
         print("[CAA.cka_similarity] start to collect activation")
         for name, replay_result in self.agent_replay_info_dict.items():
             if name.split(" ")[-1] in selected_surfix:
                 print("[CAA.cka_similarity] Selected agent for cka: <{}>".format(name))
-            activation = replay_result['layer1']
-            agent_activation_dict[name] = activation
+                activation = replay_result['layer1']
+                agent_activation_dict[name] = activation
 
         print("[CAA.cka_similarity] start to compute. Agent number: {}".format(
             len(agent_activation_dict)
