@@ -366,25 +366,6 @@ class CrossAgentAnalyst:
                 enumerate(name_agent_info_mapping.items()):
             replay_manager.replay(name, symbolic_agent, self.joint_obs_dataset)
 
-            # obj_id = remote_symbolic_replay_remote.remote(
-            #     symbolic_agent, self.joint_obs_dataset
-            # )
-            # obj_ids[name] = obj_id
-
-            # if len(obj_ids) >= num_worker:
-            #     for key, obj_id in obj_ids.items():
-            #         act, infos = copy.deepcopy(ray.get(obj_id))
-            #         agent_replay_dict[key] = act
-            #         agent_replay_info_dict[key] = infos
-            #     obj_ids.clear()
-            #     print("[INSIDE CAA] Replay [{}/{}] agents.".format(
-            #         i, len(name_agent_info_mapping)
-            #     ))
-        # for key, obj_id in obj_ids.items():
-        #     act, infos = copy.deepcopy(ray.get(obj_id))
-        #     agent_replay_dict[key] = act
-        #     agent_replay_info_dict[key] = infos
-
         replay_result = replay_manager.get_result()
         agent_replay_dict = OrderedDict()
         agent_replay_info_dict = OrderedDict()
@@ -399,7 +380,7 @@ class CrossAgentAnalyst:
         for agent in name_agent_info_mapping.values():
             agent.clear()
 
-        self.name_agent_info_mapping = name_agent_info_mapping.copy()
+        self.name_agent_info_mapping = copy.deepcopy(name_agent_info_mapping)
 
     def naive_representation(self):
         if self.computed_results['representation']['naive'] is not None:

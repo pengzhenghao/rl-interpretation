@@ -5,33 +5,13 @@ import pickle
 import time
 from collections import OrderedDict
 
-from toolbox.utils import initialize_ray
-
-dir_name = "./1014-scale-distance-relationship-LARGE"
-
-std_pkl_dict = []
-for pkl_file in os.listdir(dir_name):
-    if not pkl_file.endswith(".pkl"):
-        continue
-    std = eval(pkl_file.split("_")[-1].split('std')[0])
-    std_pkl_dict.append([std, pkl_file])
-
-std_pkl_dict = sorted(std_pkl_dict, key=lambda x: x[0])
-
 from toolbox.interface.cross_agent import CrossAgentAnalyst
-
-initialize_ray(num_gpus=4, test_mode=False, object_store_memory=40 * int(1e9))
-
-# std_load_obj_dict = OrderedDict()
-# std_summary_dict = OrderedDict()
-# cluster_dataframe = []
-# joint_cluster_df_dict = OrderedDict()
-# joint_prediction_dict_dict = OrderedDict()
+from toolbox.utils import initialize_ray
 
 tt = time.time
 
 
-def remote_restore_and_compute(pkl_file, now, start):
+def remote_restore_and_compute(pkl_file, now, start, dir_name, std):
     cluster_dataframe_inside = []
     file_name = osp.join(dir_name, pkl_file)
 
@@ -140,54 +120,70 @@ def remote_restore_and_compute(pkl_file, now, start):
            copy.deepcopy(smr)
 
 
-# num_workers_caa = 13
-# remote_restore_and_compute_remote = ray.remote(
-# num_gpus=3.8/num_workers_caa)(remote_restore_and_compute)
-# obj_id_dict = {}
-# cluster_dataframe = []
+def main():
+    dir_name = "../notebooks/1014-scale-distance-relationship-LARGE"
 
-# std_load_obj_dict = OrderedDict()
-std_summary_dict = OrderedDict()
-cluster_dataframe = []
-joint_cluster_df_dict = OrderedDict()
-joint_prediction_dict_dict = OrderedDict()
+    std_pkl_dict = []
+    for pkl_file in os.listdir(dir_name):
+        if not pkl_file.endswith(".pkl"):
+            continue
+        std = eval(pkl_file.split("_")[-1].split('std')[0])
+        std_pkl_dict.append([std, pkl_file])
 
-now = start = time.time()
-print_count = 1
-print("start to load")
+    std_pkl_dict = sorted(std_pkl_dict, key=lambda x: x[0])
 
-for i, (std, pkl_file) in enumerate(std_pkl_dict):
-    print("[{}/{}] current file: ".format(i + 1, len(std_pkl_dict)), std,
-          pkl_file)
+    std_summary_dict = OrderedDict()
+    cluster_dataframe = []
+    joint_cluster_df_dict = OrderedDict()
+    joint_prediction_dict_dict = OrderedDict()
 
-    cluster_representation_cluster_df_dict, \
-    cluster_representation_prediction_dict, \
-    cluster_dataframe_single, \
-    summary = remote_restore_and_compute(
-        pkl_file, now, start
-    )
-    joint_cluster_df_dict[std] = cluster_representation_cluster_df_dict
-    joint_prediction_dict_dict[std] = cluster_representation_prediction_dict
-    std_summary_dict[std] = summary
-    cluster_dataframe.append(cluster_dataframe_single)
-    print("[{}/{}] (+{:.2f}s/{:.2f}s) Finshed std: {}!".format(
-        i + 1, len(std_pkl_dict), time.time() - now, time.time() - start,
-        std
-    ))
-    now = time.time()
+    now = start = time.time()
+    print("start to load")
 
-    ckpt_path_name = osp.join(dir_name, "CAA_result_ckpt{}.pkl".format(i))
+    for i, (std, pkl_file) in enumerate(std_pkl_dict):
+        print("[{}/{}] current file: ".format(i + 1, len(std_pkl_dict)), std,
+              pkl_file)
+
+        cluster_representation_cluster_df_dict, \
+        cluster_representation_prediction_dict, \
+        cluster_dataframe_single, \
+        summary = remote_restore_and_compute(
+            pkl_file, now, start, dir_name, std
+        )
+        joint_cluster_df_dict[std] = cluster_representation_cluster_df_dict
+        joint_prediction_dict_dict[
+            std] = cluster_representation_prediction_dict
+        std_summary_dict[std] = summary
+        cluster_dataframe.append(cluster_dataframe_single)
+        print("[{}/{}] (+{:.2f}s/{:.2f}s) Finshed std: {}!".format(
+            i + 1, len(std_pkl_dict), time.time() - now, time.time() - start,
+            std
+        ))
+        now = time.time()
+
+        ckpt_path_name = osp.join(dir_name, "CAA_result_ckpt{}.pkl".format(i))
+        with open(ckpt_path_name, 'wb') as f:
+            pickle.dump(
+                [joint_cluster_df_dict, joint_prediction_dict_dict,
+                 std_summary_dict, cluster_dataframe], f
+            )
+            print("ckpt is dump at: ", ckpt_path_name)
+
+    ckpt_path_name = osp.join(dir_name, "CAA_result_final.pkl")
     with open(ckpt_path_name, 'wb') as f:
         pickle.dump(
             [joint_cluster_df_dict, joint_prediction_dict_dict,
-             std_summary_dict, cluster_dataframe], f
+             std_summary_dict,
+             cluster_dataframe], f
         )
         print("ckpt is dump at: ", ckpt_path_name)
 
-ckpt_path_name = osp.join(dir_name, "CAA_result_final.pkl")
-with open(ckpt_path_name, 'wb') as f:
-    pickle.dump(
-        [joint_cluster_df_dict, joint_prediction_dict_dict, std_summary_dict,
-         cluster_dataframe], f
-    )
-    print("ckpt is dump at: ", ckpt_path_name)
+    return joint_cluster_df_dict, joint_prediction_dict_dict, \
+           std_summary_dict, \
+           cluster_dataframe
+
+
+if __name__ == '__main__':
+    initialize_ray(num_gpus=4, test_mode=False,
+                   object_store_memory=40 * int(1e9))
+    main()
