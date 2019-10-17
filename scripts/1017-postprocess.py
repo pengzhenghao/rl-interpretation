@@ -5,10 +5,21 @@ import pickle
 import time
 from collections import OrderedDict
 
+import ray
+
 from toolbox.interface.cross_agent import CrossAgentAnalyst
 from toolbox.utils import initialize_ray
 
 tt = time.time
+
+
+def init_ray():
+    initialize_ray(num_gpus=4, test_mode=False,
+                   object_store_memory=40 * int(1e9))
+
+
+def shut_ray():
+    ray.shutdown()
 
 
 def remote_restore_and_compute(pkl_file, now, start, dir_name, std):
@@ -140,7 +151,7 @@ def main():
     print("start to load")
 
     for i, (std, pkl_file) in enumerate(std_pkl_dict):
-
+        init_ray()
         ckpt_path_name = osp.join(dir_name, "CAA_result_ckpt{}.pkl".format(i))
         if os.path.exists(ckpt_path_name):
             print("[{}/{}] Oh! We found the file exist at <{}>!"
@@ -175,6 +186,7 @@ def main():
                  std_summary_dict, cluster_dataframe], f
             )
             print("ckpt is dump at: ", ckpt_path_name)
+        shut_ray()
 
     ckpt_path_name = osp.join(dir_name, "CAA_result_final.pkl")
     with open(ckpt_path_name, 'wb') as f:
@@ -191,6 +203,4 @@ def main():
 
 
 if __name__ == '__main__':
-    initialize_ray(num_gpus=4, test_mode=False,
-                   object_store_memory=40 * int(1e9))
     main()

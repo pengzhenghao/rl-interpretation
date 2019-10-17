@@ -366,7 +366,9 @@ class CrossAgentAnalyst:
                 enumerate(name_agent_info_mapping.items()):
             replay_manager.replay(name, symbolic_agent, self.joint_obs_dataset)
 
+        print("[INSIDE CAA][replay] have submitted the all commands to RSRM")
         replay_result = replay_manager.get_result()
+        print("[INSIDE CAA][replay] have ge_result() from RSRM")
         agent_replay_dict = OrderedDict()
         agent_replay_info_dict = OrderedDict()
         for name, (act, infos) in replay_result.items():
