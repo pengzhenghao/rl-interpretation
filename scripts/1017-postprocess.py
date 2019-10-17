@@ -97,7 +97,6 @@ def remote_restore_and_compute(pkl_file, now, start, dir_name, std):
 
     precision_dict = caa.cluster_distance_precision_dict
     parent_cluster_dict = caa.cluster_distance_parent_cluster_dict
-    #     method_precision_dict = {}
     for (method, predict), accu in zip(parent_cluster_dict.items(),
                                        precision_dict.values()):
         num_clusters = len(set(predict.values()))
@@ -141,6 +140,15 @@ def main():
     print("start to load")
 
     for i, (std, pkl_file) in enumerate(std_pkl_dict):
+
+        ckpt_path_name = osp.join(dir_name, "CAA_result_ckpt{}.pkl".format(i))
+        if os.path.exists(ckpt_path_name):
+            print("[{}/{}] Oh! We found the file exist at <{}>!"
+                  " So just skip this std {}.".format(
+                i + 1, len(std_pkl_dict), ckpt_path_name, std)
+            )
+            continue
+
         print("[{}/{}] current file: ".format(i + 1, len(std_pkl_dict)), std,
               pkl_file)
 
@@ -161,7 +169,6 @@ def main():
         ))
         now = time.time()
 
-        ckpt_path_name = osp.join(dir_name, "CAA_result_ckpt{}.pkl".format(i))
         with open(ckpt_path_name, 'wb') as f:
             pickle.dump(
                 [joint_cluster_df_dict, joint_prediction_dict_dict,
