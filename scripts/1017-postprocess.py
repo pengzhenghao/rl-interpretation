@@ -152,7 +152,7 @@ def main():
 
     for i, (std, pkl_file) in enumerate(std_pkl_dict):
         init_ray()
-        ckpt_path_name = osp.join(dir_name, "CAA_result_ckpt{}.pkl".format(i))
+        ckpt_path_name = osp.join(dir_name, "caa_result/caa_result_ckpt{}.pkl".format(i))
         if os.path.exists(ckpt_path_name):
             print("[{}/{}] Oh! We found the file exist at <{}>!"
                   " So just skip this std {}.".format(
@@ -188,7 +188,7 @@ def main():
             print("ckpt is dump at: ", ckpt_path_name)
         shut_ray()
 
-    ckpt_path_name = osp.join(dir_name, "CAA_result_final.pkl")
+    ckpt_path_name = osp.join(dir_name, "caa_result/CAA_result_final.pkl")
     with open(ckpt_path_name, 'wb') as f:
         pickle.dump(
             [joint_cluster_df_dict, joint_prediction_dict_dict,
