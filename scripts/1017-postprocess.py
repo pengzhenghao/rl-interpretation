@@ -150,16 +150,26 @@ def main():
     now = start = time.time()
     print("start to load")
 
+    exist_ckpt = [
+        i for i in range(len(std_pkl_dict))
+        if os.path.exists(
+            osp.join(dir_name, "caa_result/caa_result_ckpt{}.pkl".format(i))
+        )
+    ]
+    exist_ckpt = sorted(exist_ckpt)
+    latest_ckpt_index = exist_ckpt[-1]
+
     for i, (std, pkl_file) in enumerate(std_pkl_dict):
-        init_ray()
+
         ckpt_path_name = osp.join(dir_name, "caa_result/caa_result_ckpt{}.pkl".format(i))
-        if os.path.exists(ckpt_path_name):
+        if i <= latest_ckpt_index:
             print("[{}/{}] Oh! We found the file exist at <{}>!"
                   " So just skip this std {}.".format(
                 i + 1, len(std_pkl_dict), ckpt_path_name, std)
             )
             continue
 
+        init_ray()
         print("[{}/{}] current file: ".format(i + 1, len(std_pkl_dict)), std,
               pkl_file)
 

@@ -103,10 +103,11 @@ def _draw_2d(plot_df, show=True, save=None, title=None, return_array=False, dpi=
         x="x",
         y="y",
         hue="cluster",
-        style="cluster",
+        # style="cluster",
         palette=palette,
         data=plot_df,
-        legend="full"
+        legend=False
+        # legend="full"
     )
 
     if kwargs['emphasis_parent']:
@@ -130,7 +131,7 @@ def _draw_2d(plot_df, show=True, save=None, title=None, return_array=False, dpi=
             x="x",
             y="y",
             hue="cluster",
-            style="cluster",
+            # style="cluster",
             s=200,
             palette=palette,
             data=emphasis_parent,
