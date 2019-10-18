@@ -370,9 +370,9 @@ def remote_rollout(
 
     for i in range(num_rollouts):
         ret = rollout(
-            real_agent, env, env_name, num_steps, require_frame, require_trajectory,
-            require_extra_info, require_full_frame, require_env_state,
-            render_mode
+            real_agent, env, env_name, num_steps, require_frame,
+            require_trajectory, require_extra_info, require_full_frame,
+            require_env_state, render_mode
         )
         ret_list.append(ret)
     if isinstance(agent, SymbolicAgentBase):
@@ -436,7 +436,6 @@ def quick_rollout_from_symbolic_agents(
                 now_t = time.time()
             obj_id_dict.clear()
             print_count = count + 1
-
 
     for i, (name, obj_id) in enumerate(obj_id_dict.items()):
         agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))

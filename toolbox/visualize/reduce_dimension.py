@@ -17,8 +17,14 @@ DEFAULT_METHOD = {
 }
 
 
-def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None,
-                     precomputed_pca=None, computed_embedding=None):
+def reduce_dimension(
+        data,
+        prediction,
+        three_dimensional=False,
+        pca_dim=None,
+        precomputed_pca=None,
+        computed_embedding=None
+):
     """
 
     :param data: dataframe with shape [num_agents, num_features]
@@ -38,8 +44,10 @@ def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None,
             pca_result = decomposition.PCA(pca_dim).fit_transform(data)
         else:
             assert isinstance(precomputed_pca, decomposition.PCA)
-            print("Detected precomputed PCA instance! "
-                  "We will use it to conduct dimension reduction!")
+            print(
+                "Detected precomputed PCA instance! "
+                "We will use it to conduct dimension reduction!"
+            )
             pca_result = precomputed_pca.transform(data)
 
         print('Running tsne')
@@ -80,16 +88,36 @@ def reduce_dimension(data, prediction, three_dimensional=False, pca_dim=None,
     return plot_df, result
 
 
-def draw(plot_df, show=True, save=None, title=None, return_array=False, dpi=300, **kwargs):
+def draw(
+        plot_df,
+        show=True,
+        save=None,
+        title=None,
+        return_array=False,
+        dpi=300,
+        **kwargs
+):
     three_dimensional = 'z' in plot_df.columns
     if three_dimensional:
         return _draw_3d(plot_df, show, save, title, return_array, dpi)
     else:
-        return _draw_2d(plot_df, show, save, title, return_array, dpi, **kwargs)
+        return _draw_2d(
+            plot_df, show, save, title, return_array, dpi, **kwargs
+        )
     # print("Drew!")
 
 
-def _draw_2d(plot_df, show=True, save=None, title=None, return_array=False, dpi=300, xlim=None, ylim=None, **kwargs):
+def _draw_2d(
+        plot_df,
+        show=True,
+        save=None,
+        title=None,
+        return_array=False,
+        dpi=300,
+        xlim=None,
+        ylim=None,
+        **kwargs
+):
     fig = plt.figure(figsize=(12, 10), dpi=dpi)
 
     if xlim is not None:
@@ -138,7 +166,6 @@ def _draw_2d(plot_df, show=True, save=None, title=None, return_array=False, dpi=
             legend=False,
             ax=ax
         )
-
 
     title = "[{}]".format(title) if title is not None else ""
     ax.set_title(title + _get_title(plot_df))

@@ -11,6 +11,7 @@ from toolbox.process_data.process_data import read_yaml
 from toolbox.utils import has_gpu
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 
+
 def _replay(obs, run_name, ckpt, env_name, require_activation=True):
     if require_activation:
         agent = restore_agent_with_activation(run_name, ckpt, env_name)
@@ -18,6 +19,7 @@ def _replay(obs, run_name, ckpt, env_name, require_activation=True):
         agent = restore_agent(run_name, ckpt, env_name)
     act, infos = agent_replay(agent, obs)
     return act, infos
+
 
 # @ray.remote
 def remote_symbolic_replay(symbolic_agent, obs):
@@ -79,18 +81,19 @@ class RemoteSymbolicReplayManager:
 
             self.finish_count += 1
             if self.finish_count % self.log_interval == 0:
-                print("[{}/{}] (+{:.2f}s/{:.2f}s) Finish replay: {}!".format(
-                    self.finish_count, self.total_num, time.time() - self.now,
-                    time.time() - self.start, name
-                ))
+                print(
+                    "[{}/{}] (+{:.2f}s/{:.2f}s) Finish replay: {}!".format(
+                        self.finish_count, self.total_num,
+                        time.time() - self.now,
+                        time.time() - self.start, name
+                    )
+                )
                 self.now = time.time()
         self.obj_dict.clear()
 
     def get_result(self):
         self._collect()
         return self.ret_dict
-
-
 
 
 def agent_replay(agent, obs):

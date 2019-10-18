@@ -17,6 +17,7 @@ from tensorflow import Graph
 from toolbox.ablate.tf_model import \
     PPOTFPolicyWithMask, ppo_agent_default_config_with_mask
 
+
 def build_config(
         ckpt, extra_config=None, is_es_agent=False, change_model=None
 ):
@@ -51,8 +52,14 @@ def build_config(
     return config
 
 
-def _restore(agent_type, run_name, ckpt, env_name, extra_config=None,
-             existing_agent=None):
+def _restore(
+        agent_type,
+        run_name,
+        ckpt,
+        env_name,
+        extra_config=None,
+        existing_agent=None
+):
     assert isinstance(agent_type, str) or callable(agent_type)
     if callable(agent_type):
         # We assume this is the agent_maker function which take no zero
@@ -84,9 +91,14 @@ def _restore(agent_type, run_name, ckpt, env_name, extra_config=None,
     return agent
 
 
-def restore_agent_with_mask(run_name, ckpt, env_name, extra_config=None, existing_agent=None):
+def restore_agent_with_mask(
+        run_name, ckpt, env_name, extra_config=None, existing_agent=None
+):
     register_fc_with_mask()
-    return _restore("PPOAgentWithMask", run_name, ckpt, env_name, extra_config, existing_agent)
+    return _restore(
+        "PPOAgentWithMask", run_name, ckpt, env_name, extra_config,
+        existing_agent
+    )
 
 
 def restore_policy_with_mask(run_name, ckpt, env_name, extra_config=None):
@@ -95,8 +107,10 @@ def restore_policy_with_mask(run_name, ckpt, env_name, extra_config=None):
     env = get_env_maker(env_name)()
     with Graph().as_default():
         # This is a workaround to avoid variable multiple init.
-        p = PPOTFPolicyWithMask(env.observation_space, env.action_space,
-                                ppo_agent_default_config_with_mask)
+        p = PPOTFPolicyWithMask(
+            env.observation_space, env.action_space,
+            ppo_agent_default_config_with_mask
+        )
         if ckpt is not None:
             path = os.path.abspath(os.path.expanduser(ckpt))
             wkload = pickle.load(open(path, 'rb'))['worker']
@@ -105,12 +119,19 @@ def restore_policy_with_mask(run_name, ckpt, env_name, extra_config=None):
     return path
 
 
-def restore_agent_with_activation(run_name, ckpt, env_name, extra_config=None, existing_agent=None):
+def restore_agent_with_activation(
+        run_name, ckpt, env_name, extra_config=None, existing_agent=None
+):
     register_fc_with_activation()
     return _restore(
-        "PPOAgentWithActivation", run_name, ckpt, env_name, extra_config, existing_agent
+        "PPOAgentWithActivation", run_name, ckpt, env_name, extra_config,
+        existing_agent
     )
 
 
-def restore_agent(run_name, ckpt, env_name, extra_config=None, existing_agent=None):
-    return _restore(run_name, run_name, ckpt, env_name, extra_config, existing_agent)
+def restore_agent(
+        run_name, ckpt, env_name, extra_config=None, existing_agent=None
+):
+    return _restore(
+        run_name, run_name, ckpt, env_name, extra_config, existing_agent
+    )
