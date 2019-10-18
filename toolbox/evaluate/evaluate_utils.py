@@ -9,8 +9,9 @@ from ray.tune.util import merge_dicts
 from tensorflow import Graph
 
 from toolbox.env.env_maker import get_env_maker
-from toolbox.evaluate.tf_model import PPOAgentWithActivation, model_config, \
-    register_fc_with_activation
+from toolbox.modified_rllib.agent_with_activation import (
+    PPOAgentWithActivation, model_config, register_fc_with_activation
+)
 from toolbox.modified_rllib.agent_with_mask import (
     PPOAgentWithMask, register_fc_with_mask, PPOTFPolicyWithMask,
     ppo_agent_default_config_with_mask
