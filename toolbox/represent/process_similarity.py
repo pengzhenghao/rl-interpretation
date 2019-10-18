@@ -6,6 +6,38 @@ https://github.com/google-research/google-research/tree/master
 
 """
 import numpy as np
+from numba import njit, prange
+
+
+@njit(parallel=True)
+def build_cka_matrix(iterable, length):
+    matrix = np.ones((length, length))
+    normalization_dict = np.empty((length,))
+
+    for x in prange(length):
+        normalization_dict[x] = \
+            np.linalg.norm(iterable[x].T.dot(iterable[x]))
+
+    print("[_build_cka_matrix] Finish collect norm of each entry.")
+
+    for i1 in prange(length - 1):
+        if (i1 + 1) % 100 == 0:
+            print("[CAA.build_cka_matrix] Current Row: ", i1)
+        for i2 in prange(i1, length):
+            features_x = iterable[i1]
+            features_y = iterable[i2]
+            dot_product_similarity = np.linalg.norm(
+                features_x.T.dot(features_y)
+            ) ** 2
+
+            result = dot_product_similarity / (
+                    normalization_dict[i1] * normalization_dict[i2]
+            )
+
+            matrix[i1, i2] = result
+            matrix[i2, i1] = result
+
+    return matrix
 
 
 def gram_linear(x):

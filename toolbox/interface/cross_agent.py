@@ -13,41 +13,9 @@ from sklearn.cluster import DBSCAN
 from toolbox.cluster.process_cluster import ClusterFinder
 from toolbox.evaluate.replay import RemoteSymbolicReplayManager
 from toolbox.represent.process_fft import stack_fft, parse_df
+from toolbox.represent.process_similarity import build_cka_matrix
 
 DEFAULT_CONFIG = {"num_samples": 100, "pca_dim": 50}
-
-from numba import njit, prange
-
-
-@njit(parallel=True)
-def _build_cka_matrix(iterable, length):
-    matrix = np.ones((length, length))
-    normalization_dict = np.empty((length, ))
-
-    for x in prange(length):
-        normalization_dict[x] = \
-            np.linalg.norm(iterable[x].T.dot(iterable[x]))
-
-    print("[_build_cka_matrix] Finish collect norm of each entry.")
-
-    for i1 in prange(length - 1):
-        if (i1 + 1) % 100 == 0:
-            print("[CAA.build_cka_matrix] Current Row: ", i1)
-        for i2 in prange(i1, length):
-            features_x = iterable[i1]
-            features_y = iterable[i2]
-            dot_product_similarity = np.linalg.norm(
-                features_x.T.dot(features_y)
-            )**2
-
-            result = dot_product_similarity / (
-                normalization_dict[i1] * normalization_dict[i2]
-            )
-
-            matrix[i1, i2] = result
-            matrix[i2, i1] = result
-
-    return matrix
 
 
 def get_kl_divergence(dist1, dist2):
@@ -542,7 +510,7 @@ class CrossAgentAnalyst:
             if name.split(" ")[-1] in selected_surfix:
                 print(
                     "[CAA.cka_similarity] Selected agent for cka: <{}>".
-                    format(name)
+                        format(name)
                 )
                 activation = replay_result['layer1']
                 agent_activation_dict[name] = activation
@@ -554,7 +522,7 @@ class CrossAgentAnalyst:
         )
         iterable = list(agent_activation_dict.values())
         # apply_function = get_cka
-        cka_similarity = _build_cka_matrix(
+        cka_similarity = build_cka_matrix(
             iterable - np.mean(iterable, axis=1, keepdims=True), len(iterable)
         )
 
@@ -849,9 +817,9 @@ class CrossAgentAnalyst:
         print("[CAA.summary] Start collect cluster_representation")
         return_dict['cluster_representation'] = {
             "cluster_df_dict":
-            copy.deepcopy(self.cluster_representation_cluster_df_dict),
+                copy.deepcopy(self.cluster_representation_cluster_df_dict),
             "prediction_dict":
-            copy.deepcopy(self.cluster_representation_prediction_dict)
+                copy.deepcopy(self.cluster_representation_prediction_dict)
         }
 
         return_dict['cluster_result'] = {}
