@@ -1,6 +1,8 @@
-from __future__ import absolute_import, division, print_function, \
-    absolute_import, division, print_function
-
+"""
+This file contains a Opencv version of BipedalWalker-v2 visualizer, which
+is much more efficient and can be run at server. So it's great to use it
+to generate videos on BipedalWalker.
+"""
 import copy
 import uuid
 
@@ -308,210 +310,210 @@ class BipedalWalkerWrapper(BipedalWalker):
         return self.viewer.render(mode == 'human' or mode == 'human_cropped')
 
 
-class InverseFFTRendered(object):
-    metadata = {
-        'render.modes': ['human', 'rgb_array', 'cropped', 'human_cropped'],
-        'video.frames_per_second': FPS
-    }
-
-    def __init__(self):
-
-        # The variable need to be updated
-        self.scroll = None
-        self.viewer = None
-        self.cloud_poly = None
-        self.terrain_poly = None
-        self.drawlist = None
-
-        pass
-
-    def obs_to_state(self):
-        def step(self, action):
-            # self.hull.ApplyForceToCenter((0, 20), True) -- Uncomment this
-            # to receive a bit of stability help
-            control_speed = False  # Should be easier as well
-            if control_speed:
-                self.joints[0].motorSpeed = float(
-                    SPEED_HIP * np.clip(action[0], -1, 1)
-                )
-                self.joints[1].motorSpeed = float(
-                    SPEED_KNEE * np.clip(action[1], -1, 1)
-                )
-                self.joints[2].motorSpeed = float(
-                    SPEED_HIP * np.clip(action[2], -1, 1)
-                )
-                self.joints[3].motorSpeed = float(
-                    SPEED_KNEE * np.clip(action[3], -1, 1)
-                )
-            else:
-                self.joints[0].motorSpeed = float(
-                    SPEED_HIP * np.sign(action[0])
-                )
-                self.joints[0].maxMotorTorque = float(
-                    MOTORS_TORQUE * np.clip(np.abs(action[0]), 0, 1)
-                )
-                self.joints[1].motorSpeed = float(
-                    SPEED_KNEE * np.sign(action[1])
-                )
-                self.joints[1].maxMotorTorque = float(
-                    MOTORS_TORQUE * np.clip(np.abs(action[1]), 0, 1)
-                )
-                self.joints[2].motorSpeed = float(
-                    SPEED_HIP * np.sign(action[2])
-                )
-                self.joints[2].maxMotorTorque = float(
-                    MOTORS_TORQUE * np.clip(np.abs(action[2]), 0, 1)
-                )
-                self.joints[3].motorSpeed = float(
-                    SPEED_KNEE * np.sign(action[3])
-                )
-                self.joints[3].maxMotorTorque = float(
-                    MOTORS_TORQUE * np.clip(np.abs(action[3]), 0, 1)
-                )
-
-            self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
-
-            pos = self.hull.position
-            vel = self.hull.linearVelocity
-
-            for i in range(10):
-                self.lidar[i].fraction = 1.0
-                self.lidar[i].p1 = pos
-                self.lidar[i].p2 = (
-                    pos[0] + math.sin(1.5 * i / 10.0) * LIDAR_RANGE,
-                    pos[1] - math.cos(1.5 * i / 10.0) * LIDAR_RANGE
-                )
-                self.world.RayCast(
-                    self.lidar[i], self.lidar[i].p1, self.lidar[i].p2
-                )
-
-            state = [
-                self.hull.angle,
-                # Normal angles up to 0.5 here, but sure more is possible.
-                2.0 * self.hull.angularVelocity / FPS,
-                0.3 * vel.x * (VIEWPORT_W / SCALE) / FPS,
-                # Normalized to get -1..1 range
-                0.3 * vel.y * (VIEWPORT_H / SCALE) / FPS,
-                self.joints[0].angle,
-                # This will give 1.1 on high up, but it's still OK (and there should be spikes on hiting the ground, that's normal too)
-                self.joints[0].speed / SPEED_HIP,
-                self.joints[1].angle + 1.0,
-                self.joints[1].speed / SPEED_KNEE,
-                1.0 if self.legs[1].ground_contact else 0.0,
-                self.joints[2].angle,
-                self.joints[2].speed / SPEED_HIP,
-                self.joints[3].angle + 1.0,
-                self.joints[3].speed / SPEED_KNEE,
-                1.0 if self.legs[3].ground_contact else 0.0
-            ]
-            state += [l.fraction for l in self.lidar]
-            assert len(state) == 24
-
-            self.scroll = pos.x - VIEWPORT_W / SCALE / 5
-
-            # shaping = 130 * pos[
-            #     0] / SCALE  # moving forward is a way to receive reward (normalized to get 300 on completion)
-            # shaping -= 5.0 * abs(state[
-            #                          0])  # keep head straight, other than that and falling, any behavior is unpunished
-
-            # reward = 0
-            # if self.prev_shaping is not None:
-            #     reward = shaping - self.prev_shaping
-            # self.prev_shaping = shaping
-
-            # for a in action:
-            #     reward -= 0.00035 * MOTORS_TORQUE * np.clip(np.abs(a), 0, 1)
-            # normalized to about -50.0 using heuristic, more optimal agent should spend less
-
-            # done = False
-            # if self.game_over or pos[0] < 0:
-            #     reward = -100
-            #     done = True
-            # if pos[0] > (TERRAIN_LENGTH - TERRAIN_GRASS) * TERRAIN_STEP:
-            #     done = True
-            return np.array(state), reward, done, {}
-
-    def render(self, mode='cropped'):
-        # This function is almost identical to the original one but the
-        # importing of pyglet is avoided.
-        crop = (mode == 'cropped') or (mode == 'human_cropped')
-        scroll = self.scroll + LEFT_DISPLACEMENT / SCALE if crop else \
-            self.scroll
-        scroll_v = BOTTOM_DISPLACEMENT / SCALE if crop else 0
-        viewport_w = VIEWPORT_W - LEFT_DISPLACEMENT - RIGHT_DISPLACEMENT if \
-            crop else VIEWPORT_W
-        viewport_h = VIEWPORT_H - TOP_DISPLACEMENT - BOTTOM_DISPLACEMENT if \
-            crop else VIEWPORT_H
-
-        if self.viewer is None:
-            self.viewer = OpencvViewer(viewport_w, viewport_h)
-
-        self.viewer.set_bounds(
-            scroll, scroll + viewport_w / SCALE, scroll_v,
-            scroll_v + viewport_h / SCALE
-        )
-
-        self.viewer.draw_polygon(
-            [
-                (scroll, scroll_v),
-                (scroll + viewport_w / SCALE, scroll_v),
-                (scroll + viewport_w / SCALE, viewport_h / SCALE + scroll_v),
-                (scroll, viewport_h / SCALE + scroll_v),
-            ],
-            color=(0.9, 0.9, 1.0)
-        )
-        for poly, x1, x2 in self.cloud_poly:
-            if x2 < scroll / 2: continue
-            if x1 > scroll / 2 + viewport_w / SCALE: continue
-            self.viewer.draw_polygon(
-                [(p[0] + scroll / 2, p[1]) for p in poly], color=(1, 1, 1)
-            )
-        for poly, color in self.terrain_poly:
-            if poly[1][0] < scroll: continue
-            if poly[0][0] > scroll + viewport_w / SCALE: continue
-            self.viewer.draw_polygon(poly, color=color)
-
-        # self.lidar_render = (self.lidar_render + 1) % 100
-        # i = self.lidar_render
-        # if i < 2 * len(self.lidar):
-        #     l = self.lidar[i] if i < len(self.lidar) \
-        #         else self.lidar[len(self.lidar) - i - 1]
-        #     self.viewer.draw_polyline(
-        #         [l.p1, l.p2], color=(1, 0, 0), linewidth=1
-        #     )
-
-        for obj in self.drawlist:
-            for f in obj.fixtures:
-                trans = f.body.transform
-                if type(f.shape) is circleShape:
-                    raise NotImplementedError
-                    # t = rendering.Transform(translation=trans*f.shape.pos)
-                    # self.viewer.draw_circle(f.shape.radius, 30,
-                    # color=obj.color1).add_attr(t)
-                    # self.viewer.draw_circle(f.shape.radius, 30,
-                    # color=obj.color2, filled=False, linewidth=2).add_attr(t)
-                else:
-                    path = [trans * v for v in f.shape.vertices]
-                    self.viewer.draw_polygon(path, color=obj.color1)
-                    path.append(path[0])
-                    self.viewer.draw_polyline(
-                        path, color=obj.color2, linewidth=2
-                    )
-
-        flagy1 = TERRAIN_HEIGHT
-        flagy2 = flagy1 + 50 / SCALE
-        x = TERRAIN_STEP * 3
-        self.viewer.draw_polyline(
-            [(x, flagy1), (x, flagy2)], color=(0, 0, 0), linewidth=2
-        )
-        f = [
-            (x, flagy2), (x, flagy2 - 10 / SCALE),
-            (x + 25 / SCALE, flagy2 - 5 / SCALE)
-        ]
-        self.viewer.draw_polygon(f, color=(0.9, 0.2, 0))
-        self.viewer.draw_polyline(f + [f[0]], color=(0, 0, 0), linewidth=2)
-
-        return self.viewer.render(mode == 'human' or mode == 'human_cropped')
+# class InverseFFTRendered(object):
+#     metadata = {
+#         'render.modes': ['human', 'rgb_array', 'cropped', 'human_cropped'],
+#         'video.frames_per_second': FPS
+#     }
+#
+#     def __init__(self):
+#
+#         # The variable need to be updated
+#         self.scroll = None
+#         self.viewer = None
+#         self.cloud_poly = None
+#         self.terrain_poly = None
+#         self.drawlist = None
+#
+#         pass
+#
+#     def obs_to_state(self):
+#         def step(self, action):
+#             # self.hull.ApplyForceToCenter((0, 20), True) -- Uncomment this
+#             # to receive a bit of stability help
+#             control_speed = False  # Should be easier as well
+#             if control_speed:
+#                 self.joints[0].motorSpeed = float(
+#                     SPEED_HIP * np.clip(action[0], -1, 1)
+#                 )
+#                 self.joints[1].motorSpeed = float(
+#                     SPEED_KNEE * np.clip(action[1], -1, 1)
+#                 )
+#                 self.joints[2].motorSpeed = float(
+#                     SPEED_HIP * np.clip(action[2], -1, 1)
+#                 )
+#                 self.joints[3].motorSpeed = float(
+#                     SPEED_KNEE * np.clip(action[3], -1, 1)
+#                 )
+#             else:
+#                 self.joints[0].motorSpeed = float(
+#                     SPEED_HIP * np.sign(action[0])
+#                 )
+#                 self.joints[0].maxMotorTorque = float(
+#                     MOTORS_TORQUE * np.clip(np.abs(action[0]), 0, 1)
+#                 )
+#                 self.joints[1].motorSpeed = float(
+#                     SPEED_KNEE * np.sign(action[1])
+#                 )
+#                 self.joints[1].maxMotorTorque = float(
+#                     MOTORS_TORQUE * np.clip(np.abs(action[1]), 0, 1)
+#                 )
+#                 self.joints[2].motorSpeed = float(
+#                     SPEED_HIP * np.sign(action[2])
+#                 )
+#                 self.joints[2].maxMotorTorque = float(
+#                     MOTORS_TORQUE * np.clip(np.abs(action[2]), 0, 1)
+#                 )
+#                 self.joints[3].motorSpeed = float(
+#                     SPEED_KNEE * np.sign(action[3])
+#                 )
+#                 self.joints[3].maxMotorTorque = float(
+#                     MOTORS_TORQUE * np.clip(np.abs(action[3]), 0, 1)
+#                 )
+#
+#             self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
+#
+#             pos = self.hull.position
+#             vel = self.hull.linearVelocity
+#
+#             for i in range(10):
+#                 self.lidar[i].fraction = 1.0
+#                 self.lidar[i].p1 = pos
+#                 self.lidar[i].p2 = (
+#                     pos[0] + math.sin(1.5 * i / 10.0) * LIDAR_RANGE,
+#                     pos[1] - math.cos(1.5 * i / 10.0) * LIDAR_RANGE
+#                 )
+#                 self.world.RayCast(
+#                     self.lidar[i], self.lidar[i].p1, self.lidar[i].p2
+#                 )
+#
+#             state = [
+#                 self.hull.angle,
+#                 # Normal angles up to 0.5 here, but sure more is possible.
+#                 2.0 * self.hull.angularVelocity / FPS,
+#                 0.3 * vel.x * (VIEWPORT_W / SCALE) / FPS,
+#                 # Normalized to get -1..1 range
+#                 0.3 * vel.y * (VIEWPORT_H / SCALE) / FPS,
+#                 self.joints[0].angle,
+#                 # This will give 1.1 on high up, but it's still OK (and there should be spikes on hiting the ground, that's normal too)
+#                 self.joints[0].speed / SPEED_HIP,
+#                 self.joints[1].angle + 1.0,
+#                 self.joints[1].speed / SPEED_KNEE,
+#                 1.0 if self.legs[1].ground_contact else 0.0,
+#                 self.joints[2].angle,
+#                 self.joints[2].speed / SPEED_HIP,
+#                 self.joints[3].angle + 1.0,
+#                 self.joints[3].speed / SPEED_KNEE,
+#                 1.0 if self.legs[3].ground_contact else 0.0
+#             ]
+#             state += [l.fraction for l in self.lidar]
+#             assert len(state) == 24
+#
+#             self.scroll = pos.x - VIEWPORT_W / SCALE / 5
+#
+#             # shaping = 130 * pos[
+#             #     0] / SCALE  # moving forward is a way to receive reward (normalized to get 300 on completion)
+#             # shaping -= 5.0 * abs(state[
+#             #                          0])  # keep head straight, other than that and falling, any behavior is unpunished
+#
+#             # reward = 0
+#             # if self.prev_shaping is not None:
+#             #     reward = shaping - self.prev_shaping
+#             # self.prev_shaping = shaping
+#
+#             # for a in action:
+#             #     reward -= 0.00035 * MOTORS_TORQUE * np.clip(np.abs(a), 0, 1)
+#             # normalized to about -50.0 using heuristic, more optimal agent should spend less
+#
+#             # done = False
+#             # if self.game_over or pos[0] < 0:
+#             #     reward = -100
+#             #     done = True
+#             # if pos[0] > (TERRAIN_LENGTH - TERRAIN_GRASS) * TERRAIN_STEP:
+#             #     done = True
+#             return np.array(state), reward, done, {}
+#
+#     def render(self, mode='cropped'):
+#         # This function is almost identical to the original one but the
+#         # importing of pyglet is avoided.
+#         crop = (mode == 'cropped') or (mode == 'human_cropped')
+#         scroll = self.scroll + LEFT_DISPLACEMENT / SCALE if crop else \
+#             self.scroll
+#         scroll_v = BOTTOM_DISPLACEMENT / SCALE if crop else 0
+#         viewport_w = VIEWPORT_W - LEFT_DISPLACEMENT - RIGHT_DISPLACEMENT if \
+#             crop else VIEWPORT_W
+#         viewport_h = VIEWPORT_H - TOP_DISPLACEMENT - BOTTOM_DISPLACEMENT if \
+#             crop else VIEWPORT_H
+#
+#         if self.viewer is None:
+#             self.viewer = OpencvViewer(viewport_w, viewport_h)
+#
+#         self.viewer.set_bounds(
+#             scroll, scroll + viewport_w / SCALE, scroll_v,
+#             scroll_v + viewport_h / SCALE
+#         )
+#
+#         self.viewer.draw_polygon(
+#             [
+#                 (scroll, scroll_v),
+#                 (scroll + viewport_w / SCALE, scroll_v),
+#                 (scroll + viewport_w / SCALE, viewport_h / SCALE + scroll_v),
+#                 (scroll, viewport_h / SCALE + scroll_v),
+#             ],
+#             color=(0.9, 0.9, 1.0)
+#         )
+#         for poly, x1, x2 in self.cloud_poly:
+#             if x2 < scroll / 2: continue
+#             if x1 > scroll / 2 + viewport_w / SCALE: continue
+#             self.viewer.draw_polygon(
+#                 [(p[0] + scroll / 2, p[1]) for p in poly], color=(1, 1, 1)
+#             )
+#         for poly, color in self.terrain_poly:
+#             if poly[1][0] < scroll: continue
+#             if poly[0][0] > scroll + viewport_w / SCALE: continue
+#             self.viewer.draw_polygon(poly, color=color)
+#
+#         # self.lidar_render = (self.lidar_render + 1) % 100
+#         # i = self.lidar_render
+#         # if i < 2 * len(self.lidar):
+#         #     l = self.lidar[i] if i < len(self.lidar) \
+#         #         else self.lidar[len(self.lidar) - i - 1]
+#         #     self.viewer.draw_polyline(
+#         #         [l.p1, l.p2], color=(1, 0, 0), linewidth=1
+#         #     )
+#
+#         for obj in self.drawlist:
+#             for f in obj.fixtures:
+#                 trans = f.body.transform
+#                 if type(f.shape) is circleShape:
+#                     raise NotImplementedError
+#                     # t = rendering.Transform(translation=trans*f.shape.pos)
+#                     # self.viewer.draw_circle(f.shape.radius, 30,
+#                     # color=obj.color1).add_attr(t)
+#                     # self.viewer.draw_circle(f.shape.radius, 30,
+#                     # color=obj.color2, filled=False, linewidth=2).add_attr(t)
+#                 else:
+#                     path = [trans * v for v in f.shape.vertices]
+#                     self.viewer.draw_polygon(path, color=obj.color1)
+#                     path.append(path[0])
+#                     self.viewer.draw_polyline(
+#                         path, color=obj.color2, linewidth=2
+#                     )
+#
+#         flagy1 = TERRAIN_HEIGHT
+#         flagy2 = flagy1 + 50 / SCALE
+#         x = TERRAIN_STEP * 3
+#         self.viewer.draw_polyline(
+#             [(x, flagy1), (x, flagy2)], color=(0, 0, 0), linewidth=2
+#         )
+#         f = [
+#             (x, flagy2), (x, flagy2 - 10 / SCALE),
+#             (x + 25 / SCALE, flagy2 - 5 / SCALE)
+#         ]
+#         self.viewer.draw_polygon(f, color=(0.9, 0.2, 0))
+#         self.viewer.draw_polyline(f + [f[0]], color=(0, 0, 0), linewidth=2)
+#
+#         return self.viewer.render(mode == 'human' or mode == 'human_cropped')
 
 
 if __name__ == '__main__':

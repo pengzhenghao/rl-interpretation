@@ -11,9 +11,7 @@ from math import ceil
 import numpy as np
 import ray
 
-from toolbox.env.env_wrapper import BipedalWalkerWrapper
-from toolbox.evaluate.evaluate_utils import build_config, \
-    restore_agent
+from toolbox.evaluate import build_config, restore_agent
 from toolbox.evaluate.rollout import rollout
 from toolbox.process_data.process_data import get_name_ckpt_mapping
 from toolbox.represent.process_fft import get_period
@@ -59,14 +57,6 @@ PRESET_INFORMATION_DICT = {
     }
 }
 
-# def build_env_maker(seed):
-#     def env_maker():
-#         env = BipedalWalkerWrapper()
-#         env.seed(seed)
-#     return env_maker
-#
-#
-# BUILD_ENV_MAKER = {"BipedalWalker-v2": build_env_maker}
 
 
 @ray.remote
