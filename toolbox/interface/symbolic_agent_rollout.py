@@ -28,21 +28,27 @@ from toolbox.process_data.process_data import read_yaml
 
 
 def symbolic_agent_rollout(
-        yaml_path, num_agents, num_rollouts, num_workers,
-        num_children, normal_std, normal_mean, dir_name,
-        clear_at_end=True, store=True
+        yaml_path,
+        num_agents,
+        num_rollouts,
+        num_workers,
+        num_children,
+        normal_std,
+        normal_mean,
+        dir_name,
+        clear_at_end=True,
+        store=True
 ):
     file_name = osp.join(
         dir_name, "{}agents_{}rollouts_{}children_{}mean_{}std.pkl".format(
-            num_agents, num_rollouts, num_children, normal_mean, normal_std)
+            num_agents, num_rollouts, num_children, normal_mean, normal_std
+        )
     )
 
     initialize_ray(num_gpus=4, test_mode=False)
 
     if os.path.exists(file_name):
-        "File Dected! We will load rollout results from <{}>".format(
-            file_name
-        )
+        "File Dected! We will load rollout results from <{}>".format(file_name)
         with open(file_name, 'rb') as f:
             rollout_ret = pickle.load(f)
         return rollout_ret, file_name
@@ -61,23 +67,24 @@ def symbolic_agent_rollout(
 
         child_name = name + " child=0"
 
-        spawned_agents[child_name] = copy.deepcopy(
-            master_agent)
+        spawned_agents[child_name] = copy.deepcopy(master_agent)
 
         master_agent_ckpt = master_agent.agent_info
 
         for index in range(1, 1 + num_children):
             child_name = name + " child={}".format(index)
             callback_info = {
-                "method": 'normal', 'mean': normal_mean,
-                "std": normal_std, "seed": index + i * 100}
+                "method": 'normal',
+                'mean': normal_mean,
+                "std": normal_std,
+                "seed": index + i * 100
+            }
 
             spawned_agents[child_name] = \
                 MaskSymbolicAgent(master_agent_ckpt, callback_info)
 
     rollout_ret = quick_rollout_from_symbolic_agents(
-        spawned_agents, num_rollouts, num_workers,
-        MujocoWrapper
+        spawned_agents, num_rollouts, num_workers, MujocoWrapper
     )
 
     if clear_at_end:

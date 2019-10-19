@@ -3,11 +3,16 @@ import numpy as np
 import ray
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 
-from toolbox.env.env_maker import get_env_maker
-from toolbox.evaluate.evaluate_utils import restore_agent_with_mask, restore_policy_with_mask
-from toolbox.evaluate.rollout import RolloutWorkerWrapper, \
+from collections import OrderedDict
+
+from toolbox.env import get_env_maker
+from toolbox.evaluate import restore_agent_with_mask
+from toolbox.evaluate import RolloutWorkerWrapper, \
     several_agent_rollout, rollout, make_worker, efficient_rollout_from_worker
 from toolbox.utils import initialize_ray
+import copy
+from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
+from toolbox.process_data.process_data import read_yaml
 
 
 def test_RolloutWorkerWrapper_with_activation():
@@ -35,7 +40,7 @@ def test_RolloutWorkerWrapper_with_activation():
 
 
 def test_serveral_agent_rollout(force=False):
-    yaml_path = "data/0811-random-test.yaml"
+    yaml_path = "data/test-2-agents.yaml"
     num_rollouts = 2
     initialize_ray()
     return several_agent_rollout(
@@ -53,21 +58,17 @@ def _test_es_agent_compatibility():
 def test_RolloutWorkerWrapper():
     initialize_ray(test_mode=True)
     env_maker = lambda _: gym.make("BipedalWalker-v2")
-    ckpt = "test/fake-ckpt1/checkpoint-313"
-    # rww = RolloutWorkerWrapper(ckpt, 2, 0, env_maker, PPOTFPolicy)
-    # for _ in range(2):
-    #     result = rww.wrap_sample()
-    # print(result)
-    # rww.close()
+    ckpt = None
 
-    rww_new = RolloutWorkerWrapper.as_remote().remote(
+    rww_new = RolloutWorkerWrapper.as_remote().remote(True)
+    rww_new.reset.remote(
         ckpt,
         2,
         0,
         env_maker,
-        PPOTFPolicy,
         run_name="PPO",
-        env_name="BipedalWalker-v2"
+        env_name="BipedalWalker-v2",
+        require_activation=True
     )
     for _ in range(2):
         result = ray.get(rww_new.wrap_sample.remote())
@@ -106,11 +107,31 @@ def test_restore_agent_with_mask():
         np.array([obs]), mask_batch=mask_batch
     )
 
-    return ret
+    agent2 = restore_agent_with_mask(
+        "PPO", "~/ray_results/0810-20seeds/PPO_BipedalWa"
+        "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
+        "2/checkpoint_313/checkpoint-313",
+        env_name,
+        existing_agent=agent
+    )
 
+    ret2 = agent2.get_policy().compute_actions(
+        np.array([obs]), mask_batch=mask_batch
+    )
 
-# from toolbox.evaluate.symbolic_agent import add_gaussian_perturbation
-import copy
+    agent3 = restore_agent_with_mask(
+        "PPO", "~/ray_results/0810-20seeds/PPO_BipedalWa"
+        "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
+        "2/checkpoint_313/checkpoint-313",
+        env_name,
+        existing_agent=agent
+    )
+
+    ret3 = agent3.get_policy().compute_actions(
+        np.array([obs]), mask_batch=mask_batch
+    )
+
+    return ret, ret2, ret3
 
 
 def get_policy_network_output(agent, obs):
@@ -121,29 +142,24 @@ def get_policy_network_output(agent, obs):
 
 def test_add_gaussian_perturbation():
     initialize_ray(test_mode=True)
-    agent = restore_agent_with_mask("PPO", None, "BipedalWalker-v2")
+    fake_agent_ckpt_info = {
+        "run_name": "PPO",
+        "env_name": "BipedalWalker-v2",
+        "name": "fake_agent_at_test_add_gaussian_perturbation",
+        "path": None
+    }
+    symbolic_agent = MaskSymbolicAgent(fake_agent_ckpt_info)
+    agent = symbolic_agent.get()['agent']
 
     act = np.ones((1, 24))
 
     old_response = copy.deepcopy(get_policy_network_output(agent, act))
     old_response2 = copy.deepcopy(get_policy_network_output(agent, act))
-    agent = MaskSymbolicAgent.add_gaussian_perturbation(agent, 1.0, 0.0, 1997)
+    agent = symbolic_agent.add_gaussian_perturbation(agent, 1.0, 0.0, 1997)
     new_response = copy.deepcopy(get_policy_network_output(agent, act))
 
     np.testing.assert_array_equal(old_response, old_response2)
     np.testing.assert_array_equal(old_response, new_response)
-
-    agent2 = MaskSymbolicAgent.add_gaussian_perturbation(agent, 1.0, 1, 1997)
-    new_response2 = copy.deepcopy(get_policy_network_output(agent2, act))
-
-    np.testing.assert_raises(
-        AssertionError, np.testing.assert_array_equal, old_response,
-        new_response2
-    )
-
-
-from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
-from toolbox.process_data.process_data import read_yaml
 
 
 def test_MaskSymbolicAgent_local():
@@ -188,47 +204,36 @@ def test_MaskSymbolicAgent_remote():
     ray.get(obidlist)
 
 
-def test_restore_agent_and_restore_policy():
+def test_RemoteSymbolicReplayManager():
 
     initialize_ray(test_mode=True)
+    from toolbox.evaluate.replay import RemoteSymbolicReplayManager as RSRM
 
-    name_ckpt_mapping = read_yaml("../../data/yaml/test-2-agents.yaml")
-    ckpt_info = next(iter(name_ckpt_mapping.values()))
+    n = 22
+    yaml_path = "data/yaml/ppo-300-agents.yaml"
 
-    pure_agent = restore_agent_with_mask(
-        "PPO", ckpt_info['path'], "BipedalWalker-v2"
-    )
+    rsrm = RSRM(10, n)
 
-    policy = restore_policy_with_mask("PPO", ckpt_info['path'], "BipedalWalker-v2")
+    name_ckpt_mapping = read_yaml(yaml_path, 22)
+    agents = OrderedDict()
+    for name, ckpt in name_ckpt_mapping.items():
+        agent = MaskSymbolicAgent(ckpt)
+        agents[name] = agent
 
+    obs = np.ones((100, 24))
+    for name, sa in agents.items():
+        rsrm.replay(name, sa, obs)
 
-    np.testing.assert_almost_equal(
-        pure_agent.get_policy().get_state(),
-        policy.get_state()
-    )
-
-    for i in range(10):
-        a = np.random.random((10, 24))
-        pr, _, infopr = policy.compute_actions(a)
-        ar, _, infoar = pure_agent.get_policy().compute_actions(a)
-        #     print(infopr.keys())
-        np.testing.assert_almost_equal(infopr['behaviour_logits'],
-                                       infoar['behaviour_logits'])
-
-
-
-
-
-
-
-
-
+    ret = rsrm.get_result()
+    return ret
 
 
 if __name__ == '__main__':
-    r = test_efficient_rollout_from_worker()
-    ret = test_restore_agent_with_mask()
+    # r = test_efficient_rollout_from_worker()
+    # ret = test_restore_agent_with_mask()
     test_add_gaussian_perturbation()
-    test_MaskSymbolicAgent_local()
-    test_MaskSymbolicAgent_remote()
-    test_restore_agent_and_restore_policy()
+    # test_MaskSymbolicAgent_local()
+    # test_MaskSymbolicAgent_remote()
+    # test_restore_agent_and_restore_policy()
+    # ret1, ret2, ret3 = test_restore_agent_with_mask()
+    ret = test_RemoteSymbolicReplayManager()

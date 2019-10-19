@@ -5,17 +5,39 @@ https://github.com/google-research/google-research/tree/master
 /representation_similarity
 
 """
-import os
-import pickle
-
 import numpy as np
+from numba import njit, prange
 
-from toolbox.evaluate.replay import several_agent_replay
-from toolbox.evaluate.rollout import several_agent_rollout
-from toolbox.process_data.process_data import read_yaml
-from toolbox.utils import initialize_ray, get_random_string
 
-ACTIVATION_DATA_PREFIX = "layer"
+@njit(parallel=True)
+def build_cka_matrix(iterable, length):
+    matrix = np.ones((length, length))
+    normalization_dict = np.empty((length, ))
+
+    for x in prange(length):
+        normalization_dict[x] = \
+            np.linalg.norm(iterable[x].T.dot(iterable[x]))
+
+    print("[_build_cka_matrix] Finish collect norm of each entry.")
+
+    for i1 in prange(length - 1):
+        if (i1 + 1) % 100 == 0:
+            print("[CAA.build_cka_matrix] Current Row: ", i1)
+        for i2 in prange(i1, length):
+            features_x = iterable[i1]
+            features_y = iterable[i2]
+            dot_product_similarity = np.linalg.norm(
+                features_x.T.dot(features_y)
+            )**2
+
+            result = dot_product_similarity / (
+                normalization_dict[i1] * normalization_dict[i2]
+            )
+
+            matrix[i1, i2] = result
+            matrix[i2, i1] = result
+
+    return matrix
 
 
 def gram_linear(x):
@@ -48,7 +70,7 @@ def gram_rbf(x, threshold=1.0):
     #
     sq_distances = -2 * dot_products + sq_norms[:, None] + sq_norms[None, :]
     sq_median_distance = np.median(sq_distances)
-    return np.exp(-sq_distances / (2 * threshold ** 2 * sq_median_distance))
+    return np.exp(-sq_distances / (2 * threshold**2 * sq_median_distance))
 
 
 def center_gram(gram, unbiased=False):
@@ -127,13 +149,14 @@ def _debiased_dot_product_similarity_helper(
     # This formula can be derived by manipulating the unbiased estimator from
     # Song et al. (2007).
     return (
-            xty - n / (n - 2.) * sum_squared_rows_x.dot(sum_squared_rows_y) +
-            squared_norm_x * squared_norm_y / ((n - 1) * (n - 2))
+        xty - n / (n - 2.) * sum_squared_rows_x.dot(sum_squared_rows_y) +
+        squared_norm_x * squared_norm_y / ((n - 1) * (n - 2))
     )
 
 
-def feature_space_linear_cka(features_x, features_y, debiased=False,
-                             verbose=True):
+def feature_space_linear_cka(
+        features_x, features_y, debiased=False, verbose=True
+):
     """Compute CKA with a linear kernel, in feature space.
 
     This is typically faster than computing the Gram matrix when there are
@@ -154,7 +177,7 @@ def feature_space_linear_cka(features_x, features_y, debiased=False,
     features_y = features_y - np.mean(features_y, 0, keepdims=True)
 
     if verbose: print("[get_cka] start to compute dot-product-simi")
-    dot_product_similarity = np.linalg.norm(features_x.T.dot(features_y)) ** 2
+    dot_product_similarity = np.linalg.norm(features_x.T.dot(features_y))**2
 
     if verbose: print("[get_cka] start to normalize x, y")
     normalization_x = np.linalg.norm(features_x.T.dot(features_x))
@@ -175,13 +198,13 @@ def feature_space_linear_cka(features_x, features_y, debiased=False,
         )
         normalization_x = np.sqrt(
             _debiased_dot_product_similarity_helper(
-                normalization_x ** 2, sum_squared_rows_x, sum_squared_rows_x,
+                normalization_x**2, sum_squared_rows_x, sum_squared_rows_x,
                 squared_norm_x, squared_norm_x, n
             )
         )
         normalization_y = np.sqrt(
             _debiased_dot_product_similarity_helper(
-                normalization_y ** 2, sum_squared_rows_y, sum_squared_rows_y,
+                normalization_y**2, sum_squared_rows_y, sum_squared_rows_y,
                 squared_norm_y, squared_norm_y, n
             )
         )
@@ -191,141 +214,6 @@ def feature_space_linear_cka(features_x, features_y, debiased=False,
 
 
 get_cka = feature_space_linear_cka
-
-import time
-import ray
-import copy
-import pandas as pd
-
-get_cka_remote = ray.remote(get_cka)
-
-
-def agent_dataset_to_cka_result(
-        agent_dataset, seed, yaml_path, layer, num_agents=None
-):
-    batch_size = 100
-    sample_agent_dataset = sample_from_agent_dataset(
-        agent_dataset, seed, batch_size
-    )
-    print(
-        "Collected {} samples per agent for {} agents.".format(
-            batch_size, num_agents
-        )
-    )
-    obs_pool = build_obs_pool(sample_agent_dataset)
-    print("Build observation pool with shape {}.".format(obs_pool.shape))
-    ret = several_agent_replay(yaml_path, obs_pool, _num_agents=num_agents)
-    print("Finish replay for all agents.")
-    # cka_result = np.zeros((len(alist), len(alist)))
-    assert isinstance(layer, int)
-
-    alist = [
-        (i, v['infos']['layer{}'.format(layer)])
-        for i, v in enumerate(ret.values())
-    ]
-
-    cka_list = []
-    obs_queue = []
-
-    num_workers = 10
-    worker_cnt = 0
-
-    now = start = time.time()
-
-    for ia, a in alist[:-1]:
-        print(
-            "{:.2f}/{:.2f} Start the {}th agents' computation.".format(
-                time.time() - now,
-                time.time() - start, ia
-            )
-        )
-        for ib, b in alist[ia:]:
-            obj = get_cka_remote.remote(a, b)
-            obs_queue.append([ia, ib, obj])
-            worker_cnt += 1
-            if worker_cnt == num_workers:
-                for x, y, obj in obs_queue:
-                    c = copy.deepcopy(ray.get(obj))
-                    cka_list.append({"x": x, "y": y, "value": c})
-                    if x == y:
-                        continue
-                    cka_list.append({"x": x, "y": y, "value": c})
-                worker_cnt = 0
-                obs_queue.clear()
-        print(
-            "{:.2f}/{:.2f} Finish the {}th agents' computation.".format(
-                time.time() - now,
-                time.time() - start, ia
-            )
-        )
-        now = time.time()
-
-    cka_result = pd.DataFrame(cka_list)
-    cka_info = {
-        "obs_pool": obs_pool,
-        "replay_result": ret,
-        "sample_agent_dataset": sample_agent_dataset
-    }
-    return cka_result, cka_info
-
-
-def pipeline():
-    yaml_path = "yaml/ppo-300-agents.yaml"
-    test_mode = False
-
-    # output_path = "data/similarity/{}.pkl".format(
-    #     osp.basename(yaml_path).split(".yaml")[0])
-    # num_rollouts = 2 if test_mode else 100
-    num_rollouts = 100
-    num_agents = None
-    local_mode = False
-
-    output_path = "data/similarity/ppo-300-agents_rollout100_seed0.pkl"
-
-    agent_dataset = build_agent_dataset(output_path=output_path)
-
-    seed = 0
-    layer = 1
-    cka_result, cka_info = agent_dataset_to_cka_result(
-        agent_dataset,
-        seed=seed,
-        yaml_path=yaml_path,
-        layer=layer,
-        num_agents=None
-    )
-    cka_result_path = output_path.replace(
-        ".pkl", "_sample-seed{}_layer{}_cka-result.pkl".format(seed, layer)
-    )
-    print(cka_result_path)
-    with open(cka_result_path, "wb") as f:
-        pickle.dump(cka_result, f)
-    cka_info_path = output_path.replace(
-        ".pkl", "_sample-seed{}_layer{}_cka-info.pkl".format(seed, layer)
-    )
-    print(cka_info_path)
-    with open(cka_info_path, "wb") as f:
-        pickle.dump(cka_info, f)
-
-    # seed = 0
-    # layer = 0
-    # cka_result, cka_info = agent_dataset_to_cka_result(
-    #     agent_dataset, seed=seed,  yaml_path=yaml_path, layer=layer,
-    #     num_agents=None
-    # )
-    # cka_result_path = output_path.replace(
-    #     ".pkl", "_sample-seed{}_layer{}_cka-result.pkl".format(
-    #         seed, layer
-    #     ))
-    # print(cka_result_path)
-    # with open(cka_result_path, "wb") as f:
-    #     pickle.dump(cka_result, f)
-    # cka_info_path = output_path.replace(
-    #     ".pkl", "_sample-seed{}_layer{}_cka-info.pkl".format(
-    #         seed, layer
-    #     ))
-    # print(cka_info_path)
-    # with open(cka_info_path, "wb") as f:
-    #     pickle.dump(cka_info, f)
 
 
 def cca(features_x, features_y):
@@ -341,8 +229,7 @@ def cca(features_x, features_y):
     qx, _ = np.linalg.qr(features_x)  # Or use SVD with full_matrices=False.
     qy, _ = np.linalg.qr(features_y)
     return np.linalg.norm(qx.T.dot(qy)
-                          ) ** 2 / min(features_x.shape[1],
-                                       features_y.shape[1])
+                          )**2 / min(features_x.shape[1], features_y.shape[1])
 
 
 def test_origin():
@@ -367,11 +254,11 @@ def test_origin():
 
     print(
         'Linear CKA from Examples (Debiased): {:.5f}'.
-            format(cka_from_examples_debiased)
+        format(cka_from_examples_debiased)
     )
     print(
         'Linear CKA from Features (Debiased): {:.5f}'.
-            format(cka_from_features_debiased)
+        format(cka_from_features_debiased)
     )
 
     np.testing.assert_almost_equal(
@@ -406,165 +293,3 @@ def test_origin():
     np.testing.assert_almost_equal(
         feature_space_linear_cka(X, Y), feature_space_linear_cka(X * 1.337, Y)
     )
-
-
-def build_agent_dataset(
-        yaml_path=None,
-        num_rollouts=100,
-        seed=0,
-        num_workers=10,
-        output_path=None,
-        _num_agents=None
-):
-    """
-    return shape: {
-        agent1: {
-            obs: array,
-            act: array,
-            layer0: array,
-            ...
-        }
-    }
-    """
-    if output_path is not None:
-        if os.path.exists(output_path):
-            print("We have detected a saved agent dataset.")
-            print("Load dataset from <{}>".format(output_path))
-            with open(output_path, "rb") as f:
-                agent_dataset = pickle.load(f)
-            return agent_dataset
-
-    assert yaml_path is not None, "We can't find saved dataset. " \
-                                  "You should provide yaml path."
-
-    data_dict = several_agent_rollout(
-        yaml_path,
-        num_rollouts,
-        seed,
-        num_workers,
-        return_data=True,
-        _num_agents=_num_agents
-    )
-    name_ckpt_mapping = read_yaml(yaml_path, number=_num_agents)
-    agent_dataset = {}
-    traj_count = 0
-    for name, traj_list in data_dict.items():
-        # traj_list[0].keys() = dict_keys(['t', 'eps_id', 'agent_index',
-        # 'obs', 'actions', 'rewards', 'prev_actions', 'prev_rewards',
-        # 'dones', 'infos', 'new_obs', 'action_prob', 'vf_preds',
-        # 'behaviour_logits', 'layer0', 'layer1', 'unroll_id', 'advantages',
-        # 'value_targets'])
-        layer_keys = [
-            k for k in traj_list[0].keys()
-            if k.startswith(ACTIVATION_DATA_PREFIX)
-        ]
-        obs_list = [traj['obs'] for traj in traj_list]
-        act_list = [traj['actions'] for traj in traj_list]
-        rew_list = [traj['rewards'] for traj in traj_list]
-        action_prob_list = [traj['action_prob'] for traj in traj_list]
-        logits_list = [traj['behaviour_logits'] for traj in traj_list]
-
-        agent_dict = {
-            # each entry to list is A ROLLOUT
-            "obs": np.concatenate(obs_list),
-            "act": np.concatenate(act_list),
-            "rew_list": np.concatenate(rew_list),
-            "logit": np.concatenate(logits_list),
-            "action_prob": np.concatenate(action_prob_list),
-            "agent_info": name_ckpt_mapping[name]
-        }
-        for layer_key in layer_keys:
-            layer_activation = [traj[layer_key] for traj in traj_list]
-            agent_dict[layer_key] = np.concatenate(layer_activation)
-
-        traj_count += sum([len(obs) for obs in obs_list])
-        agent_dataset[name] = agent_dict
-
-    if output_path is not None:
-        if output_path.endswith(".pkl"):
-            output_path = output_path.split(".pkl")[0]
-        output_path = "{}_rollout{}_seed{}.pkl".format(
-            output_path, num_rollouts, seed
-        )
-        dirname = os.path.dirname(output_path)
-        if not os.path.exists(dirname):
-            os.mkdir(dirname)
-        with open(output_path, "wb") as f:
-            pickle.dump(agent_dataset, f)
-        print(
-            "agent_dataset is successfully saved at <{}>.".format(output_path)
-        )
-
-    print(
-        "Successfully collect {} trajectories from {} agents!".format(
-            traj_count, len(data_dict)
-        )
-    )
-
-    return agent_dataset
-
-
-def sample_from_agent_dataset(agent_dataset, seed, batch_size=100):
-    # agent_data_mappin = {agent: [[traj1:[t0], [t1], ..], [traj2], ...}
-    # build a POOL of Observation
-    # Our guide line is, concatenate all traj of a agent and
-    # sample 100 (or maybe 1000) observations from each agent's obs pool.
-    # so that we have 30,000 obs given 300 agents.
-    """
-    return shape: {
-        agent1: {
-            obs: array [batch_size, ..],
-            act: array [batch_size, ..],
-            layer0: array [batch_size, ..],
-            ...
-        }
-    }
-    """
-    # np.random.seed(seed)
-    rs = np.random.RandomState(seed)
-    sample_agent_dataset = {}
-
-    for agent_name, agent_dict in agent_dataset.items():
-        agent_new_dict = {}
-        agent_total_steps = agent_dict['obs'].shape[0]
-        indices = rs.randint(0, agent_total_steps, batch_size)
-        agent_new_dict['index'] = indices
-        for data_name, data_array in agent_dict.items():
-            if not isinstance(data_array, np.ndarray):
-                agent_new_dict[data_name] = data_array
-            else:
-                batch = data_array[indices]
-                agent_new_dict[data_name] = batch
-
-        sample_agent_dataset[agent_name] = agent_new_dict
-
-    return sample_agent_dataset
-
-
-def build_obs_pool(sample_agent_dataset):
-    obs_pool = []
-    for agent_name, agent_dict in sample_agent_dataset.items():
-        obs_pool.append(agent_dict['obs'])
-    return np.concatenate(obs_pool)
-
-
-def get_result():
-    pass
-
-
-def test_new_implementation():
-    yaml_path = "yaml/test-2-agents.yaml"
-    agent_dataset = build_agent_dataset(
-        yaml_path, 2, output_path="/tmp/{}".format(get_random_string())
-    )
-    sample_agent_dataset = sample_from_agent_dataset(agent_dataset, 0)
-    obs_pool = build_obs_pool(sample_agent_dataset)
-    ret = several_agent_replay(yaml_path, obs_pool)
-    return ret
-
-
-if __name__ == '__main__':
-    # test_origin()
-    initialize_ray(num_gpus=4)
-    pipeline()
-    # agent_data = test_new_implementation()

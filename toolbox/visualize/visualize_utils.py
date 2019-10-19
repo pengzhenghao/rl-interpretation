@@ -1,15 +1,9 @@
-from __future__ import absolute_import, division, print_function, \
-    absolute_import, division, print_function
-
-# import collections
 import distutils
 import logging
 import os
-# import pickle
 import subprocess
 import tempfile
 import time
-# import uuid
 from math import floor
 
 import cv2
@@ -17,12 +11,6 @@ import numpy as np
 import ray
 from PIL import Image
 from gym import logger, error
-
-# import sys
-# sys.path.append("../")
-# from gym.envs.box2d import BipedalWalker
-# from ray.rllib.agents.registry import get_agent_class
-# from ray.tune.util import merge_dicts
 
 ORIGINAL_VIDEO_WIDTH = 1920
 ORIGINAL_VIDEO_HEIGHT = 1080

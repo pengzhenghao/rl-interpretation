@@ -12,6 +12,7 @@ import logging
 import os
 import pickle
 import time
+from collections import OrderedDict
 from math import ceil
 
 import numpy as np
@@ -22,10 +23,11 @@ from ray.rllib.env.base_env import _DUMMY_AGENT_ID
 from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
-from toolbox.evaluate.evaluate_utils import (
-    restore_agent, restore_agent_with_activation
-)
-from toolbox.evaluate.tf_model import PPOTFPolicyWithActivation
+from toolbox.env.env_maker import make_build_gym_env
+from toolbox.evaluate import restore_agent, restore_agent_with_activation
+from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
+from toolbox.modified_rllib.agent_with_activation import \
+    PPOTFPolicyWithActivation
 from toolbox.process_data.process_data import read_yaml
 from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
 
@@ -66,6 +68,16 @@ def get_dataset_path(ckpt, num_rollout, seed):
 
 
 class RolloutWorkerWrapper(object):
+    """
+    This class can help you to rollout a certain number of rounds, or even
+    reload the already saved rollouts from disk.
+    The only input is a yaml files which contain the path to the agents'
+    checkpoint file.
+
+    Unfortunately, in many cases like the "mutate-test" evolutionary-style
+    experiments this class is useless.
+    """
+
     @classmethod
     def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
         return ray.remote(
@@ -292,14 +304,6 @@ def efficient_rollout_from_worker(worker, num_rollouts=None):
     return trajctory_list
 
 
-def parse_rllib_trajectory_list(trajectory_list):
-    return_list = []
-    for num, trajectory in enumerate(trajectory_list):
-        parsed_trajectory = parse_single_rollout(trajectory)
-        return_list.append(parsed_trajectory)
-    return trajectory_list
-
-
 def parse_single_rollout(data):
     obs = data['obs']
     act = data['actions']
@@ -322,17 +326,6 @@ def parse_es_rollout(data):
     return trajectory
 
 
-"""
-Modification:
-    1. use iteration as the termination criterion
-    2. pass an environment object which can be different from env_name
-"""
-from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
-from collections import OrderedDict
-
-from toolbox.env.env_maker import make_build_gym_env
-
-
 # @ray.remote(num_return_vals=1)
 def remote_rollout(
         agent,
@@ -350,12 +343,6 @@ def remote_rollout(
 ):
     ret_list = []
 
-    # print(
-    #     "In remote_rollout, the agent type: {}, IS SYMBOBASE {}".format(
-    #         type(agent), isinstance(agent, SymbolicAgentBase)
-    #     )
-    # )
-
     if isinstance(agent, SymbolicAgentBase):
         assert not agent.initialized
         real_agent = agent.get()['agent']
@@ -370,9 +357,9 @@ def remote_rollout(
 
     for i in range(num_rollouts):
         ret = rollout(
-            real_agent, env, env_name, num_steps, require_frame, require_trajectory,
-            require_extra_info, require_full_frame, require_env_state,
-            render_mode
+            real_agent, env, env_name, num_steps, require_frame,
+            require_trajectory, require_extra_info, require_full_frame,
+            require_env_state, render_mode
         )
         ret_list.append(ret)
     if isinstance(agent, SymbolicAgentBase):
@@ -436,7 +423,6 @@ def quick_rollout_from_symbolic_agents(
                 now_t = time.time()
             obj_id_dict.clear()
             print_count = count + 1
-
 
     for i, (name, obj_id) in enumerate(obj_id_dict.items()):
         agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))

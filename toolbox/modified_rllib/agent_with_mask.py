@@ -28,6 +28,7 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.utils.tf_ops import make_tf_callable
 from ray.rllib.utils.tf_run_builder import TFRunBuilder
 
+from ray.tune.util import merge_dicts
 from toolbox.modified_rllib.tf_policy_template import build_tf_policy
 from toolbox.modified_rllib.trainer_template import build_trainer
 
@@ -416,8 +417,6 @@ class AddMaskInfoMixinForPolicy(object):
         return ret
 
 
-
-
 def setup_mixins(policy, obs_space, action_space, config):
     AddDefaultMask.__init__(policy)
     ValueNetworkMixin_modified.__init__(
@@ -433,15 +432,13 @@ def setup_mixins(policy, obs_space, action_space, config):
 
 
 model_config = {
-    "model": {"custom_model": "fc_with_mask", "custom_options": {}}
+    "model": {
+        "custom_model": "fc_with_mask",
+        "custom_options": {}
+    }
 }
-from ray.tune.util import merge_dicts
 
-ppo_agent_default_config_with_mask = merge_dicts(
-    DEFAULT_CONFIG, model_config
-)
-
-
+ppo_agent_default_config_with_mask = merge_dicts(DEFAULT_CONFIG, model_config)
 
 # ppo_default_config_with_mask = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
 # ppo_default_config_with_mask['model'].update(model_config)
@@ -472,8 +469,6 @@ class AddMaskInfoMixin(object):
         return ret
 
 
-
-
 # ppo_agent_default_config_with_mask['model'].update(model_config)
 PPOAgentWithMask = build_trainer(
     name="PPOWithMask",
@@ -485,41 +480,10 @@ PPOAgentWithMask = build_trainer(
     # For some reason, I can't generate the model with policy_optimizer,
     # So I just disable it.
     # PENGZHENGHAO
+    # TODO YOU SHOULD ADD OPTIMIZER HERE!!!
     make_policy_optimizer=None,
     validate_config=validate_config,
     after_optimizer_step=update_kl,
     after_train_result=warn_about_bad_reward_scales,
     mixins=[AddMaskInfoMixin]
 )
-
-
-def test_ppo():
-    from toolbox.utils import initialize_ray
-    initialize_ray(test_mode=True, local_mode=True)
-    po = PPOAgentWithMask(
-        env="BipedalWalker-v2", config={"model": model_config}
-    )
-    return po
-
-
-def test_run_ppo():
-    agent = test_ppo()
-    obs_space = agent.get_policy().observation_space
-    obs = obs_space.sample()
-
-    mask_batch = {
-        "fc_1_mask": np.zeros((1, 256)),
-        "fc_2_mask": np.ones((1, 256))
-    }
-
-    ret = agent.get_policy().compute_actions(
-        np.array([obs]), mask_batch=mask_batch
-    )
-    print(ret)
-
-    return ret
-
-
-if __name__ == '__main__':
-    # test_ppo()
-    test_run_ppo()

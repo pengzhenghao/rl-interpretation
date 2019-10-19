@@ -45,9 +45,6 @@ def get_pearson(probe_mask, new_obs, batch_size=1000000, pval_th=0.05):
     return rho_matrix, p_matrix, print_mask
 
 
-# get_pearson = get_pearson_correlation_coefficient
-
-
 def draw_pearson(rho, pval, mask):
     rho = rho * mask
     draw_heatmap(rho, matrix2=pval)
