@@ -1,10 +1,4 @@
-from __future__ import absolute_import, division, print_function, \
-    absolute_import, division, print_function
-
-# import sys
-# sys.path.append("../")
 from toolbox.process_data.process_data import get_name_ckpt_mapping, read_yaml
-from toolbox.test.utils import get_ppo_agent
 from toolbox.utils import initialize_ray
 from toolbox.visualize.generate_gif import generate_gif_from_agent
 from toolbox.visualize.record_video import (
@@ -16,6 +10,8 @@ VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
 FPS = 50
+
+get_ppo_agent = lambda env_name: restore_agent("PPO", None, env_name)
 
 
 def test_generate_gif_from_agent():

@@ -58,7 +58,6 @@ PRESET_INFORMATION_DICT = {
 }
 
 
-
 @ray.remote
 class CollectFramesWorker(object):
     def __init__(

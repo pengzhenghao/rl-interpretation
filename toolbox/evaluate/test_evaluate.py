@@ -161,14 +161,6 @@ def test_add_gaussian_perturbation():
     np.testing.assert_array_equal(old_response, old_response2)
     np.testing.assert_array_equal(old_response, new_response)
 
-    agent2 = symbolic_agent.add_gaussian_perturbation(agent, 1.0, 1, 1997)
-    new_response2 = copy.deepcopy(get_policy_network_output(agent2, act))
-
-    np.testing.assert_raises(
-        AssertionError, np.testing.assert_array_equal, old_response,
-        new_response2
-    )
-
 
 def test_MaskSymbolicAgent_local():
     initialize_ray(test_mode=True)

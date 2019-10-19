@@ -515,7 +515,6 @@ class BipedalWalkerWrapper(BipedalWalker):
 #
 #         return self.viewer.render(mode == 'human' or mode == 'human_cropped')
 
-
 if __name__ == '__main__':
     # this is the test codes
     env = BipedalWalkerWrapper()
