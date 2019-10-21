@@ -156,17 +156,17 @@ class DynamicTFPolicy(TFPolicy):
                 framework="tf"
             )
 
-        if existing_inputs:
-            for name, mask_input in existing_inputs.items():
-                if not name.endswith("mask"):
-                    continue
-                else:
-                    self._input_dict[name] = mask_input
-        else:
+        # if existing_inputs:
+        #     for name, mask_input in existing_inputs.items():
+        #         if not name.endswith("mask"):
+        #             continue
+        #         else:
+        #             self._input_dict[name] = mask_input
+        # else:
             # PENGZHENGHAO
-            for name, ph in self.model.mask_placeholder_dict.items():
-                self._input_dict[name] = ph
-            print("Current key names of input dict: ", self._input_dict.keys())
+            # for name, ph in self.model.mask_placeholder_dict.items():
+            #     self._input_dict[name] = ph
+            # print("Current key names of input dict: ", self._input_dict.keys())
 
         if existing_inputs:
             self._state_in = [
@@ -278,7 +278,12 @@ class DynamicTFPolicy(TFPolicy):
             existing_model=self.model
         )
 
+        self._sess.run(tf.global_variables_initializer())
+
         instance._loss_input_dict = input_dict
+
+        # self._sess.run(tf.global_variables_initializer())
+
         loss = instance._do_loss_init(input_dict)
         loss_inputs = [
             (k, existing_inputs[i])
@@ -325,8 +330,11 @@ class DynamicTFPolicy(TFPolicy):
         }
 
         # Add dummy things PENGZHENGHAO
-        for name, val in self.model.mask_placeholder_dict.items():
-            dummy_batch[name] = fake_array(val)
+        # for name, val in self.model.mask_placeholder_dict.items():
+        #     shape = val.shape.as_list()
+        #     shape = [1] + [s if s is not None else 1 for s in shape]
+        #     dummy_batch[name] = \
+        #         np.zeros(shape, dtype=val.dtype.as_numpy_dtype)
 
         if self._obs_include_prev_action_reward:
             dummy_batch.update(

@@ -46,10 +46,17 @@ class MultiplyMaskLayer(Layer):
             assert default is None
             self.kernel = self.add_variable(
                 name=name,
-                shape=(1, output_dim),
+                shape=[output_dim,],
                 initializer='ones',
                 trainable=False
             )
+
+        # self.placeholder = tf.keras.layers.Input(
+        #     tensor=self.kernel,
+        #     name=name
+        # )
+
+        print("Finish init of multiplymasklayer")
 
     # def build(self, input_shape):
     #     Create a trainable weight variable for this layer.
@@ -62,10 +69,15 @@ class MultiplyMaskLayer(Layer):
     # somewhere!
 
     def call(self, x, **kwargs):
-        return tf.multiply(x, self.kernel)
+        # x, y = inp
+        ret = tf.multiply(x, self.kernel)
+        return ret
 
     def compute_output_shape(self, input_shape):
         return (input_shape[0], self.output_dim) + input_shape[1:]
+
+    def get_kernel(self):
+        return self.kernel
 
 
 class FullyConnectedNetworkWithMask(TFModelV2):
@@ -93,6 +105,8 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         i = 1
 
         mask_placeholder_dict = OrderedDict()
+        self.mask_layer_dict = OrderedDict()
+        self.default_mask = OrderedDict()
 
         if no_final_linear:
             # the last layer is adjusted to be of size num_outputs
@@ -121,7 +135,7 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                 # )
 
                 mask_layer = MultiplyMaskLayer(
-                    size, name="{}x{}".format(layer_name, mask_name)
+                    size, name=mask_name
                 )
 
                 last_layer = mask_layer(last_layer)
@@ -130,7 +144,8 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                 #     last_layer, mask_input, name="{}x{}".format(
                 #     layer_name, mask_name)
                 # )
-                mask_placeholder_dict[mask_name] = mask_layer.kernel
+                mask_placeholder_dict[mask_name] = mask_layer.get_kernel()
+                self.mask_layer_dict[mask_name] = mask_layer
 
                 activation_list.append(last_layer)
                 i += 1
@@ -163,7 +178,7 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                 #     validate_shape=False
                 # )
                 mask_layer = MultiplyMaskLayer(
-                    size, name="{}x{}".format(layer_name, mask_name)
+                    size, name=mask_name
                 )
 
                 last_layer = mask_layer(last_layer)
@@ -175,7 +190,8 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                 #     [last_layer, mask_input]
                 # )
 
-                mask_placeholder_dict[mask_name] = mask_layer.kernel
+                mask_placeholder_dict[mask_name] = mask_layer.get_kernel()
+                self.mask_layer_dict[mask_name] = mask_layer
 
                 activation_list.append(last_layer)
                 i += 1
@@ -209,7 +225,8 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
         self.mask_placeholder_dict = mask_placeholder_dict
 
-        input_tensor = [inputs] + list(self.mask_placeholder_dict.values())
+        # input_tensor = [inputs] + list(self.mask_placeholder_dict.values())
+        input_tensor = inputs
 
         self.base_model = tf.keras.Model(
             inputs=input_tensor,
@@ -221,31 +238,55 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         self.register_variables(self.base_model.variables)
         self.register_variables(list(self.mask_placeholder_dict.values()))
 
+        for name, layer in self.mask_layer_dict.items():
+            self.default_mask[name] = layer.get_weights()
+
     def forward(self, input_dict, state, seq_lens):
-        extra_input = [input_dict["obs_flat"]]
+        # extra_input = [input_dict["obs_flat"]]
 
         # is_value_function = False
-        for name in self.mask_placeholder_dict.keys():
-            if name not in input_dict:
-                raise ValueError(
-                    "We are expecting: {} but you don't have {}. You have: {}"
-                    "".format(
-                        self.mask_placeholder_dict.keys(), name,
-                        input_dict.keys()
-                    ))
-                # is_value_function = True
-                # break
-            extra_input.append(input_dict[name])
+        # for name in self.mask_placeholder_dict.keys():
+        #     if name not in input_dict:
+        #         raise ValueError(
+        #             "We are expecting: {} but you don't have {}. You have: {}"
+        #             "".format(
+        #                 self.mask_placeholder_dict.keys(), name,
+        #                 input_dict.keys()
+        #             ))
+        #         # is_value_function = True
+        #         # break
+        #     extra_input.append(input_dict[name])
 
         # if is_value_function:
         #     batch_size = extra_input[0].shape.as_list()[0]
         #     extra_input.extend(self._build_ones(batch_size))
 
         model_out, self._value_out, *self.activation_value = self.base_model(
-            # input_dict["obs_flat"]
-            extra_input
+            input_dict["obs_flat"]
+            # extra_input
         )
         return model_out, state
+
+    def set_mask(self):
+        for name, val in self.default_mask.items():
+            # val = [val]
+            self.mask_layer_dict[name].set_weights(val)
+
+    def set_default(self, mask_dict):
+        for name, val in mask_dict.items():
+            assert name in self.mask_layer_dict
+            assert name in self.default_mask
+            assert isinstance(val, np.object)
+
+            assert list(val.shape) == \
+                   self.mask_placeholder_dict[name].shape.as_list(), \
+                (val.shape, self.mask_placeholder_dict[name].shape)
+            # the layer only have one 'weight' so wrap it by list.
+            self.default_mask[name] = [val]
+
+        self.set_mask()
+
+
 
 
     def value_function(self):
@@ -253,6 +294,32 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
     def activation(self):
         return self.activation_value
+
+    def from_batch(self, train_batch, is_training=True):
+        """Convenience function that calls this model with a tensor batch.
+
+        All this does is unpack the tensor batch to call this model with the
+        right input dict, state, and seq len arguments.
+        """
+
+        input_dict = {
+            "obs": train_batch[SampleBatch.CUR_OBS],
+            "is_training": is_training,
+        }
+
+        for name, ph in self.mask_placeholder_dict.items():
+            input_dict[name] = ph
+
+        if SampleBatch.PREV_ACTIONS in train_batch:
+            input_dict["prev_actions"] = train_batch[SampleBatch.PREV_ACTIONS]
+        if SampleBatch.PREV_REWARDS in train_batch:
+            input_dict["prev_rewards"] = train_batch[SampleBatch.PREV_REWARDS]
+        states = []
+        i = 0
+        while "state_in_{}".format(i) in train_batch:
+            states.append(train_batch["state_in_{}".format(i)])
+            i += 1
+        return self.__call__(input_dict, states, train_batch.get("seq_lens"))
 
 
 def vf_preds_and_logits_fetches_new(policy):
@@ -292,9 +359,9 @@ class ValueNetworkMixin_modified(object):
                     "is_training": tf.convert_to_tensor(False)
                 }
 
-                for name, tensor in self.model.mask_placeholder_dict.items():
-                    shape = [1] + tensor.shape.as_list()[1:]
-                    input_dict[name] = tf.ones(shape)
+                # for name, tensor in self.model.mask_placeholder_dict.items():
+                #     shape = [1] + tensor.shape.as_list()[1:]
+                #     input_dict[name] = tf.ones(shape)
 
                 model_out, _ = self.model(
                     input_dict, [tf.convert_to_tensor([s]) for s in state],
@@ -365,120 +432,134 @@ def register_fc_with_mask():
 register_fc_with_mask()
 
 
-class AddDefaultMask(object):
-    def __init__(self):
-        self.default_mask_dict = None
-        self.batchsize_mask_dict = {}
+# class AddDefaultMask(object):
+#     def __init__(self):
+#         self.default_mask_dict = None
+#         self.batchsize_mask_dict = {}
+#
+#     def set_default_mask(self, mask_dict):
+#         assert mask_dict is not None
+#         assert mask_dict.keys() == self.model.mask_placeholder_dict.keys()
+#         self.default_mask_dict = mask_dict
+#         self.batchsize_mask_dict.clear()
+#         print(
+#             "Successfully set the default mask to: ",
+#             {k: (v.mean(), v.std())
+#              for k, v in mask_dict.items()}
+#         )
+#         self.model.set_default(mask_dict)
+#         # self.model.set_mask(mask_dict)
+#
+#     def add_batchsize_mask_dict(self, batchsize):
+#         if batchsize not in self.batchsize_mask_dict:
+#             # assert self.default_mask_dict is not None
+#
+#             if self.default_mask_dict is None:
+#                 mask_template = self.get_mask_info()
+#                 self.set_default_mask(
+#                     {
+#                         # k: np.ones(shape[1:])
+#                         k: np.ones(shape)
+#                         for k, shape in mask_template.items()
+#                     }
+#                 )
+#                 print(
+#                     "Since you don't set the default mask, "
+#                     "we set it to ones."
+#                 )
+#
+#             mask_batch = {
+#                 k: np.tile(v, (batchsize, 1))
+#                 for k, v in self.default_mask_dict.items()
+#             }
+#             self.batchsize_mask_dict[batchsize] = mask_batch
+#         return self.batchsize_mask_dict[batchsize]
 
-    def set_default_mask(self, mask_dict):
-        assert mask_dict is not None
-        assert mask_dict.keys() == self.model.mask_placeholder_dict.keys()
-        self.default_mask_dict = mask_dict
-        self.batchsize_mask_dict.clear()
-        print(
-            "Successfully set the default mask to: ",
-            {k: (v.mean(), v.std())
-             for k, v in mask_dict.items()}
-        )
 
-    def add_batchsize_mask_dict(self, batchsize):
-        if batchsize not in self.batchsize_mask_dict:
-            # assert self.default_mask_dict is not None
+# class ModifiedInputTensorMixin(object):
+#     """Mixin for TFPolicy that adds entropy coeff decay."""
+#
+#     @override(TFPolicy)
+#     def _build_compute_actions(
+#             self,
+#             builder,
+#             obs_batch,
+#             state_batches=None,
+#             prev_action_batch=None,
+#             prev_reward_batch=None,
+#             episodes=None,
+#             mask_batch=None,  # NEW!!
+#     ):
+#         state_batches = state_batches or []
+#         if len(self._state_inputs) != len(state_batches):
+#             raise ValueError(
+#                 "Must pass in RNN state batches for placeholders {}, got {}".
+#                     format(self._state_inputs, state_batches)
+#             )
+#         builder.add_feed_dict(self.extra_compute_action_feed_dict())
+#         builder.add_feed_dict({self._obs_input: obs_batch})
+#         if state_batches:
+#             builder.add_feed_dict({self._seq_lens: np.ones(len(obs_batch))})
+#         if self._prev_action_input is not None and \
+#                 prev_action_batch is not None:
+#             builder.add_feed_dict({self._prev_action_input: prev_action_batch})
+#         if self._prev_reward_input is not None and \
+#                 prev_reward_batch is not None:
+#             builder.add_feed_dict({self._prev_reward_input: prev_reward_batch})
+#         builder.add_feed_dict({self._is_training: False})
+#
+#         # # if mask_batch is None:
+#         # #     mask_batch = self.add_batchsize_mask_dict(len(obs_batch))
+#         #
+#         # assert isinstance(mask_batch, dict), mask_batch
+#         #
+#         # for name, mask in mask_batch.items():
+#         #     assert isinstance(mask, np.ndarray)
+#         #     builder.add_feed_dict(
+#         #         {self.model.mask_placeholder_dict[name]: mask}
+#         #     )
+#
+#         # TODO
+#         # if mask dict is not None, then we should update the model's
+#         # default mask
+#
+#         # model_weights = self.model.get_weights()
+#
+#         builder.add_feed_dict(dict(zip(self._state_inputs, state_batches)))
+#         fetches = builder.add_fetches(
+#             [self._sampler] + self._state_outputs +
+#             [self.extra_compute_action_fetches()]
+#         )
+#         return fetches[0], fetches[1:-1], fetches[-1]
+#
+#     @override(TFPolicy)
+#     def compute_actions(
+#             self,
+#             obs_batch,
+#             state_batches=None,
+#             prev_action_batch=None,
+#             prev_reward_batch=None,
+#             info_batch=None,
+#             episodes=None,
+#             mask_batch=None,  # NEW!!!
+#             **kwargs
+#     ):
+#         builder = TFRunBuilder(self._sess, "compute_actions")
+#         fetches = self._build_compute_actions(
+#             builder,
+#             obs_batch,
+#             state_batches,
+#             prev_action_batch,
+#             prev_reward_batch,
+#             mask_batch=mask_batch
+#         )
+#         return builder.get(fetches)
 
-            if self.default_mask_dict is None:
-                mask_template = self.get_mask_info()
-                self.set_default_mask(
-                    {
-                        k: np.ones(shape[1:])
-                        for k, shape in mask_template.items()
-                    }
-                )
-                print(
-                    "Since you don't set the default mask, "
-                    "we set it to ones."
-                )
-
-            mask_batch = {
-                k: np.tile(v, (batchsize, 1))
-                for k, v in self.default_mask_dict.items()
-            }
-            self.batchsize_mask_dict[batchsize] = mask_batch
-        return self.batchsize_mask_dict[batchsize]
-
-
-class ModifiedInputTensorMixin(object):
-    """Mixin for TFPolicy that adds entropy coeff decay."""
-
-    @override(TFPolicy)
-    def _build_compute_actions(
-            self,
-            builder,
-            obs_batch,
-            state_batches=None,
-            prev_action_batch=None,
-            prev_reward_batch=None,
-            episodes=None,
-            mask_batch=None,  # NEW!!
-    ):
-        state_batches = state_batches or []
-        if len(self._state_inputs) != len(state_batches):
-            raise ValueError(
-                "Must pass in RNN state batches for placeholders {}, got {}".
-                    format(self._state_inputs, state_batches)
-            )
-        builder.add_feed_dict(self.extra_compute_action_feed_dict())
-        builder.add_feed_dict({self._obs_input: obs_batch})
-        if state_batches:
-            builder.add_feed_dict({self._seq_lens: np.ones(len(obs_batch))})
-        if self._prev_action_input is not None and \
-                prev_action_batch is not None:
-            builder.add_feed_dict({self._prev_action_input: prev_action_batch})
-        if self._prev_reward_input is not None and \
-                prev_reward_batch is not None:
-            builder.add_feed_dict({self._prev_reward_input: prev_reward_batch})
-        builder.add_feed_dict({self._is_training: False})
-
-        if mask_batch is None:
-            mask_batch = self.add_batchsize_mask_dict(len(obs_batch))
-
-        assert isinstance(mask_batch, dict), mask_batch
-
-        for name, mask in mask_batch.items():
-            assert isinstance(mask, np.ndarray)
-            builder.add_feed_dict(
-                {self.model.mask_placeholder_dict[name]: mask}
-            )
-
-        builder.add_feed_dict(dict(zip(self._state_inputs, state_batches)))
-        fetches = builder.add_fetches(
-            [self._sampler] + self._state_outputs +
-            [self.extra_compute_action_fetches()]
-        )
-        return fetches[0], fetches[1:-1], fetches[-1]
-
-    @override(TFPolicy)
-    def compute_actions(
-            self,
-            obs_batch,
-            state_batches=None,
-            prev_action_batch=None,
-            prev_reward_batch=None,
-            info_batch=None,
-            episodes=None,
-            mask_batch=None,  # NEW!!!
-            **kwargs
-    ):
-        builder = TFRunBuilder(self._sess, "compute_actions")
-        fetches = self._build_compute_actions(
-            builder,
-            obs_batch,
-            state_batches,
-            prev_action_batch,
-            prev_reward_batch,
-            mask_batch=mask_batch
-        )
-        return builder.get(fetches)
-
+class AddSetDefault(object):
+    def set_default(self, mask_dict):
+        with self.get_session():
+            # This fix the bug that
+            self.model.set_default(mask_dict)
 
 class AddMaskInfoMixinForPolicy(object):
     def get_mask_info(self):
@@ -490,7 +571,7 @@ class AddMaskInfoMixinForPolicy(object):
 
 
 def setup_mixins(policy, obs_space, action_space, config):
-    AddDefaultMask.__init__(policy)
+
     ValueNetworkMixin_modified.__init__(
         policy, obs_space, action_space, config
     )
@@ -499,8 +580,9 @@ def setup_mixins(policy, obs_space, action_space, config):
         policy, config["entropy_coeff"], config["entropy_coeff_schedule"]
     )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
-    ModifiedInputTensorMixin.__init__(policy)
+    # ModifiedInputTensorMixin.__init__(policy)
     AddMaskInfoMixinForPolicy.__init__(policy)
+    AddSetDefault.__init__(policy)
 
 
 model_config = {
@@ -526,8 +608,11 @@ PPOTFPolicyWithMask = build_tf_policy(
     before_loss_init=setup_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin_modified, ModifiedInputTensorMixin, AddDefaultMask,
-        AddMaskInfoMixinForPolicy
+        ValueNetworkMixin_modified,
+        # ModifiedInputTensorMixin,
+        # AddDefaultMask,
+        AddMaskInfoMixinForPolicy,
+        AddSetDefault
     ]
 )
 
