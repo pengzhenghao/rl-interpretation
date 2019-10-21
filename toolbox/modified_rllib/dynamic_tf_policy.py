@@ -156,16 +156,16 @@ class DynamicTFPolicy(TFPolicy):
                 framework="tf"
             )
 
-        if existing_inputs:
-            for name, mask_input in existing_inputs.items():
-                if not name.endswith("mask"):
-                    continue
-                else:
-                    self._input_dict[name] = mask_input
-        else:
+        # if existing_inputs:
+        #     for name, mask_input in existing_inputs.items():
+        #         if not name.endswith("mask"):
+        #             continue
+        #         else:
+        #             self._input_dict[name] = mask_input
+        # else:
             # PENGZHENGHAO
-            for name, ph in self.model.mask_placeholder_dict.items():
-                self._input_dict[name] = ph
+            # for name, ph in self.model.mask_placeholder_dict.items():
+            #     self._input_dict[name] = ph
             # print("Current key names of input dict: ", self._input_dict.keys())
 
         if existing_inputs:
