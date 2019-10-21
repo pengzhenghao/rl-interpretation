@@ -156,10 +156,17 @@ class DynamicTFPolicy(TFPolicy):
                 framework="tf"
             )
 
-        # PENGZHENGHAO
-        for name, ph in self.model.mask_placeholder_dict.items():
-            self._input_dict[name] = ph
-        # print("Current key names of input dict: ", self._input_dict.keys())
+        if existing_inputs:
+            for name, mask_input in existing_inputs.items():
+                if not name.endswith("mask"):
+                    continue
+                else:
+                    self._input_dict[name] = mask_input
+        else:
+            # PENGZHENGHAO
+            for name, ph in self.model.mask_placeholder_dict.items():
+                self._input_dict[name] = ph
+            # print("Current key names of input dict: ", self._input_dict.keys())
 
         if existing_inputs:
             self._state_in = [
@@ -316,6 +323,7 @@ class DynamicTFPolicy(TFPolicy):
             SampleBatch.REWARDS:
             np.array([0], dtype=np.float32),
         }
+
         # Add dummy things PENGZHENGHAO
         for name, val in self.model.mask_placeholder_dict.items():
             dummy_batch[name] = fake_array(val)
@@ -337,6 +345,7 @@ class DynamicTFPolicy(TFPolicy):
             state_batches.append(np.expand_dims(h, 0))
         if state_init:
             dummy_batch["seq_lens"] = np.array([1], dtype=np.int32)
+
         for k, v in self.extra_compute_action_fetches().items():
             dummy_batch[k] = fake_array(v)
 
@@ -374,10 +383,11 @@ class DynamicTFPolicy(TFPolicy):
                 (SampleBatch.CUR_OBS, self._obs_input),
             ]
 
-        # PENGZHENGHAO
-        for name, ph in self.model.mask_placeholder_dict.items():
-            loss_inputs.append((name, ph))
+        # When using the mask, the key of postprocessed_batch is :
+        # dict_keys(['obs', 'new_obs', 'dones', 'actions', 'rewards', 'fc_1_mask', 'fc_2_mask', 'prev_actions', 'prev_rewards', 'action_prob', 'action_logp', 'vf_preds', 'behaviour_logits', 'layer0', 'layer1', 'advantages', 'value_targets'])
 
+        # When not using the mask, the keys is:
+        # dict_keys(['obs', 'new_obs', 'dones', 'actions', 'rewards', 'fc_1_mask', 'fc_2_mask', 'prev_actions', 'prev_rewards', 'action_prob', 'action_logp', 'vf_preds', 'behaviour_logits', 'layer0', 'layer1', 'advantages', 'value_targets'])
         for k, v in postprocessed_batch.items():
             if k in train_batch:
                 continue
@@ -390,6 +400,8 @@ class DynamicTFPolicy(TFPolicy):
             placeholder = tf.placeholder(dtype, shape=shape, name=k)
             train_batch[k] = placeholder
 
+        # When using the mask. At this time, the train_batch contain 17 element.
+        # <class 'list'>: ['prev_actions', 'prev_rewards', 'obs', 'new_obs', 'dones', 'actions', 'rewards', 'fc_1_mask', 'fc_2_mask', 'action_prob', 'action_logp', 'vf_preds', 'behaviour_logits', 'layer0', 'layer1', 'advantages', 'value_targets']
         for i, si in enumerate(self._state_in):
             train_batch["state_in_{}".format(i)] = si
         train_batch["seq_lens"] = self._seq_lens
@@ -402,10 +414,28 @@ class DynamicTFPolicy(TFPolicy):
             )
 
         self._loss_input_dict = train_batch
+        # At this time, the accessed_keys: <class 'set'>:
+        # {'obs', 'prev_rewards', 'value_targets', 'behaviour_logits', 'prev_actions', 'advantages', 'action_logp', 'actions', 'vf_preds', 'accessed_keys', 'intercepted_values'}
+
+        # However, in the no-mask exp, current accessed_keys:
+        # <class 'set'>: {'intercepted_values', 'accessed_keys'}
+
         loss = self._do_loss_init(train_batch)
+        # after the above line, the accessed_keys: <class 'set'>:
+        # {'advantages', 'action_logp', 'behaviour_logits', 'prev_rewards', 'prev_actions', 'vf_preds', 'actions', 'value_targets', 'obs'}
+
+        # However, in the no-mask exp, above line lead to: They are same. but different order.
+        # {'action_logp', 'prev_actions', 'behaviour_logits', 'value_targets', 'obs', 'prev_rewards', 'advantages', 'vf_preds', 'actions'}
+
+        # at this time, the loss input already has: prev_actions, prev_rewards, obs
         for k in sorted(train_batch.accessed_keys):
+            # sorted train_batch.accessed_keys: <class 'list'>: ['action_logp', 'actions', 'advantages', 'behaviour_logits', 'obs', 'prev_actions', 'prev_rewards', 'value_targets', 'vf_preds']
             if k != "seq_lens" and not k.startswith("state_in_"):
                 loss_inputs.append((k, train_batch[k]))
+
+        # PENGZHENGHAO
+        for name, ph in self.model.mask_placeholder_dict.items():
+            loss_inputs.append((name, ph))
 
         TFPolicy._initialize_loss(self, loss, loss_inputs)
         if self._grad_stats_fn:
@@ -413,6 +443,7 @@ class DynamicTFPolicy(TFPolicy):
                 self._grad_stats_fn(self, train_batch, self._grads)
             )
         self._sess.run(tf.global_variables_initializer())
+        print("Finish _initialize_loss!")
 
     def _do_loss_init(self, train_batch):
         loss = self._loss_fn(self, self.model, self._dist_class, train_batch)

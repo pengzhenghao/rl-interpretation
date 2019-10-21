@@ -12,7 +12,7 @@ import numpy as np
 import ray.experimental.tf_utils
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, \
     validate_config, update_kl, \
-    warn_about_bad_reward_scales
+    warn_about_bad_reward_scales, choose_policy_optimizer
 from ray.rllib.agents.ppo.ppo_policy import \
     ppo_surrogate_loss, kl_and_loss_stats, setup_config, \
     clip_gradients, EntropyCoeffSchedule, KLCoeffMixin, \
@@ -64,9 +64,10 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         if no_final_linear:
             # the last layer is adjusted to be of size num_outputs
             for size in hiddens[:-1]:
+                layer_name = "fc_{}".format(i)
                 last_layer = tf.keras.layers.Dense(
                     size,
-                    name="fc_{}".format(i),
+                    name=layer_name,
                     activation=activation,
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
@@ -76,8 +77,15 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                     shape=size,
                     name=mask_name,
                 )
+                # assert last_layer.shape.as_list() == mask_input.shape.as_list()
+
+                last_layer = tf.keras.layers.Multiply(
+                    name="{}x{}".format(layer_name, mask_name)
+                )(
+                    [last_layer, mask_input]
+                )
+
                 mask_placeholder_dict[mask_name] = mask_input
-                assert last_layer.shape.as_list() == mask_input.shape.as_list()
 
                 last_layer = tf.multiply(last_layer, mask_input)
 
@@ -93,23 +101,30 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         else:
             # the last layer is a linear to size num_outputs
             for size in hiddens:
+                layer_name = "fc_{}".format(i)
                 last_layer = tf.keras.layers.Dense(
                     size,
-                    name="fc_{}".format(i),
+                    name=layer_name,
                     activation=activation,
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
 
                 mask_name = "fc_{}_mask".format(i)
                 mask_input = tf.keras.layers.Input(shape=size, name=mask_name)
-                mask_placeholder_dict[mask_name] = mask_input
 
-                assert last_layer.shape.as_list() == mask_input.shape.as_list()
+                # assert last_layer.shape.as_list() == mask_input.shape.as_list()
                 last_layer = tf.multiply(last_layer, mask_input)
 
-                activation_list.append(last_layer)
+                last_layer = tf.keras.layers.Multiply(
+                    name="{}x{}".format(layer_name, mask_name)
+                )(
+                    [last_layer, mask_input]
+                )
 
+                mask_placeholder_dict[mask_name] = mask_input
+                activation_list.append(last_layer)
                 i += 1
+
             layer_out = tf.keras.layers.Dense(
                 num_outputs,
                 name="fc_out",
@@ -148,8 +163,6 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         self.register_variables(self.base_model.variables)
 
     def forward(self, input_dict, state, seq_lens):
-        # print("Please stop here. I want to know who call this function")
-
         extra_input = [input_dict["obs_flat"]]
 
         is_value_function = False
@@ -475,13 +488,13 @@ PPOAgentWithMask = build_trainer(
     default_config=ppo_agent_default_config_with_mask,
     default_policy=PPOTFPolicyWithMask,
 
-    # make_policy_optimizer=choose_policy_optimizer,
+    make_policy_optimizer=choose_policy_optimizer,
 
     # For some reason, I can't generate the model with policy_optimizer,
     # So I just disable it.
     # PENGZHENGHAO
     # TODO YOU SHOULD ADD OPTIMIZER HERE!!!
-    make_policy_optimizer=None,
+    # make_policy_optimizer=None,
     validate_config=validate_config,
     after_optimizer_step=update_kl,
     after_train_result=warn_about_bad_reward_scales,
