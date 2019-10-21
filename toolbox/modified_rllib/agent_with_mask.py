@@ -209,11 +209,11 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
         self.mask_placeholder_dict = mask_placeholder_dict
 
-        # input_tensor = [inputs] + list(self.mask_placeholder_dict.values())
+        input_tensor = [inputs] + list(self.mask_placeholder_dict.values())
 
         self.base_model = tf.keras.Model(
-            # inputs=input_tensor,
-            inputs=inputs,
+            inputs=input_tensor,
+            # inputs=inputs,
             outputs=[layer_out, value_out] + activation_list
         )
         # TODO we can add a flag to determine whether to return activation.
@@ -222,68 +222,37 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         self.register_variables(list(self.mask_placeholder_dict.values()))
 
     def forward(self, input_dict, state, seq_lens):
-        # extra_input = input_dict["obs_flat"]
+        extra_input = [input_dict["obs_flat"]]
 
         # is_value_function = False
-        # for name in self.mask_placeholder_dict.keys():
-        #     # assert name in input_dict
-        #     if name not in input_dict:
-        #         raise ValueError(
-        #             "We are expecting: {} but you don't have {}. You have: {"
-        #             "}".format(
-        #                 self.mask_placeholder_dict.keys(), name,
-        #                 input_dict.keys()
-        #             ))
-        #         # is_value_function = True
-        #         # break
-        #     extra_input.append(input_dict[name])
+        for name in self.mask_placeholder_dict.keys():
+            if name not in input_dict:
+                raise ValueError(
+                    "We are expecting: {} but you don't have {}. You have: {}"
+                    "".format(
+                        self.mask_placeholder_dict.keys(), name,
+                        input_dict.keys()
+                    ))
+                # is_value_function = True
+                # break
+            extra_input.append(input_dict[name])
 
         # if is_value_function:
         #     batch_size = extra_input[0].shape.as_list()[0]
         #     extra_input.extend(self._build_ones(batch_size))
 
         model_out, self._value_out, *self.activation_value = self.base_model(
-            input_dict["obs_flat"]
+            # input_dict["obs_flat"]
+            extra_input
         )
         return model_out, state
 
-    # def set_default(self, mask_dict):
-    #     for name, tensor in mask_dict.items():
-    #         tf.assign(self.mask_placeholder_dict[name], tensor)
 
     def value_function(self):
         return tf.reshape(self._value_out, [-1])
 
     def activation(self):
         return self.activation_value
-
-    # def from_batch(self, train_batch, is_training=True):
-    #     print('PENGZHENGHAO!! You have enter a modified from_batch
-    #     function!')
-    #
-    #     input_dict = {
-    #         "obs": train_batch[SampleBatch.CUR_OBS],
-    #         "is_training": is_training,
-    #     }
-    #
-    #     # Here is what we modified
-    #     for name, tensor in self.mask_placeholder_dict.items():
-    #         # input_dict[k] = tf.ones_like(ph)
-    #         shape = [1] + tensor.shape.as_list()[1:]
-    #         input_dict[name] = tf.ones(shape)
-    #
-    #     if SampleBatch.PREV_ACTIONS in train_batch:
-    #         input_dict["prev_actions"] = train_batch[
-    #         SampleBatch.PREV_ACTIONS]
-    #     if SampleBatch.PREV_REWARDS in train_batch:
-    #         input_dict["prev_rewards"] = train_batch[
-    #         SampleBatch.PREV_REWARDS]
-    #     states = []
-    #     i = 0
-    #     while "state_in_{}".format(i) in train_batch:
-    #         states.append(train_batch["state_in_{}".format(i)])
-    #         i += 1
-    #     return self.__call__(input_dict, states, train_batch.get("seq_lens"))
 
 
 def vf_preds_and_logits_fetches_new(policy):
