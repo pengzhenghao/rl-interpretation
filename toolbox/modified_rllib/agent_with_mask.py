@@ -155,12 +155,6 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         )
         self.register_variables(self.base_model.variables)
 
-    # def _build_ones(self, batch_size):
-    #     ret = []
-    #     for ph in self.mask_placeholder_dict.values():
-    #         ret.append(tf.ones_like(ph))
-    #     return ret
-
     def forward(self, input_dict, state, seq_lens):
         extra_input = [input_dict["obs_flat"]]
 
@@ -202,8 +196,10 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         }
 
         # Here is what we modified
-        for k, ph in self.mask_placeholder_dict.items():
-            input_dict[k] = tf.ones_like(ph)
+        for name, tensor in self.mask_placeholder_dict.items():
+            # input_dict[k] = tf.ones_like(ph)
+            shape = [1] + tensor.shape.as_list()[1:]
+            input_dict[name] = tf.ones(shape)
 
         if SampleBatch.PREV_ACTIONS in train_batch:
             input_dict["prev_actions"] = train_batch[SampleBatch.PREV_ACTIONS]

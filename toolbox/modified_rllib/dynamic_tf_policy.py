@@ -434,8 +434,8 @@ class DynamicTFPolicy(TFPolicy):
                 loss_inputs.append((k, train_batch[k]))
 
         # PENGZHENGHAO
-        for name, ph in self.model.mask_placeholder_dict.items():
-            loss_inputs.append((name, ph))
+        # for name, ph in self.model.mask_placeholder_dict.items():
+        #     loss_inputs.append((name, ph))
 
         TFPolicy._initialize_loss(self, loss, loss_inputs)
         if self._grad_stats_fn:
