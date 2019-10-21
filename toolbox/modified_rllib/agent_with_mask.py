@@ -269,7 +269,8 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
     def set_mask(self):
         for name, val in self.default_mask.items():
-            # val = [val]
+            assert name in self.mask_layer_dict
+            assert isinstance(val, list)
             self.mask_layer_dict[name].set_weights(val)
 
     def set_default(self, mask_dict):
@@ -277,17 +278,14 @@ class FullyConnectedNetworkWithMask(TFModelV2):
             assert name in self.mask_layer_dict
             assert name in self.default_mask
             assert isinstance(val, np.object)
-
             assert list(val.shape) == \
                    self.mask_placeholder_dict[name].shape.as_list(), \
                 (val.shape, self.mask_placeholder_dict[name].shape)
+
             # the layer only have one 'weight' so wrap it by list.
             self.default_mask[name] = [val]
 
         self.set_mask()
-
-
-
 
     def value_function(self):
         return tf.reshape(self._value_out, [-1])
@@ -336,6 +334,8 @@ def vf_preds_and_logits_fetches_new(policy):
     }
     ret.update(activations)
     return ret
+
+from tensorflow.python.keras.backend import set_session
 
 
 class ValueNetworkMixin_modified(object):
@@ -557,7 +557,10 @@ register_fc_with_mask()
 
 class AddSetDefault(object):
     def set_default(self, mask_dict):
-        with self.get_session():
+        with self._sess.graph.as_default():
+
+            set_session(self._sess)
+
             # This fix the bug that
             self.model.set_default(mask_dict)
 
