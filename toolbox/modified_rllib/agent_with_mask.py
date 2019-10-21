@@ -9,13 +9,11 @@ from __future__ import absolute_import, division, print_function
 from collections import OrderedDict
 
 import numpy as np
-import ray.experimental.tf_utils
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, \
     validate_config, update_kl, \
     warn_about_bad_reward_scales, choose_policy_optimizer
-from ray.rllib.agents.ppo.ppo_policy import \
-    ppo_surrogate_loss, kl_and_loss_stats, setup_config, \
-    clip_gradients, EntropyCoeffSchedule, KLCoeffMixin, \
+from ray.rllib.agents.ppo.ppo_policy import kl_and_loss_stats, setup_config, \
+    clip_gradients, EntropyCoeffSchedule, KLCoeffMixin, ppo_surrogate_loss, \
     LearningRateSchedule, BEHAVIOUR_LOGITS, postprocess_ppo_gae
 from ray.rllib.evaluation.postprocessing import compute_advantages
 from ray.rllib.models import ModelCatalog
@@ -27,12 +25,14 @@ from ray.rllib.utils import try_import_tf
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.tf_ops import make_tf_callable
 from ray.rllib.utils.tf_run_builder import TFRunBuilder
-
 from ray.tune.util import merge_dicts
+
 from toolbox.modified_rllib.tf_policy_template import build_tf_policy
 from toolbox.modified_rllib.trainer_template import build_trainer
 
 tf = try_import_tf()
+
+# from toolbox.modified_rllib.tf_modelv2 import TFModelV2
 
 
 class FullyConnectedNetworkWithMask(TFModelV2):
@@ -72,22 +72,18 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
 
+                # here is the multiplication
                 mask_name = "fc_{}_mask".format(i)
                 mask_input = tf.keras.layers.Input(
                     shape=size,
                     name=mask_name,
                 )
-                # assert last_layer.shape.as_list() == mask_input.shape.as_list()
-
                 last_layer = tf.keras.layers.Multiply(
                     name="{}x{}".format(layer_name, mask_name)
                 )(
                     [last_layer, mask_input]
                 )
-
                 mask_placeholder_dict[mask_name] = mask_input
-
-                last_layer = tf.multiply(last_layer, mask_input)
 
                 activation_list.append(last_layer)
                 i += 1
@@ -109,19 +105,16 @@ class FullyConnectedNetworkWithMask(TFModelV2):
                     kernel_initializer=normc_initializer(1.0)
                 )(last_layer)
 
+                # here is the multiplication
                 mask_name = "fc_{}_mask".format(i)
                 mask_input = tf.keras.layers.Input(shape=size, name=mask_name)
-
-                # assert last_layer.shape.as_list() == mask_input.shape.as_list()
-                last_layer = tf.multiply(last_layer, mask_input)
-
                 last_layer = tf.keras.layers.Multiply(
                     name="{}x{}".format(layer_name, mask_name)
                 )(
                     [last_layer, mask_input]
                 )
-
                 mask_placeholder_dict[mask_name] = mask_input
+
                 activation_list.append(last_layer)
                 i += 1
 
@@ -162,20 +155,32 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         )
         self.register_variables(self.base_model.variables)
 
+    # def _build_ones(self, batch_size):
+    #     ret = []
+    #     for ph in self.mask_placeholder_dict.values():
+    #         ret.append(tf.ones_like(ph))
+    #     return ret
+
     def forward(self, input_dict, state, seq_lens):
         extra_input = [input_dict["obs_flat"]]
 
-        is_value_function = False
+        # is_value_function = False
         for name in self.mask_placeholder_dict.keys():
             # assert name in input_dict
             if name not in input_dict:
-                is_value_function = True
-                break
+                raise ValueError(
+                    "We are expecting: {} but you don't have {}. You have: {"
+                    "}".format(
+                        self.mask_placeholder_dict.keys(), name,
+                        input_dict.keys()
+                    ))
+                # is_value_function = True
+                # break
             extra_input.append(input_dict[name])
 
-        if is_value_function:
-            for ph in self.mask_placeholder_dict.values():
-                extra_input.append(tf.ones_like(ph))
+        # if is_value_function:
+        #     batch_size = extra_input[0].shape.as_list()[0]
+        #     extra_input.extend(self._build_ones(batch_size))
 
         model_out, self._value_out, *self.activation_value = self.base_model(
             extra_input
@@ -187,6 +192,29 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
     def activation(self):
         return self.activation_value
+
+    def from_batch(self, train_batch, is_training=True):
+        print('PENGZHENGHAO!! You have enter a modified from_batch function!')
+
+        input_dict = {
+            "obs": train_batch[SampleBatch.CUR_OBS],
+            "is_training": is_training,
+        }
+
+        # Here is what we modified
+        for k, ph in self.mask_placeholder_dict.items():
+            input_dict[k] = tf.ones_like(ph)
+
+        if SampleBatch.PREV_ACTIONS in train_batch:
+            input_dict["prev_actions"] = train_batch[SampleBatch.PREV_ACTIONS]
+        if SampleBatch.PREV_REWARDS in train_batch:
+            input_dict["prev_rewards"] = train_batch[SampleBatch.PREV_REWARDS]
+        states = []
+        i = 0
+        while "state_in_{}".format(i) in train_batch:
+            states.append(train_batch["state_in_{}".format(i)])
+            i += 1
+        return self.__call__(input_dict, states, train_batch.get("seq_lens"))
 
 
 def vf_preds_and_logits_fetches_new(policy):
@@ -220,9 +248,9 @@ class ValueNetworkMixin_modified(object):
                 input_dict = {
                     SampleBatch.CUR_OBS: tf.convert_to_tensor([ob]),
                     SampleBatch.PREV_ACTIONS:
-                    tf.convert_to_tensor([prev_action]),
+                        tf.convert_to_tensor([prev_action]),
                     SampleBatch.PREV_REWARDS:
-                    tf.convert_to_tensor([prev_reward]),
+                        tf.convert_to_tensor([prev_reward]),
                     "is_training": tf.convert_to_tensor(False)
                 }
 
@@ -358,7 +386,7 @@ class ModifiedInputTensorMixin(object):
         if len(self._state_inputs) != len(state_batches):
             raise ValueError(
                 "Must pass in RNN state batches for placeholders {}, got {}".
-                format(self._state_inputs, state_batches)
+                    format(self._state_inputs, state_batches)
             )
         builder.add_feed_dict(self.extra_compute_action_feed_dict())
         builder.add_feed_dict({self._obs_input: obs_batch})
@@ -372,18 +400,11 @@ class ModifiedInputTensorMixin(object):
             builder.add_feed_dict({self._prev_reward_input: prev_reward_batch})
         builder.add_feed_dict({self._is_training: False})
 
-        # if mask_batch is None:
-        #     assert self.default_mask_dict is not None
-        #     mask_batch = {
-        #         k: np.tile(v, (len(obs_batch), 1))
-        #         for k, v in self.default_mask_dict.items()
-        #     }
-
         if mask_batch is None:
             mask_batch = self.add_batchsize_mask_dict(len(obs_batch))
 
         assert isinstance(mask_batch, dict), mask_batch
-        # assert
+
         for name, mask in mask_batch.items():
             assert isinstance(mask, np.ndarray)
             builder.add_feed_dict(
