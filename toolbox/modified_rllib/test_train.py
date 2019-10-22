@@ -1,15 +1,22 @@
 # from toolbox.modified_rllib.agent_with_mask import PPOAgentWithMask
+import copy
+from collections import OrderedDict
+
+# from IPython.display import Image
 import numpy as np
 from ray.tune.logger import pretty_print
 
+from toolbox import initialize_ray
 from toolbox.evaluate import restore_agent_with_mask
-from toolbox.utils import initialize_ray
+# from toolbox.evaluate.rollout import rollout
+from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
 
 
 def test_agent_with_mask():
     initialize_ray(test_mode=True, local_mode=False)
 
-    ckpt = "~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=20_2019-08-10_16-54-37xaa2muqm/checkpoint_469/checkpoint-469"
+    ckpt = "~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=20_2019" \
+           "-08-10_16-54-37xaa2muqm/checkpoint_469/checkpoint-469"
 
     # ckpt = None
 
@@ -20,7 +27,6 @@ def test_agent_with_mask():
     # agent.compute_action(np.ones(24))
 
     for i in range(10):
-
         test_reward = agent.train()
         print(pretty_print(test_reward))
         ret_list.append(test_reward)
@@ -46,41 +52,28 @@ def test_agent_with_mask():
     print("Test2 end")
     return test_reward, test_reward2, ret_list
 
-    # for i in range(10):
-    #     ret = agent.train()
-    #     print(pretty_print(ret))
-    #     ret_list.append(ret)
-    #
-    # agent.get_policy().set_default({
-    #     'fc_1_mask': np.ones([256, ]) * 0.5,
-    #     'fc_2_mask': np.ones([256, ]) * - 0.5
-    # })
-    #
-    # for i in range(10):
-    #     ret = agent.train()
-    #     print(pretty_print(ret))
-    #     ret_list.append(ret)
 
-    # agent.get_policy().set_default({
-    #     'fc_1_mask': np.ones([256,]) * 0.2,
-    #     'fc_2_mask': np.zeros([256,])
-    # })
-    #
+def profile():
+    """This function is use to profile the efficiency of agent restoring."""
 
-    # print("Turn around")
-    #
-    # agent.get_policy().set_default({
-    #     'fc_1_mask': np.ones([256, ]) * 0.0001,
-    #     'fc_2_mask': np.ones([256, ]) * 0.0001
-    # })
-    #
-    # for i in range(10):
-    #     ret = agent.train()
-    #     print(pretty_print(ret))
-    #     ret_list.append(ret)
-    #
-    # return ret_list
+    initialize_ray(num_gpus=4, test_mode=True)
+    ckpt = {
+        'path': "~/ray_results/0810-20seeds/"
+                "PPO_BipedalWalker-v2_0_seed=20_2019"
+                "-08-10_16-54-37xaa2muqm/checkpoint_469/checkpoint-469",
+        'run_name': "PPO",
+        'env_name': "BipedalWalker-v2"
+    }
+    num_agents = 20
+    master_agents = OrderedDict()
+    for i in range(num_agents):
+        ckpt.update(name=i)
+        agent = MaskSymbolicAgent(ckpt)
+        master_agents[i] = copy.deepcopy(agent)
+
+    for name, agent in master_agents.items():
+        a = agent.get()
 
 
 if __name__ == '__main__':
-    ret_list = test_agent_with_mask()
+    profile()
