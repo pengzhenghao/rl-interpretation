@@ -381,7 +381,7 @@ def quick_rollout_from_symbolic_agents(
     print_count = 1
 
     remote_rollout_remote = ray.remote(
-        num_gpus=3.8 / num_workers if has_gpu() else 0
+        num_gpus=int(3.8 / num_workers) if has_gpu() else 0
     )(remote_rollout)
 
     for name, agent in name_symbolic_agent_mapping.items():

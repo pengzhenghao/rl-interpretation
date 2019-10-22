@@ -283,8 +283,7 @@ class CrossAgentAnalyst:
             ]
             act_list = [
                 tran[1] for r in rollout_list for tran in r['trajectory']
-            ]
-            assert len(obs_list[0]) == 17
+        ]
             agent_obs_dict[name] = np.stack(obs_list)
             agent_act_dict[name] = np.stack(act_list)
 
