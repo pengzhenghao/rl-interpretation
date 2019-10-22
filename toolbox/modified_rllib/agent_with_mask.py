@@ -378,49 +378,49 @@ class ValueNetworkMixin_modified(object):
         self._value = value
 
 
-def postprocess_ppo_gae_deprecated(
-        policy, sample_batch, other_agent_batches=None, episode=None
-):
-    """Adds the policy logits, VF preds, and advantages to the trajectory."""
-
-    completed = sample_batch["dones"][-1]
-    if completed:
-        last_r = 0.0
-    else:
-        next_state = []
-        for i in range(policy.num_state_tensors()):
-            next_state.append([sample_batch["state_out_{}".format(i)][-1]])
-
-        def value(ob, prev_action, prev_reward, *state):
-            print("Enter self._value, please stop here.")
-            input_dict = {
-                SampleBatch.CUR_OBS: tf.convert_to_tensor([ob]),
-                SampleBatch.PREV_ACTIONS: tf.convert_to_tensor([prev_action]),
-                SampleBatch.PREV_REWARDS: tf.convert_to_tensor([prev_reward]),
-                "is_training": tf.convert_to_tensor(False),
-                "fc_1_mask": tf.zeros((1, 256)),
-                "fc_2_mask": tf.zeros((1, 256)),
-            }
-            model_out, _ = policy.model.forward(
-                input_dict, [tf.convert_to_tensor([s]) for s in state],
-                tf.convert_to_tensor([1])
-            )
-            return policy.model.value_function()[0]
-
-        print("Enter modified postprocess_ppo_gae")
-        last_r = value(
-            sample_batch[SampleBatch.NEXT_OBS][-1],
-            sample_batch[SampleBatch.ACTIONS][-1],
-            sample_batch[SampleBatch.REWARDS][-1], *next_state
-        )
-    batch = compute_advantages(
-        sample_batch,
-        last_r,
-        policy.config["gamma"],
-        policy.config["lambda"],
-        use_gae=policy.config["use_gae"]
-    )
-    return batch
+# def postprocess_ppo_gae_deprecated(
+#         policy, sample_batch, other_agent_batches=None, episode=None
+# ):
+#     """Adds the policy logits, VF preds, and advantages to the trajectory."""
+#
+#     completed = sample_batch["dones"][-1]
+#     if completed:
+#         last_r = 0.0
+#     else:
+#         next_state = []
+#         for i in range(policy.num_state_tensors()):
+#             next_state.append([sample_batch["state_out_{}".format(i)][-1]])
+#
+#         def value(ob, prev_action, prev_reward, *state):
+#             print("Enter self._value, please stop here.")
+#             input_dict = {
+#                 SampleBatch.CUR_OBS: tf.convert_to_tensor([ob]),
+#                 SampleBatch.PREV_ACTIONS: tf.convert_to_tensor([prev_action]),
+#                 SampleBatch.PREV_REWARDS: tf.convert_to_tensor([prev_reward]),
+#                 "is_training": tf.convert_to_tensor(False),
+#                 "fc_1_mask": tf.zeros((1, 256)),
+#                 "fc_2_mask": tf.zeros((1, 256)),
+#             }
+#             model_out, _ = policy.model.forward(
+#                 input_dict, [tf.convert_to_tensor([s]) for s in state],
+#                 tf.convert_to_tensor([1])
+#             )
+#             return policy.model.value_function()[0]
+#
+#         print("Enter modified postprocess_ppo_gae")
+#         last_r = value(
+#             sample_batch[SampleBatch.NEXT_OBS][-1],
+#             sample_batch[SampleBatch.ACTIONS][-1],
+#             sample_batch[SampleBatch.REWARDS][-1], *next_state
+#         )
+#     batch = compute_advantages(
+#         sample_batch,
+#         last_r,
+#         policy.config["gamma"],
+#         policy.config["lambda"],
+#         use_gae=policy.config["use_gae"]
+#     )
+#     return batch
 
 
 def register_fc_with_mask():

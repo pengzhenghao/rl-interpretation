@@ -15,7 +15,20 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.utils import try_import_tf
 from ray.rllib.utils.debug import log_once, summarize
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
+# from ray.experimental.tf_utils import unflatten
 # from toolbox.ablate.tf_model import
+
+
+# def unflatten(vector, shapes):
+#     i = 0
+#     arrays = []
+#     for shape in shapes:
+#         size = np.prod(shape, dtype=np.int)
+#         array = vector[i:(i + size)].reshape(shape)
+#         arrays.append(array)
+#         i += size
+#     assert len(vector) == i, "Passed weight does not have the correct shape."
+#     return arrays
 
 tf = try_import_tf()
 
@@ -229,6 +242,50 @@ class DynamicTFPolicy(TFPolicy):
         if not existing_inputs:
             self._initialize_loss()
         # print("After dynamic_tf_policy's initialize_loss")
+
+    @override(TFPolicy)
+    def set_weights(self, weights):
+
+        shape_pair = [
+            (k, v.get_shape().as_list())
+            for k, v in self._variables.variables.items()
+        ]
+        size_list = [np.prod(shape, dtype=np.int) for _, shape in shape_pair]
+
+        if sum(size_list) != len(weights):
+            print("Detect the size of weights is not compatible!")
+            trunk = []
+            start = now = 0
+            num_ones = 0
+            for (name, shape), size in zip(shape_pair, size_list):
+                if name.endswith('mask'):
+                    trunk.append(weights[start: now])
+                    trunk.append(np.ones((size, ), dtype='float32'))
+                    start = now
+                    num_ones += size
+                else:
+                    now += size
+
+            trunk.append(weights[start:])
+            new_weights = np.concatenate(trunk)
+            assert len(new_weights) == len(weights) + num_ones
+            assert now == len(weights), (now, len(weights))
+            assert now + num_ones == len(new_weights), (now, num_ones, len(new_weights))
+        else:
+            new_weights = weights
+
+        assert len(new_weights) == sum(size_list)
+
+        # shapes = [v.get_shape().as_list() for v in self.variables.values()]
+        # arrays = unflatten(new_weights, shapes)
+        # placeholders = [
+        #     self.placeholders[k] for k, v in self.variables.items()
+        # ]
+        # self.sess.run(
+        #     list(self.assignment_nodes.values()),
+        #     feed_dict=dict(zip(placeholders, arrays)))
+
+        return self._variables.set_flat(new_weights)
 
     @override(TFPolicy)
     def copy(self, existing_inputs):
