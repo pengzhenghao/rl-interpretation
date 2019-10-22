@@ -566,11 +566,23 @@ class AddSetDefault(object):
 
 class AddMaskInfoMixinForPolicy(object):
     def get_mask_info(self):
+        return self.get_mask()
+
+    def get_mask(self):
         ret = OrderedDict()
         for name, tensor in \
                 self.model.mask_placeholder_dict.items():
             ret[name] = tensor.shape.as_list()
         return ret
+
+    def set_mask(self, mask_dict):
+        # Check the input is correct.
+        exist_mask = self.get_mask()
+        for name, arr in mask_dict.items():
+            assert name in exist_mask
+            assert list(arr.shape) == exist_mask[name]
+        self.get_policy().set_default(mask_dict)
+        print("Successfully set the mask for: ", mask_dict.keys())
 
 
 def setup_mixins(policy, obs_space, action_space, config):
