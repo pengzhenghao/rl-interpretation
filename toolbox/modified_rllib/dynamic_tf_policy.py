@@ -18,7 +18,6 @@ from ray.rllib.utils.tracking_dict import UsageTrackingDict
 # from ray.experimental.tf_utils import unflatten
 # from toolbox.ablate.tf_model import
 
-
 # def unflatten(vector, shapes):
 #     i = 0
 #     arrays = []
@@ -176,10 +175,10 @@ class DynamicTFPolicy(TFPolicy):
         #         else:
         #             self._input_dict[name] = mask_input
         # else:
-            # PENGZHENGHAO
-            # for name, ph in self.model.mask_placeholder_dict.items():
-            #     self._input_dict[name] = ph
-            # print("Current key names of input dict: ", self._input_dict.keys())
+        # PENGZHENGHAO
+        # for name, ph in self.model.mask_placeholder_dict.items():
+        #     self._input_dict[name] = ph
+        # print("Current key names of input dict: ", self._input_dict.keys())
 
         if existing_inputs:
             self._state_in = [
@@ -259,7 +258,7 @@ class DynamicTFPolicy(TFPolicy):
             num_ones = 0
             for (name, shape), size in zip(shape_pair, size_list):
                 if name.endswith('mask'):
-                    trunk.append(weights[start: now])
+                    trunk.append(weights[start:now])
                     trunk.append(np.ones((size, ), dtype='float32'))
                     start = now
                     num_ones += size
@@ -270,7 +269,8 @@ class DynamicTFPolicy(TFPolicy):
             new_weights = np.concatenate(trunk)
             assert len(new_weights) == len(weights) + num_ones
             assert now == len(weights), (now, len(weights))
-            assert now + num_ones == len(new_weights), (now, num_ones, len(new_weights))
+            assert now + num_ones == len(new_weights
+                                         ), (now, num_ones, len(new_weights))
         else:
             new_weights = weights
 

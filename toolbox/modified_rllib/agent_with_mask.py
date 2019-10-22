@@ -38,7 +38,9 @@ class MultiplyMaskLayer(Layer):
         super(MultiplyMaskLayer, self).__init__(**kwargs)
         self.kernel = self.add_variable(
             name=name,
-            shape=[output_dim, ],
+            shape=[
+                output_dim,
+            ],
             initializer='ones',
             trainable=False
         )
@@ -96,9 +98,7 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
                 # here is the multiplication
                 mask_name = "fc_{}_mask".format(i)
-                mask_layer = MultiplyMaskLayer(
-                    size, name=mask_name
-                )
+                mask_layer = MultiplyMaskLayer(size, name=mask_name)
                 last_layer = mask_layer(last_layer)
                 mask_placeholder_dict[mask_name] = mask_layer.get_kernel()
                 self.mask_layer_dict[mask_name] = mask_layer
@@ -125,9 +125,7 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
                 # here is the multiplication
                 mask_name = "fc_{}_mask".format(i)
-                mask_layer = MultiplyMaskLayer(
-                    size, name=mask_name
-                )
+                mask_layer = MultiplyMaskLayer(size, name=mask_name)
                 last_layer = mask_layer(last_layer)
                 mask_placeholder_dict[mask_name] = mask_layer.get_kernel()
                 self.mask_layer_dict[mask_name] = mask_layer
@@ -165,8 +163,7 @@ class FullyConnectedNetworkWithMask(TFModelV2):
         self.mask_placeholder_dict = mask_placeholder_dict
 
         self.base_model = tf.keras.Model(
-            inputs=inputs,
-            outputs=[layer_out, value_out] + activation_list
+            inputs=inputs, outputs=[layer_out, value_out] + activation_list
         )
         # TODO we can add a flag to determine whether to return activation.
 
@@ -277,11 +274,13 @@ class AddMaskInfoMixinForPolicy(object):
             # This fix the bug that
             self.model.set_default(mask_dict)
 
-        print("Successfully set the mask for: ",
-              ["{}: array shape {}, mean {:.4f}, std {:.4f}".format(
-                  k, v.shape, v.mean(), v.std()
-              ) for k, v in mask_dict.items()]
-              )
+        print(
+            "Successfully set the mask for: ", [
+                "{}: array shape {}, mean {:.4f}, std {:.4f}".format(
+                    k, v.shape, v.mean(), v.std()
+                ) for k, v in mask_dict.items()
+            ]
+        )
 
 
 def setup_mixins(policy, obs_space, action_space, config):
@@ -315,8 +314,7 @@ PPOTFPolicyWithMask = build_tf_policy(
     before_loss_init=setup_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin,
-        AddMaskInfoMixinForPolicy
+        ValueNetworkMixin, AddMaskInfoMixinForPolicy
     ]
 )
 

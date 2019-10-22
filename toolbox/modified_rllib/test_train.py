@@ -11,7 +11,6 @@ def test_agent_with_mask():
 
     ckpt = "~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_0_seed=20_2019-08-10_16-54-37xaa2muqm/checkpoint_469/checkpoint-469"
 
-
     # ckpt = None
 
     ret_list = []
@@ -28,10 +27,16 @@ def test_agent_with_mask():
 
     print("Test end")
 
-    agent.get_policy().set_default({
-        'fc_1_mask': np.ones([256, ]),
-        'fc_2_mask': np.ones([256, ])
-    })
+    agent.get_policy().set_default(
+        {
+            'fc_1_mask': np.ones([
+                256,
+            ]),
+            'fc_2_mask': np.ones([
+                256,
+            ])
+        }
+    )
 
     for i in range(10):
         test_reward2 = agent.train()
@@ -40,7 +45,6 @@ def test_agent_with_mask():
 
     print("Test2 end")
     return test_reward, test_reward2, ret_list
-
 
     # for i in range(10):
     #     ret = agent.train()

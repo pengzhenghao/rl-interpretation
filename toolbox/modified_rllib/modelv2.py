@@ -29,8 +29,10 @@ class ModelV2(object):
         framework (str): either "tf" or "torch"
     """
 
-    def __init__(self, obs_space, action_space, num_outputs, model_config,
-                 name, framework):
+    def __init__(
+            self, obs_space, action_space, num_outputs, model_config, name,
+            framework
+    ):
         """Initialize the model.
 
         This method should create any variables used by the model.
@@ -145,14 +147,16 @@ class ModelV2(object):
 
         restored = input_dict.copy()
         restored["obs"] = restore_original_dimensions(
-            input_dict["obs"], self.obs_space, self.framework)
+            input_dict["obs"], self.obs_space, self.framework
+        )
         restored["obs_flat"] = input_dict["obs"]
         res = self.forward(restored, state or [], seq_lens)
         if ((not isinstance(res, list) and not isinstance(res, tuple))
                 or len(res) != 2):
             raise ValueError(
                 "forward() must return a tuple of (output, state) tensors, "
-                "got {}".format(res))
+                "got {}".format(res)
+            )
         outputs, state = res
 
         try:
@@ -163,7 +167,9 @@ class ModelV2(object):
             if len(shape) != 2 or shape[1] != self.num_outputs:
                 raise ValueError(
                     "Expected output shape of [None, {}], got {}".format(
-                        self.num_outputs, shape))
+                        self.num_outputs, shape
+                    )
+                )
         if not isinstance(state, list):
             raise ValueError("State output is not a list: {}".format(state))
 
