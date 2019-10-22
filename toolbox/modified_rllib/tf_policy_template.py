@@ -140,6 +140,9 @@ def build_tf_policy(
                 existing_model=None,
                 existing_inputs=None
         ):
+
+            print("You have enter the TF_POLICY_CLASS")
+
             if get_default_config:
                 config = dict(get_default_config(), **config)
 

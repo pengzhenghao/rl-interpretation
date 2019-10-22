@@ -15,7 +15,19 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.utils import try_import_tf
 from ray.rllib.utils.debug import log_once, summarize
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
+# from ray.experimental.tf_utils import unflatten
 # from toolbox.ablate.tf_model import
+
+# def unflatten(vector, shapes):
+#     i = 0
+#     arrays = []
+#     for shape in shapes:
+#         size = np.prod(shape, dtype=np.int)
+#         array = vector[i:(i + size)].reshape(shape)
+#         arrays.append(array)
+#         i += size
+#     assert len(vector) == i, "Passed weight does not have the correct shape."
+#     return arrays
 
 tf = try_import_tf()
 
@@ -156,9 +168,16 @@ class DynamicTFPolicy(TFPolicy):
                 framework="tf"
             )
 
+        # if existing_inputs:
+        #     for name, mask_input in existing_inputs.items():
+        #         if not name.endswith("mask"):
+        #             continue
+        #         else:
+        #             self._input_dict[name] = mask_input
+        # else:
         # PENGZHENGHAO
-        for name, ph in self.model.mask_placeholder_dict.items():
-            self._input_dict[name] = ph
+        # for name, ph in self.model.mask_placeholder_dict.items():
+        #     self._input_dict[name] = ph
         # print("Current key names of input dict: ", self._input_dict.keys())
 
         if existing_inputs:
@@ -224,6 +243,51 @@ class DynamicTFPolicy(TFPolicy):
         # print("After dynamic_tf_policy's initialize_loss")
 
     @override(TFPolicy)
+    def set_weights(self, weights):
+
+        shape_pair = [
+            (k, v.get_shape().as_list())
+            for k, v in self._variables.variables.items()
+        ]
+        size_list = [np.prod(shape, dtype=np.int) for _, shape in shape_pair]
+
+        if sum(size_list) != len(weights):
+            print("Detect the size of weights is not compatible!")
+            trunk = []
+            start = now = 0
+            num_ones = 0
+            for (name, shape), size in zip(shape_pair, size_list):
+                if name.endswith('mask'):
+                    trunk.append(weights[start:now])
+                    trunk.append(np.ones((size, ), dtype='float32'))
+                    start = now
+                    num_ones += size
+                else:
+                    now += size
+
+            trunk.append(weights[start:])
+            new_weights = np.concatenate(trunk)
+            assert len(new_weights) == len(weights) + num_ones
+            assert now == len(weights), (now, len(weights))
+            assert now + num_ones == len(new_weights
+                                         ), (now, num_ones, len(new_weights))
+        else:
+            new_weights = weights
+
+        assert len(new_weights) == sum(size_list)
+
+        # shapes = [v.get_shape().as_list() for v in self.variables.values()]
+        # arrays = unflatten(new_weights, shapes)
+        # placeholders = [
+        #     self.placeholders[k] for k, v in self.variables.items()
+        # ]
+        # self.sess.run(
+        #     list(self.assignment_nodes.values()),
+        #     feed_dict=dict(zip(placeholders, arrays)))
+
+        return self._variables.set_flat(new_weights)
+
+    @override(TFPolicy)
     def copy(self, existing_inputs):
         """Creates a copy of self using existing input placeholders."""
 
@@ -271,7 +335,12 @@ class DynamicTFPolicy(TFPolicy):
             existing_model=self.model
         )
 
+        self._sess.run(tf.global_variables_initializer())
+
         instance._loss_input_dict = input_dict
+
+        # self._sess.run(tf.global_variables_initializer())
+
         loss = instance._do_loss_init(input_dict)
         loss_inputs = [
             (k, existing_inputs[i])
@@ -316,9 +385,13 @@ class DynamicTFPolicy(TFPolicy):
             SampleBatch.REWARDS:
             np.array([0], dtype=np.float32),
         }
+
         # Add dummy things PENGZHENGHAO
-        for name, val in self.model.mask_placeholder_dict.items():
-            dummy_batch[name] = fake_array(val)
+        # for name, val in self.model.mask_placeholder_dict.items():
+        #     shape = val.shape.as_list()
+        #     shape = [1] + [s if s is not None else 1 for s in shape]
+        #     dummy_batch[name] = \
+        #         np.zeros(shape, dtype=val.dtype.as_numpy_dtype)
 
         if self._obs_include_prev_action_reward:
             dummy_batch.update(
@@ -337,6 +410,7 @@ class DynamicTFPolicy(TFPolicy):
             state_batches.append(np.expand_dims(h, 0))
         if state_init:
             dummy_batch["seq_lens"] = np.array([1], dtype=np.int32)
+
         for k, v in self.extra_compute_action_fetches().items():
             dummy_batch[k] = fake_array(v)
 
@@ -374,10 +448,11 @@ class DynamicTFPolicy(TFPolicy):
                 (SampleBatch.CUR_OBS, self._obs_input),
             ]
 
-        # PENGZHENGHAO
-        for name, ph in self.model.mask_placeholder_dict.items():
-            loss_inputs.append((name, ph))
+        # When using the mask, the key of postprocessed_batch is :
+        # dict_keys(['obs', 'new_obs', 'dones', 'actions', 'rewards', 'fc_1_mask', 'fc_2_mask', 'prev_actions', 'prev_rewards', 'action_prob', 'action_logp', 'vf_preds', 'behaviour_logits', 'layer0', 'layer1', 'advantages', 'value_targets'])
 
+        # When not using the mask, the keys is:
+        # dict_keys(['obs', 'new_obs', 'dones', 'actions', 'rewards', 'fc_1_mask', 'fc_2_mask', 'prev_actions', 'prev_rewards', 'action_prob', 'action_logp', 'vf_preds', 'behaviour_logits', 'layer0', 'layer1', 'advantages', 'value_targets'])
         for k, v in postprocessed_batch.items():
             if k in train_batch:
                 continue
@@ -390,6 +465,8 @@ class DynamicTFPolicy(TFPolicy):
             placeholder = tf.placeholder(dtype, shape=shape, name=k)
             train_batch[k] = placeholder
 
+        # When using the mask. At this time, the train_batch contain 17 element.
+        # <class 'list'>: ['prev_actions', 'prev_rewards', 'obs', 'new_obs', 'dones', 'actions', 'rewards', 'fc_1_mask', 'fc_2_mask', 'action_prob', 'action_logp', 'vf_preds', 'behaviour_logits', 'layer0', 'layer1', 'advantages', 'value_targets']
         for i, si in enumerate(self._state_in):
             train_batch["state_in_{}".format(i)] = si
         train_batch["seq_lens"] = self._seq_lens
@@ -402,10 +479,28 @@ class DynamicTFPolicy(TFPolicy):
             )
 
         self._loss_input_dict = train_batch
+        # At this time, the accessed_keys: <class 'set'>:
+        # {'obs', 'prev_rewards', 'value_targets', 'behaviour_logits', 'prev_actions', 'advantages', 'action_logp', 'actions', 'vf_preds', 'accessed_keys', 'intercepted_values'}
+
+        # However, in the no-mask exp, current accessed_keys:
+        # <class 'set'>: {'intercepted_values', 'accessed_keys'}
+
         loss = self._do_loss_init(train_batch)
+        # after the above line, the accessed_keys: <class 'set'>:
+        # {'advantages', 'action_logp', 'behaviour_logits', 'prev_rewards', 'prev_actions', 'vf_preds', 'actions', 'value_targets', 'obs'}
+
+        # However, in the no-mask exp, above line lead to: They are same. but different order.
+        # {'action_logp', 'prev_actions', 'behaviour_logits', 'value_targets', 'obs', 'prev_rewards', 'advantages', 'vf_preds', 'actions'}
+
+        # at this time, the loss input already has: prev_actions, prev_rewards, obs
         for k in sorted(train_batch.accessed_keys):
+            # sorted train_batch.accessed_keys: <class 'list'>: ['action_logp', 'actions', 'advantages', 'behaviour_logits', 'obs', 'prev_actions', 'prev_rewards', 'value_targets', 'vf_preds']
             if k != "seq_lens" and not k.startswith("state_in_"):
                 loss_inputs.append((k, train_batch[k]))
+
+        # PENGZHENGHAO
+        # for name, ph in self.model.mask_placeholder_dict.items():
+        #     loss_inputs.append((name, ph))
 
         TFPolicy._initialize_loss(self, loss, loss_inputs)
         if self._grad_stats_fn:
@@ -413,6 +508,7 @@ class DynamicTFPolicy(TFPolicy):
                 self._grad_stats_fn(self, train_batch, self._grads)
             )
         self._sess.run(tf.global_variables_initializer())
+        print("Finish _initialize_loss!")
 
     def _do_loss_init(self, train_batch):
         loss = self._loss_fn(self, self.model, self._dist_class, train_batch)
