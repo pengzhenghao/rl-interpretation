@@ -334,9 +334,10 @@ class AddMaskInfoMixin(object):
             assert list(arr.shape) == exist_mask[name]
 
         self.get_policy().set_default(mask_dict)
-        self.workers.foreach_worker(
-            lambda w: w.get_policy().set_default(mask_dict)
-        )
+        if hasattr(self, "workers"):
+            self.workers.foreach_worker(
+                lambda w: w.get_policy().set_default(mask_dict)
+            )
 
 
 PPOAgentWithMask = build_trainer(
