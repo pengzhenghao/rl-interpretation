@@ -38,11 +38,13 @@ class _RemoteSymbolicTrainWorker:
             for stop_name, stop_val in stop_criterion.items():
                 assert stop_name in result
                 if result[stop_name] > stop_val:
-                    print("After the {}-th iteration, the criterion {}"
-                          "has been achieved: current value {} is greater"
-                          "then stop value: {}. So we break the "
-                          "training.".format(
-                        i + 1, stop_name, result[stop_name], stop_val)
+                    print(
+                        "After the {}-th iteration, the criterion {}"
+                        "has been achieved: current value {} is greater"
+                        "then stop value: {}. So we break the "
+                        "training.".format(
+                            i + 1, stop_name, result[stop_name], stop_val
+                        )
                     )
             result_list.append(result)
         return result_list
@@ -72,9 +74,8 @@ class RemoteSymbolicTrainManager:
 
     def train(self, index, symbolic_agent, stop_criterion):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
-        oid = self.workers[self.pointer].finetune.remote(
-            symbolic_agent, stop_criterion
-        )
+        oid = self.workers[self.pointer
+                           ].finetune.remote(symbolic_agent, stop_criterion)
 
         self.start_count += 1
         if self.start_count % self.log_interval == 0:

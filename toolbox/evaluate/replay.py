@@ -10,6 +10,9 @@ from toolbox.evaluate.evaluate_utils import restore_agent_with_activation, \
 from toolbox.process_data.process_data import read_yaml
 from toolbox.utils import has_gpu
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _replay(obs, run_name, ckpt, env_name, require_activation=True):
@@ -44,14 +47,26 @@ class _RemoteSymbolicReplayWorker:
             self.existing_agent = agent
         else:
             agent = symbolic_agent.get(self.existing_agent)['agent']
+        logger.debug(
+            "[_RemoteSymbolicReplayWorker] Start to replay agent <{}>".format(
+                symbolic_agent.name
+            )
+        )
         ret = agent_replay(agent, obs)
+        logger.debug(
+            "[_RemoteSymbolicReplayWorker] Finish to replay agent <{}>".format(
+                symbolic_agent.name
+            )
+        )
         return ret
 
 
 class RemoteSymbolicReplayManager:
-    def __init__(self, num_workers, total_num=None, log_interval=50):
+    def __init__(self, num_workers, total_num=None, log_interval=1):
         self.num_workers = num_workers
-        num_gpus = 3.8 / num_workers if has_gpu() else 0
+        # num_gpus = 1 if has_gpu() else 0
+        num_gpus = (ray.available_resources()['GPU'] -
+                    0.2) / num_workers if has_gpu() else 0
         self.workers = [
             _RemoteSymbolicReplayWorker.as_remote(num_gpus=num_gpus).remote()
             for _ in range(num_workers)
@@ -67,6 +82,9 @@ class RemoteSymbolicReplayManager:
 
     def replay(self, index, symbolic_agent, obs):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
+
+        symbolic_agent.clear()
+
         oid = self.workers[self.pointer].replay.remote(symbolic_agent, obs)
         self.obj_dict[index] = oid
         self.pointer += 1

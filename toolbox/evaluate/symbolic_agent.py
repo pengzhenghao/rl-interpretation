@@ -17,13 +17,18 @@ class SymbolicAgentBase:
 
 
 class MaskSymbolicAgent(SymbolicAgentBase):
-    def __init__(self, ckpt_info, mask_callback_info=None):
+    def __init__(self, ckpt_info, mask_callback_info=None, name=None):
         super(MaskSymbolicAgent, self).__init__()
         self.ckpt_info = ckpt_info
         self.agent_info = self.ckpt_info.copy()
         self.agent_info['agent'] = None
         self.agent_info['parent'] = self.ckpt_info['name']
         self.agent_info['mask'] = None
+
+        if name is not None:
+            self.name = name
+        else:
+            self.name = self.agent_info['name']
 
         self.mask = None
         self.mask_callback_info = mask_callback_info

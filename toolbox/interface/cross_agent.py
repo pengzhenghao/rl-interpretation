@@ -240,7 +240,12 @@ class CrossAgentAnalyst:
         del self.agent_rollout_dict
         self.agent_rollout_dict = None
 
-    def feed(self, agent_rollout_dict, name_agent_info_mapping):
+    def feed(
+            self,
+            agent_rollout_dict,
+            name_agent_info_mapping,
+            num_replay_workers=16
+    ):
         """
         1. store the data
         2. build the joint dataset
@@ -283,7 +288,7 @@ class CrossAgentAnalyst:
             ]
             act_list = [
                 tran[1] for r in rollout_list for tran in r['trajectory']
-        ]
+            ]
             agent_obs_dict[name] = np.stack(obs_list)
             agent_act_dict[name] = np.stack(act_list)
 
@@ -321,15 +326,18 @@ class CrossAgentAnalyst:
         # replay
         print("[INSIDE CAA] prepared to replay the joint dataset")
 
-        num_worker = 16
+        # num_worker = 16
         # obj_ids = OrderedDict()
         # remote_symbolic_replay_remote = ray.remote(
         #     num_gpus=3.8 / num_worker if has_gpu() else 0)(
         #     remote_symbolic_replay
         # )
 
+        for agent in name_agent_info_mapping.values():
+            agent.clear()
+
         replay_manager = RemoteSymbolicReplayManager(
-            num_worker, total_num=len(name_agent_info_mapping)
+            num_replay_workers, total_num=len(name_agent_info_mapping)
         )
 
         for i, (name, symbolic_agent) in \

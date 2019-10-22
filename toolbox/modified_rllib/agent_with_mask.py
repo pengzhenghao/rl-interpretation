@@ -27,8 +27,10 @@ from tensorflow.python.keras.backend import set_session
 
 from toolbox.modified_rllib.tf_policy_template import build_tf_policy
 from toolbox.modified_rllib.trainer_template import build_trainer
-
+import logging
 tf = try_import_tf()
+
+logger = logging.getLogger(__name__)
 
 
 # from toolbox.modified_rllib.tf_modelv2 import TFModelV2
@@ -274,7 +276,7 @@ class AddMaskInfoMixinForPolicy(object):
             # This fix the bug that
             self.model.set_default(mask_dict)
 
-        print(
+        logger.debug(
             "Successfully set the mask for: ", [
                 "{}: array shape {}, mean {:.4f}, std {:.4f}".format(
                     k, v.shape, v.mean(), v.std()
