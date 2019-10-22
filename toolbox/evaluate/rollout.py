@@ -23,13 +23,13 @@ from ray.rllib.env.base_env import _DUMMY_AGENT_ID
 from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
-from toolbox.env.env_maker import make_build_gym_env
+from toolbox.env.env_maker import get_env_maker
 from toolbox.evaluate import restore_agent, restore_agent_with_activation
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.modified_rllib.agent_with_activation import \
     PPOTFPolicyWithActivation
 from toolbox.process_data.process_data import read_yaml
-from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu, get_num_gpus
+from toolbox.utils import initialize_ray, has_gpu, get_num_gpus
 
 logger = logging.getLogger(__name__)
 
@@ -352,7 +352,7 @@ def remote_rollout(
     else:
         real_agent = agent
 
-    env = make_build_gym_env(env_name)(seed=0)
+    env = get_env_maker(env_name)(seed=0)
 
     if env_wrapper is not None:
         env = env_wrapper(env)
@@ -681,7 +681,7 @@ def several_agent_rollout(
                 enumerate(agent_ckpt_dict_range[start:end]):
             ckpt = ckpt_dict["path"]
             env_name = ckpt_dict["env_name"]
-            env_maker = ENV_MAKER_LOOKUP[env_name]
+            env_maker = get_env_maker(env_name)
             run_name = ckpt_dict["run_name"]
             assert run_name == "PPO"
 

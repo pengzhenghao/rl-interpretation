@@ -31,7 +31,7 @@ def pad(vec, padding_value, padding_length):
     vec = np.asarray(vec)
     assert vec.ndim == 1
     vec[np.isnan(vec)] = padding_value
-    back = np.empty((padding_length,))
+    back = np.empty((padding_length, ))
     back.fill(padding_value)
     end = min(len(vec), padding_length)
     back[:end] = vec[:end]
@@ -391,8 +391,8 @@ def get_fft_cluster_finder(
     prefix = "".join(
         [
             base.split('.yaml')[0], "_{}agents_{}rollout_{}seed_{}".format(
-            num_agents, num_rollouts, num_seeds, get_random_string()
-        )
+                num_agents, num_rollouts, num_seeds, get_random_string()
+            )
         ]
     )
     os.mkdir(osp.join(dir, prefix))
@@ -424,7 +424,7 @@ def get_fft_cluster_finder(
     nostd_cluster_finder.display(save=nostd_fig_path, show=show)
     print(
         "Successfully finish no-standardized clustering! Save at: {}".
-            format(nostd_fig_path)
+        format(nostd_fig_path)
     )
 
     ret = {
@@ -443,7 +443,7 @@ def get_fft_cluster_finder(
         std_cluster_finder.display(save=std_fig_path, show=show)
         print(
             "Successfully finish standardized clustering! Save at: {}".
-                format(std_fig_path)
+            format(std_fig_path)
         )
         ret['cluster_finder']["std_cluster_finder"] = std_cluster_finder
 

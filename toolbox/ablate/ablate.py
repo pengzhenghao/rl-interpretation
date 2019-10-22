@@ -405,7 +405,7 @@ def get_ablation_result(
 
             print(
                 "{}/{} (Unit {}) (+{:.1f}s/{:.1f}s) Start collecting data.".
-                    format(
+                format(
                     agent_count,
                     len(unit_index_list),
                     unit_index,
@@ -424,7 +424,7 @@ def get_ablation_result(
             result_dict[unit_name] = result
             print(
                 "{}/{} (Unit {}) (+{:.1f}s/{:.1f}s) Start collecting data.".
-                    format(
+                format(
                     agent_count_get, len(unit_index_list), unit_index,
                     time.time() - now_t_get,
                     time.time() - start_t

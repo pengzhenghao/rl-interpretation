@@ -1,12 +1,13 @@
+import logging
+
 import numpy as np
 
 from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
-import logging
 
 logger = logging.getLogger(__name__)
 
 
-class SymbolicAgentBase:
+class SymbolicAgentBase(object):
     def __init__(self):
         self.agent = None
         self.agent_info = {}
@@ -98,3 +99,12 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         self.agent_info['agent'] = self.agent
         self.agent_info['mask'] = self.mask
         return self.agent_info
+
+    def __getstate__(self):
+        if self.initialized:
+            logger.warning(
+                "So Terrible! The SymbolicAgent <{}> is not cleared! I clear "
+                "it for you.".format(self.name)
+            )
+            self.clear()
+        return self.__dict__
