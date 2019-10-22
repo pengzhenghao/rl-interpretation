@@ -1,6 +1,9 @@
 import numpy as np
 
 from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SymbolicAgentBase:
@@ -80,7 +83,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         if self.initialized:
             return self.agent_info
         if not self.initialized and self.mask is not None:
-            print(
+            logger.info(
                 "Symbolic Agent is not initialized but the mask exist,"
                 "which means it is once initialized but then cleared."
             )

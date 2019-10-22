@@ -10,7 +10,8 @@ from toolbox.env.mujoco_wrapper import MujocoWrapper
 from toolbox.evaluate.rollout import quick_rollout_from_symbolic_agents
 from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
 from toolbox.process_data.process_data import read_yaml
-
+import logging
+logger = logging.getLogger(__name__)
 # from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 
 # num_agents = 2

@@ -31,6 +31,8 @@ from toolbox.modified_rllib.agent_with_activation import \
 from toolbox.process_data.process_data import read_yaml
 from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
 
+logger = logging.getLogger(__name__)
+
 EXAMPLE_USAGE = """
 Example Usage via RLlib CLI:
     rllib rollout /tmp/ray/checkpoint_dir/checkpoint-0 --run DQN
@@ -346,7 +348,7 @@ def remote_rollout(
     if isinstance(agent, SymbolicAgentBase):
         assert not agent.initialized
         real_agent = agent.get()['agent']
-        print("SymbolicAgent is restored.")
+        logger.debug("SymbolicAgent <{}> is restored.".format(agent.name))
     else:
         real_agent = agent
 

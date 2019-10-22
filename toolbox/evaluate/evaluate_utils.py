@@ -17,6 +17,8 @@ from toolbox.modified_rllib.agent_with_mask import (
     ppo_agent_default_config_with_mask
 )
 from toolbox.utils import has_gpu
+import logging
+logger = logging.getLogger(__name__)
 
 
 def build_config(
@@ -65,7 +67,7 @@ def _restore(
     if callable(agent_type):
         # We assume this is the agent_maker function which take no zero
         # argument and return the agent.
-        print(
+        logger.info(
             "Detected a function as the agent_type, we"
             "restore an agent by calling it: ", agent_type
         )
@@ -84,7 +86,7 @@ def _restore(
             change_model = None
         is_es_agent = run_name == "ES"
         config = build_config(ckpt, extra_config, is_es_agent, change_model)
-        print("The config of restored agent: ", config)
+        logger.info("The config of restored agent: ", config)
         agent = cls(env=env_name, config=config)
     if ckpt is not None:
         ckpt = os.path.abspath(os.path.expanduser(ckpt))  # Remove relative dir
