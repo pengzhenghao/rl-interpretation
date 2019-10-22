@@ -10,6 +10,7 @@ tf = try_import_tf()
 
 from toolbox.modified_rllib.modelv2 import ModelV2
 
+
 @PublicAPI
 class TFModelV2(ModelV2):
     """TF version of ModelV2.
@@ -17,8 +18,9 @@ class TFModelV2(ModelV2):
     Note that this class by itself is not a valid model unless you
     implement forward() in a subclass."""
 
-    def __init__(self, obs_space, action_space, num_outputs, model_config,
-                 name):
+    def __init__(
+            self, obs_space, action_space, num_outputs, model_config, name
+    ):
         """Initialize a TFModelV2.
 
         Here is an example implementation for a subclass
@@ -42,7 +44,8 @@ class TFModelV2(ModelV2):
             num_outputs,
             model_config,
             name,
-            framework="tf")
+            framework="tf"
+        )
         self.var_list = []
 
     def forward(self, input_dict, state, seq_lens):
