@@ -11,10 +11,10 @@ from scipy.fftpack import fft
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from toolbox.cluster.process_cluster import ClusterFinder
-from toolbox.process_data.process_data import get_name_ckpt_mapping
+from toolbox.env.env_maker import get_env_maker
 from toolbox.evaluate.rollout import efficient_rollout_from_worker, make_worker
-from toolbox.utils import initialize_ray, get_random_string, ENV_MAKER_LOOKUP
-from toolbox.evaluate.evaluate_utils import restore_agent
+from toolbox.process_data.process_data import get_name_ckpt_mapping
+from toolbox.utils import initialize_ray, get_random_string
 
 
 def compute_fft(y):
@@ -31,7 +31,7 @@ def pad(vec, padding_value, padding_length):
     vec = np.asarray(vec)
     assert vec.ndim == 1
     vec[np.isnan(vec)] = padding_value
-    back = np.empty((padding_length, ))
+    back = np.empty((padding_length,))
     back.fill(padding_value)
     end = min(len(vec), padding_length)
     back[:end] = vec[:end]
@@ -197,7 +197,8 @@ class FFTWorker(object):
 
         if self.rollout_worker is None:
             self.rollout_worker = \
-                make_worker(self.env_maker, self.ckpt, self.num_rollouts, self.seed,
+                make_worker(self.env_maker, self.ckpt, self.num_rollouts,
+                            self.seed,
                             self.run_name, self.env_name)
         else:
             self.rollout_worker.reset(
@@ -309,7 +310,7 @@ def get_fft_representation(
             ckpt = ckpt_dict["path"]
             env_name = ckpt_dict["env_name"]
             run_name = ckpt_dict["run_name"]
-            env_maker = ENV_MAKER_LOOKUP[env_name]
+            env_maker = get_env_maker(env_name)
             workers[i].reset.remote(
                 run_name=run_name,
                 ckpt=ckpt,
@@ -390,8 +391,8 @@ def get_fft_cluster_finder(
     prefix = "".join(
         [
             base.split('.yaml')[0], "_{}agents_{}rollout_{}seed_{}".format(
-                num_agents, num_rollouts, num_seeds, get_random_string()
-            )
+            num_agents, num_rollouts, num_seeds, get_random_string()
+        )
         ]
     )
     os.mkdir(osp.join(dir, prefix))
@@ -423,7 +424,7 @@ def get_fft_cluster_finder(
     nostd_cluster_finder.display(save=nostd_fig_path, show=show)
     print(
         "Successfully finish no-standardized clustering! Save at: {}".
-        format(nostd_fig_path)
+            format(nostd_fig_path)
     )
 
     ret = {
@@ -442,7 +443,7 @@ def get_fft_cluster_finder(
         std_cluster_finder.display(save=std_fig_path, show=show)
         print(
             "Successfully finish standardized clustering! Save at: {}".
-            format(std_fig_path)
+                format(std_fig_path)
         )
         ret['cluster_finder']["std_cluster_finder"] = std_cluster_finder
 

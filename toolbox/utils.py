@@ -1,14 +1,8 @@
-from __future__ import absolute_import, division, print_function, \
-    absolute_import, division, print_function
-
 import collections
 import logging
-import os
 import uuid
 
 import ray
-
-from toolbox.env.env_maker import build_bipedal_walker, ENV_MAKER_LOOKUP
 
 
 class DefaultMapping(collections.defaultdict):
@@ -37,20 +31,6 @@ def get_random_string():
     return str(uuid.uuid4())[:8]
 
 
-def _get_num_iters_from_ckpt_name(ckpt):
-    base_name = os.path.basename(ckpt)
-    assert "-" in base_name
-    assert base_name.startswith("checkpoint")
-    num_iters = eval(base_name.split("-")[1])
-    assert isinstance(num_iters, int)
-    return num_iters
-
-
-build_env = build_bipedal_walker
-
-ENV_MAKER_LOOKUP = ENV_MAKER_LOOKUP
-
-
 def has_gpu():
     try:
         ret = "GPU" in ray.available_resources()
@@ -60,6 +40,10 @@ def has_gpu():
 
 
 def get_num_gpus(num_workers=None):
+    num_gpus = 0
     if has_gpu() and num_workers is not None:
-        return (ray.available_resources()['GPU'] - 0.2) / num_workers
-    return 0
+        # A very modest resource allocation
+        num_gpus = (ray.available_resources()['GPU'] - 0.2) / num_workers
+        if num_gpus >= 1:
+            num_gpus = 1
+    return num_gpus
