@@ -29,7 +29,7 @@ from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.modified_rllib.agent_with_activation import \
     PPOTFPolicyWithActivation
 from toolbox.process_data.process_data import read_yaml
-from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
+from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu, get_num_gpus
 
 logger = logging.getLogger(__name__)
 
@@ -383,7 +383,8 @@ def quick_rollout_from_symbolic_agents(
     print_count = 1
 
     remote_rollout_remote = ray.remote(
-        num_gpus=int(3.8 / num_workers) if has_gpu() else 0
+        # num_gpus=int(3.8 / num_workers) if has_gpu() else 0
+        num_gpus=get_num_gpus(num_workers)
     )(remote_rollout)
 
     for name, agent in name_symbolic_agent_mapping.items():

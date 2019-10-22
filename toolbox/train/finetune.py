@@ -6,7 +6,7 @@ import ray
 
 from toolbox import initialize_ray
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
-from toolbox.utils import has_gpu
+from toolbox.utils import get_num_gpus
 
 MAX_NUM_ITERS = 100
 
@@ -55,8 +55,8 @@ class RemoteSymbolicTrainManager:
         self.num_workers = num_workers
         assert isinstance(num_workers, int)
         assert num_workers > 0
-        num_gpus = int(3.8 / num_workers) if has_gpu() else 0
-
+        # num_gpus = int(3.8 / num_workers) if has_gpu() else 0
+        num_gpus = get_num_gpus(num_workers)
         print("In remote symbolic train manager the num_gpus: ", num_gpus)
 
         self.workers = [
@@ -75,7 +75,7 @@ class RemoteSymbolicTrainManager:
     def train(self, index, symbolic_agent, stop_criterion):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
         oid = self.workers[self.pointer
-                           ].finetune.remote(symbolic_agent, stop_criterion)
+        ].finetune.remote(symbolic_agent, stop_criterion)
 
         self.start_count += 1
         if self.start_count % self.log_interval == 0:

@@ -57,3 +57,9 @@ def has_gpu():
     except Exception:
         return False
     return ret
+
+
+def get_num_gpus(num_workers=None):
+    if has_gpu() and num_workers is not None:
+        return (ray.available_resources()['GPU'] - 0.2) / num_workers
+    return 0
