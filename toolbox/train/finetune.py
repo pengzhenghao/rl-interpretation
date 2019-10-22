@@ -8,6 +8,8 @@ from toolbox import initialize_ray
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.utils import has_gpu
 
+MAX_NUM_ITERS = 100
+
 
 class _RemoteSymbolicTrainWorker:
     @classmethod
@@ -19,7 +21,9 @@ class _RemoteSymbolicTrainWorker:
     def __init__(self):
         self.existing_agent = None
 
-    def finetune(self, symbolic_agent, num_iters):
+    def finetune(self, symbolic_agent, stop_criterion):
+        assert isinstance(stop_criterion, dict)
+
         if self.existing_agent is None:
             agent = symbolic_agent.get()['agent']
             self.existing_agent = agent
@@ -27,8 +31,19 @@ class _RemoteSymbolicTrainWorker:
             agent = symbolic_agent.get(self.existing_agent)['agent']
 
         result_list = []
-        for i in range(num_iters):
+
+        for i in range(MAX_NUM_ITERS):
             result = agent.train()
+
+            for stop_name, stop_val in stop_criterion.items():
+                assert stop_name in result
+                if result[stop_name] > stop_val:
+                    print("After the {}-th iteration, the criterion {}"
+                          "has been achieved: current value {} is greater"
+                          "then stop value: {}. So we break the "
+                          "training.".format(
+                        i + 1, stop_name, result[stop_name], stop_val)
+                    )
             result_list.append(result)
         return result_list
 
@@ -38,7 +53,7 @@ class RemoteSymbolicTrainManager:
         self.num_workers = num_workers
         assert isinstance(num_workers, int)
         assert num_workers > 0
-        num_gpus = 3.8 / num_workers if has_gpu() else 0
+        num_gpus = int(3.8 / num_workers) if has_gpu() else 0
 
         print("In remote symbolic train manager the num_gpus: ", num_gpus)
 
@@ -55,10 +70,11 @@ class RemoteSymbolicTrainManager:
         self.total_num = total_num
         self.log_interval = log_interval
 
-    def train(self, index, symbolic_agent, num_iters):
+    def train(self, index, symbolic_agent, stop_criterion):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
-        oid = self.workers[self.pointer].finetune.remote(symbolic_agent,
-                                                         num_iters)
+        oid = self.workers[self.pointer].finetune.remote(
+            symbolic_agent, stop_criterion
+        )
 
         self.start_count += 1
         if self.start_count % self.log_interval == 0:
@@ -121,7 +137,8 @@ if __name__ == '__main__':
             {
                 "run_name": "PPO",
                 "env_name": "BipedalWalker-v2",
-                "name": name
+                "name": name,
+                "path": None
             }
         )
 
