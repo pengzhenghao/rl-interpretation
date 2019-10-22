@@ -56,7 +56,7 @@ def test_agent_with_mask():
 def profile():
     """This function is use to profile the efficiency of agent restoring."""
 
-    initialize_ray(num_gpus=4, test_mode=True)
+    initialize_ray(num_gpus=4, test_mode=True, local_mode=True)
     ckpt = {
         'path': "~/ray_results/0810-20seeds/"
                 "PPO_BipedalWalker-v2_0_seed=20_2019"
@@ -71,8 +71,10 @@ def profile():
         agent = MaskSymbolicAgent(ckpt)
         master_agents[i] = copy.deepcopy(agent)
 
-    for name, agent in master_agents.items():
+    for i, (name, agent) in enumerate(master_agents.items()):
+        print("[{}/{}] RESTORE AGENTS: NAME {}".format(i, num_agents, name))
         a = agent.get()
+        print(a)
 
 
 if __name__ == '__main__':

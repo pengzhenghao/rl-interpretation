@@ -60,7 +60,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         for mask_name, shape in mask_template.items():
             self.mask[mask_name] = \
                 random_state.normal(loc=mean, scale=std,
-                                    size=shape[1:])
+                                    size=shape)
         agent.set_mask(self.mask)
         return agent
 
