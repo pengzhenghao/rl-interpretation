@@ -328,119 +328,164 @@ def parse_es_rollout(data):
     return trajectory
 
 
-# @ray.remote(num_return_vals=1)
-def remote_rollout(
-        agent,
-        num_rollouts,
-        # env,
-        env_wrapper,
-        env_name,
-        num_steps=None,
-        require_frame=False,
-        require_trajectory=False,
-        require_extra_info=False,
-        require_full_frame=False,
-        require_env_state=False,
-        render_mode="rgb_array"
-):
-    ret_list = []
+class _RemoteSymbolicRolloutWorker:
+    @classmethod
+    def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
+        return ray.remote(
+            num_cpus=num_cpus, num_gpus=num_gpus, resources=resources
+        )(cls)
 
-    if isinstance(agent, SymbolicAgentBase):
-        assert not agent.initialized
-        real_agent = agent.get()['agent']
+    def __init__(self):
+        self.existing_agent = None
+
+    def rollout(
+            self,
+            agent,
+            num_rollouts,
+            # env,
+            env_wrapper,
+            env_name,
+            num_steps=None,
+            require_frame=False,
+            require_trajectory=False,
+            require_extra_info=False,
+            require_full_frame=False,
+            require_env_state=False,
+            render_mode="rgb_array"
+    ):
+        ret_list = []
+        assert isinstance(agent, SymbolicAgentBase)
+
+        if self.existing_agent is not None:
+            real_agent = agent.get(self.existing_agent)['agent']
+        else:
+            real_agent = agent.get()['agent']
+            self.existing_agent = real_agent
+
         logger.debug("SymbolicAgent <{}> is restored.".format(agent.name))
-    else:
-        real_agent = agent
 
-    env = get_env_maker(env_name)(seed=0)
+        env = get_env_maker(env_name)(seed=0)
 
-    if env_wrapper is not None:
-        env = env_wrapper(env)
+        if env_wrapper is not None:
+            env = env_wrapper(env)
 
-    for i in range(num_rollouts):
-        ret = rollout(
-            real_agent, env, env_name, num_steps, require_frame,
-            require_trajectory, require_extra_info, require_full_frame,
-            require_env_state, render_mode
-        )
-        ret_list.append(ret)
-    if isinstance(agent, SymbolicAgentBase):
+        for i in range(num_rollouts):
+            ret = rollout(
+                real_agent, env, env_name, num_steps, require_frame,
+                require_trajectory, require_extra_info, require_full_frame,
+                require_env_state, render_mode
+            )
+            ret_list.append(ret)
+
+        # if isinstance(agent, SymbolicAgentBase):
         agent.clear()
         return ret_list, copy.deepcopy(agent)
-    return ret_list, None
+        # return ret_list, None
+
+
+class RemoteSymbolicRolloutManager:
+
+    def __init__(self, num_workers, total_num=None, log_interval=1):
+        self.num_workers = num_workers
+        assert isinstance(num_workers, int)
+        assert num_workers > 0
+        # num_gpus = int(3.8 / num_workers) if has_gpu() else 0
+        num_gpus = get_num_gpus(num_workers)
+        print("In remote symbolic train manager the num_gpus: ", num_gpus)
+
+        self.workers = [
+            _RemoteSymbolicRolloutWorker.as_remote(num_gpus=num_gpus).remote()
+            for _ in range(num_workers)
+        ]
+        self.pointer = 0
+        self.obj_dict = OrderedDict()
+        self.ret_dict = OrderedDict()
+        self.start_count = 0
+        self.finish_count = 0
+        self.now = self.start = time.time()
+        self.total_num = total_num
+        self.log_interval = log_interval
+
+    def rollout(self, index, symbolic_agent, *args, **kwargs):
+        assert isinstance(symbolic_agent, SymbolicAgentBase)
+        oid = self.workers[self.pointer].rollout.remote(symbolic_agent, *args, **kwargs)
+
+        self.start_count += 1
+        if self.start_count % self.log_interval == 0:
+            print(
+                "[{}/{}] (+{:.2f}s/{:.2f}s) Start train: {}!".format(
+                    self.start_count, self.total_num,
+                    time.time() - self.now,
+                    time.time() - self.start, index
+                )
+            )
+            self.now = time.time()
+
+        self.obj_dict[index] = oid
+        self.pointer += 1
+        if self.pointer == self.num_workers:
+            self._collect()
+            self.pointer = 0
+
+    def _collect(self):
+        for name, oid in self.obj_dict.items():
+            ret = copy.deepcopy(ray.get(oid))
+            self.ret_dict[name] = ret
+
+            self.finish_count += 1
+            if self.finish_count % self.log_interval == 0:
+                print(
+                    "[{}/{}] (+{:.2f}s/{:.2f}s) Finish rollout: {}! {}".format(
+                        self.finish_count, self.total_num,
+                        time.time() - self.now,
+                        time.time() - self.start, name, ""
+                        )
+                    )
+                self.now = time.time()
+        self.obj_dict.clear()
+
+    def get_result(self):
+        self._collect()
+        return self.ret_dict
 
 
 def quick_rollout_from_symbolic_agents(
         name_symbolic_agent_mapping, num_rollouts, num_workers=5,
         env_wrapper=None
 ):
-    obj_id_dict = OrderedDict()
+    # obj_id_dict = OrderedDict()
+    #
+    # agent_rollout_dict = OrderedDict()
+    # now_t = start_t = time.time()
+    #
+    # count = 0
+    # print_count = 1
 
-    agent_rollout_dict = OrderedDict()
-    now_t = start_t = time.time()
+    # remote_rollout_remote = ray.remote(
+    #     num_gpus=get_num_gpus(num_workers), max_calls=1
+    # )(remote_rollout)
 
-    count = 0
-    print_count = 1
-
-    remote_rollout_remote = ray.remote(
-        # num_gpus=int(3.8 / num_workers) if has_gpu() else 0
-        num_gpus=get_num_gpus(num_workers)
-    )(remote_rollout)
-
+    rollout_manager = RemoteSymbolicRolloutManager(
+        num_workers, len(name_symbolic_agent_mapping)
+    )
     for name, agent in name_symbolic_agent_mapping.items():
-
         env_name = agent.agent_info['env_name']
         # env = make_build_gym_env(env_name)(seed=0)
-
         # if env_wrapper is not None:
         #     env = env_wrapper(env)
-
         assert not agent.initialized
-
         assert isinstance(agent, SymbolicAgentBase)
-
-        obj_id_dict[name] = remote_rollout_remote.remote(
-            agent,
+        rollout_manager.rollout(
+            name, agent,
             num_rollouts,
-            # env,
             env_wrapper,
             env_name,
             require_trajectory=True,
             require_extra_info=True,
             require_env_state=False  # It seems we don't use it ?? 1013
         )
-        count += 1
-        if count % num_workers == 0:
-            for i, (name, obj_id) in enumerate(obj_id_dict.items()):
-                agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))
-                print(
-                    "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts "
-                    "from "
-                    "agent"
-                    " <{}>".format(
-                        i + print_count, len(name_symbolic_agent_mapping),
-                        time.time() - now_t,
-                        time.time() - start_t, num_rollouts, name
-                    )
-                )
-                now_t = time.time()
-            obj_id_dict.clear()
-            print_count = count + 1
 
-    for i, (name, obj_id) in enumerate(obj_id_dict.items()):
-        agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))
-        # count += 1
-        print(
-            "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from "
-            "agent"
-            " <{}>".format(
-                print_count + i, len(name_symbolic_agent_mapping),
-                time.time() - now_t,
-                time.time() - start_t, num_rollouts, name
-            )
-        )
-        now_t = time.time()
-    obj_id_dict.clear()
+    agent_rollout_dict = copy.deepcopy(rollout_manager.get_result())
     return agent_rollout_dict
 
 

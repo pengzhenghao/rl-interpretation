@@ -31,23 +31,30 @@ class _RemoteSymbolicTrainWorker:
             agent = symbolic_agent.get(self.existing_agent)['agent']
 
         result_list = []
-
+        break_flag = False
         for i in range(MAX_NUM_ITERS):
             result = agent.train()
+            result_list.append(result)
 
             for stop_name, stop_val in stop_criterion.items():
                 assert stop_name in result
                 if result[stop_name] > stop_val:
                     print(
                         "After the {}-th iteration, the criterion {}"
-                        "has been achieved: current value {} is greater"
+                        "has been achieved: current value {:.2f} is greater "
                         "then stop value: {}. So we break the "
                         "training.".format(
                             i + 1, stop_name, result[stop_name], stop_val
                         )
                     )
-            result_list.append(result)
-        return result_list
+                    break_flag = True
+                    break
+
+            if break_flag:
+                break
+
+        agent_weights = agent.get_weights()
+        return result_list, copy.deepcopy(agent_weights)
 
 
 class RemoteSymbolicTrainManager:
@@ -73,6 +80,17 @@ class RemoteSymbolicTrainManager:
         self.log_interval = log_interval
 
     def train(self, index, symbolic_agent, stop_criterion):
+        """
+        dict_keys(['episode_reward_max', 'episode_reward_min',
+        'episode_reward_mean', 'episode_len_mean', 'episodes_this_iter',
+        'policy_reward_min', 'policy_reward_max', 'policy_reward_mean',
+        'custom_metrics', 'sampler_perf', 'off_policy_estimator', 'info',
+        'timesteps_this_iter', 'done', 'timesteps_total', 'episodes_total',
+        'training_iteration', 'experiment_id', 'date', 'timestamp',
+        'time_this_iter_s', 'time_total_s', 'pid', 'hostname', 'node_ip',
+        'config', 'time_since_restore', 'timesteps_since_restore',
+        'iterations_since_restore', 'num_healthy_workers'])
+        """
         assert isinstance(symbolic_agent, SymbolicAgentBase)
         oid = self.workers[self.pointer
                            ].finetune.remote(symbolic_agent, stop_criterion)
@@ -108,8 +126,8 @@ class RemoteSymbolicTrainManager:
                         time.time() - self.start, name,
                         "Beginning Reward: {:.3f}, Ending Reward: "
                         "{:.3f}".format(
-                            ret[0]['episode_reward_mean'],
-                            ret[-1]['episode_reward_mean']
+                            ret[0][0]['episode_reward_mean'],
+                            ret[0][-1]['episode_reward_mean']
                         )
                     )
                 )

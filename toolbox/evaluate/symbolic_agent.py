@@ -1,7 +1,7 @@
 import logging
 
 import numpy as np
-
+import copy
 from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 
 logger = logging.getLogger(__name__)
@@ -11,6 +11,7 @@ class SymbolicAgentBase(object):
     def __init__(self):
         self.agent = None
         self.agent_info = {}
+        self.name = "SymbolicAgentBase"
 
     @property
     def initialized(self):
@@ -75,6 +76,8 @@ class MaskSymbolicAgent(SymbolicAgentBase):
 
     def clear(self):
         if self.initialized:
+            self.agent_info.pop('agent')
+            del self.agent
             self.agent = None
             self.agent_info['agent'] = None
             # we do not clear the mask, so that the agent is maintained and
@@ -107,4 +110,5 @@ class MaskSymbolicAgent(SymbolicAgentBase):
                 "it for you.".format(self.name)
             )
             self.clear()
-        return self.__dict__
+        assert not self.initialized
+        return copy.deepcopy(self.__dict__)
