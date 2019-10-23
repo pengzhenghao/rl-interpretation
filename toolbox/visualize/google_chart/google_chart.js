@@ -1,17 +1,3 @@
-<html>
-<head>
-    <style>
-        .overlay-marker {
-            width: 50px;
-            height: 50px;
-            position: absolute;
-            top: -1000px; /* chartArea top */
-            left: -1000px; /* chartArea left */
-        }
-    </style>
-    <script type="text/javascript"
-            src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/javascript">
         google.charts.load('current', {'packages': ['corechart']});
         google.charts.setOnLoadCallback(drawChart);
 
@@ -56,10 +42,6 @@
                 }
             };
 
-            // var chart = new google.visualization.LineChart(document.getElementById('line-chart-marker'));
-
-            // chart.draw(data, options);
-
             var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
 
             // The select handler. Call the chart's getSelection() method
@@ -84,13 +66,3 @@
 
             chart.draw(data, options);
         }
-    </script>
-</head>
-<body>
-<div id="chart_div" style="width: 900px; height: 500px;"></div>
-<div class="overlay-marker">
-    <img src="https://developers.google.com/chart/interactive/images/zombie_150.png"
-         height="50">
-</div>
-</body>
-</html>
