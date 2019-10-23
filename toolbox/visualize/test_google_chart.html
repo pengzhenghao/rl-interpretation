@@ -1,5 +1,14 @@
 <html>
 <head>
+    <style>
+        .overlay-marker {
+            width: 50px;
+            height: 50px;
+            position: absolute;
+            top: -1000px; /* chartArea top */
+            left: -1000px; /* chartArea left */
+        }
+    </style>
     <script type="text/javascript"
             src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
@@ -30,13 +39,34 @@
                 tooltip: {trigger: 'selection'},
             };
 
+            function placeMarker(dataTable) {
+
+                var selectedItem = this.getSelection()[0];
+
+                var cli = this.getChartLayoutInterface();
+                // var chartArea = cli.getChartAreaBoundingBox();
+                // "Zombies" is element #5.
+
+                if (selectedItem) {
+                    console.log(dataTable.getRowProperties(selectedItem.row));
+                    document.querySelector('.overlay-marker').style.top = Math.floor(cli.getYLocation(dataTable.getValue(selectedItem.row, selectedItem.column))) - 50 + "px";
+                    // getValue(x, y) return the value in the cell of the table.
+                    // So when you ask (x, 0), you return the cell in first column, which is the x-axis value.
+                    document.querySelector('.overlay-marker').style.left = Math.floor(cli.getXLocation(dataTable.getValue(selectedItem.row, 0))) - 10 + "px";
+                }
+            };
+
+            // var chart = new google.visualization.LineChart(document.getElementById('line-chart-marker'));
+
+            // chart.draw(data, options);
+
             var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
 
             // The select handler. Call the chart's getSelection() method
             function selectHandler() {
                 var selectedItem = chart.getSelection()[0];
                 if (selectedItem) {
-                    console.log(chart.getSelection());
+                    // console.log(chart.getSelection());
                     // for (var newItem in chart.getSelection()){
                     //     var value = data.getValue(newItem.row, newItem.column);
                     var value = data.getValue(selectedItem.row, selectedItem.column);
@@ -47,6 +77,8 @@
 
             // Listen for the 'select' event, and call my function selectHandler() when
             // the user selects something on the chart.
+            google.visualization.events.addListener(chart, 'select',
+                placeMarker.bind(chart, data));
             google.visualization.events.addListener(chart, 'select', selectHandler);
 
 
@@ -56,5 +88,9 @@
 </head>
 <body>
 <div id="chart_div" style="width: 900px; height: 500px;"></div>
+<div class="overlay-marker">
+    <img src="https://developers.google.com/chart/interactive/images/zombie_150.png"
+         height="50">
+</div>
 </body>
 </html>
