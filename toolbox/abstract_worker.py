@@ -3,6 +3,7 @@ import time
 from collections import OrderedDict
 
 import ray
+from ray.rllib.utils.memory import ray_get_and_free
 
 from toolbox.utils import get_num_gpus
 
@@ -37,6 +38,8 @@ class WorkerManagerBase:
         ]
 
         self.pointer = 0
+
+
         self.obj_dict = OrderedDict()
         self.ret_dict = OrderedDict()
         self.start_count = 0
@@ -53,6 +56,11 @@ class WorkerManagerBase:
     #     symbolic_agent.clear()
     #     oid = self.current_worker.replay.remote(symbolic_agent, obs)
     #     self._postprocess(index, oid)
+
+    # @property
+    # def available_workers(self):
+    #     finish, pending = ray.wait(self.obj_list, timeout=0)
+    #     return
 
     @property
     def current_worker(self):
@@ -85,7 +93,8 @@ class WorkerManagerBase:
     def _collect(self):
         assert not self.deleted, self.error_string
         for name, oid in self.obj_dict.items():
-            ret = copy.deepcopy(ray.get(oid))
+            # ret = copy.deepcopy(ray.get(oid))
+            ret = ray_get_and_free(oid)
             self.ret_dict[name] = ret
 
             self.finish_count += 1
