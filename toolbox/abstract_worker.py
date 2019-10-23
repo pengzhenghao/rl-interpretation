@@ -10,7 +10,7 @@ from toolbox.utils import get_num_gpus
 class WorkerManagerBase:
 
     def __init__(self, num_workers, worker_class, total_num=None,
-                 log_interval=1):
+                 log_interval=1, print_string=""):
         self.num_workers = num_workers
         num_gpus = get_num_gpus(num_workers)
 
@@ -27,6 +27,7 @@ class WorkerManagerBase:
         self.now = self.start = time.time()
         self.total_num = total_num
         self.log_interval = log_interval
+        self.print_string = print_string
 
     # Example usage:
     # def replay(self, index, symbolic_agent, obs):
@@ -40,6 +41,17 @@ class WorkerManagerBase:
         return self.workers[self.pointer]
 
     def postprocess(self, index, obj_id):
+        self.start_count += 1
+        if self.start_count % self.log_interval == 0:
+            print(
+                "[{}/{}] (+{:.2f}s/{:.2f}s) Start {}: {}!".format(
+                    self.start_count, self.total_num,
+                    time.time() - self.now,
+                    time.time() - self.start, self.print_string, index
+                )
+            )
+            self.now = time.time()
+
         self.obj_dict[index] = obj_id
         self.pointer += 1
         if self.pointer == self.num_workers:
@@ -54,10 +66,10 @@ class WorkerManagerBase:
             self.finish_count += 1
             if self.finish_count % self.log_interval == 0:
                 print(
-                    "[{}/{}] (+{:.2f}s/{:.2f}s) Finish replay: {}!".format(
+                    "[{}/{}] (+{:.2f}s/{:.2f}s) Finish {}: {}!".format(
                         self.finish_count, self.total_num,
                         time.time() - self.now,
-                        time.time() - self.start, name
+                        time.time() - self.start, self.print_string, name
                     )
                 )
                 self.now = time.time()

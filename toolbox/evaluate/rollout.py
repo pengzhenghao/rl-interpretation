@@ -328,6 +328,9 @@ def parse_es_rollout(data):
     return trajectory
 
 
+from toolbox.abstract_worker import WorkerManagerBase
+
+
 class _RemoteSymbolicRolloutWorker:
     @classmethod
     def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
@@ -377,76 +380,24 @@ class _RemoteSymbolicRolloutWorker:
             )
             ret_list.append(ret)
 
-        # if isinstance(agent, SymbolicAgentBase):
         agent.clear()
         return ret_list, copy.deepcopy(agent)
-        # return ret_list, None
 
 
-class RemoteSymbolicRolloutManager:
+class RemoteSymbolicRolloutManager(WorkerManagerBase):
 
     def __init__(self, num_workers, total_num=None, log_interval=1):
-        self.num_workers = num_workers
-        assert isinstance(num_workers, int)
-        assert num_workers > 0
-        # num_gpus = int(3.8 / num_workers) if has_gpu() else 0
-        num_gpus = get_num_gpus(num_workers)
-        print("In remote symbolic train manager the num_gpus: ", num_gpus)
-
-        self.workers = [
-            _RemoteSymbolicRolloutWorker.as_remote(num_gpus=num_gpus).remote()
-            for _ in range(num_workers)
-        ]
-        self.pointer = 0
-        self.obj_dict = OrderedDict()
-        self.ret_dict = OrderedDict()
-        self.start_count = 0
-        self.finish_count = 0
-        self.now = self.start = time.time()
-        self.total_num = total_num
-        self.log_interval = log_interval
+        super(RemoteSymbolicRolloutManager, self).__init__(
+            num_workers, _RemoteSymbolicRolloutWorker, total_num, log_interval,
+            "rollout"
+        )
 
     def rollout(self, index, symbolic_agent, *args, **kwargs):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
-        oid = self.workers[self.pointer].rollout.remote(symbolic_agent, *args, **kwargs)
+        oid = self.current_worker.rollout.remote(symbolic_agent, *args, **kwargs)
+        self.postprocess(index, oid)
 
-        self.start_count += 1
-        if self.start_count % self.log_interval == 0:
-            print(
-                "[{}/{}] (+{:.2f}s/{:.2f}s) Start train: {}!".format(
-                    self.start_count, self.total_num,
-                    time.time() - self.now,
-                    time.time() - self.start, index
-                )
-            )
-            self.now = time.time()
 
-        self.obj_dict[index] = oid
-        self.pointer += 1
-        if self.pointer == self.num_workers:
-            self._collect()
-            self.pointer = 0
-
-    def _collect(self):
-        for name, oid in self.obj_dict.items():
-            ret = copy.deepcopy(ray.get(oid))
-            self.ret_dict[name] = ret
-
-            self.finish_count += 1
-            if self.finish_count % self.log_interval == 0:
-                print(
-                    "[{}/{}] (+{:.2f}s/{:.2f}s) Finish rollout: {}! {}".format(
-                        self.finish_count, self.total_num,
-                        time.time() - self.now,
-                        time.time() - self.start, name, ""
-                        )
-                    )
-                self.now = time.time()
-        self.obj_dict.clear()
-
-    def get_result(self):
-        self._collect()
-        return self.ret_dict
 
 
 def quick_rollout_from_symbolic_agents(
