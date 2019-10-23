@@ -277,7 +277,7 @@ class AddMaskInfoMixinForPolicy(object):
             self.model.set_default(mask_dict)
 
         logger.debug(
-            "Successfully set the mask for: ", [
+            "[AddMaskInfoMixinForPolicy] Successfully set the mask for: ", [
                 "{}: array shape {}, mean {:.4f}, std {:.4f}".format(
                     k, v.shape, v.mean(), v.std()
                 ) for k, v in mask_dict.items()
@@ -340,6 +340,12 @@ class AddMaskInfoMixin(object):
             self.workers.foreach_worker(
                 lambda w: w.get_policy().set_default(mask_dict)
             )
+
+        logger.info("Successfully set mask: {}".format(
+            ["layer: {}, shape: {}, mean {:.4f}, std {:.4f}.".format(
+                name, arr.shape, arr.mean(), arr.std()
+            ) for name, arr in mask_dict.items()]
+        ))
 
 
 PPOAgentWithMask = build_trainer(
