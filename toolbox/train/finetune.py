@@ -29,7 +29,7 @@ class _RemoteSymbolicTrainWorker(WorkerBase):
             for stop_name, stop_val in stop_criterion.items():
                 if result[stop_name] > stop_val:
                     print(
-                        "After the {}-th iteration, the criterion {}"
+                        "After the {}-th iteration, the criterion {} "
                         "has been achieved: current value {:.2f} is greater "
                         "then stop value: {}. So we break the "
                         "training.".format(
@@ -66,10 +66,21 @@ class RemoteSymbolicTrainManager(WorkerManagerBase):
         for key in stop_criterion.keys():
             assert key in keys
         assert isinstance(symbolic_agent, SymbolicAgentBase)
+
+        symbolic_agent.clear()
+
         oid = self.current_worker.finetune.remote(
             symbolic_agent, stop_criterion
         )
         self.postprocess(index, oid)
+
+    def parse_result(self, result):
+        """Overwrite the original function"""
+        string = "Beginning Reward: {:.3f}, Ending Reward: {:.3f}".format(
+            result[0][0]['episode_reward_mean'],
+            result[0][-1]['episode_reward_mean']
+        )
+        return string
 
 
 if __name__ == '__main__':

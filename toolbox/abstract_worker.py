@@ -73,6 +73,10 @@ class WorkerManagerBase:
             self._collect()
             self.pointer = 0
 
+    def parse_result(self, result):
+        """This function provide the string for printing."""
+        return ""
+
     def _collect(self):
         assert not self.deleted, self.error_string
         for name, oid in self.obj_dict.items():
@@ -82,10 +86,11 @@ class WorkerManagerBase:
             self.finish_count += 1
             if self.finish_count % self.log_interval == 0:
                 print(
-                    "[{}/{}] (+{:.2f}s/{:.2f}s) Finish {}: {}!".format(
+                    "[{}/{}] (+{:.2f}s/{:.2f}s) Finish {}: {}! {}".format(
                         self.finish_count, self.total_num,
                         time.time() - self.now,
-                        time.time() - self.start, self.print_string, name
+                        time.time() - self.start, self.print_string, name,
+                        self.parse_result(ret)
                     )
                 )
                 self.now = time.time()
