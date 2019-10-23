@@ -1,9 +1,10 @@
 import copy
 import logging
+import os
 import os.path as osp
 import time
-from math import ceil
 from collections import defaultdict
+from math import ceil
 
 import numpy as np
 import ray
@@ -13,7 +14,17 @@ from toolbox.cluster.process_cluster import ClusterFinder
 from toolbox.evaluate.evaluate_utils import restore_agent
 from toolbox.evaluate.replay import deprecated_replay, agent_replay
 from toolbox.evaluate.rollout import rollout
-from toolbox.utils import initialize_ray, _get_num_iters_from_ckpt_name
+from toolbox.utils import initialize_ray
+
+
+def _get_num_iters_from_ckpt_name(ckpt):
+    base_name = os.path.basename(ckpt)
+    assert "-" in base_name
+    assert base_name.startswith("checkpoint")
+    num_iters = eval(base_name.split("-")[1])
+    assert isinstance(num_iters, int)
+    return num_iters
+
 
 ABLATE_LAYER_NAME = "default_policy/default_model/fc2"
 NO_ABLATION_UNIT_NAME = "no_ablation"
@@ -23,12 +34,14 @@ ABLATE_LAYER_NAME_DIMENSION_DICT = {
     "default_policy/default_model/fc_out": 256,
 }
 """
-mapping = get_layer_name_index_list_mapping(df, "episode_reward_mean", reward_threshold)
+mapping = get_layer_name_index_list_mapping(df, "episode_reward_mean", 
+reward_threshold)
 ablated_agent = ablate_multiple_units(master_agent, mapping)
 generate_gif_from_agent(
     ablated_agent, 
     "Ablated Master Agent (episode_reward_mean {})".format(reward_threshold), 
-    "./ablated-master-agent_episode-reward-mean_threshold-{}".format(reward_threshold)
+    "./ablated-master-agent_episode-reward-mean_threshold-{}".format(
+    reward_threshold)
 )
 """
 

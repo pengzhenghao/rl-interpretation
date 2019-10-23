@@ -1,30 +1,19 @@
 import copy
+import logging
 import os
 import os.path as osp
 import pickle
 from collections import OrderedDict
 
-from toolbox import initialize_ray
 # from toolbox.evaluate.rollout import rollout
 from toolbox.env.mujoco_wrapper import MujocoWrapper
 from toolbox.evaluate.rollout import quick_rollout_from_symbolic_agents
 from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
 from toolbox.process_data.process_data import read_yaml
 
-# from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
+logger = logging.getLogger(__name__)
 
-# num_agents = 2
-# yaml_path = "../data/yaml/0915-halfcheetah-ppo-20-agents.yaml"
-# num_rollouts = 2
-# num_children = 1
-# num_workers = 5
-#
-# normal_std = 0.1
-# normal_mean = 1.0
-
-# spawn_seed = 0
-# num_samples = 200  # From each agent's dataset
-# pca_dim = 50
+import ray
 
 
 def symbolic_agent_rollout(
@@ -39,13 +28,15 @@ def symbolic_agent_rollout(
         clear_at_end=True,
         store=True
 ):
+    assert ray.is_initialized()
+
     file_name = osp.join(
         dir_name, "{}agents_{}rollouts_{}children_{}mean_{}std.pkl".format(
             num_agents, num_rollouts, num_children, normal_mean, normal_std
         )
     )
 
-    initialize_ray(num_gpus=4, test_mode=False)
+    # initialize_ray(num_gpus=4, test_mode=False)
 
     if os.path.exists(file_name):
         "File Dected! We will load rollout results from <{}>".format(file_name)

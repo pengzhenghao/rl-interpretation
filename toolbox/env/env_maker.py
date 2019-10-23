@@ -26,9 +26,6 @@ def make_build_gym_env(env_name):
     return build_gym_env
 
 
-build_bipedal_walker = make_build_gym_env("BipedalWalker-v2")
-
-
 def build_opencv_bipedal_walker(seed=None):
     if seed is None:
         seed = DEFAULT_SEED

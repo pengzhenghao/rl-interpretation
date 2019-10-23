@@ -27,8 +27,10 @@ from tensorflow.python.keras.backend import set_session
 
 from toolbox.modified_rllib.tf_policy_template import build_tf_policy
 from toolbox.modified_rllib.trainer_template import build_trainer
-
+import logging
 tf = try_import_tf()
+
+logger = logging.getLogger(__name__)
 
 
 # from toolbox.modified_rllib.tf_modelv2 import TFModelV2
@@ -274,8 +276,8 @@ class AddMaskInfoMixinForPolicy(object):
             # This fix the bug that
             self.model.set_default(mask_dict)
 
-        print(
-            "Successfully set the mask for: ", [
+        logger.debug(
+            "[AddMaskInfoMixinForPolicy] Successfully set the mask for: ", [
                 "{}: array shape {}, mean {:.4f}, std {:.4f}".format(
                     k, v.shape, v.mean(), v.std()
                 ) for k, v in mask_dict.items()
@@ -334,6 +336,29 @@ class AddMaskInfoMixin(object):
             assert list(arr.shape) == exist_mask[name]
 
         self.get_policy().set_default(mask_dict)
+        if hasattr(self, "workers"):
+            self.workers.foreach_worker(
+                lambda w: w.get_policy().set_default(mask_dict)
+            )
+
+        logger.info(
+            "Successfully set mask: {}".format(
+                [
+                    "layer: {}, shape: {}, mean {:.4f}, std {:.4f}.".format(
+                        name, arr.shape, arr.mean(), arr.std()
+                    ) for name, arr in mask_dict.items()
+                ]
+            )
+        )
+        print(
+            "Successfully set mask: {}".format(
+                [
+                    "layer: {}, shape: {}, mean {:.4f}, std {:.4f}.".format(
+                        name, arr.shape, arr.mean(), arr.std()
+                    ) for name, arr in mask_dict.items()
+                ]
+            )
+        )
 
 
 PPOAgentWithMask = build_trainer(

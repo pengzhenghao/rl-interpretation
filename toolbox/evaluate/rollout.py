@@ -23,13 +23,15 @@ from ray.rllib.env.base_env import _DUMMY_AGENT_ID
 from ray.rllib.evaluation.episode import _flatten_action
 from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 
-from toolbox.env.env_maker import make_build_gym_env
+from toolbox.env.env_maker import get_env_maker
 from toolbox.evaluate import restore_agent, restore_agent_with_activation
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.modified_rllib.agent_with_activation import \
     PPOTFPolicyWithActivation
 from toolbox.process_data.process_data import read_yaml
-from toolbox.utils import initialize_ray, ENV_MAKER_LOOKUP, has_gpu
+from toolbox.utils import initialize_ray, has_gpu, get_num_gpus
+
+logger = logging.getLogger(__name__)
 
 EXAMPLE_USAGE = """
 Example Usage via RLlib CLI:
@@ -291,9 +293,9 @@ def efficient_rollout_from_worker(worker, num_rollouts=None):
     # data is a list. Each entry is a SampleBatch
     for sample_batch in data:
         if isinstance(sample_batch, list):
-            trajectory = parse_es_rollout(sample_batch)
+            trajectory = _parse_es_rollout(sample_batch)
         else:
-            trajectory = parse_single_rollout(sample_batch.data)
+            trajectory = _parse_single_rollout(sample_batch.data)
         trajctory_list.append(trajectory)
     logging.info(
         "Finish {} Rollouts. Cost: {} s.".format(
@@ -304,7 +306,7 @@ def efficient_rollout_from_worker(worker, num_rollouts=None):
     return trajctory_list
 
 
-def parse_single_rollout(data):
+def _parse_single_rollout(data):
     obs = data['obs']
     act = data['actions']
     rew = data['rewards']
@@ -315,7 +317,7 @@ def parse_single_rollout(data):
     return trajectory
 
 
-def parse_es_rollout(data):
+def _parse_es_rollout(data):
     assert len(data[0]) == 5
     obs = np.stack([t[0] for t in data])
     act = np.stack([t[1] for t in data])
@@ -326,118 +328,109 @@ def parse_es_rollout(data):
     return trajectory
 
 
-# @ray.remote(num_return_vals=1)
-def remote_rollout(
-        agent,
-        num_rollouts,
-        # env,
-        env_wrapper,
-        env_name,
-        num_steps=None,
-        require_frame=False,
-        require_trajectory=False,
-        require_extra_info=False,
-        require_full_frame=False,
-        require_env_state=False,
-        render_mode="rgb_array"
-):
-    ret_list = []
+from toolbox.abstract_worker import WorkerManagerBase, WorkerBase
 
-    if isinstance(agent, SymbolicAgentBase):
-        assert not agent.initialized
-        real_agent = agent.get()['agent']
-        print("SymbolicAgent is restored.")
-    else:
-        real_agent = agent
 
-    env = make_build_gym_env(env_name)(seed=0)
+class _RemoteSymbolicRolloutWorker(WorkerBase):
+    def __init__(self):
+        self.existing_agent = None
 
-    if env_wrapper is not None:
-        env = env_wrapper(env)
+    def rollout(
+            self,
+            agent,
+            num_rollouts,
+            # env,
+            env_wrapper,
+            env_name,
+            num_steps=None,
+            require_frame=False,
+            require_trajectory=False,
+            require_extra_info=False,
+            require_full_frame=False,
+            require_env_state=False,
+            render_mode="rgb_array"
+    ):
+        ret_list = []
+        assert isinstance(agent, SymbolicAgentBase)
 
-    for i in range(num_rollouts):
-        ret = rollout(
-            real_agent, env, env_name, num_steps, require_frame,
-            require_trajectory, require_extra_info, require_full_frame,
-            require_env_state, render_mode
-        )
-        ret_list.append(ret)
-    if isinstance(agent, SymbolicAgentBase):
+        if self.existing_agent is not None:
+            real_agent = agent.get(self.existing_agent)['agent']
+        else:
+            real_agent = agent.get()['agent']
+            self.existing_agent = real_agent
+
+        logger.debug("SymbolicAgent <{}> is restored.".format(agent.name))
+
+        env = get_env_maker(env_name)(seed=0)
+
+        if env_wrapper is not None:
+            env = env_wrapper(env)
+
+        for i in range(num_rollouts):
+            ret = rollout(
+                real_agent, env, env_name, num_steps, require_frame,
+                require_trajectory, require_extra_info, require_full_frame,
+                require_env_state, render_mode
+            )
+            ret_list.append(ret)
+
         agent.clear()
         return ret_list, copy.deepcopy(agent)
-    return ret_list, None
+
+
+class RemoteSymbolicRolloutManager(WorkerManagerBase):
+    def __init__(self, num_workers, total_num=None, log_interval=1):
+        super(RemoteSymbolicRolloutManager, self).__init__(
+            num_workers, _RemoteSymbolicRolloutWorker, total_num, log_interval,
+            "rollout"
+        )
+
+    def rollout(self, index, symbolic_agent, *args, **kwargs):
+        assert isinstance(symbolic_agent, SymbolicAgentBase)
+        oid = self.current_worker.rollout.remote(
+            symbolic_agent, *args, **kwargs
+        )
+        self.postprocess(index, oid)
 
 
 def quick_rollout_from_symbolic_agents(
         name_symbolic_agent_mapping, num_rollouts, num_workers=5,
         env_wrapper=None
 ):
-    obj_id_dict = OrderedDict()
+    # obj_id_dict = OrderedDict()
+    #
+    # agent_rollout_dict = OrderedDict()
+    # now_t = start_t = time.time()
+    #
+    # count = 0
+    # print_count = 1
 
-    agent_rollout_dict = OrderedDict()
-    now_t = start_t = time.time()
+    # remote_rollout_remote = ray.remote(
+    #     num_gpus=get_num_gpus(num_workers), max_calls=1
+    # )(remote_rollout)
 
-    count = 0
-    print_count = 1
-
-    remote_rollout_remote = ray.remote(
-        num_gpus=3.8 / num_workers if has_gpu() else 0
-    )(remote_rollout)
-
+    rollout_manager = RemoteSymbolicRolloutManager(
+        num_workers, len(name_symbolic_agent_mapping)
+    )
     for name, agent in name_symbolic_agent_mapping.items():
-
         env_name = agent.agent_info['env_name']
         # env = make_build_gym_env(env_name)(seed=0)
-
         # if env_wrapper is not None:
         #     env = env_wrapper(env)
-
         assert not agent.initialized
-
         assert isinstance(agent, SymbolicAgentBase)
-
-        obj_id_dict[name] = remote_rollout_remote.remote(
+        rollout_manager.rollout(
+            name,
             agent,
             num_rollouts,
-            # env,
             env_wrapper,
             env_name,
             require_trajectory=True,
             require_extra_info=True,
             require_env_state=False  # It seems we don't use it ?? 1013
         )
-        count += 1
-        if count % num_workers == 0:
-            for i, (name, obj_id) in enumerate(obj_id_dict.items()):
-                agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))
-                print(
-                    "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts "
-                    "from "
-                    "agent"
-                    " <{}>".format(
-                        i + print_count, len(name_symbolic_agent_mapping),
-                        time.time() - now_t,
-                        time.time() - start_t, num_rollouts, name
-                    )
-                )
-                now_t = time.time()
-            obj_id_dict.clear()
-            print_count = count + 1
 
-    for i, (name, obj_id) in enumerate(obj_id_dict.items()):
-        agent_rollout_dict[name] = copy.deepcopy(ray.get(obj_id))
-        # count += 1
-        print(
-            "[{}/{}] (+{:.1f}s/{:.1f}s) Start collect {} rollouts from "
-            "agent"
-            " <{}>".format(
-                print_count + i, len(name_symbolic_agent_mapping),
-                time.time() - now_t,
-                time.time() - start_t, num_rollouts, name
-            )
-        )
-        now_t = time.time()
-    obj_id_dict.clear()
+    agent_rollout_dict = copy.deepcopy(rollout_manager.get_result())
     return agent_rollout_dict
 
 
@@ -678,7 +671,7 @@ def several_agent_rollout(
                 enumerate(agent_ckpt_dict_range[start:end]):
             ckpt = ckpt_dict["path"]
             env_name = ckpt_dict["env_name"]
-            env_maker = ENV_MAKER_LOOKUP[env_name]
+            env_maker = get_env_maker(env_name)
             run_name = ckpt_dict["run_name"]
             assert run_name == "PPO"
 

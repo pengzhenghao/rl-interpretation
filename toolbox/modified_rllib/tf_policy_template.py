@@ -57,7 +57,7 @@ def build_tf_policy(
         get_batch_divisibility_req=None,
         obs_include_prev_action_reward=True
 ):
-    print("Start to initialize policy name: ", name)
+    # print("Start to initialize policy name: ", name)
     """Helper function for creating a dynamic tf policy at runtime.
 
     Functions will be run in this order to initialize the policy:
@@ -141,7 +141,7 @@ def build_tf_policy(
                 existing_inputs=None
         ):
 
-            print("You have enter the TF_POLICY_CLASS")
+            # print("You have enter the TF_POLICY_CLASS")
 
             if get_default_config:
                 config = dict(get_default_config(), **config)
