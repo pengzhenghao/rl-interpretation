@@ -1,76 +1,47 @@
-        google.charts.load('current', {'packages': ['corechart']});
-        google.charts.setOnLoadCallback(drawChart);
+google.charts.load('current', {'packages': ['corechart']});
+google.charts.setOnLoadCallback(drawChart);
 
-        function drawChart() {
-            var data = google.visualization.arrayToDataTable([
-                ['Age', 'Weight'],
-                [8, 12],
-                [4, 5.5],
-                [11, 14],
-                [4, 5],
-                [3, 3.5],
-                [6.5, 7]
-            ]);
+var data_table;
 
-            data.addColumn({type: 'string', role: 'tooltip'});
+function drawChart() {
+    data_table = google.visualization.arrayToDataTable([
+        ['Age', 'Weight', {
+            'type': 'string',
+            'role': 'tooltip',
+            'p': {'html': true}
+        }],
+        [8, 12, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
+        [4, 5.5, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
+        [11, 14, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
+        [4, 5, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
+        [3, 3.5, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
+        [6.5, 7, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')]
+    ]);
 
-            var options = {
-                title: 'Age vs. Weight comparison',
-                hAxis: {title: 'X', minValue: 0, maxValue: 15},
-                vAxis: {title: 'Y', minValue: 0, maxValue: 15},
-                legend: 'none',
-                // Allow multiple
-                // simultaneous selections.
-                selectionMode: 'multiple',
-                // Trigger tooltips
-                // on selections.
-                tooltip: {trigger: 'selection'},
-            };
+    function createCustomHTMLContent(flagURL) {
+        return '<div style="padding:5px 5px 5px 5px;">' +
+            '<img src="' + flagURL + '" style="width:75px;height:50px"><br/>' +
+            // '<table class="medals_layout">' + '<tr>' +
+            // '<td><img src="https://upload.wikimedia.org/wikipedia/commons/1/15/Gold_medal.svg" style="width:25px;height:25px"/></td>' +
+            // '<td><b>' + totalGold + '</b></td>' + '</tr>' + '<tr>' +
+            // '<td><img src="https://upload.wikimedia.org/wikipedia/commons/0/03/Silver_medal.svg" style="width:25px;height:25px"/></td>' +
+            // '<td><b>' + totalSilver + '</b></td>' + '</tr>' + '<tr>' +
+            // '<td><img src="https://upload.wikimedia.org/wikipedia/commons/5/52/Bronze_medal.svg" style="width:25px;height:25px"/></td>' +
+            // '<td><b>' + totalBronze + '</b></td>' + '</tr>' + '</table>' +
+        '</div>';
+    }
 
-            function placeMarker(dataTable) {
+    var options = {
+        tooltip: {isHtml: true, trigger: 'selection'},
+        title: 'Age vs. Weight comparison',
+        hAxis: {title: 'X', minValue: 0, maxValue: 15},
+        vAxis: {title: 'Y', minValue: 0, maxValue: 15},
+        legend: 'none',
+        aggregationTarget: 'none',
+        selectionMode: 'multiple'
+    };
 
-                var selectedItem = this.getSelection()[0];
+    var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
 
-                var cli = this.getChartLayoutInterface();
-                // var chartArea = cli.getChartAreaBoundingBox();
-                // "Zombies" is element #5.
-
-                if (selectedItem) {
-                    // console.log(dataTable.getRowProperties(selectedItem.row));
-                    document.querySelector('.overlay-marker').style.top = Math.floor(cli.getYLocation(dataTable.getValue(selectedItem.row, selectedItem.column))) - 50 + "px";
-                    // getValue(x, y) return the value in the cell of the table.
-                    // So when you ask (x, 0), you return the cell in first column, which is the x-axis value.
-                    document.querySelector('.overlay-marker').style.left = Math.floor(cli.getXLocation(dataTable.getValue(selectedItem.row, 0))) - 10 + "px";
-                }
-                else {
-                    // This can remove the figure. But in the future I want to remove it from memory rather than making invisible.
-                    document.querySelector('.overlay-marker').style.top = -1000;
-                    document.querySelector('.overlay-marker').style.left = -1000;
-
-                }
-            };
-
-            var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
-
-            // The select handler. Call the chart's getSelection() method
-            // function selectHandler() {
-            //     var selectedItem = chart.getSelection()[0];
-            //     if (selectedItem) {
-            //         // console.log(chart.getSelection());
-            //         // for (var newItem in chart.getSelection()){
-            //         //     var value = data.getValue(newItem.row, newItem.column);
-            //         var value = data.getValue(selectedItem.row, selectedItem.column);
-            //         alert('The user selected ' + value);
-            //         // }
-            //     }
-            // }
-
-            // Listen for the 'select' event, and call my function selectHandler() when
-            // the user selects something on the chart.
-            google.visualization.events.addListener(chart, 'select',
-                placeMarker.bind(chart, data));
-            // google.visualization.events.addListener(chart, 'select', selectHandler);
-
-
-            chart.draw(data, options);
-        }
+    chart.draw(data_table, options);
+}
