@@ -1,3 +1,4 @@
+# from IPython.display import Image
 import copy
 import os
 import os.path as osp
@@ -5,9 +6,13 @@ import pickle
 import time
 from collections import OrderedDict
 
-# from IPython.display import Image
 import numpy as np
+import ray
 
+from toolbox import initialize_ray
+# from toolbox.evaluate.rollout import rollout
+from toolbox.env.mujoco_wrapper import MujocoWrapper
+from toolbox.evaluate.rollout import quick_rollout_from_symbolic_agents
 from toolbox.interface.cross_agent import CrossAgentAnalyst
 from toolbox.interface.symbolic_agent_rollout import symbolic_agent_rollout
 from toolbox.train.finetune import RemoteSymbolicTrainManager
@@ -299,21 +304,6 @@ with open(ckpt_path_name, 'wb') as f:
         std_retrain_result_dict, f
     )
     print("ckpt is dump at: ", ckpt_path_name)
-
-import time
-
-import ray
-
-import copy
-import os
-import os.path as osp
-import pickle
-from collections import OrderedDict
-
-from toolbox import initialize_ray
-# from toolbox.evaluate.rollout import rollout
-from toolbox.env.mujoco_wrapper import MujocoWrapper
-from toolbox.evaluate.rollout import quick_rollout_from_symbolic_agents
 
 std_ret_rollout_dict_new = OrderedDict()
 
