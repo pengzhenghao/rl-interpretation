@@ -341,16 +341,24 @@ class AddMaskInfoMixin(object):
                 lambda w: w.get_policy().set_default(mask_dict)
             )
 
-        logger.info("Successfully set mask: {}".format(
-            ["layer: {}, shape: {}, mean {:.4f}, std {:.4f}.".format(
-                name, arr.shape, arr.mean(), arr.std()
-            ) for name, arr in mask_dict.items()]
-        ))
-        print("Successfully set mask: {}".format(
-            ["layer: {}, shape: {}, mean {:.4f}, std {:.4f}.".format(
-                name, arr.shape, arr.mean(), arr.std()
-            ) for name, arr in mask_dict.items()]
-        ))
+        logger.info(
+            "Successfully set mask: {}".format(
+                [
+                    "layer: {}, shape: {}, mean {:.4f}, std {:.4f}.".format(
+                        name, arr.shape, arr.mean(), arr.std()
+                    ) for name, arr in mask_dict.items()
+                ]
+            )
+        )
+        print(
+            "Successfully set mask: {}".format(
+                [
+                    "layer: {}, shape: {}, mean {:.4f}, std {:.4f}.".format(
+                        name, arr.shape, arr.mean(), arr.std()
+                    ) for name, arr in mask_dict.items()
+                ]
+            )
+        )
 
 
 PPOAgentWithMask = build_trainer(

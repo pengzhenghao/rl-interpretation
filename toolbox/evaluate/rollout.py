@@ -387,10 +387,10 @@ class RemoteSymbolicRolloutManager(WorkerManagerBase):
 
     def rollout(self, index, symbolic_agent, *args, **kwargs):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
-        oid = self.current_worker.rollout.remote(symbolic_agent, *args, **kwargs)
+        oid = self.current_worker.rollout.remote(
+            symbolic_agent, *args, **kwargs
+        )
         self.postprocess(index, oid)
-
-
 
 
 def quick_rollout_from_symbolic_agents(
@@ -420,7 +420,8 @@ def quick_rollout_from_symbolic_agents(
         assert not agent.initialized
         assert isinstance(agent, SymbolicAgentBase)
         rollout_manager.rollout(
-            name, agent,
+            name,
+            agent,
             num_rollouts,
             env_wrapper,
             env_name,

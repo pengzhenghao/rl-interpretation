@@ -1,32 +1,20 @@
 import copy
+import logging
 import os
 import os.path as osp
 import pickle
 from collections import OrderedDict
 
-from toolbox import initialize_ray
 # from toolbox.evaluate.rollout import rollout
 from toolbox.env.mujoco_wrapper import MujocoWrapper
 from toolbox.evaluate.rollout import quick_rollout_from_symbolic_agents
 from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
 from toolbox.process_data.process_data import read_yaml
-import logging
+
 logger = logging.getLogger(__name__)
-# from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 
-# num_agents = 2
-# yaml_path = "../data/yaml/0915-halfcheetah-ppo-20-agents.yaml"
-# num_rollouts = 2
-# num_children = 1
-# num_workers = 5
-#
-# normal_std = 0.1
-# normal_mean = 1.0
-
-# spawn_seed = 0
-# num_samples = 200  # From each agent's dataset
-# pca_dim = 50
 import ray
+
 
 def symbolic_agent_rollout(
         yaml_path,

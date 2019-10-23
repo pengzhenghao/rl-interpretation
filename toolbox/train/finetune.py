@@ -53,10 +53,10 @@ class RemoteSymbolicTrainManager(WorkerManagerBase):
 
     def train(self, index, symbolic_agent, stop_criterion):
         keys = [
-            'episode_reward_max', 'episode_reward_min',
-            'episode_reward_mean', 'episode_len_mean', 'episodes_this_iter',
-            'policy_reward_min', 'policy_reward_max', 'policy_reward_mean',
-            'custom_metrics', 'sampler_perf', 'off_policy_estimator', 'info',
+            'episode_reward_max', 'episode_reward_min', 'episode_reward_mean',
+            'episode_len_mean', 'episodes_this_iter', 'policy_reward_min',
+            'policy_reward_max', 'policy_reward_mean', 'custom_metrics',
+            'sampler_perf', 'off_policy_estimator', 'info',
             'timesteps_this_iter', 'done', 'timesteps_total', 'episodes_total',
             'training_iteration', 'experiment_id', 'date', 'timestamp',
             'time_this_iter_s', 'time_total_s', 'pid', 'hostname', 'node_ip',

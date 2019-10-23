@@ -19,9 +19,14 @@ class WorkerBase:
 
 
 class WorkerManagerBase:
-
-    def __init__(self, num_workers, worker_class, total_num=None,
-                 log_interval=1, print_string=""):
+    def __init__(
+            self,
+            num_workers,
+            worker_class,
+            total_num=None,
+            log_interval=1,
+            print_string=""
+    ):
         self.num_workers = num_workers
         num_gpus = get_num_gpus(num_workers)
 
