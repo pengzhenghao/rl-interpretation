@@ -6,7 +6,7 @@ from math import ceil
 import numpy as np
 import ray
 
-from toolbox.abstract_worker import WorkerManagerBase
+from toolbox.abstract_worker import WorkerManagerBase, WorkerBase
 from toolbox.evaluate.evaluate_utils import restore_agent_with_activation, \
     restore_agent
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
@@ -32,13 +32,7 @@ def remote_symbolic_replay(symbolic_agent, obs):
     return agent_replay(agent, obs)
 
 
-class _RemoteSymbolicReplayWorker:
-    @classmethod
-    def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
-        return ray.remote(
-            num_cpus=num_cpus, num_gpus=num_gpus, resources=resources
-        )(cls)
-
+class _RemoteSymbolicReplayWorker(WorkerBase):
     def __init__(self):
         self.existing_agent = None
 

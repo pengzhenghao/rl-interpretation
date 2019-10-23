@@ -293,9 +293,9 @@ def efficient_rollout_from_worker(worker, num_rollouts=None):
     # data is a list. Each entry is a SampleBatch
     for sample_batch in data:
         if isinstance(sample_batch, list):
-            trajectory = parse_es_rollout(sample_batch)
+            trajectory = _parse_es_rollout(sample_batch)
         else:
-            trajectory = parse_single_rollout(sample_batch.data)
+            trajectory = _parse_single_rollout(sample_batch.data)
         trajctory_list.append(trajectory)
     logging.info(
         "Finish {} Rollouts. Cost: {} s.".format(
@@ -306,7 +306,7 @@ def efficient_rollout_from_worker(worker, num_rollouts=None):
     return trajctory_list
 
 
-def parse_single_rollout(data):
+def _parse_single_rollout(data):
     obs = data['obs']
     act = data['actions']
     rew = data['rewards']
@@ -317,7 +317,7 @@ def parse_single_rollout(data):
     return trajectory
 
 
-def parse_es_rollout(data):
+def _parse_es_rollout(data):
     assert len(data[0]) == 5
     obs = np.stack([t[0] for t in data])
     act = np.stack([t[1] for t in data])
@@ -328,16 +328,10 @@ def parse_es_rollout(data):
     return trajectory
 
 
-from toolbox.abstract_worker import WorkerManagerBase
+from toolbox.abstract_worker import WorkerManagerBase, WorkerBase
 
 
-class _RemoteSymbolicRolloutWorker:
-    @classmethod
-    def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
-        return ray.remote(
-            num_cpus=num_cpus, num_gpus=num_gpus, resources=resources
-        )(cls)
-
+class _RemoteSymbolicRolloutWorker(WorkerBase):
     def __init__(self):
         self.existing_agent = None
 
@@ -385,7 +379,6 @@ class _RemoteSymbolicRolloutWorker:
 
 
 class RemoteSymbolicRolloutManager(WorkerManagerBase):
-
     def __init__(self, num_workers, total_num=None, log_interval=1):
         super(RemoteSymbolicRolloutManager, self).__init__(
             num_workers, _RemoteSymbolicRolloutWorker, total_num, log_interval,
