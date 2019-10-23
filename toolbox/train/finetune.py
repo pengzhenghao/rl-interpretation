@@ -1,23 +1,14 @@
 import copy
-import time
 from collections import OrderedDict
 
-import ray
-
 from toolbox import initialize_ray
+from toolbox.abstract_worker import WorkerBase, WorkerManagerBase
 from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
-from toolbox.utils import get_num_gpus
 
 MAX_NUM_ITERS = 100
 
 
-class _RemoteSymbolicTrainWorker:
-    @classmethod
-    def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
-        return ray.remote(
-            num_cpus=num_cpus, num_gpus=num_gpus, resources=resources
-        )(cls)
-
+class _RemoteSymbolicTrainWorker(WorkerBase):
     def __init__(self):
         self.existing_agent = None
 
@@ -35,9 +26,7 @@ class _RemoteSymbolicTrainWorker:
         for i in range(MAX_NUM_ITERS):
             result = agent.train()
             result_list.append(result)
-
             for stop_name, stop_val in stop_criterion.items():
-                assert stop_name in result
                 if result[stop_name] > stop_val:
                     print(
                         "After the {}-th iteration, the criterion {}"
@@ -49,95 +38,38 @@ class _RemoteSymbolicTrainWorker:
                     )
                     break_flag = True
                     break
-
             if break_flag:
                 break
-
         agent_weights = agent.get_weights()
         return result_list, copy.deepcopy(agent_weights)
 
 
-class RemoteSymbolicTrainManager:
+class RemoteSymbolicTrainManager(WorkerManagerBase):
     def __init__(self, num_workers, total_num=None, log_interval=1):
-        self.num_workers = num_workers
-        assert isinstance(num_workers, int)
-        assert num_workers > 0
-        # num_gpus = int(3.8 / num_workers) if has_gpu() else 0
-        num_gpus = get_num_gpus(num_workers)
-        print("In remote symbolic train manager the num_gpus: ", num_gpus)
-
-        self.workers = [
-            _RemoteSymbolicTrainWorker.as_remote(num_gpus=num_gpus).remote()
-            for _ in range(num_workers)
-        ]
-        self.pointer = 0
-        self.obj_dict = OrderedDict()
-        self.ret_dict = OrderedDict()
-        self.start_count = 0
-        self.finish_count = 0
-        self.now = self.start = time.time()
-        self.total_num = total_num
-        self.log_interval = log_interval
+        super(RemoteSymbolicTrainManager, self).__init__(
+            num_workers, _RemoteSymbolicTrainWorker, total_num, log_interval,
+            "train"
+        )
 
     def train(self, index, symbolic_agent, stop_criterion):
-        """
-        dict_keys(['episode_reward_max', 'episode_reward_min',
-        'episode_reward_mean', 'episode_len_mean', 'episodes_this_iter',
-        'policy_reward_min', 'policy_reward_max', 'policy_reward_mean',
-        'custom_metrics', 'sampler_perf', 'off_policy_estimator', 'info',
-        'timesteps_this_iter', 'done', 'timesteps_total', 'episodes_total',
-        'training_iteration', 'experiment_id', 'date', 'timestamp',
-        'time_this_iter_s', 'time_total_s', 'pid', 'hostname', 'node_ip',
-        'config', 'time_since_restore', 'timesteps_since_restore',
-        'iterations_since_restore', 'num_healthy_workers'])
-        """
+        keys = [
+            'episode_reward_max', 'episode_reward_min',
+            'episode_reward_mean', 'episode_len_mean', 'episodes_this_iter',
+            'policy_reward_min', 'policy_reward_max', 'policy_reward_mean',
+            'custom_metrics', 'sampler_perf', 'off_policy_estimator', 'info',
+            'timesteps_this_iter', 'done', 'timesteps_total', 'episodes_total',
+            'training_iteration', 'experiment_id', 'date', 'timestamp',
+            'time_this_iter_s', 'time_total_s', 'pid', 'hostname', 'node_ip',
+            'config', 'time_since_restore', 'timesteps_since_restore',
+            'iterations_since_restore', 'num_healthy_workers'
+        ]
+        for key in stop_criterion.keys():
+            assert key in keys
         assert isinstance(symbolic_agent, SymbolicAgentBase)
-        oid = self.workers[self.pointer
-                           ].finetune.remote(symbolic_agent, stop_criterion)
-
-        self.start_count += 1
-        if self.start_count % self.log_interval == 0:
-            print(
-                "[{}/{}] (+{:.2f}s/{:.2f}s) Start train: {}!".format(
-                    self.start_count, self.total_num,
-                    time.time() - self.now,
-                    time.time() - self.start, index
-                )
-            )
-            self.now = time.time()
-
-        self.obj_dict[index] = oid
-        self.pointer += 1
-        if self.pointer == self.num_workers:
-            self._collect()
-            self.pointer = 0
-
-    def _collect(self):
-        for name, oid in self.obj_dict.items():
-            ret = copy.deepcopy(ray.get(oid))
-            self.ret_dict[name] = ret
-
-            self.finish_count += 1
-            if self.finish_count % self.log_interval == 0:
-                print(
-                    "[{}/{}] (+{:.2f}s/{:.2f}s) Finish train: {}! {}".format(
-                        self.finish_count, self.total_num,
-                        time.time() - self.now,
-                        time.time() - self.start, name,
-                        "Beginning Reward: {:.3f}, Ending Reward: "
-                        "{:.3f}".format(
-                            ret[0][0]['episode_reward_mean'],
-                            ret[0][-1]['episode_reward_mean']
-                        )
-                    )
-                )
-
-                self.now = time.time()
-        self.obj_dict.clear()
-
-    def get_result(self):
-        self._collect()
-        return self.ret_dict
+        oid = self.current_worker.finetune.remote(
+            symbolic_agent, stop_criterion
+        )
+        self.postprocess(index, oid)
 
 
 if __name__ == '__main__':

@@ -346,6 +346,11 @@ class AddMaskInfoMixin(object):
                 name, arr.shape, arr.mean(), arr.std()
             ) for name, arr in mask_dict.items()]
         ))
+        print("Successfully set mask: {}".format(
+            ["layer: {}, shape: {}, mean {:.4f}, std {:.4f}.".format(
+                name, arr.shape, arr.mean(), arr.std()
+            ) for name, arr in mask_dict.items()]
+        ))
 
 
 PPOAgentWithMask = build_trainer(

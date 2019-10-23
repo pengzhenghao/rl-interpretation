@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # spawn_seed = 0
 # num_samples = 200  # From each agent's dataset
 # pca_dim = 50
-
+import ray
 
 def symbolic_agent_rollout(
         yaml_path,
@@ -40,13 +40,15 @@ def symbolic_agent_rollout(
         clear_at_end=True,
         store=True
 ):
+    assert ray.is_initialized()
+
     file_name = osp.join(
         dir_name, "{}agents_{}rollouts_{}children_{}mean_{}std.pkl".format(
             num_agents, num_rollouts, num_children, normal_mean, normal_std
         )
     )
 
-    initialize_ray(num_gpus=4, test_mode=False)
+    # initialize_ray(num_gpus=4, test_mode=False)
 
     if os.path.exists(file_name):
         "File Dected! We will load rollout results from <{}>".format(file_name)
