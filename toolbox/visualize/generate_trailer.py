@@ -42,6 +42,7 @@ class RemoteSymbolicAgentVideoManager(WorkerManagerBase):
         )
 
     def generate_video(self, agent_name, symbolic_agent, base_output_path):
+        agent_name = agent_name.replace(' ', '_')
         output_path = osp.join(base_output_path, agent_name)
         oid = self.current_worker.generate_video.remote(
             symbolic_agent, agent_name, output_path
