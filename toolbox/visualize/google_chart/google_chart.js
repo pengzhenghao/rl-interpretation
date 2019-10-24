@@ -10,25 +10,28 @@ function drawChart() {
             'role': 'tooltip',
             'p': {'html': true}
         }],
-        [8, 12, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
-        [4, 5.5, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
-        [11, 14, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
-        [4, 5, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
-        [3, 3.5, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')],
-        [6.5, 7, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg')]
+        [8, 12, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg',
+            "https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg", 'China')],
+        [4, 5.5, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg',
+            "https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg", 'China')],
+        [11, 14, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg',
+            "https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg", 'China')],
+        [4, 5, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg',
+            "https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg", 'China')],
+        [3, 3.5, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg',
+            "https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg", 'China')],
+        [6.5, 7, createCustomHTMLContent('https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg',
+            "https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg", 'China')]
     ]);
 
-    function createCustomHTMLContent(flagURL) {
-        return '<div style="padding:5px 5px 5px 5px;">' +
-            '<img src="' + flagURL + '" style="width:75px;height:50px"><br/>' +
-            // '<table class="medals_layout">' + '<tr>' +
-            // '<td><img src="https://upload.wikimedia.org/wikipedia/commons/1/15/Gold_medal.svg" style="width:25px;height:25px"/></td>' +
-            // '<td><b>' + totalGold + '</b></td>' + '</tr>' + '<tr>' +
-            // '<td><img src="https://upload.wikimedia.org/wikipedia/commons/0/03/Silver_medal.svg" style="width:25px;height:25px"/></td>' +
-            // '<td><b>' + totalSilver + '</b></td>' + '</tr>' + '<tr>' +
-            // '<td><img src="https://upload.wikimedia.org/wikipedia/commons/5/52/Bronze_medal.svg" style="width:25px;height:25px"/></td>' +
-            // '<td><b>' + totalBronze + '</b></td>' + '</tr>' + '</table>' +
-        '</div>';
+    function createCustomHTMLContent(hyperLink, imagePath, agentName) {
+        return '<dev style="padding:5px 5px 5px 5px;"><a href="' + hyperLink + '"><img src=\"' +
+            imagePath // here is image path
+            + '" id="' + agentName +
+            '" style=\"width:100px; height:100px\"  ></a></dev>';
+        // return '<div style="padding:5px 5px 5px 5px;">' +
+        //     '<img src="' + flagURL + '" style="width:75px;height:50px"><br/>' +
+        // '</div>';
     }
 
     var options = {
