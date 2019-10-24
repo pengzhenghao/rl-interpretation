@@ -96,6 +96,14 @@ for i, std in enumerate(std_search_range):
 
     std_ret_rollout_dict[std] = rollout_ret
 
+ckpt_path_name = osp.join(dir_name, "std_ret_rollout_dict.pkl")
+with open(ckpt_path_name, 'wb') as f:
+    pickle.dump(
+        std_ret_rollout_dict, f
+    )
+    print("ckpt is dump at: ", ckpt_path_name)
+
+
 """
 std_agent_dict_dict looks like this:
 
@@ -120,6 +128,14 @@ for std, content in std_ret_rollout_dict.items():
     for name, (_, agent) in content.items():
         agent_dict[name] = agent
     std_agent_dict_dict[std] = agent_dict
+
+ckpt_path_name = osp.join(dir_name, "std_agent_dict_dict.pkl")
+with open(ckpt_path_name, 'wb') as f:
+    pickle.dump(
+        std_agent_dict_dict, f
+    )
+    print("ckpt is dump at: ", ckpt_path_name)
+
 
 tt = time.time
 
