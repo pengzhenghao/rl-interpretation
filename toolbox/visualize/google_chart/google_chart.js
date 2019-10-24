@@ -30,11 +30,12 @@ function drawChart() {
             '" style=\"width:100px; height:100px\"  ></a></dev>';
     }
 
-    var url, cell_html, row;
+    var url, link, cell_html, row;
     for (row = 0; row < data_table.getNumberOfRows(); row++) {
         url = data_table.getRowProperty(row, "url");
-        cell_html = createCustomHTMLContent(url, url, row);
-        console.log(cell_html);
+        link = data_table.getRowProperty(row, "link");
+        cell_html = createCustomHTMLContent(link, url, row);
+        // console.log(cell_html);
         data_table.setCell(row, 2, cell_html);
     }
 
