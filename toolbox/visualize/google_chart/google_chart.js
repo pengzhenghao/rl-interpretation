@@ -37,11 +37,19 @@ function drawChart() {
         chart.draw(data_table, options);
     }
 
-    function createCustomHTMLContent(hyperLink, imagePath, agentName) {
-        return '<dev style="padding:5px 5px 5px 5px;"><a href="' + hyperLink + '"><img src=\"' +
-            imagePath // here is image path
-            + '" id="' + agentName +
-            '" style=\"width:100px; height:100px\"  ></a></dev>';
+    function createCustomHTMLContent(hyperLink, imagePath) {
+        console.log('Enter!')
+        return '<dev style="padding:0px 0px 0px 0px;">' +
+            // '<a href="' + hyperLink + '">' +
+            '<video width="80" height="80" autoplay loop muted>' +
+            '<source src="' + imagePath +
+            '" type="video/mp4" /></video>' +
+            // '</a>' +
+            '</dev>'
+        // return '<dev style="padding:5px 5px 5px 5px;"><a href="' + hyperLink + '"><img src=\"' +
+        //     imagePath // here is image path
+        //     + '" id="' + agentName +
+        //     '" style=\"width:100px; height:100px\"  ></a></dev>';
     }
 
     function get_data_table(std) {
@@ -52,7 +60,7 @@ function drawChart() {
             {
                 'type': 'string',
                 'role': 'tooltip',
-                'p': {'html': true, 'role': "tooltip"}
+                'p': {'html': true}
             }
         );
 
@@ -60,7 +68,7 @@ function drawChart() {
         for (row = 0; row < data_table.getNumberOfRows(); row++) {
             url = data_table.getRowProperty(row, "url");
             link = data_table.getRowProperty(row, "link");
-            cell_html = createCustomHTMLContent(link, url, row);
+            cell_html = createCustomHTMLContent(link, url);
             data_table.setCell(row, 2, cell_html);
         }
         return data_table
