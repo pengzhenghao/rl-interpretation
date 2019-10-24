@@ -1,6 +1,7 @@
 from toolbox.process_data.process_data import get_name_ckpt_mapping, read_yaml
 from toolbox.utils import initialize_ray
 from toolbox.visualize.generate_gif import generate_gif_from_agent
+from toolbox.visualize.generate_trailer import generate_trailer_from_agent
 from toolbox.visualize.record_video import (
     create_parser, GridVideoRecorder, generate_grid_of_videos, rename_agent
 )
@@ -14,6 +15,16 @@ FPS = 50
 get_ppo_agent = lambda env_name: restore_agent("PPO", None, env_name)
 get_ppo_agent_with_mask = lambda env_name: restore_agent_with_mask("PPO", None, env_name)
 
+
+def test_generate_trailer_from_agent():
+    initialize_ray(test_mode=True)
+    agent = get_ppo_agent("BipedalWalker-v2")
+    ret = generate_trailer_from_agent(agent, "test_agent", "/tmp/test_genrate_gif", _steps=50)
+    print(ret)
+    # agent = get_ppo_agent_with_mask("BipedalWalker-v2")
+    # ret = generate_gif_from_agent(agent, "test_agent", "/tmp/test_genrate_gif_with_mask", _steps=50)
+    # print(ret)
+    return ret
 
 def test_generate_gif_from_agent():
     initialize_ray(test_mode=True)

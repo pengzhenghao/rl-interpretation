@@ -357,6 +357,18 @@ class VideoRecorder(object):
         # self._add_things_on_backgaround(frames_dict)
         return self.background
 
+    def generate_single_video(self, frames_dict):
+        """This function generate simplest video."""
+        assert len(frames_dict) == 1
+
+        for frame_info in frames_dict:
+            frame = frame_info['frame']
+            self._encode_image_frame(frame)
+
+        self._close()
+        return self.path
+
+
     def generate_video(self, frames_dict, extra_info_dict, require_text=True):
         """Render the given `env` and add the resulting frame to the video."""
         logger.debug('Capturing video frame: path=%s', self.path)
