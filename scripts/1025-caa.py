@@ -17,9 +17,9 @@ from toolbox.interface.cross_agent import CrossAgentAnalyst
 THIS_SCRIPT_IS_IN_TEST_MODE = False
 num_agents = 10
 num_rollouts = 10
-num_workers = 16
+num_workers = 8
 dir_name = "./1023-cross-agent-retrain-NEW"
-num_replay_workers = 16
+num_replay_workers = 8
 os.makedirs(dir_name, exist_ok=True)
 
 tt = time.time
@@ -121,7 +121,7 @@ def remote_restore_and_compute(rollout_ret, now, start, dir_name, std):
 
 start = now = time.time()
 
-with open("retrain_agent_result_std=0.9-copy.pkl", 'rb') as f:
+with open("1023-cross-agent-retrain/retrain_agent_result_std=0.9-copy.pkl", 'rb') as f:
     data = pickle.load(f)
 
 ckpt = {
@@ -130,6 +130,8 @@ ckpt = {
     "env_name": "BipedalWalker-v2",
     "name": "test agent"
 }
+
+init_ray()
 
 nest_agent = OrderedDict()
 for std, agent_dict in data.items():
