@@ -1,4 +1,4 @@
-google.charts.load('current', {'packages': ['corechart']});
+google.charts.load('current', {'packages': ['corechart', 'controls']});
 google.charts.setOnLoadCallback(drawChart);
 
 var data_table;
@@ -8,6 +8,7 @@ var rawData = $.parseJSON($.ajax({
     dataType: "json",
     async: false
 }).responseText);
+
 
 function drawChart() {
     data_table = new google.visualization.DataTable(rawData['data']);
@@ -58,5 +59,26 @@ function drawChart() {
         aggregationTarget: 'none',
         selectionMode: 'multiple'
     };
+
     chart.draw(data_table, options);
+
+    // Create the slider for std changing
+    var slider = document.getElementById("myRange");
+    var output = document.getElementById("demo");
+    output.innerHTML = slider.value;
+
+    slider.oninput = function () {
+        var std = get_exact_std(this.value)
+        output.innerHTML = std;
+        change_data(std);
+    };
+
+    function get_exact_std(slider_value) {
+        return slider_value * 1.5
+    }
+
+    function change_data(std) {
+        return null
+    }
+
 }
