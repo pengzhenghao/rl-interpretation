@@ -3,16 +3,14 @@ google.charts.setOnLoadCallback(drawChart);
 
 var data_table;
 
-var jsonData = $.ajax({
+var rawData = $.parseJSON($.ajax({
     url: 'test_data.json',
     dataType: "json",
     async: false
-}).responseText;
+}).responseText);
 
 function drawChart() {
-
-
-    data_table = new google.visualization.DataTable(jsonData);
+    data_table = new google.visualization.DataTable(rawData['data']);
 
     // Fill the tooltip
     data_table.addColumn(
@@ -42,11 +40,20 @@ function drawChart() {
     // Create the chart
     var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
 
+    var info = rawData['info']
     var options = {
         tooltip: {isHtml: true, trigger: 'selection'},
-        title: 'Age vs. Weight comparison',
-        hAxis: {title: 'X'},
-        vAxis: {title: 'Y'},
+        title: info['title'],
+        hAxis: {
+            title: info['xlabel'],
+            minValue: info['xlim'] ? info['xlim'][0] : null,
+            maxValue: info['xlim'] ? info['xlim'][1] : null
+        },
+        vAxis: {
+            title: info['ylabel'],
+            minValue: info['ylim'] ? info['ylim'][0] : null,
+            maxValue: info['ylim'] ? info['ylim'][1] : null
+        },
         legend: 'none',
         aggregationTarget: 'none',
         selectionMode: 'multiple'
