@@ -57,27 +57,32 @@ class WorkerManagerBase:
     #     self._postprocess(name, oid)
 
     # @property
-    def get_status(self):
+    def get_status(self, force=False):
         assert not self.deleted, self.error_string
         obj_list = [
             wd['obj'] for wd in self.worker_dict.values()
             if wd['obj'] is not None
         ]
         assert len(obj_list) <= self.num_workers
-
-        finished, pending = ray.wait(obj_list, len(obj_list), timeout=0)
+        if not force:
+            finished, pending = ray.wait(obj_list, len(obj_list), timeout=0)
+        else:
+            # At least wait for one.
+            finished, pending = ray.wait(obj_list, 1, None)
         return finished, pending
 
     @property
     def current_worker(self):
         assert not self.deleted, self.error_string
-        assert self.pointer is None, "self.pointer should be reset before!"
+        # assert self.pointer is None, "self.pointer should be reset before!"
         """Assign an idle worker to current task."""
         for i, wd in self.worker_dict.items():
             if wd['obj'] is None:
                 self.pointer = i
                 return wd['worker']
-        raise ValueError("No available worker found!")
+        raise ValueError("No available worker found! {} | {}".format(
+            self.worker_dict, self.get_status()
+        ))
 
     def postprocess(self, name, obj_id):
         assert self.pointer is not None, \
@@ -98,11 +103,7 @@ class WorkerManagerBase:
         self.worker_dict[self.pointer]['obj'] = obj_id
         self.obj_name_dict[obj_id] = {'index': self.pointer, 'name': name}
 
-        finished, pending = self.get_status()
-
-        if (len(pending) + len(finished) >= self.num_workers) or \
-                (len(finished) > 0):
-            self._collect(finished)
+        self._collect()
 
         self.pointer = None
 
@@ -110,11 +111,27 @@ class WorkerManagerBase:
         """This function provide the string for printing."""
         return ""
 
-    def _collect(self, finished_obj_list):
+    def _collect(self, force=False):
         """Update version of _collect only take one."""
         assert not self.deleted, self.error_string
 
-        for oid in finished_obj_list:
+        finished, pending = self.get_status()
+
+        if (not force) and \
+                ((len(pending) + len(finished) < self.num_workers)
+                 and
+                 (len(finished) == 0)):
+            # test
+            # assert self.current_worker is not None
+            return
+
+        # At least release one worker.
+        finished, pending = self.get_status(force=True)
+
+        if force:
+            finished = finished + pending
+
+        for oid in finished:
             ret = ray_get_and_free(oid)
 
             obj_info = self.obj_name_dict.pop(oid)
@@ -140,7 +157,7 @@ class WorkerManagerBase:
 
     def get_result(self):
         assert not self.deleted, self.error_string
-        self._collect()
+        self._collect(force=True)
         # The result should be pickleable!
         for w_info in self.worker_dict.values():
             w_info['worker'].close.remote()
