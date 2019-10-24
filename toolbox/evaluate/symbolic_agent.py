@@ -4,7 +4,7 @@ import numpy as np
 import copy
 from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 
-logger = logging.getLogger(__name__)
+logger = logging
 
 
 class SymbolicAgentBase(object):
@@ -114,6 +114,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         self.weights = self.agent.get_weights()
         self.agent_info['agent'] = self.agent
         self.agent_info['mask'] = self.mask
+        self.agent_info['weights'] = self.weights
         return self.agent_info
 
     def __getstate__(self):
