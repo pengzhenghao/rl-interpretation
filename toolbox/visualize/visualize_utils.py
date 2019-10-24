@@ -493,6 +493,7 @@ class VideoRecorder(object):
         obj_ids = []
         mode_path_dict = {}
         for mode in self.allow_gif_mode:
+            print("Start to collect mode: ", mode, len(resize_frames))
             if mode == 'hd':
                 clip = frames
                 fps = self.frames_per_sec
@@ -518,13 +519,19 @@ class VideoRecorder(object):
 
             elif mode == 'period':
                 period = min(frames_info['period'], length)
-                clip = resize_frames[int((length - period) /
+                if period > length:
+                    clip = resize_frames
+                else:
+                    clip = resize_frames[int((length - period) /
                                          2):int((length + period) / 2)]
                 fps = self.frames_per_sec / 4
 
             elif mode == '3period':
                 period = min(3 * frames_info['period'], length)
-                clip = resize_frames[int((length - period) /
+                if period > length:
+                    clip = resize_frames
+                else:
+                    clip = resize_frames[int((length - period) /
                                          2):int((length + period) / 2)]
                 fps = self.frames_per_sec / 4
 
@@ -538,7 +545,7 @@ class VideoRecorder(object):
             )
             os.makedirs(os.path.dirname(gif_path), exist_ok=True)
             # print("input: ", gif_path, int(fps))
-            obj_id = remote_generate_gif.remote(clip, gif_path, int(fps))
+            obj_id = remote_generate_gif.remote(clip.copy(), gif_path, int(fps))
             print("Collect obj_id from remote_generate_gif: ", obj_id)
             obj_ids.append(obj_id)
             mode_path_dict[mode] = gif_path

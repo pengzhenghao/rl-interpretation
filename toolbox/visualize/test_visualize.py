@@ -4,7 +4,7 @@ from toolbox.visualize.generate_gif import generate_gif_from_agent
 from toolbox.visualize.record_video import (
     create_parser, GridVideoRecorder, generate_grid_of_videos, rename_agent
 )
-from toolbox.evaluate.evaluate_utils import restore_agent
+from toolbox.evaluate.evaluate_utils import restore_agent, restore_agent_with_mask
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
@@ -12,12 +12,16 @@ VIDEO_HEIGHT = 1080
 FPS = 50
 
 get_ppo_agent = lambda env_name: restore_agent("PPO", None, env_name)
+get_ppo_agent_with_mask = lambda env_name: restore_agent_with_mask("PPO", None, env_name)
 
 
 def test_generate_gif_from_agent():
     initialize_ray(test_mode=True)
     agent = get_ppo_agent("BipedalWalker-v2")
-    ret = generate_gif_from_agent(agent, "test_agent", "/tmp/test_genrate_gif")
+    ret = generate_gif_from_agent(agent, "test_agent", "/tmp/test_genrate_gif", _steps=50)
+    print(ret)
+    agent = get_ppo_agent_with_mask("BipedalWalker-v2")
+    ret = generate_gif_from_agent(agent, "test_agent", "/tmp/test_genrate_gif_with_mask", _steps=50)
     print(ret)
     return ret
 
@@ -180,9 +184,10 @@ if __name__ == '__main__':
     import os
 
     # os.chdir("../../")
-    print("CURRENT LOCATION: ", os.getcwd())
+    # print("CURRENT LOCATION: ", os.getcwd())
     # test_generate_single_video()
     # test_generate_two_videos()
-    test_generate_two_videos2()
+    # test_generate_two_videos2()
     # test_generate_gif_from_agent_mujoco_environemnt()
     # test_generate_gif_from_restored_agent_mujoco_environemnt()
+    test_generate_gif_from_agent()

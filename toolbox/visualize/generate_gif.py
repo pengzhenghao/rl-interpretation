@@ -7,7 +7,7 @@ from toolbox.visualize.record_video import GridVideoRecorder
 
 
 def generate_gif_from_agent(
-        agent, agent_name, output_path, require_full_frame=False
+        agent, agent_name, output_path, require_full_frame=False, _steps=None
 ):
 
     env_name = agent.config['env']
@@ -17,7 +17,7 @@ def generate_gif_from_agent(
         video_path=output_path, fps=fps, require_full_frame=require_full_frame
     )
     frames_dict, extra_info_dict = gvr.generate_frames_from_agent(
-        agent, agent_name
+        agent, agent_name, num_steps=_steps
     )
 
     name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     name_ckpt_mapping = get_name_ckpt_mapping(args.yaml_path)
 
-    gvr = GridVideoRecorder(video_path=args.output_path, fps=FPS)
+    gvr = GridVideoRecorder(video_path=args.output_path, fps=50)
 
     frames_dict, extra_info_dict = gvr.generate_frames(name_ckpt_mapping)
     name_path_dict = gvr.generate_gif(frames_dict, extra_info_dict)
