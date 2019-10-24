@@ -164,7 +164,8 @@ class GridVideoRecorder(object):
             num_steps=None,
             seed=0,
             render_mode="rgb_array",
-            require_trajectory=False
+            require_trajectory=False,
+            ideal_steps=None
     ):
         config = agent.config
         env_name = config["env"]
@@ -172,21 +173,30 @@ class GridVideoRecorder(object):
         if seed is not None:
             assert isinstance(seed, int)
             env.seed(seed)
-        result = copy.deepcopy(
-            rollout(
-                agent,
-                env,
-                env_name,
-                num_steps,
-                require_frame=True,
-                require_trajectory=require_trajectory,
-                require_full_frame=self.require_full_frame,
-                render_mode=render_mode
+
+        for iteration in range(10):
+
+            result = copy.deepcopy(
+                rollout(
+                    agent,
+                    env,
+                    env_name,
+                    num_steps,
+                    require_frame=True,
+                    require_trajectory=require_trajectory,
+                    require_full_frame=self.require_full_frame,
+                    render_mode=render_mode
+                )
             )
-        )
-        frames, extra_info = result['frames'], result['frame_extra_info']
-        if require_trajectory:
-            extra_info['trajectory'] = result['trajectory']
+            frames, extra_info = result['frames'], result['frame_extra_info']
+            if require_trajectory:
+                extra_info['trajectory'] = result['trajectory']
+
+            if ideal_steps is None:
+                break
+            elif len(frames) > ideal_steps:
+                break
+
         env.close()
         agent.stop()
         period_info = extra_info['period_info']

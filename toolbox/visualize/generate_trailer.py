@@ -14,7 +14,7 @@ def generate_trailer_from_agent(
         video_path=output_path, fps=fps, require_full_frame=require_full_frame
     )
     frames_dict, extra_info_dict = gvr.generate_frames_from_agent(
-        agent, agent_name, num_steps=_steps or 1000
+        agent, agent_name, num_steps=_steps or 1000, ideal_steps=200
     )
 
     path = gvr.generate_single_video(frames_dict)
