@@ -4,7 +4,7 @@ import numpy as np
 import copy
 from toolbox.evaluate.evaluate_utils import restore_agent_with_mask
 
-logger = logging
+logger = logging.getLogger(__name__)
 
 
 class SymbolicAgentBase(object):
@@ -22,7 +22,7 @@ class SymbolicAgentBase(object):
 
 
 class MaskSymbolicAgent(SymbolicAgentBase):
-    def __init__(self, ckpt_info, mask_callback_info=None, name=None):
+    def __init__(self, ckpt_info, mask_callback_info=None, name=None, existing_weights=None):
         super(MaskSymbolicAgent, self).__init__()
         self.ckpt_info = ckpt_info
         self.agent_info = self.ckpt_info.copy()
@@ -37,7 +37,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
 
         self.mask = None
         self.mask_callback_info = mask_callback_info
-        self.weights = None
+        self.weights = existing_weights
 
     def mask_callback(self, agent):
         if self.mask is not None:
