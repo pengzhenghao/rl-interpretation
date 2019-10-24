@@ -37,6 +37,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
 
         self.mask = None
         self.mask_callback_info = mask_callback_info
+        self.weights = None
 
     def mask_callback(self, agent):
         if self.mask is not None:
@@ -83,7 +84,7 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             # we do not clear the mask, so that the agent is maintained and
             # recoverable! This is really important.
 
-    def get(self, existing_agent=None):
+    def get(self, existing_agent=None, existing_weights=None):
         if self.initialized:
             return self.agent_info
         if not self.initialized and self.mask is not None:
@@ -95,10 +96,22 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         run_name = ckpt['run_name']
         ckpt_path = ckpt['path']
         env_name = ckpt['env_name']
+
+        if existing_weights is not None:
+            self.weights = existing_weights.copy()
+            ckpt_path = None
+            logger.info("Override the ckpt with you provided agent weights!")
+
         self.agent = restore_agent_with_mask(
             run_name, ckpt_path, env_name, existing_agent=existing_agent
         )
         self.agent = self.mask_callback(self.agent)
+
+        if self.weights is not None:
+            self.agent.set_weights(self.weights)
+            logger.info("Successfully set weights for agent.")
+
+        self.weights = self.agent.get_weights()
         self.agent_info['agent'] = self.agent
         self.agent_info['mask'] = self.mask
         return self.agent_info
