@@ -108,8 +108,8 @@ class VideoRecorder(object):
         # if int, then it represent the number of videos
         # if dict, then it should be like {agent_name: (row, col)}
         self.frame_shape = None
-        assert generate_gif or isinstance(grids,
-                                          int) or isinstance(grids, dict)
+        # assert generate_gif or isinstance(grids,
+        #                                   int) or isinstance(grids, dict)
         self.grids = grids
         self.frame_range = None
         self.scale = scale or 1
@@ -360,11 +360,10 @@ class VideoRecorder(object):
     def generate_single_video(self, frames_dict):
         """This function generate simplest video."""
         assert len(frames_dict) == 1
-
-        for frame_info in frames_dict:
-            frame = frame_info['frame']
-            self._encode_image_frame(frame)
-
+        frames = next(iter(frames_dict.values()))['frames']
+        assert isinstance(frames, np.ndarray)
+        for frame in frames:
+            self._encode_image_frame(frame[..., ::-1])
         self._close()
         return self.path
 
