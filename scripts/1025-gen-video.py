@@ -10,7 +10,7 @@ from toolbox.visualize.generate_trailer import RemoteSymbolicAgentVideoManager
 
 
 def ir():
-    initialize_ray(test_mode=True, num_gpus=2)
+    initialize_ray(test_mode=False, num_gpus=2)
 
 
 def sr():
