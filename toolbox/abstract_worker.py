@@ -3,6 +3,7 @@ import time
 from collections import OrderedDict
 
 import ray
+from ray.rllib.utils.memory import ray_get_and_free
 
 from toolbox.utils import get_num_gpus
 
@@ -31,14 +32,14 @@ class WorkerManagerBase:
         num_gpus = get_num_gpus(num_workers)
 
         assert issubclass(worker_class, WorkerBase)
-        self.workers = [
-            worker_class.as_remote(num_gpus=num_gpus).remote()
-            for _ in range(num_workers)
-        ]
+        self.worker_dict = OrderedDict()
+        for i in range(num_workers):
+            w = worker_class.as_remote(num_gpus=num_gpus).remote()
+            self.worker_dict[i] = {'worker': w, 'obj': None, 'name': None}
 
-        self.pointer = 0
-        self.obj_dict = OrderedDict()
+        self.obj_name_dict = dict()
         self.ret_dict = OrderedDict()
+
         self.start_count = 0
         self.finish_count = 0
         self.now = self.start = time.time()
@@ -46,20 +47,41 @@ class WorkerManagerBase:
         self.log_interval = log_interval
         self.print_string = print_string
         self.deleted = False
+        self.pointer = None
 
     # Example usage:
-    # def replay(self, index, symbolic_agent, obs):
+    # def replay(self, name, symbolic_agent, obs):
     #     assert isinstance(symbolic_agent, SymbolicAgentBase)
     #     symbolic_agent.clear()
     #     oid = self.current_worker.replay.remote(symbolic_agent, obs)
-    #     self._postprocess(index, oid)
+    #     self._postprocess(name, oid)
+
+    # @property
+    def get_status(self):
+        assert not self.deleted, self.error_string
+        obj_list = [
+            wd['obj'] for wd in self.worker_dict.values()
+            if wd['obj'] is not None
+        ]
+        assert len(obj_list) <= self.num_workers
+
+        finished, pending = ray.wait(obj_list, len(obj_list), timeout=0)
+        return finished, pending
 
     @property
     def current_worker(self):
-        assert not self.deleted
-        return self.workers[self.pointer]
+        assert not self.deleted, self.error_string
+        assert self.pointer is None, "self.pointer should be reset before!"
+        """Assign an idle worker to current task."""
+        for i, wd in self.worker_dict.items():
+            if wd['obj'] is None:
+                self.pointer = i
+                return wd['worker']
+        raise ValueError("No available worker found!")
 
-    def postprocess(self, index, obj_id):
+    def postprocess(self, name, obj_id):
+        assert self.pointer is not None, \
+            "You should call self.current_worker first!"
         assert not self.deleted, self.error_string
         self.start_count += 1
         if self.start_count % self.log_interval == 0:
@@ -67,26 +89,42 @@ class WorkerManagerBase:
                 "[{}/{}] (+{:.2f}s/{:.2f}s) Start {}: {}!".format(
                     self.start_count, self.total_num,
                     time.time() - self.now,
-                    time.time() - self.start, self.print_string, index
+                    time.time() - self.start, self.print_string, name
                 )
             )
             self.now = time.time()
 
-        self.obj_dict[index] = obj_id
-        self.pointer += 1
-        if self.pointer == self.num_workers:
-            self._collect()
-            self.pointer = 0
+        self.worker_dict[self.pointer]['name'] = name
+        self.worker_dict[self.pointer]['obj'] = obj_id
+        self.obj_name_dict[obj_id] = {'index': self.pointer, 'name': name}
+
+        finished, pending = self.get_status()
+
+        if (len(pending) + len(finished) >= self.num_workers) or \
+                (len(finished) > 0):
+            self._collect(finished)
+
+        self.pointer = None
 
     def parse_result(self, result):
         """This function provide the string for printing."""
         return ""
 
-    def _collect(self):
+    def _collect(self, finished_obj_list):
+        """Update version of _collect only take one."""
         assert not self.deleted, self.error_string
-        for name, oid in self.obj_dict.items():
-            ret = copy.deepcopy(ray.get(oid))
+
+        for oid in finished_obj_list:
+            ret = ray_get_and_free(oid)
+
+            obj_info = self.obj_name_dict.pop(oid)
+            name = obj_info['name']
+            worker_index = obj_info['index']
+
             self.ret_dict[name] = ret
+
+            self.worker_dict[worker_index]['obj'] = None
+            self.worker_dict[worker_index]['name'] = None
 
             self.finish_count += 1
             if self.finish_count % self.log_interval == 0:
@@ -99,21 +137,21 @@ class WorkerManagerBase:
                     )
                 )
                 self.now = time.time()
-        self.obj_dict.clear()
 
     def get_result(self):
         assert not self.deleted, self.error_string
         self._collect()
         # The result should be pickleable!
-        for w in self.workers:
-            w.close.remote()
-        self.workers.clear()
+        for w_info in self.worker_dict.values():
+            w_info['worker'].close.remote()
+        self.worker_dict.clear()
+        self.obj_name_dict.clear()
         self.deleted = True
         return copy.deepcopy(self.ret_dict)
 
     def get_result_from_memory(self):
         return copy.deepcopy(self.ret_dict)
 
-    error_string = "The get_result function should only be called once! If you" \
-                   "really want to retrieve the data," \
+    error_string = "The get_result function should only be called once! If " \
+                   "you really want to retrieve the data," \
                    " please call self.get_result_from_memory() !"
