@@ -23,15 +23,13 @@ def generate_trailer_from_agent(
 
 class _SymbolicAgentVideoWorker(WorkerBase):
     def __init__(self):
+        # We don't reuse agent here, because it lead to strange bug..
+        # and the video-generation is time consuming
+        # so it's not necessary to reuse agent.
         self.existing_agent = None
 
     def generate_video(self, symbolic_agent, agent_name, output_path):
-        if self.existing_agent is None:
-            agent = symbolic_agent.get()['agent']
-            self.existing_agent = agent
-        else:
-            agent = symbolic_agent.get(self.existing_agent)['agent']
-
+        agent = symbolic_agent.get()['agent']
         path = generate_trailer_from_agent(agent, agent_name, output_path)
         return path
 
@@ -62,6 +60,8 @@ def test():
     import shutil
 
     initialize_ray(test_mode=True)
+
+    print("Finish init")
 
     num_workers = 4
     num_agents = 8
