@@ -12,14 +12,16 @@ class _RemoteSymbolicTrainWorker(WorkerBase):
     def __init__(self):
         self.existing_agent = None
 
-    def finetune(self, symbolic_agent, stop_criterion):
+    def run(self, symbolic_agent, stop_criterion):
         assert isinstance(stop_criterion, dict)
 
         if self.existing_agent is None:
-            agent = symbolic_agent.get()['agent']
+            agent = symbolic_agent.get(default_config=True)['agent']
             self.existing_agent = agent
         else:
-            agent = symbolic_agent.get(self.existing_agent)['agent']
+            agent = symbolic_agent.get(
+                self.existing_agent, default_config=True
+            )['agent']
 
         result_list = []
         break_flag = False
@@ -66,13 +68,8 @@ class RemoteSymbolicTrainManager(WorkerManagerBase):
         for key in stop_criterion.keys():
             assert key in keys
         assert isinstance(symbolic_agent, SymbolicAgentBase)
-
         symbolic_agent.clear()
-
-        oid = self.current_worker.finetune.remote(
-            symbolic_agent, stop_criterion
-        )
-        self.postprocess(index, oid)
+        self.submit(index, symbolic_agent, stop_criterion)
 
     def parse_result(self, result):
         """Overwrite the original function"""
