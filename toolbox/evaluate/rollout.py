@@ -374,6 +374,7 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
             ret_list.append(ret)
 
         agent.clear()
+
         return ret_list, copy.deepcopy(agent)
 
 
