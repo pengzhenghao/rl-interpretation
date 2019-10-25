@@ -20,6 +20,9 @@ class SymbolicAgentBase(object):
     def get(self):
         raise NotImplementedError
 
+    def clear(self):
+        pass
+
 
 class MaskSymbolicAgent(SymbolicAgentBase):
     def __init__(self, ckpt_info, mask_callback_info=None, name=None, existing_weights=None):

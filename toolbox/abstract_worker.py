@@ -2,7 +2,9 @@ import copy
 import logging
 import time
 from collections import OrderedDict
+
 import ray
+
 # from ray.rllib.utils.memory import ray_get_and_free
 
 ###############################
@@ -17,6 +19,7 @@ MAX_FREE_QUEUE_SIZE = 100
 _last_free_time = 0.0
 _to_free = []
 _old_keys = set()
+
 
 def ray_get_and_free(object_ids, max_free_queue_size=MAX_FREE_QUEUE_SIZE):
     """Call ray.get and then queue the object ids for deletion.
@@ -35,7 +38,7 @@ def ray_get_and_free(object_ids, max_free_queue_size=MAX_FREE_QUEUE_SIZE):
     global _last_free_time
     global _to_free
 
-    global  _old_keys
+    global _old_keys
     new_keys = copy.deepcopy(set([str(o) for o in ray.objects().keys()]))
 
     # print('[ray get] difference: ', new_keys.symmetric_difference(_old_keys),
@@ -43,8 +46,9 @@ def ray_get_and_free(object_ids, max_free_queue_size=MAX_FREE_QUEUE_SIZE):
 
     _old_keys = new_keys
 
-    print('[ray get] before get')
-    print("[ray get] DEBUG: ", ray.worker.global_worker.plasma_client.debug_string())
+    # print('[ray get] before get')
+    # print("[ray get] DEBUG: ",
+    # ray.worker.global_worker.plasma_client.debug_string())
     try:
         old_result = ray.get(object_ids)
         result = copy.deepcopy(old_result)
@@ -55,26 +59,25 @@ def ray_get_and_free(object_ids, max_free_queue_size=MAX_FREE_QUEUE_SIZE):
 
     # old_keys = copy.deepcopy(set([str(o) for o in ray.objects().keys()]))
 
-
     if type(object_ids) is not list:
         object_ids = [object_ids]
     _to_free.extend(object_ids)
 
-    print('[ray get] after get')
+    # print('[ray get] after get')
     # batch calls to free to reduce overheads
     now = time.time()
     if (len(_to_free) > max_free_queue_size
             or now - _last_free_time > FREE_DELAY_S):
-        print('[ray get] start clean')
+        # print('[ray get] start clean')
         ray.internal.free(_to_free)
         _to_free = []
         _last_free_time = now
 
-
-
-    print('[ray get] exit')
+    # print('[ray get] exit')
 
     return result
+
+
 ###########################################
 
 from toolbox.utils import get_num_gpus, get_num_cpus
@@ -109,14 +112,14 @@ class WorkerManagerBase:
         assert issubclass(worker_class, WorkerBase)
         self.worker_dict = OrderedDict()
         for i in range(num_workers):
-            w = worker_class.as_remote(num_gpus=num_gpus,
-                                       num_cpus=num_cpus).remote()
-            self.worker_dict[i] = {'worker': w, 'obj': None, 'name': None,
-                                   'time': None}
-
-        # self.obj_name_dict = dict()
+            self.worker_dict[i] = {
+                'worker': worker_class.as_remote(
+                    num_gpus=num_gpus, num_cpus=num_cpus).remote(),
+                'obj': None,
+                'name': None,
+                'time': None
+            }
         self.ret_dict = OrderedDict()
-
         self.start_count = 0
         self.finish_count = 0
         self.now = self.start = time.time()
@@ -126,8 +129,6 @@ class WorkerManagerBase:
         self.deleted = False
         self._pointer = None
 
-        # self._accessed_obj = set()
-
     # Example usage:
     # def replay(self, name, symbolic_agent, obs):
     #     assert isinstance(symbolic_agent, SymbolicAgentBase)
@@ -136,31 +137,24 @@ class WorkerManagerBase:
     #     self._postprocess(name, oid)
 
     # @property
-    def get_status(self, force_wait=False, _test=False):
+    def get_status(self, force_wait=False, at_end=False):
         assert not self.deleted, self.error_string
         obj_list = [
             wd['obj'] for wd in self.worker_dict.values()
             if wd['obj'] is not None
         ]
         assert len(obj_list) <= self.num_workers
-        if not force_wait:
-            finished, pending = ray.wait(obj_list, len(obj_list), timeout=0)
+        if (not force_wait) or at_end:
+            finished, pending = ray.wait(obj_list, len(obj_list),
+                                         timeout=None if at_end else 0)
+            print("length of finished at not force wait", len(finished))
         else:
-            # print("DEBUG use. Now we stuck at get_status: {}s".format(
-            #     time.time() - self.start)
-            # )
-            # At least wait for one.
-            if _test:
-                print("Obj list: {}\nself.worker: {}".format(
-                    obj_list, self.worker_dict
-                ))
-            finished, pending = ray.wait(obj_list, 1, timeout=10.0)
+            finished, pending = ray.wait(obj_list, 1)
         return finished, pending
 
     @property
     def current_worker(self):
         assert not self.deleted, self.error_string
-        # assert self._pointer is None, "self._pointer should be reset before!"
         """Assign an idle worker to current task."""
         for i, wd in self.worker_dict.items():
             if wd['obj'] is None:
@@ -191,6 +185,7 @@ class WorkerManagerBase:
         # self.obj_name_dict[obj_id] = {'index': self._pointer, 'name': name}
 
         self._collect()
+        print("Finish postprocess for ", name)
 
     def parse_result(self, result):
         """This function provide the string for printing."""
@@ -200,57 +195,43 @@ class WorkerManagerBase:
         """Update version of _collect only take one."""
         assert not self.deleted, self.error_string
 
-        finished, pending = self.get_status()
-        if (not force) and (len(finished) == 0) \
-                and (len(pending) + len(finished) < self.num_workers):
+        # If at the end.
+        if force:
+            print("[_collect] Enter force-case")
+            finished, pending = self.get_status(at_end=True)
+            assert len(pending) == 0
+
+            print("[_collect] Start collect force-case")
+            self._get_object_list(finished)
             return
 
-        while True:
-            finished, pending = self.get_status(force_wait=True, _test=force)
-            # assert len(self.obj_name_dict) == len(finished) + len(pending)
+        # If at the beginning.
+        finished, pending = self.get_status()
+        if (len(finished) == 0) and \
+                (len(pending) + len(finished) < self.num_workers):
+            assert len(pending) + len(finished) == \
+                   len([1 for wd in self.worker_dict.values()
+                        if wd['name'] is not None])
+            return
 
-            if (not finished) and (not pending):
-                # Finish collection everything.
-                assert force  # Now it should be get_result()
-                break
+        if len(finished) == 0:
+            # Load at least one result.
+            finished, pending = self.get_status(force_wait=True)
+            assert len(finished) >= 1
+        self._get_object_list(finished)
 
-            if not finished:
-                print("Nothing found! Now: {:.2f}s".format(time.time() - self.start))
-                continue
-
-            oid = finished[0]
-            # assert oid not in self._accessed_obj
-            # self._accessed_obj.add(str(oid))
-
-            # if force:
-            #     print(
-            #         "In force _collect now {}, total {}. Curretn id {
-            #         }".format(
-            #             i, len(finished), oid
-            #         ), ray.available_resources())
-            #     assert oid in self.obj_name_dict.keys()
-            ret = ray_get_and_free(oid, 2)
-
-            # print("After collect oid index {}, we have get status: {
-            # }".format(
-            #     i, self.get_status()
-            # ))
-
-            found = False
+    def _get_object_list(self, obj_list):
+        for object_id in obj_list:
+            ret = ray_get_and_free(object_id)
+            name = None
             for worker_index, worker_info in self.worker_dict.items():
-                if worker_info['obj'] == oid:
+                if worker_info['obj'] == object_id:
                     name = worker_info['name']
-                    found = True
                     break
-            if not found:
+            if name is None:
                 raise ValueError()
 
-            # obj_info = self.obj_name_dict.pop(oid)
-            # name = obj_info['name']
-            # worker_index = obj_info['index']
-
             self.ret_dict[name] = ret
-
             task_start_time = self.worker_dict[worker_index]['time']
             self.worker_dict[worker_index]['obj'] = None
             self.worker_dict[worker_index]['name'] = None
@@ -268,13 +249,6 @@ class WorkerManagerBase:
                     )
                 )
                 self.now = time.time()
-
-            if not force:
-                break
-
-        # print('Quit _collect, force? {}. len obj_dict {}'.format(
-        #     force, len(self.obj_name_dict)
-        # ))
 
     def get_result(self):
         assert not self.deleted, self.error_string
@@ -316,8 +290,9 @@ def test():
             self.count += 1
             print(self.count, ray.cluster_resources())
             print("")
+            return self.count, np.empty((1000000))
             # return copy.deepcopy((self.count, np.empty((20000000))))
-            return self.count, np.empty((20000000))
+            # return self.count, np.empty((20000000))
 
     class TestManager(WorkerManagerBase):
         def __init__(self):

@@ -12,7 +12,6 @@ import logging
 import os
 import pickle
 import time
-from collections import OrderedDict
 from math import ceil
 
 import numpy as np
@@ -29,7 +28,7 @@ from toolbox.evaluate.symbolic_agent import SymbolicAgentBase
 from toolbox.modified_rllib.agent_with_activation import \
     PPOTFPolicyWithActivation
 from toolbox.process_data.process_data import read_yaml
-from toolbox.utils import initialize_ray, has_gpu, get_num_gpus
+from toolbox.utils import initialize_ray, has_gpu
 
 logger = logging.getLogger(__name__)
 
@@ -337,6 +336,7 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
 
     def rollout(
             self,
+            INDEX,
             agent,
             num_rollouts,
             env_wrapper,
@@ -349,6 +349,9 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
             require_env_state=False,
             render_mode="rgb_array"
     ):
+
+        enter_set = set(ray.objects().keys()).copy()
+
         ret_list = []
         assert isinstance(agent, SymbolicAgentBase)
 
@@ -358,12 +361,21 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
             real_agent = agent.get()['agent']
             self.existing_agent = real_agent
 
+        print("[INSIDE] 1New obj id {}".format(
+            len(
+                enter_set.symmetric_difference(set(ray.objects().keys()))
+            )))
+
         logger.debug("SymbolicAgent <{}> is restored.".format(agent.name))
 
         env = get_env_maker(env_name)(seed=0)
-
         if env_wrapper is not None:
             env = env_wrapper(env)
+
+        print("[INSIDE] 2New obj id {}".format(
+            len(
+                enter_set.symmetric_difference(set(ray.objects().keys()))
+            )))
 
         for i in range(num_rollouts):
             ret = rollout(
@@ -373,9 +385,24 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
             )
             ret_list.append(ret)
 
+        print("[INSIDE] 3New obj id {}".format(
+            len(
+                enter_set.symmetric_difference(set(ray.objects().keys()))
+            )))
+
         agent.clear()
 
-        return ret_list, copy.deepcopy(agent)
+        # output_set = set(ray.objects().keys()).copy()
+
+        print("[INSIDE] 4New obj id {}".format(
+            len(
+                enter_set.symmetric_difference(set(ray.objects().keys()))
+            )))
+        print("[INSIDE] quit", INDEX)
+        # return copy.deepcopy(ret_list), copy.deepcopy(agent)
+        # return copy.deepcopy(agent)
+        # return copy.deepcopy(ret_list)
+        return 1
 
 
 class RemoteSymbolicRolloutManager(WorkerManagerBase):
@@ -385,10 +412,11 @@ class RemoteSymbolicRolloutManager(WorkerManagerBase):
             "rollout"
         )
 
-    def rollout(self, index, symbolic_agent, *args, **kwargs):
+    def rollout(self, INDEX, index, symbolic_agent, *args, **kwargs):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
+        symbolic_agent.clear()
         oid = self.current_worker.rollout.remote(
-            symbolic_agent, *args, **kwargs
+            INDEX, symbolic_agent, *args, **kwargs
         )
         self.postprocess(index, oid)
 
@@ -397,15 +425,17 @@ def quick_rollout_from_symbolic_agents(
         name_symbolic_agent_mapping, num_rollouts, num_workers=5,
         env_wrapper=None
 ):
-
     rollout_manager = RemoteSymbolicRolloutManager(
         num_workers, len(name_symbolic_agent_mapping)
     )
-    for name, agent in name_symbolic_agent_mapping.items():
+    for INDEX, (name, agent) in enumerate(name_symbolic_agent_mapping.items()):
         env_name = agent.agent_info['env_name']
         assert not agent.initialized
         assert isinstance(agent, SymbolicAgentBase)
+        print("[quick roll] Start to submit {}".format(name))
+        agent.clear()
         rollout_manager.rollout(
+            INDEX,
             name,
             agent,
             num_rollouts,
@@ -430,7 +460,8 @@ def rollout(
         require_extra_info=False,
         require_full_frame=False,
         require_env_state=False,
-        render_mode="rgb_array"
+        render_mode="rgb_array",
+        num_rollouts=1
 ):
     assert require_frame or require_trajectory or require_extra_info or \
            require_env_state, "You must ask for some output!"
@@ -452,7 +483,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-                                                ]["policy_mapping_fn"]
+            ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -472,8 +503,9 @@ def rollout(
     steps = 0
     now = time.time()
     start = now
+    result_list = []
     # while steps < (num_steps or steps + 1):
-    for i in range(1):  # TODO for future extend to multiple iteration
+    for i in range(num_rollouts):
         if require_trajectory:
             trajectory = []
         if require_frame:
@@ -603,21 +635,27 @@ def rollout(
             steps += 1
             obs = next_obs
         logging.info("Episode reward", reward_total)
-    result = {}
-    if require_frame:
-        result['frames'] = np.stack(frames)
-        result['frame_extra_info'] = frame_extra_info
-    if require_trajectory:
-        result['trajectory'] = trajectory
-    if require_extra_info:
-        extra_info_dict = {k: [] for k in extra_infos[0].keys()}
-        for item in extra_infos:
-            for k, v in item.items():
-                extra_info_dict[k].append(v)
-        result["extra_info"] = extra_info_dict
-    if require_env_state:
-        result['env_states'] = env_states
-    return result
+        result = {}
+        if require_frame:
+            result['frames'] = np.stack(frames)
+            result['frame_extra_info'] = frame_extra_info
+        if require_trajectory:
+            result['trajectory'] = trajectory
+        if require_extra_info:
+            extra_info_dict = {k: [] for k in extra_infos[0].keys()}
+            for item in extra_infos:
+                for k, v in item.items():
+                    extra_info_dict[k].append(v)
+            result["extra_info"] = extra_info_dict
+        if require_env_state:
+            result['env_states'] = env_states
+
+        result_list.append(result)
+    if num_rollouts == 1:
+        return result_list[0]
+    else:
+        return result_list
+    # return result
 
 
 def several_agent_rollout(
