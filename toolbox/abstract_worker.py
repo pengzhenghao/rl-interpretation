@@ -67,6 +67,9 @@ class WorkerManagerBase:
         if not force:
             finished, pending = ray.wait(obj_list, len(obj_list), timeout=0)
         else:
+            print("DEBUG use. Now we stuck at get_status: {}s".format(
+                time.time() - self.start)
+            )
             # At least wait for one.
             finished, pending = ray.wait(obj_list, 1, None)
         return finished, pending
@@ -125,11 +128,13 @@ class WorkerManagerBase:
             # assert self.current_worker is not None
             return
 
-        # At least release one worker.
-        finished, pending = self.get_status(force=True)
-
-        if force:
+        if not force:
+            # At least release one worker.
+            finished, pending = self.get_status(force=True)
+        else:
             finished = finished + pending
+            print("Enter force _collect! Num of objs: ", len(finished))
+            assert len(finished) <= self.num_workers
 
         for oid in finished:
             ret = ray_get_and_free(oid)

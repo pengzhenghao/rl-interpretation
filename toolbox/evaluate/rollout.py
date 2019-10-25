@@ -339,7 +339,6 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
             self,
             agent,
             num_rollouts,
-            # env,
             env_wrapper,
             env_name,
             num_steps=None,
@@ -397,26 +396,12 @@ def quick_rollout_from_symbolic_agents(
         name_symbolic_agent_mapping, num_rollouts, num_workers=5,
         env_wrapper=None
 ):
-    # obj_id_dict = OrderedDict()
-    #
-    # agent_rollout_dict = OrderedDict()
-    # now_t = start_t = time.time()
-    #
-    # count = 0
-    # print_count = 1
-
-    # remote_rollout_remote = ray.remote(
-    #     num_gpus=get_num_gpus(num_workers), max_calls=1
-    # )(remote_rollout)
 
     rollout_manager = RemoteSymbolicRolloutManager(
         num_workers, len(name_symbolic_agent_mapping)
     )
     for name, agent in name_symbolic_agent_mapping.items():
         env_name = agent.agent_info['env_name']
-        # env = make_build_gym_env(env_name)(seed=0)
-        # if env_wrapper is not None:
-        #     env = env_wrapper(env)
         assert not agent.initialized
         assert isinstance(agent, SymbolicAgentBase)
         rollout_manager.rollout(
@@ -430,7 +415,7 @@ def quick_rollout_from_symbolic_agents(
             require_env_state=False  # It seems we don't use it ?? 1013
         )
 
-    agent_rollout_dict = copy.deepcopy(rollout_manager.get_result())
+    agent_rollout_dict = rollout_manager.get_result()
     return agent_rollout_dict
 
 

@@ -17,16 +17,16 @@ from toolbox.interface.cross_agent import CrossAgentAnalyst
 THIS_SCRIPT_IS_IN_TEST_MODE = False
 num_agents = 10
 num_rollouts = 10
-num_workers = 8
+num_workers = 20
 dir_name = "./1023-cross-agent-retrain-NEW"
-num_replay_workers = 8
+num_replay_workers = 16
 os.makedirs(dir_name, exist_ok=True)
 
 tt = time.time
 
 
 def init_ray():
-    initialize_ray(num_gpus=4, test_mode=THIS_SCRIPT_IS_IN_TEST_MODE,
+    initialize_ray(num_gpus=4, test_mode=True,
                    object_store_memory=40 * int(1e9))
 
 
@@ -141,13 +141,17 @@ for std, agent_dict in data.items():
             ckpt, existing_weights=weights
         )
 
+print("Finish prepare symbolic agents.")
+
 std_ret_rollout_dict_new = OrderedDict()
 for std, agent_dict in nest_agent.items():
+    print("Enter STD={}, quick rollout start!".format(std))
     rollout_ret = quick_rollout_from_symbolic_agents(
         agent_dict, num_rollouts, num_workers, MujocoWrapper
     )
     std_ret_rollout_dict_new[std] = rollout_ret
 
+print("Finish rollout")
 start = now = time.time()
 std_summary_dict_new = OrderedDict()
 cluster_dataframe_new = []
