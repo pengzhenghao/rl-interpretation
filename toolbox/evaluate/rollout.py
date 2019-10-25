@@ -336,7 +336,6 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
 
     def rollout(
             self,
-            INDEX,
             agent,
             num_rollouts,
             env_wrapper,
@@ -349,10 +348,6 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
             require_env_state=False,
             render_mode="rgb_array"
     ):
-
-        enter_set = set(ray.objects().keys()).copy()
-
-        ret_list = []
         assert isinstance(agent, SymbolicAgentBase)
 
         if self.existing_agent is not None:
@@ -361,22 +356,13 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
             real_agent = agent.get()['agent']
             self.existing_agent = real_agent
 
-        print("[INSIDE] 1New obj id {}".format(
-            len(
-                enter_set.symmetric_difference(set(ray.objects().keys()))
-            )))
-
         logger.debug("SymbolicAgent <{}> is restored.".format(agent.name))
 
         env = get_env_maker(env_name)(seed=0)
         if env_wrapper is not None:
             env = env_wrapper(env)
 
-        print("[INSIDE] 2New obj id {}".format(
-            len(
-                enter_set.symmetric_difference(set(ray.objects().keys()))
-            )))
-
+        ret_list = []
         for i in range(num_rollouts):
             ret = rollout(
                 real_agent, env, env_name, num_steps, require_frame,
@@ -385,26 +371,8 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
             )
             ret_list.append(ret)
 
-        print("[INSIDE] 3New obj id {}".format(
-            len(
-                enter_set.symmetric_difference(set(ray.objects().keys()))
-            )))
-
         agent.clear()
-
-        # output_set = set(ray.objects().keys()).copy()
-
-        print("[INSIDE] 4New obj id {}".format(
-            len(
-                enter_set.symmetric_difference(set(ray.objects().keys()))
-            )))
-        print("[INSIDE] quit", INDEX)
-        # return copy.deepcopy(ret_list), copy.deepcopy(agent)
-        # return copy.deepcopy(agent)
-        # return copy.deepcopy(ret_list)
-        return len(
-                enter_set.symmetric_difference(set(ray.objects().keys()))
-            )
+        return copy.deepcopy(ret_list), copy.deepcopy(agent)
 
 
 class RemoteSymbolicRolloutManager(WorkerManagerBase):
@@ -414,11 +382,11 @@ class RemoteSymbolicRolloutManager(WorkerManagerBase):
             "rollout"
         )
 
-    def rollout(self, INDEX, index, symbolic_agent, *args, **kwargs):
+    def rollout(self, index, symbolic_agent, *args, **kwargs):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
         symbolic_agent.clear()
         oid = self.current_worker.rollout.remote(
-            INDEX, symbolic_agent, *args, **kwargs
+            symbolic_agent, *args, **kwargs
         )
         self.postprocess(index, oid)
 
@@ -430,14 +398,12 @@ def quick_rollout_from_symbolic_agents(
     rollout_manager = RemoteSymbolicRolloutManager(
         num_workers, len(name_symbolic_agent_mapping)
     )
-    for INDEX, (name, agent) in enumerate(name_symbolic_agent_mapping.items()):
+    for name, agent in name_symbolic_agent_mapping.items():
         env_name = agent.agent_info['env_name']
         assert not agent.initialized
         assert isinstance(agent, SymbolicAgentBase)
-        print("[quick roll] Start to submit {}".format(name))
         agent.clear()
         rollout_manager.rollout(
-            INDEX,
             name,
             agent,
             num_rollouts,

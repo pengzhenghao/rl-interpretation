@@ -119,9 +119,11 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             logger.info("Override the ckpt with you provided agent weights!")
 
         if default_config:
+            logger.warning("You are using the default config, which allow"
+                           "agents use many private workers. This may harm"
+                           "the performance and even destroy whole program.")
             extra_config = None
         else:
-            print("[Symbolic agent] Use new config!")
             extra_config = {
                 "num_workers": 0,
                 "num_cpus_per_worker": 0

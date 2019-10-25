@@ -2,7 +2,7 @@ import copy
 import logging
 import time
 from collections import OrderedDict
-import numpy as np
+
 import ray
 
 # from ray.rllib.utils.memory import ray_get_and_free
@@ -18,6 +18,8 @@ MAX_FREE_QUEUE_SIZE = 100
 # MAX_FREE_QUEUE_SIZE = 1
 _last_free_time = 0.0
 _to_free = []
+
+
 # _old_keys = set()
 
 
@@ -145,7 +147,6 @@ class WorkerManagerBase:
         if (not force_wait) or at_end:
             finished, pending = ray.wait(obj_list, len(obj_list),
                                          timeout=None if at_end else 0)
-            print("length of finished at not force wait", len(finished))
         else:
             finished, pending = ray.wait(obj_list, 1)
         return finished, pending
@@ -180,10 +181,8 @@ class WorkerManagerBase:
         self.worker_dict[self._pointer]['name'] = name
         self.worker_dict[self._pointer]['obj'] = obj_id
         self.worker_dict[self._pointer]['time'] = time.time()
-        # self.obj_name_dict[obj_id] = {'index': self._pointer, 'name': name}
 
         self._collect()
-        print("Finish postprocess for ", name)
 
     def parse_result(self, result):
         """This function provide the string for printing."""
@@ -195,11 +194,8 @@ class WorkerManagerBase:
 
         # If at the end.
         if force:
-            print("[_collect] Enter force-case")
             finished, pending = self.get_status(at_end=True)
             assert len(pending) == 0
-
-            print("[_collect] Start collect force-case")
             self._get_object_list(finished)
             return
 
@@ -207,9 +203,6 @@ class WorkerManagerBase:
         finished, pending = self.get_status()
         if (len(finished) == 0) and \
                 (len(pending) + len(finished) < self.num_workers):
-            assert len(pending) + len(finished) == \
-                   len([1 for wd in self.worker_dict.values()
-                        if wd['name'] is not None])
             return
 
         if len(finished) == 0:
@@ -237,6 +230,7 @@ class WorkerManagerBase:
 
             self.finish_count += 1
             if self.finish_count % self.log_interval == 0:
+                print(ray.available_resources())
                 print(
                     "[{}/{}] (Task {:.2f}s|Total {:.2f}s) Finish {}: {}! {}"
                     "".format(
@@ -248,11 +242,6 @@ class WorkerManagerBase:
                 )
                 self.now = time.time()
 
-        if self.print_string == "rollout":
-            rollout_ret = list(self.ret_dict.values())
-            print("[INSIDE STAT]", np.mean(rollout_ret), np.min(rollout_ret), np.max(rollout_ret),
-                  ray.worker.global_worker.plasma_client.debug_string())
-
     def get_result(self):
         assert not self.deleted, self.error_string
         self._collect(force=True)
@@ -260,7 +249,6 @@ class WorkerManagerBase:
         for w_info in self.worker_dict.values():
             w_info['worker'].close.remote()
         self.worker_dict.clear()
-        # self.obj_name_dict.clear()
         self.deleted = True
 
         return self.ret_dict
@@ -318,22 +306,3 @@ def test():
 
 if __name__ == '__main__':
     ret = test()
-    # import numpy as np
-    #
-    # ray.init()
-    #
-    # @ray.remote
-    # class W:
-    #     def f(self):
-    #         return np.empty((10000000))
-    #
-    # oid_list = []
-    #
-    # worker = W.remote()
-    # for i in range(100):
-    #     oid = worker.f.remote()
-    #     oid_list.append(oid)
-    #
-    # for i, oid in enumerate(oid_list):
-    #     ray_get_and_free(oid)
-    #     print(i, ray.available_resources())
