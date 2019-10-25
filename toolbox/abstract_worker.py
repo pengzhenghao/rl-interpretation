@@ -1,4 +1,5 @@
 import copy
+import logging
 import time
 from collections import OrderedDict
 
@@ -6,6 +7,8 @@ import ray
 from ray.rllib.utils.memory import ray_get_and_free
 
 from toolbox.utils import get_num_gpus
+
+logger = logging.getLogger(__name__)
 
 
 class WorkerBase:
@@ -35,7 +38,7 @@ class WorkerManagerBase:
         self.worker_dict = OrderedDict()
         for i in range(num_workers):
             w = worker_class.as_remote(num_gpus=num_gpus).remote()
-            self.worker_dict[i] = {'worker': w, 'obj': None, 'name': None}
+            self.worker_dict[i] = {'worker': w, 'obj': None, 'name': None, 'time': None}
 
         self.obj_name_dict = dict()
         self.ret_dict = OrderedDict()
@@ -104,6 +107,7 @@ class WorkerManagerBase:
 
         self.worker_dict[self.pointer]['name'] = name
         self.worker_dict[self.pointer]['obj'] = obj_id
+        self.worker_dict[self.pointer]['time'] = time.time()
         self.obj_name_dict[obj_id] = {'index': self.pointer, 'name': name}
 
         self._collect()
@@ -126,17 +130,33 @@ class WorkerManagerBase:
                  (len(finished) == 0)):
             # test
             # assert self.current_worker is not None
+            print('Short!! Quit _collect, force? {}. len obj_dict {}'.format(
+                force, len(self.obj_name_dict)
+            ))
             return
 
         if not force:
             # At least release one worker.
             finished, pending = self.get_status(force=True)
         else:
+            print("Enter force _collect! Num of objs: {}, "
+                  "finish {}, pending {}. Finish obj {}, "
+                  "pending obj {}.".format(len(finished) + len(pending),
+                                           len(finished), len(pending),
+                                           finished, pending))
+            logger.info("Enter force _collect! Num of objs: {}, "
+                        "finish {}, pending {}. Finish obj {}, "
+                        "pending obj {}.".format(len(finished) + len(pending),
+                                                 len(finished), len(pending),
+                                                 finished, pending))
             finished = finished + pending
-            print("Enter force _collect! Num of objs: ", len(finished))
             assert len(finished) <= self.num_workers
 
-        for oid in finished:
+        for i, oid in enumerate(finished):
+            if force:
+                print("In force _collect now {}, total {}.".format(
+                    i, len(finished)
+                ))
             ret = ray_get_and_free(oid)
 
             obj_info = self.obj_name_dict.pop(oid)
@@ -145,20 +165,25 @@ class WorkerManagerBase:
 
             self.ret_dict[name] = ret
 
+            task_start_time = self.worker_dict[worker_index]['time']
             self.worker_dict[worker_index]['obj'] = None
             self.worker_dict[worker_index]['name'] = None
+            self.worker_dict[worker_index]['time'] = None
 
             self.finish_count += 1
             if self.finish_count % self.log_interval == 0:
                 print(
-                    "[{}/{}] (+{:.2f}s/{:.2f}s) Finish {}: {}! {}".format(
+                    "[{}/{}] (Task+{:.2f}s|Total {:.2f}s) Finish {}: {}! {}".format(
                         self.finish_count, self.total_num,
-                        time.time() - self.now,
+                        time.time() - task_start_time,
                         time.time() - self.start, self.print_string, name,
                         self.parse_result(ret)
                     )
                 )
                 self.now = time.time()
+        print('Quit _collect, force? {}. len obj_dict {}'.format(
+            force, len(self.obj_name_dict)
+        ))
 
     def get_result(self):
         assert not self.deleted, self.error_string
