@@ -38,8 +38,8 @@ def ray_get_and_free(object_ids, max_free_queue_size=MAX_FREE_QUEUE_SIZE):
     global  _old_keys
     new_keys = copy.deepcopy(set([str(o) for o in ray.objects().keys()]))
 
-    print('[ray get] difference: ', new_keys.symmetric_difference(_old_keys),
-          len(new_keys), len(_old_keys), new_keys, _old_keys)
+    # print('[ray get] difference: ', new_keys.symmetric_difference(_old_keys),
+    #       len(new_keys), len(_old_keys), new_keys, _old_keys)
 
     _old_keys = new_keys
 
@@ -136,7 +136,7 @@ class WorkerManagerBase:
     #     self._postprocess(name, oid)
 
     # @property
-    def get_status(self, force_wait=False):
+    def get_status(self, force_wait=False, _test=False):
         assert not self.deleted, self.error_string
         obj_list = [
             wd['obj'] for wd in self.worker_dict.values()
@@ -150,7 +150,11 @@ class WorkerManagerBase:
             #     time.time() - self.start)
             # )
             # At least wait for one.
-            finished, pending = ray.wait(obj_list, 1, None)
+            if _test:
+                print("Obj list: {}\nself.worker: {}".format(
+                    obj_list, self.worker_dict
+                ))
+            finished, pending = ray.wait(obj_list, 1, timeout=10.0)
         return finished, pending
 
     @property
@@ -202,13 +206,17 @@ class WorkerManagerBase:
             return
 
         while True:
-            finished, pending = self.get_status(force_wait=True)
+            finished, pending = self.get_status(force_wait=True, _test=force)
             # assert len(self.obj_name_dict) == len(finished) + len(pending)
 
             if (not finished) and (not pending):
                 # Finish collection everything.
                 assert force  # Now it should be get_result()
                 break
+
+            if not finished:
+                print("Nothing found! Now: {:.2f}s".format(time.time() - self.start))
+                continue
 
             oid = finished[0]
             # assert oid not in self._accessed_obj
