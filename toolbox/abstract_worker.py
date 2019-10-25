@@ -6,7 +6,7 @@ from collections import OrderedDict
 import ray
 from ray.rllib.utils.memory import ray_get_and_free
 
-from toolbox.utils import get_num_gpus
+from toolbox.utils import get_num_gpus, get_num_cpus
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +33,15 @@ class WorkerManagerBase:
     ):
         self.num_workers = num_workers
         num_gpus = get_num_gpus(num_workers)
+        num_cpus = get_num_cpus(num_workers)
 
         assert issubclass(worker_class, WorkerBase)
         self.worker_dict = OrderedDict()
         for i in range(num_workers):
-            w = worker_class.as_remote(num_gpus=num_gpus).remote()
-            self.worker_dict[i] = {'worker': w, 'obj': None, 'name': None, 'time': None}
+            w = worker_class.as_remote(num_gpus=num_gpus,
+                                       num_cpus=num_cpus).remote()
+            self.worker_dict[i] = {'worker': w, 'obj': None, 'name': None,
+                                   'time': None}
 
         self.obj_name_dict = dict()
         self.ret_dict = OrderedDict()
@@ -60,14 +63,14 @@ class WorkerManagerBase:
     #     self._postprocess(name, oid)
 
     # @property
-    def get_status(self, force=False):
+    def get_status(self, force_wait=False):
         assert not self.deleted, self.error_string
         obj_list = [
             wd['obj'] for wd in self.worker_dict.values()
             if wd['obj'] is not None
         ]
         assert len(obj_list) <= self.num_workers
-        if not force:
+        if not force_wait:
             finished, pending = ray.wait(obj_list, len(obj_list), timeout=0)
         else:
             print("DEBUG use. Now we stuck at get_status: {}s".format(
@@ -97,9 +100,9 @@ class WorkerManagerBase:
         self.start_count += 1
         if self.start_count % self.log_interval == 0:
             print(
-                "[{}/{}] (+{:.2f}s/{:.2f}s) Start {}: {}!".format(
+                "[{}/{}] (Task {:.2f}s|Total {:.2f}s) Start {}: {}!".format(
                     self.start_count, self.total_num,
-                    time.time() - self.now,
+                    0.0,
                     time.time() - self.start, self.print_string, name
                 )
             )
@@ -136,9 +139,10 @@ class WorkerManagerBase:
             return
 
         if not force:
-            # At least release one worker.
-            finished, pending = self.get_status(force=True)
+            # At least release one worker. So let's it wait.
+            finished, pending = self.get_status(force_wait=True)
         else:
+            finished, pending = self.get_status()
             print("Enter force _collect! Num of objs: {}, "
                   "finish {}, pending {}. Finish obj {}, "
                   "pending obj {}.".format(len(finished) + len(pending),
@@ -154,9 +158,11 @@ class WorkerManagerBase:
 
         for i, oid in enumerate(finished):
             if force:
-                print("In force _collect now {}, total {}.".format(
-                    i, len(finished)
-                ))
+                print(
+                    "In force _collect now {}, total {}. Curretn id {}".format(
+                        i, len(finished), oid
+                    ), ray.available_resources())
+                assert oid in self.obj_name_dict.keys()
             ret = ray_get_and_free(oid)
 
             obj_info = self.obj_name_dict.pop(oid)
@@ -173,7 +179,8 @@ class WorkerManagerBase:
             self.finish_count += 1
             if self.finish_count % self.log_interval == 0:
                 print(
-                    "[{}/{}] (Task+{:.2f}s|Total {:.2f}s) Finish {}: {}! {}".format(
+                    "[{}/{}] (Task {:.2f}s|Total {:.2f}s) Finish {}: {}! {}"
+                    "".format(
                         self.finish_count, self.total_num,
                         time.time() - task_start_time,
                         time.time() - self.start, self.print_string, name,
@@ -202,3 +209,42 @@ class WorkerManagerBase:
     error_string = "The get_result function should only be called once! If " \
                    "you really want to retrieve the data," \
                    " please call self.get_result_from_memory() !"
+
+
+def test():
+    from toolbox.utils import initialize_ray
+
+    initialize_ray(test_mode=True)
+
+    num = 100
+
+    class TestWorker(WorkerBase):
+        def __init__(self):
+            self.count = 0
+
+        def count(self):
+            time.sleep(10)
+            self.count += 1
+            print(self.count)
+            return self.count
+
+    class TestManager(WorkerManagerBase):
+        def __init__(self):
+            super(TestManager, self).__init__(
+                16, TestWorker, num, 1, 'test'
+            )
+
+        def count(self, index):
+            oid = self.current_worker.count.remote()
+            self.postprocess(index, oid)
+
+    tm = TestManager()
+    for i in range(num):
+        tm.count(i)
+
+    ret = tm.get_result()
+    return ret
+
+
+if __name__ == '__main__':
+    ret = test()
