@@ -133,18 +133,18 @@ class CollectFramesManager(WorkerManagerBase):
 
     def collect_frames(self, index, run_name, env_name, config, ckpt,
                        render_mode, ideal_steps, random_seed):
-        oid = self.current_worker.collect_frames.remote(
+        self.submit(
+            index,
             self.num_steps,
             run_name,
             env_name,
             config,
             ckpt,
             self.require_full_frame,
-            "rgb_array",
+            render_mode,
             ideal_steps,
             random_seed
         )
-        self.postprocess(index, oid)
 
 
 class GridVideoRecorder(object):

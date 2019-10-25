@@ -28,7 +28,7 @@ class _SymbolicAgentVideoWorker(WorkerBase):
         # so it's not necessary to reuse agent.
         self.existing_agent = None
 
-    def generate_video(self, symbolic_agent, agent_name, output_path):
+    def run(self, symbolic_agent, agent_name, output_path):
         agent = symbolic_agent.get()['agent']
         path = generate_trailer_from_agent(agent, agent_name, output_path)
         return path
@@ -44,10 +44,7 @@ class RemoteSymbolicAgentVideoManager(WorkerManagerBase):
     def generate_video(self, agent_name, symbolic_agent, base_output_path):
         agent_name = agent_name.replace(' ', '_')
         output_path = osp.join(base_output_path, agent_name)
-        oid = self.current_worker.generate_video.remote(
-            symbolic_agent, agent_name, output_path
-        )
-        self.postprocess(agent_name, oid)
+        self.submit(agent_name, symbolic_agent, agent_name, output_path)
 
     def parse_result(self, result):
         """result is path here."""

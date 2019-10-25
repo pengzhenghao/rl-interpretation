@@ -92,6 +92,10 @@ class WorkerBase:
             num_cpus=num_cpus, num_gpus=num_gpus, resources=resources
         )(cls)
 
+    def run(self, *args, **kwargs):
+        """You should implement this method."""
+        raise NotImplementedError()
+
     def close(self):
         ray.actor.exit_actor()
 
@@ -131,10 +135,9 @@ class WorkerManagerBase:
 
     # Example usage:
     # def replay(self, name, symbolic_agent, obs):
-    #     assert isinstance(symbolic_agent, SymbolicAgentBase)
     #     symbolic_agent.clear()
-    #     oid = self.current_worker.replay.remote(symbolic_agent, obs)
-    #     self._postprocess(name, oid)
+    #     ...
+    #     self.submit(name, symbolic_agent, obs)
 
     # @property
     def get_status(self, force_wait=False, at_end=False):
@@ -150,6 +153,12 @@ class WorkerManagerBase:
         else:
             finished, pending = ray.wait(obj_list, 1)
         return finished, pending
+
+    def submit(self, agent_name, *args, **kwargs):
+        """You should call this function at the main entry of your manager"""
+        assert isinstance(agent_name, str)
+        oid = self.current_worker.run.remote(*args, **kwargs)
+        self.postprocess(agent_name, oid)
 
     @property
     def current_worker(self):
@@ -293,8 +302,7 @@ def test():
             )
 
         def count(self, index):
-            oid = self.current_worker.count.remote()
-            self.postprocess(index, oid)
+            self.submit(index)
 
     tm = TestManager()
     for i in range(num):
