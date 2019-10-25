@@ -13,26 +13,35 @@ VIDEO_HEIGHT = 1080
 FPS = 50
 
 get_ppo_agent = lambda env_name: restore_agent("PPO", None, env_name)
-get_ppo_agent_with_mask = lambda env_name: restore_agent_with_mask("PPO", None, env_name)
+get_ppo_agent_with_mask = lambda env_name: restore_agent_with_mask(
+    "PPO", None, env_name
+)
 
 
 def test_generate_trailer_from_agent():
     initialize_ray(test_mode=True)
     agent = get_ppo_agent("BipedalWalker-v2")
-    ret = generate_trailer_from_agent(agent, "test_agent", "/tmp/single_video", _steps=None)
+    ret = generate_trailer_from_agent(
+        agent, "test_agent", "/tmp/single_video", _steps=None
+    )
     print(ret)
     # agent = get_ppo_agent_with_mask("BipedalWalker-v2")
     # ret = generate_gif_from_agent(agent, "test_agent", "/tmp/test_genrate_gif_with_mask", _steps=50)
     # print(ret)
     return ret
 
+
 def test_generate_gif_from_agent():
     initialize_ray(test_mode=True)
     agent = get_ppo_agent("BipedalWalker-v2")
-    ret = generate_gif_from_agent(agent, "test_agent", "/tmp/test_genrate", _steps=50)
+    ret = generate_gif_from_agent(
+        agent, "test_agent", "/tmp/test_genrate", _steps=50
+    )
     print(ret)
     agent = get_ppo_agent_with_mask("BipedalWalker-v2")
-    ret = generate_gif_from_agent(agent, "test_agent", "/tmp/test_genrate_gif_with_mask", _steps=50)
+    ret = generate_gif_from_agent(
+        agent, "test_agent", "/tmp/test_genrate_gif_with_mask", _steps=50
+    )
     print(ret)
     return ret
 

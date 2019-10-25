@@ -1,84 +1,9 @@
-import copy
 import logging
 import time
 from collections import OrderedDict
 
 import ray
-
-# from ray.rllib.utils.memory import ray_get_and_free
-
-###############################
-# import ray
-#
-# # import ray
-# # from ray.rllib.utils.memory import ray_get_and_free
-#
-FREE_DELAY_S = 10.0
-MAX_FREE_QUEUE_SIZE = 100
-# MAX_FREE_QUEUE_SIZE = 1
-_last_free_time = 0.0
-_to_free = []
-
-
-# _old_keys = set()
-
-
-def ray_get_and_free(object_ids, max_free_queue_size=MAX_FREE_QUEUE_SIZE):
-    """Call ray.get and then queue the object ids for deletion.
-
-    This function should be used whenever possible in RLlib, to optimize
-    memory usage. The only exception is when an object_id is shared among
-    multiple readers.
-
-    Args:
-        object_ids (ObjectID|List[ObjectID]): Object ids to fetch and free.
-
-    Returns:
-        The result of ray.get(object_ids).
-    """
-
-    global _last_free_time
-    global _to_free
-
-    # global _old_keys
-    # new_keys = copy.deepcopy(set([str(o) for o in ray.objects().keys()]))
-
-    # print('[ray get] difference: ', new_keys.symmetric_difference(_old_keys),
-    #       len(new_keys), len(_old_keys), new_keys, _old_keys)
-
-    # _old_keys = new_keys
-
-    # print('[ray get] before get')
-    # print("[ray get] DEBUG: ",
-    # ray.worker.global_worker.plasma_client.debug_string())
-    # try:
-    result = copy.deepcopy(ray.get(object_ids))
-    # except Exception as e:
-    #     print('please stop here', ray.wait([object_ids], timeout=0))
-    #     raise e
-
-    # old_keys = copy.deepcopy(set([str(o) for o in ray.objects().keys()]))
-
-    if type(object_ids) is not list:
-        object_ids = [object_ids]
-    _to_free.extend(object_ids)
-
-    # print('[ray get] after get')
-    # batch calls to free to reduce overheads
-    now = time.time()
-    if (len(_to_free) > max_free_queue_size
-            or now - _last_free_time > FREE_DELAY_S):
-        # print('[ray get] start clean')
-        ray.internal.free(_to_free)
-        _to_free = []
-        _last_free_time = now
-
-    # print('[ray get] exit')
-
-    return result
-
-
-###########################################
+from ray.rllib.utils.memory import ray_get_and_free
 
 from toolbox.utils import get_num_gpus, get_num_cpus
 
@@ -101,6 +26,14 @@ class WorkerBase:
 
 
 class WorkerManagerBase:
+    """
+    Example usage:
+        def replay(self, name, symbolic_agent, obs):
+            symbolic_agent.clear()
+            ...
+            self.submit(name, symbolic_agent, obs)
+    """
+
     def __init__(
             self,
             num_workers,
@@ -117,11 +50,15 @@ class WorkerManagerBase:
         self.worker_dict = OrderedDict()
         for i in range(num_workers):
             self.worker_dict[i] = {
-                'worker': worker_class.as_remote(
-                    num_gpus=num_gpus, num_cpus=num_cpus).remote(),
-                'obj': None,
-                'name': None,
-                'time': None
+                'worker':
+                worker_class.as_remote(num_gpus=num_gpus,
+                                       num_cpus=num_cpus).remote(),
+                'obj':
+                None,
+                'name':
+                None,
+                'time':
+                None
             }
         self.ret_dict = OrderedDict()
         self.start_count = 0
@@ -133,13 +70,39 @@ class WorkerManagerBase:
         self.deleted = False
         self._pointer = None
 
-    # Example usage:
-    # def replay(self, name, symbolic_agent, obs):
-    #     symbolic_agent.clear()
-    #     ...
-    #     self.submit(name, symbolic_agent, obs)
+    def submit(self, agent_name, *args, **kwargs):
+        """You should call this function at the main entry of your manager"""
+        agent_name = str(agent_name)
+        current_worker = None
+        for i, wd in self.worker_dict.items():
+            if wd['obj'] is None:
+                self._pointer = i
+                current_worker = wd['worker']
+        assert current_worker is not None, "No available worker found! {} | " \
+                                           "{}".format(
+            self.worker_dict, self.get_status()
+        )
+        oid = current_worker.run.remote(*args, **kwargs)
+        self.postprocess(agent_name, oid)
 
-    # @property
+    def get_result(self):
+        assert not self.deleted, self.error_string
+        self._collect(force=True)
+        # The result should be pickleable!
+        for w_info in self.worker_dict.values():
+            w_info['worker'].close.remote()
+        self.worker_dict.clear()
+        self.deleted = True
+
+        return self.ret_dict
+
+    def get_result_from_memory(self):
+        return self.ret_dict
+
+    def parse_result(self, result):
+        """This function provide the string for printing."""
+        return ""
+
     def get_status(self, force_wait=False, at_end=False):
         assert not self.deleted, self.error_string
         obj_list = [
@@ -148,40 +111,20 @@ class WorkerManagerBase:
         ]
         assert len(obj_list) <= self.num_workers
         if (not force_wait) or at_end:
-            finished, pending = ray.wait(obj_list, len(obj_list),
-                                         timeout=None if at_end else 0)
+            finished, pending = ray.wait(
+                obj_list, len(obj_list), timeout=None if at_end else 0
+            )
         else:
             finished, pending = ray.wait(obj_list, 1)
         return finished, pending
 
-    def submit(self, agent_name, *args, **kwargs):
-        """You should call this function at the main entry of your manager"""
-        assert isinstance(agent_name, str)
-        oid = self.current_worker.run.remote(*args, **kwargs)
-        self.postprocess(agent_name, oid)
-
-    @property
-    def current_worker(self):
-        assert not self.deleted, self.error_string
-        """Assign an idle worker to current task."""
-        for i, wd in self.worker_dict.items():
-            if wd['obj'] is None:
-                self._pointer = i
-                return wd['worker']
-        raise ValueError("No available worker found! {} | {}".format(
-            self.worker_dict, self.get_status()
-        ))
-
     def postprocess(self, name, obj_id):
-        # assert self._pointer is not None, \
-        #     "You should call self.current_worker first!"
         assert not self.deleted, self.error_string
         self.start_count += 1
         if self.start_count % self.log_interval == 0:
             print(
                 "[{}/{}] (Task {:.2f}s|Total {:.2f}s) Start {}: {}!".format(
-                    self.start_count, self.total_num,
-                    0.0,
+                    self.start_count, self.total_num, 0.0,
                     time.time() - self.start, self.print_string, name
                 )
             )
@@ -192,10 +135,6 @@ class WorkerManagerBase:
         self.worker_dict[self._pointer]['time'] = time.time()
 
         self._collect()
-
-    def parse_result(self, result):
-        """This function provide the string for printing."""
-        return ""
 
     def _collect(self, force=False):
         """Update version of _collect only take one."""
@@ -251,20 +190,6 @@ class WorkerManagerBase:
                 )
                 self.now = time.time()
 
-    def get_result(self):
-        assert not self.deleted, self.error_string
-        self._collect(force=True)
-        # The result should be pickleable!
-        for w_info in self.worker_dict.values():
-            w_info['worker'].close.remote()
-        self.worker_dict.clear()
-        self.deleted = True
-
-        return self.ret_dict
-
-    def get_result_from_memory(self):
-        return self.ret_dict
-
     error_string = "The get_result function should only be called once! If " \
                    "you really want to retrieve the data," \
                    " please call self.get_result_from_memory() !"
@@ -297,9 +222,7 @@ def test():
 
     class TestManager(WorkerManagerBase):
         def __init__(self):
-            super(TestManager, self).__init__(
-                16, TestWorker, num, 1, 'test'
-            )
+            super(TestManager, self).__init__(16, TestWorker, num, 1, 'test')
 
         def count(self, index):
             self.submit(index)

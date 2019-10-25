@@ -59,17 +59,18 @@ from toolbox.abstract_worker import WorkerBase, WorkerManagerBase
 
 
 class _CollectFramesWorker(WorkerBase):
-    def collect_frames(self,
-                       num_steps,
-                       run_name,
-                       env_name,
-                       config,
-                       ckpt,
-                       require_full_frame=False,
-                       render_mode="rgb_array",
-                       ideal_steps=None,
-                       random_seed=False
-                       ):
+    def collect_frames(
+            self,
+            num_steps,
+            run_name,
+            env_name,
+            config,
+            ckpt,
+            require_full_frame=False,
+            render_mode="rgb_array",
+            ideal_steps=None,
+            random_seed=False
+    ):
         agent = restore_agent(run_name, ckpt, env_name, config)
         # if ideal_steps is not None:
         tmp_frames = []
@@ -117,33 +118,28 @@ class _CollectFramesWorker(WorkerBase):
 
 
 class CollectFramesManager(WorkerManagerBase):
-
-    def __init__(self,
-                 num_steps,
-                 require_full_frame,
-                 num_workers,
-                 total_num=None,
-                 log_interval=1,
-                 ):
+    def __init__(
+            self,
+            num_steps,
+            require_full_frame,
+            num_workers,
+            total_num=None,
+            log_interval=1,
+    ):
         super(CollectFramesManager, self).__init__(
             num_workers, _CollectFramesWorker, total_num, log_interval,
-            "collect frame")
+            "collect frame"
+        )
         self.num_steps = num_steps
         self.require_full_frame = require_full_frame
 
-    def collect_frames(self, index, run_name, env_name, config, ckpt,
-                       render_mode, ideal_steps, random_seed):
+    def collect_frames(
+            self, index, run_name, env_name, config, ckpt, render_mode,
+            ideal_steps, random_seed
+    ):
         self.submit(
-            index,
-            self.num_steps,
-            run_name,
-            env_name,
-            config,
-            ckpt,
-            self.require_full_frame,
-            render_mode,
-            ideal_steps,
-            random_seed
+            index, self.num_steps, run_name, env_name, config, ckpt,
+            self.require_full_frame, render_mode, ideal_steps, random_seed
         )
 
 
@@ -304,20 +300,16 @@ class GridVideoRecorder(object):
                 period = 100
             frames_info = {
                 "frames":
-                    new_frames,
+                new_frames,
                 "column":
-                    None if name_column_mapping is None else
-                    name_column_mapping[name],
+                None
+                if name_column_mapping is None else name_column_mapping[name],
                 "row":
-                    None
-                    if name_row_mapping is None else name_row_mapping[
-                        name],
+                None if name_row_mapping is None else name_row_mapping[name],
                 "loc":
-                    None
-                    if name_loc_mapping is None else name_loc_mapping[
-                        name],
+                None if name_loc_mapping is None else name_loc_mapping[name],
                 "period":
-                    period
+                period
             }
 
             frames_dict[name] = frames_info
@@ -354,7 +346,7 @@ class GridVideoRecorder(object):
 
         unique_locations = set(locations)
         no_specify_location = len(unique_locations) == 1 and (
-                next(iter(unique_locations)) is None
+            next(iter(unique_locations)) is None
         )
         assert len(unique_locations) == len(locations) or no_specify_location
         if no_specify_location:
@@ -614,7 +606,7 @@ def create_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-                    "given a checkpoint."
+        "given a checkpoint."
     )
     parser.add_argument(
         "yaml",
@@ -627,9 +619,9 @@ def create_parser():
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-             "user-defined trainable function or class registered in the "
-             "tune registry."
+        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+        "user-defined trainable function or class registered in the "
+        "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use.", required=True
@@ -646,7 +638,7 @@ def create_parser():
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-             "Surpresses loading of configuration from checkpoint."
+        "Surpresses loading of configuration from checkpoint."
     )
 
 

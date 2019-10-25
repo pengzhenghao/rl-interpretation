@@ -448,7 +448,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-            ]["policy_mapping_fn"]
+                                                ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}

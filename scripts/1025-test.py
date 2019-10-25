@@ -7,7 +7,7 @@ from toolbox.evaluate.replay import RemoteSymbolicReplayManager
 
 num_agents = 100
 num_rollouts = 10
-num_workers = 32
+num_workers = 24
 
 
 

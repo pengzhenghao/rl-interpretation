@@ -25,7 +25,13 @@ class SymbolicAgentBase(object):
 
 
 class MaskSymbolicAgent(SymbolicAgentBase):
-    def __init__(self, ckpt_info, mask_callback_info=None, name=None, existing_weights=None):
+    def __init__(
+            self,
+            ckpt_info,
+            mask_callback_info=None,
+            name=None,
+            existing_weights=None
+    ):
         super(MaskSymbolicAgent, self).__init__()
         self.ckpt_info = ckpt_info
         self.agent_info = self.ckpt_info.copy()
@@ -87,8 +93,10 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             # we do not clear the mask, so that the agent is maintained and
             # recoverable! This is really important.
 
-    def get(self, existing_agent=None, existing_weights=None,
-            default_config=False):
+    def get(
+            self, existing_agent=None, existing_weights=None,
+            default_config=False
+    ):
         """
         In most cases, default config contain: num_workers=2,
         num_cpus_per_worker=1. Building the private worker help for training,
@@ -119,18 +127,20 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             logger.info("Override the ckpt with you provided agent weights!")
 
         if default_config:
-            logger.warning("You are using the default config, which allow"
-                           "agents use many private workers. This may harm"
-                           "the performance and even destroy whole program.")
+            logger.warning(
+                "You are using the default config, which allow"
+                "agents use many private workers. This may harm"
+                "the performance and even destroy whole program."
+            )
             extra_config = None
         else:
-            extra_config = {
-                "num_workers": 0,
-                "num_cpus_per_worker": 0
-            }
+            extra_config = {"num_workers": 0, "num_cpus_per_worker": 0}
 
         self.agent = restore_agent_with_mask(
-            run_name, ckpt_path, env_name, extra_config=extra_config,
+            run_name,
+            ckpt_path,
+            env_name,
+            extra_config=extra_config,
             existing_agent=existing_agent
         )
         self.agent = self.mask_callback(self.agent)

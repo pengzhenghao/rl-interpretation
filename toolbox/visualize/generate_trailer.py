@@ -65,11 +65,14 @@ def test():
     num_agents = 8
     base_output_path = "/tmp/generate_trailer"
     ckpt = {
-        "path": "~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_"
-                "0_seed=20_2019-08-10_16-54-37xaa2muqm/"
-                "checkpoint_469/checkpoint-469",
-        "env_name": "BipedalWalker-v2",
-        "run_name": "PPO"
+        "path":
+        "~/ray_results/0810-20seeds/PPO_BipedalWalker-v2_"
+        "0_seed=20_2019-08-10_16-54-37xaa2muqm/"
+        "checkpoint_469/checkpoint-469",
+        "env_name":
+        "BipedalWalker-v2",
+        "run_name":
+        "PPO"
     }
 
     shutil.rmtree(base_output_path, ignore_errors=True)

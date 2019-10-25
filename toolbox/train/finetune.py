@@ -19,7 +19,9 @@ class _RemoteSymbolicTrainWorker(WorkerBase):
             agent = symbolic_agent.get(default_config=True)['agent']
             self.existing_agent = agent
         else:
-            agent = symbolic_agent.get(self.existing_agent, default_config=True)['agent']
+            agent = symbolic_agent.get(
+                self.existing_agent, default_config=True
+            )['agent']
 
         result_list = []
         break_flag = False
@@ -68,7 +70,6 @@ class RemoteSymbolicTrainManager(WorkerManagerBase):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
         symbolic_agent.clear()
         self.submit(index, symbolic_agent, stop_criterion)
-
 
     def parse_result(self, result):
         """Overwrite the original function"""
