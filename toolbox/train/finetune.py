@@ -16,10 +16,10 @@ class _RemoteSymbolicTrainWorker(WorkerBase):
         assert isinstance(stop_criterion, dict)
 
         if self.existing_agent is None:
-            agent = symbolic_agent.get()['agent']
+            agent = symbolic_agent.get(default_config=True)['agent']
             self.existing_agent = agent
         else:
-            agent = symbolic_agent.get(self.existing_agent)['agent']
+            agent = symbolic_agent.get(self.existing_agent, default_config=True)['agent']
 
         result_list = []
         break_flag = False

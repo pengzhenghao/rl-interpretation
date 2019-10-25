@@ -87,7 +87,20 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             # we do not clear the mask, so that the agent is maintained and
             # recoverable! This is really important.
 
-    def get(self, existing_agent=None, existing_weights=None):
+    def get(self, existing_agent=None, existing_weights=None,
+            default_config=False):
+        """
+        In most cases, default config contain: num_workers=2,
+        num_cpus_per_worker=1. Building the private worker help for training,
+        especially at sampling. However, it's useless and a waste of time
+        at rollout / replay and so on, due to our implementation which
+        already make worker for each agent to conduct such task.
+
+        More seriously, in the massive scenario which we rollout hundreds of
+        agents at a same time, the private workers of each agent are
+        serious drawback and even the killer of our task. Disable them at
+        these scenario is helpful, by setting default_config=False.
+        """
         if self.initialized:
             return self.agent_info
         if not self.initialized and self.mask is not None:
@@ -105,8 +118,18 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             ckpt_path = None
             logger.info("Override the ckpt with you provided agent weights!")
 
+        if default_config:
+            extra_config = None
+        else:
+            print("[Symbolic agent] Use new config!")
+            extra_config = {
+                "num_workers": 0,
+                "num_cpus_per_worker": 0
+            }
+
         self.agent = restore_agent_with_mask(
-            run_name, ckpt_path, env_name, existing_agent=existing_agent
+            run_name, ckpt_path, env_name, extra_config=extra_config,
+            existing_agent=existing_agent
         )
         self.agent = self.mask_callback(self.agent)
 
