@@ -108,8 +108,8 @@ class VideoRecorder(object):
         # if int, then it represent the number of videos
         # if dict, then it should be like {agent_name: (row, col)}
         self.frame_shape = None
-        assert generate_gif or isinstance(grids,
-                                          int) or isinstance(grids, dict)
+        # assert generate_gif or isinstance(grids,
+        #                                   int) or isinstance(grids, dict)
         self.grids = grids
         self.frame_range = None
         self.scale = scale or 1
@@ -357,6 +357,30 @@ class VideoRecorder(object):
         # self._add_things_on_backgaround(frames_dict)
         return self.background
 
+    def generate_single_video(self, frames_dict):
+        """This function generate simplest video."""
+        assert len(frames_dict) == 1
+        frames = next(iter(frames_dict.values()))['frames']
+        assert isinstance(frames, np.ndarray)
+        for frame in frames:
+
+            if self.scale != 1:
+                interpolation = cv2.INTER_AREA if self.scale < 1 \
+                    else cv2.INTER_LINEAR
+                frame = cv2.resize(
+                    frame,
+                    (
+                        int(frame.shape[1] * self.scale
+                            ), int(frame.shape[0] * self.scale)
+                    ),
+                    # the shape[1] and shape[0] may be wrong, I don't know
+                    # the order
+                    interpolation=interpolation
+                )
+            self._encode_image_frame(frame[..., ::-1])
+        self._close()
+        return self.path
+
     def generate_video(self, frames_dict, extra_info_dict, require_text=True):
         """Render the given `env` and add the resulting frame to the video."""
         logger.debug('Capturing video frame: path=%s', self.path)
@@ -493,6 +517,7 @@ class VideoRecorder(object):
         obj_ids = []
         mode_path_dict = {}
         for mode in self.allow_gif_mode:
+            print("Start to collect mode: ", mode, len(resize_frames))
             if mode == 'hd':
                 clip = frames
                 fps = self.frames_per_sec
@@ -518,14 +543,20 @@ class VideoRecorder(object):
 
             elif mode == 'period':
                 period = min(frames_info['period'], length)
-                clip = resize_frames[int((length - period) /
-                                         2):int((length + period) / 2)]
+                if period > length:
+                    clip = resize_frames
+                else:
+                    clip = resize_frames[int((length - period) /
+                                             2):int((length + period) / 2)]
                 fps = self.frames_per_sec / 4
 
             elif mode == '3period':
                 period = min(3 * frames_info['period'], length)
-                clip = resize_frames[int((length - period) /
-                                         2):int((length + period) / 2)]
+                if period > length:
+                    clip = resize_frames
+                else:
+                    clip = resize_frames[int((length - period) /
+                                             2):int((length + period) / 2)]
                 fps = self.frames_per_sec / 4
 
             else:
@@ -538,7 +569,9 @@ class VideoRecorder(object):
             )
             os.makedirs(os.path.dirname(gif_path), exist_ok=True)
             # print("input: ", gif_path, int(fps))
-            obj_id = remote_generate_gif.remote(clip, gif_path, int(fps))
+            obj_id = remote_generate_gif.remote(
+                clip.copy(), gif_path, int(fps)
+            )
             print("Collect obj_id from remote_generate_gif: ", obj_id)
             obj_ids.append(obj_id)
             mode_path_dict[mode] = gif_path

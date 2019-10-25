@@ -207,7 +207,8 @@ class OpencvViewer(object):
         if display:
             self.surface.display(1)
         frame = self.surface.raw_data()
-        return frame[:, :, 2::-1]
+        # return frame[:, :, 2::-1]
+        return frame[:, :, :3]
 
     def close(self):
         del self.surface

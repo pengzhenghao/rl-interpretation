@@ -1,0 +1,79 @@
+<html>
+<head>
+    <style>
+        .slidecontainer {
+            width: 100%;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 25px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+
+        .slider:hover {
+            opacity: 1;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+    </style>
+    <script type="text/javascript"
+            src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script type="text/javascript"
+            src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript" src="google_chart.js"></script>
+</head>
+<body>
+<div class="slidecontainer">
+    <input type="range" min="0" max="100" value="0" class="slider"
+           id="myRange">
+    <p>Current Noise Tensity (STD): <span id="demo"></span></p>
+</div>
+<div id="chart_div" style="width: 900px; height: 500px;"></div>
+<!--<div id="chart_div" style="width: 900px; height: 500px;"></div>-->
+<!--Div that will hold the dashboard-->
+<!--<div id="programmatic_dashboard_div" style="border: 1px solid #ccc">-->
+<!--    <table class="columns">-->
+<!--        <tr>-->
+<!--            <td>-->
+<!--                <div id="programmatic_control_div"-->
+<!--                     style="padding-left: 2em; min-width: 250px"></div>-->
+<!--                <div>-->
+<!--                    <button style="margin: 1em 1em 1em 2em"-->
+<!--                            onclick="changeRange();">-->
+<!--                        Select range [2, 5]-->
+<!--                    </button>-->
+<!--                    <br/>-->
+<!--                    <button style="margin: 1em 1em 1em 2em"-->
+<!--                            onclick="changeOptions();">-->
+<!--                        Make the pie chart 3D-->
+<!--                    </button>-->
+<!--                </div>-->
+<!--            </td>-->
+<!--            <td>-->
+<!--                <div id="programmatic_chart_div"></div>-->
+<!--            </td>-->
+<!--        </tr>-->
+<!--    </table>-->
+<!--</div>-->
+</body>
+</html>

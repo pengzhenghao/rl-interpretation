@@ -43,7 +43,20 @@ def get_num_gpus(num_workers=None):
     num_gpus = 0
     if has_gpu() and num_workers is not None:
         # A modest resource allocation
-        num_gpus = (ray.available_resources()['GPU'] - 0.2) / num_workers / 2
+        num_gpus = (ray.available_resources()['GPU'] - 0.5) / num_workers
         if num_gpus >= 1:
             num_gpus = 1
     return num_gpus
+
+
+def get_num_cpus(num_workers=None):
+    num_cpus = 0
+    if "CPU" not in ray.available_resources():
+        return 0.5
+    if has_gpu() and num_workers is not None:
+        # A modest resource allocation
+        num_cpus = (ray.available_resources()['CPU'] - 0.5) / num_workers
+        if num_cpus >= 1:
+            num_cpus = 1
+    print("DEBUG we are in get nunm cpus, return: ", num_cpus)
+    return num_cpus

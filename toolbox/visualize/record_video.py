@@ -6,20 +6,18 @@ import copy
 import json
 import time
 from collections import OrderedDict
-from math import ceil
 
 import numpy as np
 import ray
 
+from toolbox.env.env_maker import get_env_maker
 from toolbox.evaluate import build_config, restore_agent
 from toolbox.evaluate.rollout import rollout
-from toolbox.process_data.process_data import get_name_ckpt_mapping
+from toolbox.process_data.process_data import get_name_ckpt_mapping, read_yaml
 from toolbox.represent.process_fft import get_period
 from toolbox.utils import initialize_ray
 from toolbox.visualize.visualize_utils import VideoRecorder
-from toolbox.env.env_maker import get_env_maker
 
-from toolbox.process_data.process_data import read_yaml
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 
@@ -57,48 +55,22 @@ PRESET_INFORMATION_DICT = {
     }
 }
 
+from toolbox.abstract_worker import WorkerBase, WorkerManagerBase
 
-@ray.remote
-class CollectFramesWorker(object):
-    def __init__(
-            self,
-            # run_name, env_maker, env_name,
-            num_steps,
-            num_iters,
-            seed,
-            require_full_frame=False
-    ):
-        # self.run_name = run_name
-        # self.env_maker = env_maker
-        # self.env_name = env_name
-        self.num_steps = num_steps
-        self.num_iters = num_iters
-        self.seed = seed
-        self.require_full_frame = require_full_frame
 
+class _CollectFramesWorker(WorkerBase):
     def collect_frames(
             self,
+            num_steps,
             run_name,
             env_name,
-            env_maker,
             config,
             ckpt,
+            require_full_frame=False,
             render_mode="rgb_array",
             ideal_steps=None,
             random_seed=False
     ):
-        """
-        This function create one agent and return one frame sequence.
-        :param run_name:
-        :param env_name:
-        :param config:
-        :param ckpt:
-        :param num_steps:
-        :param seed:
-        :return:
-        """
-        # TODO allow multiple iters.
-
         agent = restore_agent(run_name, ckpt, env_name, config)
         # if ideal_steps is not None:
         tmp_frames = []
@@ -110,14 +82,15 @@ class CollectFramesWorker(object):
                 seed = np.random.randint(0, 10000)
             else:
                 seed = i
+            env_maker = get_env_maker(env_name, require_render=True)
             env = env_maker(seed=seed)
             result = rollout(
                 agent,
                 env,
                 env_name,
-                self.num_steps,
+                num_steps,
                 require_frame=True,
-                require_full_frame=self.require_full_frame,
+                require_full_frame=require_full_frame,
                 render_mode=render_mode
             )
             frames, extra_info = result['frames'], result['frame_extra_info']
@@ -144,11 +117,30 @@ class CollectFramesWorker(object):
         return frames, extra_info
 
 
-# from utils import _generate_gif
+class CollectFramesManager(WorkerManagerBase):
+    def __init__(
+            self,
+            num_steps,
+            require_full_frame,
+            num_workers,
+            total_num=None,
+            log_interval=1,
+    ):
+        super(CollectFramesManager, self).__init__(
+            num_workers, _CollectFramesWorker, total_num, log_interval,
+            "collect frame"
+        )
+        self.num_steps = num_steps
+        self.require_full_frame = require_full_frame
 
-# def test_generate_gif():
-#     data = np.random.randint(0, 256, (500, 100, 100, 4), dtype='uint8')
-#     _generate_gif(data, "tmp_delete_me.gif")
+    def collect_frames(
+            self, index, run_name, env_name, config, ckpt, render_mode,
+            ideal_steps, random_seed
+    ):
+        self.submit(
+            index, self.num_steps, run_name, env_name, config, ckpt,
+            self.require_full_frame, render_mode, ideal_steps, random_seed
+        )
 
 
 class GridVideoRecorder(object):
@@ -168,38 +160,41 @@ class GridVideoRecorder(object):
             num_steps=None,
             seed=0,
             render_mode="rgb_array",
-            require_trajectory=False
+            require_trajectory=False,
+            ideal_steps=None
     ):
         config = agent.config
-
         env_name = config["env"]
-        env_maker = get_env_maker(env_name, require_render=True)
-
-        env = env_maker()
-
+        env = get_env_maker(env_name, require_render=True)()
         if seed is not None:
             assert isinstance(seed, int)
             env.seed(seed)
 
-        result = copy.deepcopy(
-            rollout(
-                agent,
-                env,
-                env_name,
-                num_steps,
-                require_frame=True,
-                require_trajectory=require_trajectory,
-                require_full_frame=self.require_full_frame,
-                render_mode=render_mode
+        for iteration in range(10):
+
+            result = copy.deepcopy(
+                rollout(
+                    agent,
+                    env,
+                    env_name,
+                    num_steps,
+                    require_frame=True,
+                    require_trajectory=require_trajectory,
+                    require_full_frame=self.require_full_frame,
+                    render_mode=render_mode
+                )
             )
-        )
-        frames, extra_info = result['frames'], result['frame_extra_info']
-        if require_trajectory:
-            extra_info['trajectory'] = result['trajectory']
+            frames, extra_info = result['frames'], result['frame_extra_info']
+            if require_trajectory:
+                extra_info['trajectory'] = result['trajectory']
+
+            if ideal_steps is None:
+                break
+            elif len(frames) > ideal_steps:
+                break
 
         env.close()
         agent.stop()
-
         period_info = extra_info['period_info']
         if period_info:
             period_source = np.stack(period_info)
@@ -211,7 +206,6 @@ class GridVideoRecorder(object):
             )
         else:
             period = 100
-
         frames_info = {
             "frames": frames,
             "column": None,
@@ -219,9 +213,7 @@ class GridVideoRecorder(object):
             "loc": None,
             "period": period
         }
-
         return_dict = {agent_name: frames_info}
-
         extra_info_dict = PRESET_INFORMATION_DICT.copy()
         for key, val in extra_info.items():
             if key in extra_info_dict:
@@ -264,116 +256,69 @@ class GridVideoRecorder(object):
             ideal_steps=None,
             random_seed=False
     ):
-
         assert isinstance(name_ckpt_mapping, OrderedDict), \
             "The name-checkpoint dict is not OrderedDict!!! " \
             "We suggest you to use OrderedDict."
-
-        start = now = time.time()
-        num_agent = len(name_ckpt_mapping)
-
-        num_iteration = int(ceil(num_agent / num_workers))
-
         name_ckpt_mapping_range = list(name_ckpt_mapping.items())
-        agent_count = 1
 
         frames_dict = {}
         extra_info_dict = PRESET_INFORMATION_DICT.copy()
 
-        workers = [
-            CollectFramesWorker.remote(
-                num_steps, num_iters, seed, self.require_full_frame
-            ) for _ in range(num_workers)
-        ]
+        collect_manager = CollectFramesManager(
+            num_steps, self.require_full_frame, num_workers,
+            len(name_ckpt_mapping_range)
+        )
 
-        for iteration in range(num_iteration):
-            idx_start = iteration * num_workers
-            idx_end = min((iteration + 1) * num_workers, num_agent)
+        for incre, (name, ckpt_dict) in enumerate(name_ckpt_mapping):
+            assert isinstance(ckpt_dict, dict)
+            ckpt = ckpt_dict["path"]
+            run_name = ckpt_dict["run_name"]
+            env_name = ckpt_dict["env_name"]
+            # env_maker = get_env_maker(env_name, require_render=True)
+            is_es_agent = run_name == "ES"
+            config = build_config(ckpt, args_config, is_es_agent)
 
-            object_id_dict = {}
-            for incre, (name, ckpt_dict) in \
-                    enumerate(name_ckpt_mapping_range[idx_start: idx_end]):
-                assert isinstance(ckpt_dict, dict)
-                ckpt = ckpt_dict["path"]
-                run_name = ckpt_dict["run_name"]
-                env_name = ckpt_dict["env_name"]
-                env_maker = get_env_maker(env_name, require_render=True)
-                is_es_agent = run_name == "ES"
-                config = build_config(ckpt, args_config, is_es_agent)
-                object_id_dict[name] = workers[incre].collect_frames.remote(
-                    run_name,
-                    env_name,
-                    env_maker,
-                    config,
-                    ckpt,
-                    render_mode,
-                    ideal_steps=ideal_steps,
-                    random_seed=random_seed
-                )
+            collect_manager.collect_frames(
+                name, run_name, env_name, config, ckpt, render_mode,
+                ideal_steps, random_seed
+            )
+
+        collect_results = collect_manager.get_result()
+
+        for name, (new_frames, new_extra_info) in collect_results.items():
+
+            period_info = new_extra_info['period_info']
+            if period_info:
+                period_source = np.stack(period_info)
+                period = get_period(period_source, self.fps)
                 print(
-                    "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
-                    "Restored agent <{}>".format(
-                        agent_count + incre, len(name_ckpt_mapping),
-                        time.time() - now,
-                        time.time() - start, name
+                    "period for agent <{}> is {}, its len is {}".format(
+                        name, period, len(new_frames)
                     )
                 )
-                now = time.time()
+            else:
+                period = 100
+            frames_info = {
+                "frames":
+                new_frames,
+                "column":
+                None
+                if name_column_mapping is None else name_column_mapping[name],
+                "row":
+                None if name_row_mapping is None else name_row_mapping[name],
+                "loc":
+                None if name_loc_mapping is None else name_loc_mapping[name],
+                "period":
+                period
+            }
 
-            for incre, (name, object_id) in enumerate(object_id_dict.items()):
-                new_frames, new_extra_info = copy.deepcopy(ray.get(object_id))
-
-                # To avoid memory leakage. This part is really important!
-                # new_frames = copy.deepcopy(frames)
-                # new_extra_info = copy.deepcopy(extra_info)
-
-                period_info = new_extra_info['period_info']
-                if period_info:
-                    period_source = np.stack(period_info)
-                    period = get_period(period_source, self.fps)
-                    print(
-                        "period for agent <{}> is {}, its len is {}".format(
-                            name, period, len(new_frames)
-                        )
-                    )
-                else:
-                    period = 100
-
-                frames_info = {
-                    "frames":
-                    new_frames,
-                    "column":
-                    None if name_column_mapping is None else
-                    name_column_mapping[name],
-                    "row":
-                    None
-                    if name_row_mapping is None else name_row_mapping[name],
-                    "loc":
-                    None
-                    if name_loc_mapping is None else name_loc_mapping[name],
-                    "period":
-                    period
-                }
-
-                frames_dict[name] = frames_info
-                for key, val in new_extra_info.items():
-                    if key in extra_info_dict:
-                        extra_info_dict[key][name] = val
-                    elif key == "vf_preds":
-                        extra_info_dict["value_function"][name] = val
-                extra_info_dict['title'][name] = name
-
-                print(
-                    "[{}/{}] (T +{:.1f}s Total {:.1f}s) "
-                    "Got data from agent <{}>".format(
-                        incre + agent_count, len(name_ckpt_mapping),
-                        time.time() - now,
-                        time.time() - start, name
-                    )
-                )
-                now = time.time()
-
-            agent_count += num_workers
+            frames_dict[name] = frames_info
+            for key, val in new_extra_info.items():
+                if key in extra_info_dict:
+                    extra_info_dict[key][name] = val
+                elif key == "vf_preds":
+                    extra_info_dict["value_function"][name] = val
+            extra_info_dict['title'][name] = name
 
         new_extra_info_dict = PRESET_INFORMATION_DICT.copy()
         for key in PRESET_INFORMATION_DICT.keys():
@@ -400,9 +345,9 @@ class GridVideoRecorder(object):
         locations = [f_info['loc'] for f_info in frames_dict.values()]
 
         unique_locations = set(locations)
-        no_specify_location = len(unique_locations) == 1 and next(
-            iter(unique_locations)
-        ) is None
+        no_specify_location = len(unique_locations) == 1 and (
+            next(iter(unique_locations)) is None
+        )
         assert len(unique_locations) == len(locations) or no_specify_location
         if no_specify_location:
             grids = len(frames_dict)
@@ -419,6 +364,11 @@ class GridVideoRecorder(object):
         )
         path = vr.generate_video(frames_dict, extra_info_dict, require_text)
         # if we are at test_mode, then 'path' is a frame.
+        return path
+
+    def generate_single_video(self, frames_dict, *args, **kwargs):
+        vr = VideoRecorder(self.video_path, fps=self.fps)
+        path = vr.generate_single_video(frames_dict)
         return path
 
     def generate_gif(self, frames_dict, extra_info_dict):
