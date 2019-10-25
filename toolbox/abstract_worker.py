@@ -2,7 +2,7 @@ import copy
 import logging
 import time
 from collections import OrderedDict
-
+import numpy as np
 import ray
 
 # from ray.rllib.utils.memory import ray_get_and_free
@@ -18,7 +18,7 @@ MAX_FREE_QUEUE_SIZE = 100
 # MAX_FREE_QUEUE_SIZE = 1
 _last_free_time = 0.0
 _to_free = []
-_old_keys = set()
+# _old_keys = set()
 
 
 def ray_get_and_free(object_ids, max_free_queue_size=MAX_FREE_QUEUE_SIZE):
@@ -38,24 +38,22 @@ def ray_get_and_free(object_ids, max_free_queue_size=MAX_FREE_QUEUE_SIZE):
     global _last_free_time
     global _to_free
 
-    global _old_keys
-    new_keys = copy.deepcopy(set([str(o) for o in ray.objects().keys()]))
+    # global _old_keys
+    # new_keys = copy.deepcopy(set([str(o) for o in ray.objects().keys()]))
 
     # print('[ray get] difference: ', new_keys.symmetric_difference(_old_keys),
     #       len(new_keys), len(_old_keys), new_keys, _old_keys)
 
-    _old_keys = new_keys
+    # _old_keys = new_keys
 
     # print('[ray get] before get')
     # print("[ray get] DEBUG: ",
     # ray.worker.global_worker.plasma_client.debug_string())
-    try:
-        old_result = ray.get(object_ids)
-        result = copy.deepcopy(old_result)
-    except Exception as e:
-        print('please stop here', ray.wait([object_ids], timeout=0))
-        # print(ray.objects())
-        raise e
+    # try:
+    result = copy.deepcopy(ray.get(object_ids))
+    # except Exception as e:
+    #     print('please stop here', ray.wait([object_ids], timeout=0))
+    #     raise e
 
     # old_keys = copy.deepcopy(set([str(o) for o in ray.objects().keys()]))
 
@@ -250,6 +248,11 @@ class WorkerManagerBase:
                 )
                 self.now = time.time()
 
+        if self.print_string == "rollout":
+            rollout_ret = list(self.ret_dict.values())
+            print("[INSIDE STAT]", np.mean(rollout_ret), np.min(rollout_ret), np.max(rollout_ret),
+                  ray.worker.global_worker.plasma_client.debug_string())
+
     def get_result(self):
         assert not self.deleted, self.error_string
         self._collect(force=True)
@@ -259,6 +262,7 @@ class WorkerManagerBase:
         self.worker_dict.clear()
         # self.obj_name_dict.clear()
         self.deleted = True
+
         return self.ret_dict
 
     def get_result_from_memory(self):

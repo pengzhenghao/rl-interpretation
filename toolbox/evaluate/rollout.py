@@ -402,7 +402,9 @@ class _RemoteSymbolicRolloutWorker(WorkerBase):
         # return copy.deepcopy(ret_list), copy.deepcopy(agent)
         # return copy.deepcopy(agent)
         # return copy.deepcopy(ret_list)
-        return 1
+        return len(
+                enter_set.symmetric_difference(set(ray.objects().keys()))
+            )
 
 
 class RemoteSymbolicRolloutManager(WorkerManagerBase):
@@ -538,6 +540,7 @@ def rollout(
         prev_rewards = collections.defaultdict(lambda: 0.)
         done = False
         reward_total = 0.0
+
         while not done and steps < (num_steps or steps + 1):
             if steps % LOG_INTERVAL_STEPS == (LOG_INTERVAL_STEPS - 1):
                 logging.info(
@@ -571,6 +574,7 @@ def rollout(
                         # This is a workaround
                         if agent._name == "ES":
                             a_action = agent.compute_action(a_obs)
+                            a_info = {}
                         else:
                             a_action, _, a_info = agent.compute_action(
                                 a_obs,
@@ -651,11 +655,10 @@ def rollout(
             result['env_states'] = env_states
 
         result_list.append(result)
+
     if num_rollouts == 1:
         return result_list[0]
-    else:
-        return result_list
-    # return result
+    return result_list
 
 
 def several_agent_rollout(
