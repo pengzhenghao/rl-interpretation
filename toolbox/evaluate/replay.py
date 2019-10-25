@@ -66,7 +66,7 @@ class RemoteSymbolicReplayManager(WorkerManagerBase):
     def replay(self, index, symbolic_agent, obs):
         assert isinstance(symbolic_agent, SymbolicAgentBase)
         symbolic_agent.clear()
-        oid = self.workers[self.pointer].replay.remote(symbolic_agent, obs)
+        oid = self.current_worker.replay.remote(symbolic_agent, obs)
         self.postprocess(index, oid)
 
 

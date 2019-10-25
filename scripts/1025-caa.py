@@ -9,14 +9,15 @@ from collections import OrderedDict
 import ray
 
 from toolbox import initialize_ray
-from toolbox.env.mujoco_wrapper import MujocoWrapper
 from toolbox.evaluate import MaskSymbolicAgent
 from toolbox.evaluate.rollout import quick_rollout_from_symbolic_agents
 from toolbox.interface.cross_agent import CrossAgentAnalyst
 
 THIS_SCRIPT_IS_IN_TEST_MODE = False
 num_agents = 10
-num_rollouts = 10
+# num_rollouts = 10
+num_rollouts = 1
+
 num_workers = 16
 dir_name = "./1023-cross-agent-retrain-NEW"
 num_replay_workers = 16
@@ -26,12 +27,15 @@ tt = time.time
 
 
 def init_ray():
-    initialize_ray(num_gpus=4, test_mode=True,
+    initialize_ray(num_gpus=4, test_mode=True, local_mode=False,
                    object_store_memory=40 * int(1e9))
 
 
 def shut_ray():
     ray.shutdown()
+
+
+init_ray()
 
 
 def remote_restore_and_compute(rollout_ret, now, start, dir_name, std):
@@ -121,7 +125,8 @@ def remote_restore_and_compute(rollout_ret, now, start, dir_name, std):
 
 start = now = time.time()
 
-with open("1023-cross-agent-retrain/retrain_agent_result_std=0.9-copy.pkl", 'rb') as f:
+with open("1023-cross-agent-retrain/retrain_agent_result_std=0.9-copy.pkl",
+          'rb') as f:
     data = pickle.load(f)
 
 ckpt = {
@@ -130,8 +135,6 @@ ckpt = {
     "env_name": "BipedalWalker-v2",
     "name": "test agent"
 }
-
-init_ray()
 
 nest_agent = OrderedDict()
 for std, agent_dict in data.items():
@@ -147,7 +150,8 @@ std_ret_rollout_dict_new = OrderedDict()
 for std, agent_dict in nest_agent.items():
     print("Enter STD={}, quick rollout start!".format(std))
     rollout_ret = quick_rollout_from_symbolic_agents(
-        agent_dict, num_rollouts, num_workers, MujocoWrapper
+        agent_dict, num_rollouts, num_workers,
+        env_wrapper=None  # This is not mujoco env!!
     )
     std_ret_rollout_dict_new[std] = rollout_ret
 
