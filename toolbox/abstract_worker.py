@@ -1,6 +1,7 @@
 import logging
 import time
 from collections import OrderedDict
+from sys import getsizeof
 
 import ray
 from ray.rllib.utils.memory import ray_get_and_free
@@ -8,6 +9,8 @@ from ray.rllib.utils.memory import ray_get_and_free
 from toolbox.utils import get_num_gpus, get_num_cpus
 
 logger = logging.getLogger(__name__)
+
+MB = 1024 * 1024
 
 
 class WorkerBase:
@@ -57,16 +60,10 @@ class WorkerManagerBase:
         assert issubclass(worker_class, WorkerBase)
         self.worker_dict = OrderedDict()
         for i in range(num_workers):
+            w = worker_class.as_remote(num_gpus=num_gpus,
+                                       num_cpus=num_cpus).remote()
             self.worker_dict[i] = {
-                'worker':
-                    worker_class.as_remote(num_gpus=num_gpus,
-                                           num_cpus=num_cpus).remote(),
-                'obj':
-                    None,
-                'name':
-                    None,
-                'time':
-                    None
+                'worker': w, 'obj': None, 'name': None, 'time': None
             }
         self.ret_dict = OrderedDict()
         self.start_count = 0
@@ -79,10 +76,6 @@ class WorkerManagerBase:
         self._pointer = None
 
     def submit(self, agent_name, *args, **kwargs):
-
-
-        print("enter submit: ", args, kwargs)
-
         """You should call this function at the main entry of your manager"""
         agent_name = str(agent_name)
         current_worker = None
@@ -174,34 +167,51 @@ class WorkerManagerBase:
     def _get_object_list(self, obj_list):
         for object_id in obj_list:
             ret = ray_get_and_free(object_id)
-            name = None
-            for worker_index, worker_info in self.worker_dict.items():
-                if worker_info['obj'] == object_id:
-                    name = worker_info['name']
-                    break
-            if name is None:
-                raise ValueError()
 
-            self.ret_dict[name] = ret
-            task_start_time = self.worker_dict[worker_index]['time']
-            self.worker_dict[worker_index]['obj'] = None
-            self.worker_dict[worker_index]['name'] = None
-            self.worker_dict[worker_index]['time'] = None
-
-            self.finish_count += 1
-            if self.finish_count % self.log_interval == 0:
-                print(ray.available_resources())
-                print(
-                    "[{}/{}] (Task {:.2f}s|Total {:.2f}s) Finish {}: {}! {}"
-                    "".format(
-                        self.finish_count, self.total_num,
-                        time.time() - task_start_time,
-                        time.time() - self.start, self.print_string, name,
-                        self.parse_result(ret)
+            if self.total_num is not None:
+                size = getsizeof(ret) / MB
+                total_size = size * self.total_num
+                if total_size > 10 * 1024:
+                    # 10 GB for the whole manager
+                    warning_message = \
+                        "The return value have size: {:.2f} MB, "
+                    "so multiplied by {:.2f}, the total size of this "
+                    "manager would be {:.2f} GB! Might the "
+                    "OBJECT STORE MEMORY!".format(
+                        size, self.total_num, total_size / 1024
                     )
-                )
-                self.now = time.time()
+                    logger.warning(warning_message)
+                    print(warning_message)
 
-    error_string = "The get_result function should only be called once! If " \
-                   "you really want to retrieve the data," \
-                   " please call self.get_result_from_memory() !"
+        name = None
+        for worker_index, worker_info in self.worker_dict.items():
+            if worker_info['obj'] == object_id:
+                name = worker_info['name']
+                break
+        if name is None:
+            raise ValueError()
+
+        self.ret_dict[name] = ret
+        task_start_time = self.worker_dict[worker_index]['time']
+        self.worker_dict[worker_index]['obj'] = None
+        self.worker_dict[worker_index]['name'] = None
+        self.worker_dict[worker_index]['time'] = None
+
+        self.finish_count += 1
+        if self.finish_count % self.log_interval == 0:
+            print(ray.available_resources())
+            print(
+                "[{}/{}] (Task {:.2f}s|Total {:.2f}s) Finish {}: {}! {}"
+                "".format(
+                    self.finish_count, self.total_num,
+                    time.time() - task_start_time,
+                    time.time() - self.start, self.print_string, name,
+                    self.parse_result(ret)
+                )
+            )
+            self.now = time.time()
+
+
+error_string = "The get_result function should only be called once! If " \
+               "you really want to retrieve the data," \
+               " please call self.get_result_from_memory() !"
