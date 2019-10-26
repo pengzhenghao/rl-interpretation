@@ -13,18 +13,21 @@ MB = 1024 * 1024
 
 class WorkerBase:
     @classmethod
-    def as_remote(cls,
-                  num_cpus=None,
-                  num_gpus=None,
-                  memory=None,
-                  object_store_memory=None,
-                  resources=None):
+    def as_remote(
+            cls,
+            num_cpus=None,
+            num_gpus=None,
+            memory=None,
+            object_store_memory=None,
+            resources=None
+    ):
         return ray.remote(
             num_cpus=num_cpus,
             num_gpus=num_gpus,
             memory=memory,
             object_store_memory=object_store_memory,
-            resources=resources)(cls)
+            resources=resources
+        )(cls)
 
     def run(self, *args, **kwargs):
         """You should implement this method."""
@@ -61,10 +64,14 @@ class WorkerManagerBase:
         assert issubclass(worker_class, WorkerBase)
         self.worker_dict = OrderedDict()
         for i in range(num_workers):
-            w = worker_class.as_remote(num_gpus=num_gpus,
-                                       num_cpus=num_cpus).remote()
+            w = worker_class.as_remote(
+                num_gpus=num_gpus, num_cpus=num_cpus
+            ).remote()
             self.worker_dict[i] = {
-                'worker': w, 'obj': None, 'name': None, 'time': None
+                'worker': w,
+                'obj': None,
+                'name': None,
+                'time': None
             }
         self.ret_dict = OrderedDict()
         self.start_count = 0

@@ -9,23 +9,18 @@ num_agents = 100
 num_rollouts = 10
 num_workers = 24
 
-
-
 initialize_ray(num_gpus=4, test_mode=True)
-ckpt = {
-    "run_name": "PPO",
-    "env_name": "BipedalWalker-v2",
-    "path": None
-}
+ckpt = {"run_name": "PPO", "env_name": "BipedalWalker-v2", "path": None}
 agent_dict = OrderedDict()
 for i in range(num_agents):
     ckpt['name'] = i
-    agent_dict[i] = MaskSymbolicAgent(ckpt
-                                      )
+    agent_dict[i] = MaskSymbolicAgent(ckpt)
 
 std_ret_rollout_dict_new = OrderedDict()
 rollout_ret = quick_rollout_from_symbolic_agents(
-    agent_dict, num_rollouts, num_workers,
+    agent_dict,
+    num_rollouts,
+    num_workers,
     env_wrapper=None  # This is not mujoco env!!
 )
 

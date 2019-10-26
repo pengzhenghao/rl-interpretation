@@ -9,6 +9,7 @@ from toolbox.utils import initialize_ray
 MB = 1024 * 1024
 from sys import getsizeof
 
+
 def test_heavy_memory_usage():
     initialize_ray(test_mode=True, object_store_memory=400 * MB)
     # initialize_ray(test_mode=True)
@@ -34,8 +35,8 @@ def test_heavy_memory_usage():
 
     class TestManager(WorkerManagerBase):
         def __init__(self):
-            super(TestManager, self).__init__(
-                num_workers, TestWorker, num, 1, 'test')
+            super(TestManager,
+                  self).__init__(num_workers, TestWorker, num, 1, 'test')
 
         def count(self, index):
             self.submit(index)
