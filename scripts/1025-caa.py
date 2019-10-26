@@ -15,8 +15,7 @@ from toolbox.interface.cross_agent import CrossAgentAnalyst
 
 THIS_SCRIPT_IS_IN_TEST_MODE = False
 num_agents = 10
-# num_rollouts = 10
-num_rollouts = 1
+num_rollouts = 10
 
 num_workers = 16
 dir_name = "./1023-cross-agent-retrain-NEW"
@@ -27,8 +26,8 @@ tt = time.time
 
 
 def init_ray():
-    initialize_ray(num_gpus=4, test_mode=True, local_mode=False,
-                   object_store_memory=40 * int(1e9))
+    initialize_ray(num_gpus=4, test_mode=False, local_mode=False,
+                   object_store_memory=50 * int(1e9))
 
 
 def shut_ray():

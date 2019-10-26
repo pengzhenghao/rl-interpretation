@@ -3,18 +3,30 @@ import time
 from collections import OrderedDict
 
 import ray
-from ray.rllib.utils.memory import ray_get_and_free
 
-from toolbox.utils import get_num_gpus, get_num_cpus
+from toolbox.utils import get_num_gpus, get_num_cpus, ray_get_and_free
 
 logger = logging.getLogger(__name__)
+
+MB = 1024 * 1024
 
 
 class WorkerBase:
     @classmethod
-    def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
+    def as_remote(
+            cls,
+            num_cpus=None,
+            num_gpus=None,
+            memory=None,
+            object_store_memory=None,
+            resources=None
+    ):
         return ray.remote(
-            num_cpus=num_cpus, num_gpus=num_gpus, resources=resources
+            num_cpus=num_cpus,
+            num_gpus=num_gpus,
+            memory=memory,
+            object_store_memory=object_store_memory,
+            resources=resources
         )(cls)
 
     def run(self, *args, **kwargs):
@@ -23,6 +35,9 @@ class WorkerBase:
 
     def close(self):
         ray.actor.exit_actor()
+
+
+from toolbox.utils import deep_getsizeof
 
 
 class WorkerManagerBase:
@@ -49,16 +64,14 @@ class WorkerManagerBase:
         assert issubclass(worker_class, WorkerBase)
         self.worker_dict = OrderedDict()
         for i in range(num_workers):
+            w = worker_class.as_remote(
+                num_gpus=num_gpus, num_cpus=num_cpus
+            ).remote()
             self.worker_dict[i] = {
-                'worker':
-                worker_class.as_remote(num_gpus=num_gpus,
-                                       num_cpus=num_cpus).remote(),
-                'obj':
-                None,
-                'name':
-                None,
-                'time':
-                None
+                'worker': w,
+                'obj': None,
+                'name': None,
+                'time': None
             }
         self.ret_dict = OrderedDict()
         self.start_count = 0
@@ -68,6 +81,7 @@ class WorkerManagerBase:
         self.log_interval = log_interval
         self.print_string = print_string
         self.deleted = False
+        self.warned = False
         self._pointer = None
 
     def submit(self, agent_name, *args, **kwargs):
@@ -78,10 +92,10 @@ class WorkerManagerBase:
             if wd['obj'] is None:
                 self._pointer = i
                 current_worker = wd['worker']
-        assert current_worker is not None, "No available worker found! {} | " \
-                                           "{}".format(
-            self.worker_dict, self.get_status()
-        )
+        assert current_worker is not None, \
+            "No available worker found! {} | {}".format(
+                self.worker_dict, self.get_status()
+            )
         oid = current_worker.run.remote(*args, **kwargs)
         self.postprocess(agent_name, oid)
 
@@ -162,6 +176,25 @@ class WorkerManagerBase:
     def _get_object_list(self, obj_list):
         for object_id in obj_list:
             ret = ray_get_and_free(object_id)
+            if (not self.warned) and (self.total_num is not None):
+                size = deep_getsizeof(ret) / MB
+                total_size = size * self.total_num
+                ava = ray.available_resources()['object_store_memory'] * 50 \
+                    if "object_store_memory" in ray.available_resources() \
+                    else 10 * 1024
+                if total_size > ava * 0.8:
+                    self.warned = True
+                    warning_message = \
+                        "The return value have size: {:.2f} MB, " \
+                        "so multiplied by {}, the total size of this " \
+                        "manager would be {:.2f} MB! Might the OBJECT STORE " \
+                        "MEMORY! You only have: {} MB".format(
+                            size, self.total_num, total_size, ava
+                        )
+                    logger.warning(warning_message)
+                    print(warning_message)
+
+            # find the worker_index and name, given the object_id
             name = None
             for worker_index, worker_info in self.worker_dict.items():
                 if worker_info['obj'] == object_id:
@@ -193,47 +226,3 @@ class WorkerManagerBase:
     error_string = "The get_result function should only be called once! If " \
                    "you really want to retrieve the data," \
                    " please call self.get_result_from_memory() !"
-
-
-def test():
-    """This is test codes for HEAVY MEMORY USAGE case. But just forget it."""
-    # FIXME something wrong.
-    from toolbox.utils import initialize_ray
-    import numpy as np
-
-    initialize_ray(test_mode=True)
-    # initialize_ray(test_mode=True, redis_max_memory=2000000000)
-
-    num = 100
-    delay = 0
-
-    class TestWorker(WorkerBase):
-        def __init__(self):
-            self.count = 0
-
-        def count(self):
-            time.sleep(delay)
-            self.count += 1
-            print(self.count, ray.cluster_resources())
-            print("")
-            return self.count, np.empty((1000000))
-            # return copy.deepcopy((self.count, np.empty((20000000))))
-            # return self.count, np.empty((20000000))
-
-    class TestManager(WorkerManagerBase):
-        def __init__(self):
-            super(TestManager, self).__init__(16, TestWorker, num, 1, 'test')
-
-        def count(self, index):
-            self.submit(index)
-
-    tm = TestManager()
-    for i in range(num):
-        tm.count(i)
-
-    ret = tm.get_result()
-    return ret
-
-
-if __name__ == '__main__':
-    ret = test()
