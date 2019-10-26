@@ -1,5 +1,7 @@
 import collections
+import copy
 import logging
+import time
 import uuid
 
 import ray
@@ -60,3 +62,78 @@ def get_num_cpus(num_workers=None):
             num_cpus = 1
     print("DEBUG we are in get nunm cpus, return: ", num_cpus)
     return num_cpus
+
+
+# ray_get_and_free is copied from ray
+FREE_DELAY_S = 10.0
+MAX_FREE_QUEUE_SIZE = 50  # oirginal 100
+_last_free_time = 0.0
+_to_free = []
+
+
+def ray_get_and_free(object_ids):
+    """Call ray.get and then queue the object ids for deletion.
+
+    This function should be used whenever possible in RLlib, to optimize
+    memory usage. The only exception is when an object_id is shared among
+    multiple readers.
+
+    Args:
+        object_ids (ObjectID|List[ObjectID]): Object ids to fetch and free.
+
+    Returns:
+        The result of ray.get(object_ids).
+    """
+
+    global _last_free_time
+    global _to_free
+
+    # result = copy.deepcopy(ray.get(object_ids))  # no copy at origin
+    result = ray.get(object_ids)
+    if type(object_ids) is not list:
+        object_ids = [object_ids]
+    _to_free.extend(object_ids)
+
+    # batch calls to free to reduce overheads
+    now = time.time()
+    if (len(_to_free) > MAX_FREE_QUEUE_SIZE
+            or now - _last_free_time > FREE_DELAY_S):
+        ray.internal.free(_to_free)
+        _to_free = []
+        _last_free_time = now
+
+    return result
+from sys import getsizeof
+from collections import OrderedDict, Mapping, Container
+
+def deep_getsizeof(o, ids=None):
+    """Find the memory footprint of a Python object
+    This is a recursive function that rills down a Python object graph
+    like a dictionary holding nested ditionaries with lists of lists
+    and tuples and sets.
+    The sys.getsizeof function does a shallow size of only. It counts each
+    object inside a container as pointer only regardless of how big it
+    really is.
+    :param o: the object
+    :param ids:
+    :return:
+    """
+    if ids is None:
+        ids = set()
+    d = deep_getsizeof
+    if id(o) in ids:
+        return 0
+
+    r = getsizeof(o)
+    ids.add(id(o))
+
+    if isinstance(o, str): #or isinstance(0, unicode):
+        return r
+
+    if isinstance(o, Mapping):
+        return r + sum(d(k, ids) + d(v, ids) for k, v in o.iteritems())
+
+    if isinstance(o, Container):
+        return r + sum(d(x, ids) for x in o)
+
+    return r

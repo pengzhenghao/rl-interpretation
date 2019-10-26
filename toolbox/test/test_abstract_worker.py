@@ -8,11 +8,11 @@ from toolbox.utils import initialize_ray
 
 MB = 1024 * 1024
 
-
+import sys
 def test_heavy_memory_usage():
-    initialize_ray(test_mode=True)
+    initialize_ray(test_mode=True, object_store_memory=4000 * MB)
 
-    num = 100
+    num = 50
     delay = 0
     num_workers = 16
 
@@ -24,12 +24,13 @@ def test_heavy_memory_usage():
             time.sleep(delay)
             self.count += 1
             print(self.count, ray.cluster_resources())
-            return self.count, np.empty((100 * MB), dtype=np.uint8)
+            arr = np.empty((10 * MB), dtype=np.uint8)
+            return self.count, arr
 
     class TestManager(WorkerManagerBase):
         def __init__(self):
-            super(TestManager, self).__init__(num_workers, TestWorker, num, 1,
-                                              'test')
+            super(TestManager, self).__init__(
+                num_workers, TestWorker, num, 1, 'test')
 
         def count(self, index):
             self.submit(index)

@@ -4,9 +4,8 @@ from collections import OrderedDict
 from sys import getsizeof
 
 import ray
-from ray.rllib.utils.memory import ray_get_and_free
 
-from toolbox.utils import get_num_gpus, get_num_cpus
+from toolbox.utils import get_num_gpus, get_num_cpus, ray_get_and_free
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +33,9 @@ class WorkerBase:
 
     def close(self):
         ray.actor.exit_actor()
+
+
+from toolbox.utils import deep_getsizeof
 
 
 class WorkerManagerBase:
@@ -73,6 +75,7 @@ class WorkerManagerBase:
         self.log_interval = log_interval
         self.print_string = print_string
         self.deleted = False
+        self.warned = False
         self._pointer = None
 
     def submit(self, agent_name, *args, **kwargs):
@@ -168,18 +171,21 @@ class WorkerManagerBase:
         for object_id in obj_list:
             ret = ray_get_and_free(object_id)
 
-            if self.total_num is not None:
-                size = getsizeof(ret) / MB
+            if (not self.warned) and (self.total_num is not None):
+                size = deep_getsizeof(ret) / MB
                 total_size = size * self.total_num
-                if total_size > 10 * 1024:
-                    # 10 GB for the whole manager
+                ava = ray.available_resources()['object_store_memory'] * 50 \
+                    if "object_store_memory" in ray.available_resources() \
+                    else 10 * 1024
+                if total_size > ava * 0.8:
+                    self.warned = True
                     warning_message = \
-                        "The return value have size: {:.2f} MB, "
-                    "so multiplied by {:.2f}, the total size of this "
-                    "manager would be {:.2f} GB! Might the "
-                    "OBJECT STORE MEMORY!".format(
-                        size, self.total_num, total_size / 1024
-                    )
+                        "The return value have size: {:.2f} MB, " \
+                        "so multiplied by {}, the total size of this " \
+                        "manager would be {:.2f} MB! Might the OBJECT STORE " \
+                        "MEMORY! You only have: {} MB".format(
+                            size, self.total_num, total_size, ava
+                        )
                     logger.warning(warning_message)
                     print(warning_message)
 
