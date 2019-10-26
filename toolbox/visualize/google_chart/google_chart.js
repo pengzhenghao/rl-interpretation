@@ -2,6 +2,8 @@ google.charts.load('current', {'packages': ['corechart', 'controls']});
 google.charts.setOnLoadCallback(drawChart);
 
 var data_table;
+var current_tune_flag = true;
+var current_tensity = 0;
 
 var rawData = $.parseJSON($.ajax({
     url: 'test_data.json',
@@ -10,50 +12,53 @@ var rawData = $.parseJSON($.ajax({
 }).responseText);
 
 
+function changeText(elementId, text) {
+    var element = document.getElementById(elementId);
+    element.innerText = text;
+}
+
+function get_exact_std(slider_value) {
+    return slider_value / (info['num_std'] - 1)
+}
+
 function drawChart() {
 
-    var info = rawData['info']
+    var info = rawData['info'];
 
     // Create the slider for std changing
     var slider = document.getElementById("myRange");
-    var output = document.getElementById("demo");
     slider.value = info['std_min'];
     slider.min = info['std_min'];
     slider.max = info['num_std'] - 1;
-    output.innerHTML = slider.value;
-
     slider.oninput = function () {
-        var std = get_exact_std(this.value)
-        output.innerHTML = std;
-        change_data(std);
+        current_tensity = get_exact_std(this.value);
+        changeText("tensity", current_tensity);
+        flush();
     };
 
-    function get_exact_std(slider_value) {
-        return slider_value / (info['num_std'] - 1)
-    }
+    changeText("title_of_table", rawData['web']['title']);
+    changeText("introduction", rawData['web']['introduction']);
+    changeText("tensity", slider.value);
 
-    function change_data(std) {
-        data_table = get_data_table(std);
-        chart.draw(data_table, options);
-    }
 
-    function createCustomHTMLContent(hyperLink, imagePath) {
-        console.log('Enter!')
-        return '<dev style="padding:0px 0px 0px 0px;">' +
+    function createCustomHTMLContent(videoPath) {
+        return "" +
             // '<a href="' + hyperLink + '">' +
             '<video width="80" height="80" autoplay loop muted>' +
-            '<source src="' + imagePath +
-            '" type="video/mp4" /></video>' +
-            // '</a>' +
-            '</dev>'
-        // return '<dev style="padding:5px 5px 5px 5px;"><a href="' + hyperLink + '"><img src=\"' +
-        //     imagePath // here is image path
-        //     + '" id="' + agentName +
-        //     '" style=\"width:100px; height:100px\"  ></a></dev>';
+            '<source src="' + videoPath +
+            '" type="video/mp4" /></video>'
+        // '</a>' +
     }
 
-    function get_data_table(std) {
-        var data_table = new google.visualization.DataTable(rawData['data'][std]);
+    function update_data_table() {
+        var newData;
+        var std = current_tensity;
+        if (current_tune_flag) {
+            newData = rawData['data']['fine_tuned'][std]
+        } else {
+            newData = rawData['data']['not_fine_tuned'][std]
+        }
+        var data_table = new google.visualization.DataTable(newData);
 
         // Fill the tooltip
         data_table.addColumn(
@@ -63,23 +68,38 @@ function drawChart() {
                 'p': {'html': true}
             }
         );
-
-        var url, link, cell_html, row;
+        var url, cell_html, row, extra;
         for (row = 0; row < data_table.getNumberOfRows(); row++) {
             url = data_table.getRowProperty(row, "url");
-            link = data_table.getRowProperty(row, "link");
-            cell_html = createCustomHTMLContent(link, url);
+            if (url === null) {
+                cell_html = '<p>No Video Provided</p>';
+            } else {
+                cell_html = createCustomHTMLContent(url)
+            }
+            extra = data_table.getRowProperty(row, "extra");
+            if (extra !== null) {
+                cell_html = cell_html +
+                    '<br><p style="max-width: 80px;' +
+                    'word-wrap: break-word">' + extra + '</p>';
+            }
+            cell_html = '<dev style="padding:0 0 0 0">' + cell_html
+                + '</dev>';
             data_table.setCell(row, 2, cell_html);
         }
         return data_table
     }
 
     // Init the chart first.
-    var init_std = "0";
-    data_table = get_data_table(init_std);
+    data_table = update_data_table();
 
     // Create the chart
     var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
+
+    function flush() {
+        data_table = update_data_table();
+        chart.draw(data_table, options);
+    }
+
     var options = {
         tooltip: {isHtml: true, trigger: 'selection'},
         title: info['title'],
