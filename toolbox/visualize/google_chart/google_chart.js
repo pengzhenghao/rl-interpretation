@@ -2,11 +2,12 @@ google.charts.load('current', {'packages': ['corechart', 'controls']});
 google.charts.setOnLoadCallback(drawChart);
 
 var data_table;
+var current_data_table;
 var current_tune_flag = true;
 var current_tensity = 0;
 
 var rawData = $.parseJSON($.ajax({
-    url: 'test_data.json',
+    url: 'test_data_with_cluster.json',
     dataType: "json",
     async: false
 }).responseText);
@@ -25,29 +26,33 @@ function changeText(elementId, text) {
     element.innerText = text;
 }
 
+// function reorganizeDataTable(data_table) {
+//     data_table.
+// }
+
 
 function drawChart() {
 
     var figure_info = rawData['figure_info'];
     // Create the chart
     // var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
-    var options = {
-        tooltip: {isHtml: true, trigger: 'selection'},
-        title: figure_info['title'],
-        hAxis: {
-            title: figure_info['xlabel'],
-            minValue: figure_info['xlim'] ? figure_info['xlim'][0] : null,
-            maxValue: figure_info['xlim'] ? figure_info['xlim'][1] : null
-        },
-        vAxis: {
-            title: figure_info['ylabel'],
-            minValue: figure_info['ylim'] ? figure_info['ylim'][0] : null,
-            maxValue: figure_info['ylim'] ? figure_info['ylim'][1] : null
-        },
-        legend: 'none',
-        aggregationTarget: 'none',
-        selectionMode: 'multiple'
-    };
+    // var options = {
+    //     tooltip: {isHtml: true, trigger: 'selection'},
+    //     title: figure_info['title'],
+    //     hAxis: {
+    //         title: figure_info['xlabel'],
+    //         minValue: figure_info['xlim'] ? figure_info['xlim'][0] : null,
+    //         maxValue: figure_info['xlim'] ? figure_info['xlim'][1] : null
+    //     },
+    //     vAxis: {
+    //         title: figure_info['ylabel'],
+    //         minValue: figure_info['ylim'] ? figure_info['ylim'][0] : null,
+    //         maxValue: figure_info['ylim'] ? figure_info['ylim'][1] : null
+    //     },
+    //     legend: 'none',
+    //     aggregationTarget: 'none',
+    //     selectionMode: 'multiple'
+    // };
 
     var dashboard = new google.visualization.Dashboard(
         document.getElementById('dashboard_div'));
@@ -56,10 +61,10 @@ function drawChart() {
         'controlType': 'CategoryFilter',
         'containerId': 'control_div',
         'options': {
-            'filterColumnIndex': 0,
+            'filterColumnLabel': "ClusterMethod",
             'ui': {
                 'allowNone': false,
-                "allowMultiple": false,
+                "allowMultiple": true,
                 "allowTyping": false
             }
         }
@@ -77,7 +82,11 @@ function drawChart() {
                     "minValue": figure_info['xlim'] ? figure_info['xlim'][0] : null,
                     "maxValue": figure_info['xlim'] ? figure_info['xlim'][1] : null
                 },
-                "vAxis": {"title": figure_info['ylabel']},
+                "vAxis": {
+                    "title": figure_info['ylabel'],
+                    "minValue": figure_info['ylim'] ? figure_info['ylim'][0] : null,
+                    "maxValue": figure_info['ylim'] ? figure_info['ylim'][1] : null
+                },
                 "legend": "none",
                 "aggregationTarget": "none",
                 "selectionMode": "multiple",
@@ -116,7 +125,7 @@ function drawChart() {
         } else {
             newData = rawData['data']['not_fine_tuned'][std]
         }
-        var data_table = new google.visualization.DataTable(newData);
+        data_table = new google.visualization.DataTable(newData);
 
         // Fill the tooltip
         data_table.addColumn(
@@ -142,7 +151,7 @@ function drawChart() {
             }
             cell_html = '<dev style="padding:0 0 0 0">' + cell_html
                 + '</dev>';
-            data_table.setCell(row, 2, cell_html);
+            data_table.setCell(row, 3, cell_html);
         }
         return data_table
     }
