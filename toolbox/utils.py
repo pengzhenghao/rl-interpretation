@@ -1,8 +1,9 @@
 import collections
-import copy
 import logging
 import time
 import uuid
+from collections import Mapping, Container
+from sys import getsizeof
 
 import ray
 
@@ -103,8 +104,7 @@ def ray_get_and_free(object_ids):
         _last_free_time = now
 
     return result
-from sys import getsizeof
-from collections import OrderedDict, Mapping, Container
+
 
 def deep_getsizeof(o, ids=None):
     """Find the memory footprint of a Python object
@@ -127,11 +127,11 @@ def deep_getsizeof(o, ids=None):
     r = getsizeof(o)
     ids.add(id(o))
 
-    if isinstance(o, str): #or isinstance(0, unicode):
+    if isinstance(o, str):  # or isinstance(0, unicode):
         return r
 
     if isinstance(o, Mapping):
-        return r + sum(d(k, ids) + d(v, ids) for k, v in o.iteritems())
+        return r + sum(d(k, ids) + d(v, ids) for k, v in o.items())
 
     if isinstance(o, Container):
         return r + sum(d(x, ids) for x in o)

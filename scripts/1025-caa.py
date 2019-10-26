@@ -26,8 +26,8 @@ tt = time.time
 
 
 def init_ray():
-    initialize_ray(num_gpus=4, test_mode=True, local_mode=False,
-                   object_store_memory=40 * int(1e9))
+    initialize_ray(num_gpus=4, test_mode=False, local_mode=False,
+                   object_store_memory=50 * int(1e9))
 
 
 def shut_ray():
