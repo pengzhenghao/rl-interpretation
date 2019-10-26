@@ -98,7 +98,6 @@ def remote_restore_and_compute(rollout_ret):
 
     print("[STD={}] Collect Summary from CAA".format(std))
 
-
     precision_dict = caa.cluster_representation_precision_dict
     parent_cluster_dict = caa.cluster_representation_parent_cluster_dict
     #     method_precision_dict = {}
