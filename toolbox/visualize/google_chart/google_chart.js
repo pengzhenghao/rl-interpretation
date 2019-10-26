@@ -28,46 +28,83 @@ function changeText(elementId, text) {
 
 function drawChart() {
 
-    var info = rawData['info'];
+    var figure_info = rawData['figure_info'];
     // Create the chart
-    var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
-
+    // var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
     var options = {
         tooltip: {isHtml: true, trigger: 'selection'},
-        title: info['title'],
+        title: figure_info['title'],
         hAxis: {
-            title: info['xlabel'],
-            minValue: info['xlim'] ? info['xlim'][0] : null,
-            maxValue: info['xlim'] ? info['xlim'][1] : null
+            title: figure_info['xlabel'],
+            minValue: figure_info['xlim'] ? figure_info['xlim'][0] : null,
+            maxValue: figure_info['xlim'] ? figure_info['xlim'][1] : null
         },
         vAxis: {
-            title: info['ylabel'],
-            minValue: info['ylim'] ? info['ylim'][0] : null,
-            maxValue: info['ylim'] ? info['ylim'][1] : null
+            title: figure_info['ylabel'],
+            minValue: figure_info['ylim'] ? figure_info['ylim'][0] : null,
+            maxValue: figure_info['ylim'] ? figure_info['ylim'][1] : null
         },
         legend: 'none',
         aggregationTarget: 'none',
         selectionMode: 'multiple'
     };
 
+    var dashboard = new google.visualization.Dashboard(
+        document.getElementById('dashboard_div'));
+
+    var filter = new google.visualization.ControlWrapper({
+        'controlType': 'CategoryFilter',
+        'containerId': 'control_div',
+        'options': {
+            'filterColumnIndex': 0,
+            'ui': {
+                'allowNone': false,
+                "allowMultiple": false,
+                "allowTyping": false
+            }
+        }
+    });
+
+    var chart = new google.visualization.ChartWrapper(
+        {
+            "chartType": "ScatterChart",
+            "containerId": "chart_div",
+            "options": {
+                "tooltip": {"isHtml": true, "trigger": "selection"},
+                "title": figure_info['title'],
+                "hAxis": {
+                    "title": figure_info['xlabel'],
+                    "minValue": figure_info['xlim'] ? figure_info['xlim'][0] : null,
+                    "maxValue": figure_info['xlim'] ? figure_info['xlim'][1] : null
+                },
+                "vAxis": {"title": figure_info['ylabel']},
+                "legend": "none",
+                "aggregationTarget": "none",
+                "selectionMode": "multiple"
+            }
+        }
+    );
+
+
     function get_exact_std(slider_value) {
-        return slider_value / (info['num_std'] - 1)
+        return slider_value / (figure_info['num_std'] - 1)
     }
 
     // Create the slider for std changing
     var slider = document.getElementById("tensitySlider");
-    slider.value = info['std_min'];
-    slider.min = info['std_min'];
-    slider.max = info['num_std'] - 1;
+    slider.value = figure_info['std_min'];
+    slider.min = figure_info['std_min'];
+    slider.max = figure_info['num_std'] - 1;
     slider.oninput = function () {
         current_tensity = get_exact_std(this.value);
         flush();
     };
 
-    changeText("title_of_table", rawData['web']['title']);
-    changeText("introduction", rawData['web']['introduction']);
+    changeText("title_of_table", rawData['web_info']['title']);
+    changeText("introduction", rawData['web_info']['introduction']);
     changeText("tensity", slider.value);
     changeText("tensity2", slider.value);
+    changeText("update_date", rawData['web_info']['update_date']);
 
     function update_data_table() {
         var newData;
@@ -113,7 +150,7 @@ function drawChart() {
         changeText("tensity", current_tensity);
         changeText("tensity2", current_tensity);
         changeText("finetuned", current_tune_flag ? "fine-tuned" : "not fine-tuned");
-        chart.draw(data_table, options);
+        dashboard.draw(data_table);
     }
 
     // Init the chart first.
@@ -129,4 +166,7 @@ function drawChart() {
         current_tune_flag = false;
         flush();
     };
+
+    dashboard.bind(filter, chart);
+    dashboard.draw(data_table);
 }

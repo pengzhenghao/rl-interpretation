@@ -1,5 +1,5 @@
 {
-  "info": {
+  "figure_info": {
     "title": "FIGURE TITLE",
     "xlabel": "XLABEL",
     "ylabel": "YLABEL",
@@ -19,9 +19,10 @@
       "Joint-Dataset"
     ]
   },
-  "web": {
+  "web_info": {
     "title": "TITLE OF WEBSITE",
-    "introduction": "HERE IS THE INTRODUCTION OF WEBSITE"
+    "introduction": "HERE IS THE INTRODUCTION OF WEBSITE",
+    "update_date": "2019.10.26"
   },
   "data": {
     "fine_tuned": {

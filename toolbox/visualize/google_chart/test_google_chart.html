@@ -1,6 +1,11 @@
 <html>
 <head>
     <style>
+        .step {
+            padding-top: 2em;
+            padding-bottom: 0.5em;
+        }
+
         .slidecontainer {
             width: 100%;
         }
@@ -36,10 +41,8 @@
             cursor: pointer;
         }
     </style>
-    <script type="text/javascript"
-            src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-    <script type="text/javascript"
-            src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript" src="jquery-3.4.1.min.js"></script>
+    <script type="text/javascript" src="loader.js"></script>
     <script type="text/javascript" src="google_chart.js"></script>
 </head>
 <body>
@@ -47,7 +50,10 @@
 Placeholder for this html file:
     1. title_of_table
     2. introduction
-    3. step4
+    3. tensity (control by slider)
+    4. tensity2 (same)
+    5. finetuned (control by a button)
+    6. update_date
 -->
 <table class="table"
        style="text-align: left; min-width: 900px; padding-left: 40px">
@@ -65,7 +71,7 @@ Placeholder for this html file:
         </td>
     </tr>
     <tr>
-        <th style="padding-top: 2em">
+        <th class="step">
             Step 1: Choose the representation type.
         </th>
     </tr>
@@ -82,7 +88,7 @@ Placeholder for this html file:
         </td>
     </tr>
     <tr>
-        <th style="padding-top: 2em">
+        <th class="step">
             Step 2: Choose whether agents are fine-tuned.
         </th>
     </tr>
@@ -104,7 +110,7 @@ Placeholder for this html file:
         </td>
     </tr>
     <tr>
-        <th style="padding-top: 2em">
+        <th class="step">
             Step 3: Choose a tensity of noise.
         </th>
     </tr>
@@ -122,16 +128,33 @@ Placeholder for this html file:
         </td>
     </tr>
     <tr>
-        <th style="padding-top: 2em">
-            Step 4: Enjoy the <span id="finetuned"></span> agents at the noise tensity <span id="tensity2"></span>!
+        <th class="step">
+            Step 4: Enjoy the <span id="finetuned"></span> agents at the noise
+            tensity <span id="tensity2"></span>!
         </th>
     </tr>
     <tr>
         <td>
-            <div id="chart_div" style="width: 900px; height: 500px;"></div>
+            Note that for fine-tuned agents, you can click the scatter to watch
+            the videos of their behaviors.<br>You can also change the
+            clustering scheme by choosing the different algorithms.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div id="dashboard_div">
+                <div id="chart_div" style="width: 900px; height: 600px;"></div>
+                Choose a cluster results.
+                <div id="control_div"></div>
+            </div>
         </td>
     </tr>
 </table>
-<!--</div>-->
+<div style="padding-top:10em; padding-bottom: 4em; text-align: center; font-size: 50%">
+    The data used at this web page was collected on <span
+        id="update_date"></span>.<br>
+    Copyright © 2019 by Peng Zhenghao. All rights reserved.
+    <!--    Copyright © 2019 by <a href="https://pengzhenghao.github.io">Peng Zhenghao</a>. All rights reserved.-->
+</div>
 </body>
 </html>
