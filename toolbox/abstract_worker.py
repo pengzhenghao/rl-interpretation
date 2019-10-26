@@ -1,9 +1,9 @@
 import logging
 import time
 from collections import OrderedDict
-from sys import getsizeof
 
 import ray
+from ray.internal.internal_api import pin_object_data, unpin_object_data
 
 from toolbox.utils import get_num_gpus, get_num_cpus, ray_get_and_free
 
@@ -91,6 +91,7 @@ class WorkerManagerBase:
                 self.worker_dict, self.get_status()
             )
         oid = current_worker.run.remote(*args, **kwargs)
+        pin_object_data(oid)
         self.postprocess(agent_name, oid)
 
     def get_result(self):
@@ -170,7 +171,7 @@ class WorkerManagerBase:
     def _get_object_list(self, obj_list):
         for object_id in obj_list:
             ret = ray_get_and_free(object_id)
-
+            unpin_object_data(object_id)
             if (not self.warned) and (self.total_num is not None):
                 size = deep_getsizeof(ret) / MB
                 total_size = size * self.total_num
@@ -189,33 +190,34 @@ class WorkerManagerBase:
                     logger.warning(warning_message)
                     print(warning_message)
 
-        name = None
-        for worker_index, worker_info in self.worker_dict.items():
-            if worker_info['obj'] == object_id:
-                name = worker_info['name']
-                break
-        if name is None:
-            raise ValueError()
+            # find the worker_index and name, given the object_id
+            name = None
+            for worker_index, worker_info in self.worker_dict.items():
+                if worker_info['obj'] == object_id:
+                    name = worker_info['name']
+                    break
+            if name is None:
+                raise ValueError()
 
-        self.ret_dict[name] = ret
-        task_start_time = self.worker_dict[worker_index]['time']
-        self.worker_dict[worker_index]['obj'] = None
-        self.worker_dict[worker_index]['name'] = None
-        self.worker_dict[worker_index]['time'] = None
+            self.ret_dict[name] = ret
+            task_start_time = self.worker_dict[worker_index]['time']
+            self.worker_dict[worker_index]['obj'] = None
+            self.worker_dict[worker_index]['name'] = None
+            self.worker_dict[worker_index]['time'] = None
 
-        self.finish_count += 1
-        if self.finish_count % self.log_interval == 0:
-            print(ray.available_resources())
-            print(
-                "[{}/{}] (Task {:.2f}s|Total {:.2f}s) Finish {}: {}! {}"
-                "".format(
-                    self.finish_count, self.total_num,
-                    time.time() - task_start_time,
-                    time.time() - self.start, self.print_string, name,
-                    self.parse_result(ret)
+            self.finish_count += 1
+            if self.finish_count % self.log_interval == 0:
+                print(ray.available_resources())
+                print(
+                    "[{}/{}] (Task {:.2f}s|Total {:.2f}s) Finish {}: {}! {}"
+                    "".format(
+                        self.finish_count, self.total_num,
+                        time.time() - task_start_time,
+                        time.time() - self.start, self.print_string, name,
+                        self.parse_result(ret)
+                    )
                 )
-            )
-            self.now = time.time()
+                self.now = time.time()
 
 
 error_string = "The get_result function should only be called once! If " \

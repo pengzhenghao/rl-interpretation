@@ -8,9 +8,10 @@ from toolbox.utils import initialize_ray
 
 MB = 1024 * 1024
 
-import sys
+
 def test_heavy_memory_usage():
-    initialize_ray(test_mode=True, object_store_memory=4000 * MB)
+    # initialize_ray(test_mode=True, object_store_memory=4000 * MB)
+    initialize_ray(test_mode=True)
 
     num = 50
     delay = 0
