@@ -7,11 +7,11 @@ from toolbox.abstract_worker import WorkerManagerBase, WorkerBase
 from toolbox.utils import initialize_ray
 
 MB = 1024 * 1024
-
+from sys import getsizeof
 
 def test_heavy_memory_usage():
-    # initialize_ray(test_mode=True, object_store_memory=4000 * MB)
-    initialize_ray(test_mode=True)
+    initialize_ray(test_mode=True, object_store_memory=400 * MB)
+    # initialize_ray(test_mode=True)
 
     num = 50
     delay = 0
@@ -26,7 +26,11 @@ def test_heavy_memory_usage():
             self.count += 1
             print(self.count, ray.cluster_resources())
             arr = np.empty((10 * MB), dtype=np.uint8)
+            print("in worker getsize", getsizeof(arr))
+            # arr = 1
             return self.count, arr
+            # oid = ray.put((self.count, arr))
+            # return oid
 
     class TestManager(WorkerManagerBase):
         def __init__(self):

@@ -3,7 +3,6 @@ import time
 from collections import OrderedDict
 
 import ray
-from ray.internal.internal_api import pin_object_data, unpin_object_data
 
 from toolbox.utils import get_num_gpus, get_num_cpus, ray_get_and_free
 
@@ -91,7 +90,6 @@ class WorkerManagerBase:
                 self.worker_dict, self.get_status()
             )
         oid = current_worker.run.remote(*args, **kwargs)
-        pin_object_data(oid)
         self.postprocess(agent_name, oid)
 
     def get_result(self):
@@ -171,7 +169,6 @@ class WorkerManagerBase:
     def _get_object_list(self, obj_list):
         for object_id in obj_list:
             ret = ray_get_and_free(object_id)
-            unpin_object_data(object_id)
             if (not self.warned) and (self.total_num is not None):
                 size = deep_getsizeof(ret) / MB
                 total_size = size * self.total_num
@@ -219,7 +216,6 @@ class WorkerManagerBase:
                 )
                 self.now = time.time()
 
-
-error_string = "The get_result function should only be called once! If " \
-               "you really want to retrieve the data," \
-               " please call self.get_result_from_memory() !"
+    error_string = "The get_result function should only be called once! If " \
+                   "you really want to retrieve the data," \
+                   " please call self.get_result_from_memory() !"

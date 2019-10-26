@@ -1,11 +1,14 @@
 import collections
+import copy
 import logging
 import time
 import uuid
 from collections import Mapping, Container
 from sys import getsizeof
 
+import numpy as np
 import ray
+from ray.internal.internal_api import unpin_object_data
 
 
 class DefaultMapping(collections.defaultdict):
@@ -25,7 +28,7 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False, **kwargs):
             num_gpus=num_gpus,
             **kwargs
         )
-        print("Sucessfully initialize Ray!")
+        print("Successfully initialize Ray!")
     if not local_mode:
         print("Available resources: ", ray.available_resources())
 
@@ -45,7 +48,6 @@ def has_gpu():
 def get_num_gpus(num_workers=None):
     num_gpus = 0
     if has_gpu() and num_workers is not None:
-        # A modest resource allocation
         num_gpus = (ray.available_resources()['GPU'] - 0.5) / num_workers
         if num_gpus >= 1:
             num_gpus = 1
@@ -57,7 +59,6 @@ def get_num_cpus(num_workers=None):
     if "CPU" not in ray.available_resources():
         return 0.5
     if has_gpu() and num_workers is not None:
-        # A modest resource allocation
         num_cpus = (ray.available_resources()['CPU'] - 0.5) / num_workers
         if num_cpus >= 1:
             num_cpus = 1
@@ -67,7 +68,7 @@ def get_num_cpus(num_workers=None):
 
 # ray_get_and_free is copied from ray
 FREE_DELAY_S = 10.0
-MAX_FREE_QUEUE_SIZE = 50  # oirginal 100
+MAX_FREE_QUEUE_SIZE = 100
 _last_free_time = 0.0
 _to_free = []
 
@@ -89,16 +90,24 @@ def ray_get_and_free(object_ids):
     global _last_free_time
     global _to_free
 
-    # result = copy.deepcopy(ray.get(object_ids))  # no copy at origin
-    result = ray.get(object_ids)
+    # The copy here is really IMPORTANT! It remove the ref count of the object
+    # and make it possible to be freed when the object_store of ray is limited.
+
+    result = copy.deepcopy(ray.get(object_ids))  # no copy at origin
+
     if type(object_ids) is not list:
         object_ids = [object_ids]
+
+    for oid in object_ids:
+        unpin_object_data(oid)
+
     _to_free.extend(object_ids)
 
     # batch calls to free to reduce overheads
     now = time.time()
     if (len(_to_free) > MAX_FREE_QUEUE_SIZE
             or now - _last_free_time > FREE_DELAY_S):
+        print("[FREE] Sent command to free: ", _to_free)
         ray.internal.free(_to_free)
         _to_free = []
         _last_free_time = now
@@ -126,6 +135,9 @@ def deep_getsizeof(o, ids=None):
 
     r = getsizeof(o)
     ids.add(id(o))
+
+    if isinstance(o, np.ndarray):
+        return o.nbytes
 
     if isinstance(o, str):  # or isinstance(0, unicode):
         return r
