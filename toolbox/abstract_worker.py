@@ -12,10 +12,18 @@ logger = logging.getLogger(__name__)
 
 class WorkerBase:
     @classmethod
-    def as_remote(cls, num_cpus=None, num_gpus=None, resources=None):
+    def as_remote(cls,
+                  num_cpus=None,
+                  num_gpus=None,
+                  memory=None,
+                  object_store_memory=None,
+                  resources=None):
         return ray.remote(
-            num_cpus=num_cpus, num_gpus=num_gpus, resources=resources
-        )(cls)
+            num_cpus=num_cpus,
+            num_gpus=num_gpus,
+            memory=memory,
+            object_store_memory=object_store_memory,
+            resources=resources)(cls)
 
     def run(self, *args, **kwargs):
         """You should implement this method."""
@@ -51,14 +59,14 @@ class WorkerManagerBase:
         for i in range(num_workers):
             self.worker_dict[i] = {
                 'worker':
-                worker_class.as_remote(num_gpus=num_gpus,
-                                       num_cpus=num_cpus).remote(),
+                    worker_class.as_remote(num_gpus=num_gpus,
+                                           num_cpus=num_cpus).remote(),
                 'obj':
-                None,
+                    None,
                 'name':
-                None,
+                    None,
                 'time':
-                None
+                    None
             }
         self.ret_dict = OrderedDict()
         self.start_count = 0
@@ -71,6 +79,10 @@ class WorkerManagerBase:
         self._pointer = None
 
     def submit(self, agent_name, *args, **kwargs):
+
+
+        print("enter submit: ", args, kwargs)
+
         """You should call this function at the main entry of your manager"""
         agent_name = str(agent_name)
         current_worker = None
@@ -78,10 +90,10 @@ class WorkerManagerBase:
             if wd['obj'] is None:
                 self._pointer = i
                 current_worker = wd['worker']
-        assert current_worker is not None, "No available worker found! {} | " \
-                                           "{}".format(
-            self.worker_dict, self.get_status()
-        )
+        assert current_worker is not None, \
+            "No available worker found! {} | {}".format(
+                self.worker_dict, self.get_status()
+            )
         oid = current_worker.run.remote(*args, **kwargs)
         self.postprocess(agent_name, oid)
 
@@ -193,47 +205,3 @@ class WorkerManagerBase:
     error_string = "The get_result function should only be called once! If " \
                    "you really want to retrieve the data," \
                    " please call self.get_result_from_memory() !"
-
-
-def test():
-    """This is test codes for HEAVY MEMORY USAGE case. But just forget it."""
-    # FIXME something wrong.
-    from toolbox.utils import initialize_ray
-    import numpy as np
-
-    initialize_ray(test_mode=True)
-    # initialize_ray(test_mode=True, redis_max_memory=2000000000)
-
-    num = 100
-    delay = 0
-
-    class TestWorker(WorkerBase):
-        def __init__(self):
-            self.count = 0
-
-        def count(self):
-            time.sleep(delay)
-            self.count += 1
-            print(self.count, ray.cluster_resources())
-            print("")
-            return self.count, np.empty((1000000))
-            # return copy.deepcopy((self.count, np.empty((20000000))))
-            # return self.count, np.empty((20000000))
-
-    class TestManager(WorkerManagerBase):
-        def __init__(self):
-            super(TestManager, self).__init__(16, TestWorker, num, 1, 'test')
-
-        def count(self, index):
-            self.submit(index)
-
-    tm = TestManager()
-    for i in range(num):
-        tm.count(i)
-
-    ret = tm.get_result()
-    return ret
-
-
-if __name__ == '__main__':
-    ret = test()

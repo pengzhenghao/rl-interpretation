@@ -29,14 +29,14 @@ rollout_ret = quick_rollout_from_symbolic_agents(
     env_wrapper=None  # This is not mujoco env!!
 )
 
-# replay_manager = RemoteSymbolicReplayManager(
-#     num_workers, total_num=len(agent_dict)
-# )
-#
-# for i, (name, symbolic_agent) in \
-#         enumerate(agent_dict.items()):
-#     replay_manager.replay(name, symbolic_agent, np.ones((1000, 24)))
-#
-# print("[INSIDE CAA][replay] have submitted the all commands to RSRM")
-# replay_result = replay_manager.get_result()
-# print("[INSIDE CAA][replay] have ge_result() from RSRM")
+replay_manager = RemoteSymbolicReplayManager(
+    num_workers, total_num=len(agent_dict)
+)
+
+for i, (name, symbolic_agent) in \
+        enumerate(agent_dict.items()):
+    replay_manager.replay(name, symbolic_agent, np.ones((1000, 24)))
+
+print("[INSIDE CAA][replay] have submitted the all commands to RSRM")
+replay_result = replay_manager.get_result()
+print("[INSIDE CAA][replay] have ge_result() from RSRM")
