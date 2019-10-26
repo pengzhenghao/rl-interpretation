@@ -62,7 +62,6 @@ def get_num_cpus(num_workers=None):
         num_cpus = (ray.available_resources()['CPU'] - 0.5) / num_workers
         if num_cpus >= 1:
             num_cpus = 1
-    print("DEBUG we are in get nunm cpus, return: ", num_cpus)
     return num_cpus
 
 
@@ -107,7 +106,6 @@ def ray_get_and_free(object_ids):
     now = time.time()
     if (len(_to_free) > MAX_FREE_QUEUE_SIZE
             or now - _last_free_time > FREE_DELAY_S):
-        print("[FREE] Sent command to free: ", _to_free)
         ray.internal.free(_to_free)
         _to_free = []
         _last_free_time = now

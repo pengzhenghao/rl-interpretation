@@ -211,7 +211,6 @@ class WorkerManagerBase:
 
             self.finish_count += 1
             if self.finish_count % self.log_interval == 0:
-                print(ray.available_resources())
                 print(
                     "[{}/{}] (Task {:.2f}s|Total {:.2f}s) Finish {}: {}! {}"
                     "".format(
