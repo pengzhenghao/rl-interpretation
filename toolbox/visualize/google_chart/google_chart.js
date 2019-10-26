@@ -100,4 +100,14 @@ function drawChart() {
 
     chart.draw(data_table, options);
 
+    changeRange = function () {
+        programmaticSlider.setState({'lowValue': 2, 'highValue': 5});
+        programmaticSlider.draw();
+    };
+
+    changeOptions = function () {
+        programmaticChart.setOption('is3D', true);
+        programmaticChart.draw();
+    };
+
 }

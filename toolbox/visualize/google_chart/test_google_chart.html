@@ -43,37 +43,97 @@
     <script type="text/javascript" src="google_chart.js"></script>
 </head>
 <body>
-<div class="slidecontainer">
-    <input type="range" min="0" max="100" value="0" class="slider"
-           id="myRange">
-    <p>Current Noise Tensity (STD): <span id="demo"></span></p>
-</div>
-<div id="chart_div" style="width: 900px; height: 500px;"></div>
-<!--<div id="chart_div" style="width: 900px; height: 500px;"></div>-->
-<!--Div that will hold the dashboard-->
-<!--<div id="programmatic_dashboard_div" style="border: 1px solid #ccc">-->
-<!--    <table class="columns">-->
-<!--        <tr>-->
-<!--            <td>-->
-<!--                <div id="programmatic_control_div"-->
-<!--                     style="padding-left: 2em; min-width: 250px"></div>-->
-<!--                <div>-->
-<!--                    <button style="margin: 1em 1em 1em 2em"-->
-<!--                            onclick="changeRange();">-->
-<!--                        Select range [2, 5]-->
-<!--                    </button>-->
-<!--                    <br/>-->
-<!--                    <button style="margin: 1em 1em 1em 2em"-->
-<!--                            onclick="changeOptions();">-->
-<!--                        Make the pie chart 3D-->
-<!--                    </button>-->
-<!--                </div>-->
-<!--            </td>-->
-<!--            <td>-->
-<!--                <div id="programmatic_chart_div"></div>-->
-<!--            </td>-->
-<!--        </tr>-->
-<!--    </table>-->
+<!--
+Placeholder for this html file:
+    1. title_of_table
+    2. introduction
+    3. step4
+-->
+<table class="table"
+       style="text-align: left; min-width: 900px; padding-left: 40px">
+    <tr style="text-align: center; height: 4em;">
+        <th>
+            TIEL<span id="title_of_table"></span>
+        </th>
+    </tr>
+    <tr style="text-align: center;">
+        <td>
+            <p style="max-width: 600px; text-align: left; margin: 0 auto 2em">
+                Add some abstract here! Add some abstract here! Add some
+                abstract here! Add some abstract here! Add some abstract here!
+                Add some abstract here!
+                <span id="introduction"></span>
+            </p>
+        </td>
+    </tr>
+    <tr>
+        <th style="padding-top: 2em">
+            Step 1: Choose the representation type.
+        </th>
+    </tr>
+    <tr>
+        <td>
+            <button style="margin: 1em 1em 0 2em; width:10em;"
+                    onclick="changeRange();">
+                Button 1
+            </button>
+            <button style="margin: 1em 1em 0 2em; width:10em;"
+                    onclick="changeOptions();">
+                Button 2
+            </button>
+        </td>
+    </tr>
+    <tr>
+        <th style="padding-top: 2em">
+            Step 2: Choose whether agents are fine-tuned.
+        </th>
+    </tr>
+    <tr>
+        <td>
+            Note that we do not provides videos of the not fine-tuned agents.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <button style="margin: 1em 1em 0 2em; width: 10em;"
+                    onclick="changeRange();">
+                Fine-tuned
+            </button>
+            <button style="margin: 1em 1em 0 2em; width:10em;"
+                    onclick="changeOptions();">
+                Not Fine-tuned
+            </button>
+        </td>
+    </tr>
+    <tr>
+        <th style="padding-top: 2em">
+            Step 3: Choose a tensity of noise.
+        </th>
+    </tr>
+    <tr>
+        <td>
+            <div class="slidecontainer">
+                <input type="range" min="0" max="100" value="0" class="slider"
+                       id="myRange">
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            Current Noise Tensity (STD): <span id="demo"></span>
+        </td>
+    </tr>
+    <tr>
+        <th style="padding-top: 2em">
+            Step 4: Enjoy
+        </th>
+    </tr>
+    <tr>
+        <td>
+            <div id="chart_div" style="width: 900px; height: 500px;"></div>
+        </td>
+    </tr>
+</table>
 <!--</div>-->
 </body>
 </html>
