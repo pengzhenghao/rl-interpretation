@@ -80,7 +80,9 @@ function drawChart() {
                 "vAxis": {"title": figure_info['ylabel']},
                 "legend": "none",
                 "aggregationTarget": "none",
-                "selectionMode": "multiple"
+                "selectionMode": "multiple",
+                "theme": "maximized",
+                "fontSize": 12
             }
         }
     );
