@@ -11,6 +11,14 @@ var rawData = $.parseJSON($.ajax({
     async: false
 }).responseText);
 
+function createCustomHTMLContent(videoPath) {
+    return "" +
+        // '<a href="' + hyperLink + '">' +
+        '<video width="80" height="80" autoplay loop muted>' +
+        '<source src="' + videoPath +
+        '" type="video/mp4" /></video>'
+    // '</a>' +
+}
 
 function changeText(elementId, text) {
     var element = document.getElementById(elementId);
@@ -21,13 +29,33 @@ function changeText(elementId, text) {
 function drawChart() {
 
     var info = rawData['info'];
+    // Create the chart
+    var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
+
+    var options = {
+        tooltip: {isHtml: true, trigger: 'selection'},
+        title: info['title'],
+        hAxis: {
+            title: info['xlabel'],
+            minValue: info['xlim'] ? info['xlim'][0] : null,
+            maxValue: info['xlim'] ? info['xlim'][1] : null
+        },
+        vAxis: {
+            title: info['ylabel'],
+            minValue: info['ylim'] ? info['ylim'][0] : null,
+            maxValue: info['ylim'] ? info['ylim'][1] : null
+        },
+        legend: 'none',
+        aggregationTarget: 'none',
+        selectionMode: 'multiple'
+    };
 
     function get_exact_std(slider_value) {
         return slider_value / (info['num_std'] - 1)
     }
 
     // Create the slider for std changing
-    var slider = document.getElementById("myRange");
+    var slider = document.getElementById("tensitySlider");
     slider.value = info['std_min'];
     slider.min = info['std_min'];
     slider.max = info['num_std'] - 1;
@@ -40,16 +68,6 @@ function drawChart() {
     changeText("introduction", rawData['web']['introduction']);
     changeText("tensity", slider.value);
     changeText("tensity2", slider.value);
-
-
-    function createCustomHTMLContent(videoPath) {
-        return "" +
-            // '<a href="' + hyperLink + '">' +
-            '<video width="80" height="80" autoplay loop muted>' +
-            '<source src="' + videoPath +
-            '" type="video/mp4" /></video>'
-        // '</a>' +
-    }
 
     function update_data_table() {
         var newData;
@@ -90,10 +108,6 @@ function drawChart() {
         return data_table
     }
 
-
-    // Create the chart
-    var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
-
     function flush() {
         data_table = update_data_table();
         changeText("tensity", current_tensity);
@@ -102,28 +116,9 @@ function drawChart() {
         chart.draw(data_table, options);
     }
 
-    var options = {
-        tooltip: {isHtml: true, trigger: 'selection'},
-        title: info['title'],
-        hAxis: {
-            title: info['xlabel'],
-            minValue: info['xlim'] ? info['xlim'][0] : null,
-            maxValue: info['xlim'] ? info['xlim'][1] : null
-        },
-        vAxis: {
-            title: info['ylabel'],
-            minValue: info['ylim'] ? info['ylim'][0] : null,
-            maxValue: info['ylim'] ? info['ylim'][1] : null
-        },
-        legend: 'none',
-        aggregationTarget: 'none',
-        selectionMode: 'multiple'
-    };
-
     // Init the chart first.
     data_table = update_data_table();
     flush();
-    // chart.draw(data_table, options);
 
     change2FineTuned = function () {
         current_tune_flag = true;
@@ -134,5 +129,4 @@ function drawChart() {
         current_tune_flag = false;
         flush();
     };
-
 }
