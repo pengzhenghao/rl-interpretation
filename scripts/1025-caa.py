@@ -125,38 +125,39 @@ def remote_restore_and_compute(rollout_ret, now, start, dir_name, std):
 
 start = now = time.time()
 
-with open("1023-cross-agent-retrain/retrain_agent_result_std=0.9-copy.pkl",
-          'rb') as f:
-    data = pickle.load(f)
+# with open("1023-cross-agent-retrain/retrain_agent_result_std=0.9-copy.pkl",
+#           'rb') as f:
+#     data = pickle.load(f)
+#
+# yaml_path = "../data/yaml/ppo-300-agents.yaml"
+# name_ckpt_mapping = read_yaml(yaml_path, number=num_agents, mode="uniform")
+#
+# nest_agent = OrderedDict()
+# for std, agent_dict in data.items():
+#     nest_agent[std] = OrderedDict()
+#     for name, (_, weights) in agent_dict.items():
+#         parent_name = name.split(" child=")[0]
+#         assert parent_name in name_ckpt_mapping
+#         ckpt = name_ckpt_mapping[parent_name]
+#         nest_agent[std][name] = MaskSymbolicAgent(
+#             ckpt, existing_weights=weights, name=name
+#         )
+#
+# print("Finish prepare symbolic agents.")
 
-yaml_path = "../data/yaml/ppo-300-agents.yaml"
-name_ckpt_mapping = read_yaml(yaml_path, number=num_agents, mode="uniform")
-
-nest_agent = OrderedDict()
-for std, agent_dict in data.items():
-    nest_agent[std] = OrderedDict()
-    for name, (_, weights) in agent_dict.items():
-        parent_name = name.split(" child=")[0]
-        assert parent_name in name_ckpt_mapping
-        ckpt = name_ckpt_mapping[parent_name]
-        nest_agent[std][name] = MaskSymbolicAgent(
-            ckpt, existing_weights=weights, name=name
-        )
-
-print("Finish prepare symbolic agents.")
-
-std_ret_rollout_dict_new = OrderedDict()
-for std, agent_dict in nest_agent.items():
-    print("Enter STD={}, quick rollout start!".format(std))
-    rollout_ret = quick_rollout_from_symbolic_agents(
-        agent_dict, num_rollouts, num_workers,
-        env_wrapper=None  # This is not mujoco env!!
-    )
-    std_ret_rollout_dict_new[std] = rollout_ret
+# std_ret_rollout_dict_new = OrderedDict()
+# for std, agent_dict in nest_agent.items():
+#     print("Enter STD={}, quick rollout start!".format(std))
+#     rollout_ret = quick_rollout_from_symbolic_agents(
+#         agent_dict, num_rollouts, num_workers,
+#         env_wrapper=None  # This is not mujoco env!!
+#     )
+#     std_ret_rollout_dict_new[std] = rollout_ret
 
 ckpt_path_name = osp.join(dir_name, "fine-tuned-agent-rollout-dict.pkl")
-with open(ckpt_path_name, 'wb') as f:
-    pickle.dump(std_ret_rollout_dict_new, f)
+with open(ckpt_path_name, 'rb') as f:
+    std_ret_rollout_dict_new = pickle.load(f)
+    print("Successfully read from: ", ckpt_path_name)
 
 print("Finish rollout")
 start = now = time.time()
