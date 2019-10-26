@@ -17,13 +17,14 @@ function changeText(elementId, text) {
     element.innerText = text;
 }
 
-function get_exact_std(slider_value) {
-    return slider_value / (info['num_std'] - 1)
-}
 
 function drawChart() {
 
     var info = rawData['info'];
+
+    function get_exact_std(slider_value) {
+        return slider_value / (info['num_std'] - 1)
+    }
 
     // Create the slider for std changing
     var slider = document.getElementById("myRange");
@@ -32,13 +33,13 @@ function drawChart() {
     slider.max = info['num_std'] - 1;
     slider.oninput = function () {
         current_tensity = get_exact_std(this.value);
-        changeText("tensity", current_tensity);
         flush();
     };
 
     changeText("title_of_table", rawData['web']['title']);
     changeText("introduction", rawData['web']['introduction']);
     changeText("tensity", slider.value);
+    changeText("tensity2", slider.value);
 
 
     function createCustomHTMLContent(videoPath) {
@@ -89,14 +90,15 @@ function drawChart() {
         return data_table
     }
 
-    // Init the chart first.
-    data_table = update_data_table();
 
     // Create the chart
     var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
 
     function flush() {
         data_table = update_data_table();
+        changeText("tensity", current_tensity);
+        changeText("tensity2", current_tensity);
+        changeText("finetuned", current_tune_flag ? "fine-tuned" : "not fine-tuned");
         chart.draw(data_table, options);
     }
 
@@ -118,16 +120,19 @@ function drawChart() {
         selectionMode: 'multiple'
     };
 
-    chart.draw(data_table, options);
+    // Init the chart first.
+    data_table = update_data_table();
+    flush();
+    // chart.draw(data_table, options);
 
-    changeRange = function () {
-        programmaticSlider.setState({'lowValue': 2, 'highValue': 5});
-        programmaticSlider.draw();
+    change2FineTuned = function () {
+        current_tune_flag = true;
+        flush();
     };
 
-    changeOptions = function () {
-        programmaticChart.setOption('is3D', true);
-        programmaticChart.draw();
+    change2NotFineTuned = function () {
+        current_tune_flag = false;
+        flush();
     };
 
 }
