@@ -7,7 +7,7 @@ var current_tune_flag = true;
 var current_tensity = 0;
 
 var rawData = $.parseJSON($.ajax({
-    url: 'test_data2.json',
+    url: 'test_data.json',
     dataType: "json",
     async: false
 }).responseText);
@@ -97,16 +97,18 @@ function drawChart() {
         }
     );
 
-
+    // const tensity_interval = (figure_info['std_max'] - figure_info['std_min']) / (figure_info['num_std'] - 1);
+    const tensity_multiplier = figure_info['tensity_multiplier'];
     function get_exact_std(slider_value) {
-        return slider_value / (figure_info['num_std'] - 1)
+        return figure_info['tensities'][slider_value] / tensity_multiplier
     }
 
     // Create the slider for std changing
     var slider = document.getElementById("tensitySlider");
-    slider.value = figure_info['std_min'];
-    slider.min = figure_info['std_min'];
-    slider.max = figure_info['num_std'] - 1;
+    slider.value = figure_info['tensities'][0];
+    // slider.min = figure_info['std_min'];
+    slider.min = 0;
+    slider.max = figure_info['num_tensities'] - 1;
     slider.oninput = function () {
         current_tensity = get_exact_std(this.value);
         flush();
@@ -122,7 +124,7 @@ function drawChart() {
 
     function setup_data_table() {
         var newData;
-        var std = current_tensity;
+        // var std = current_tensity;
         if (current_tune_flag) {
             newData = rawData['data']['fine_tuned']['fft']
         } else {
@@ -160,20 +162,20 @@ function drawChart() {
 
         current_data_view = new google.visualization.DataView(data_table);
         current_data_view.setColumns([0, 1]);
+        update_data_view();
     }
 
     function update_data_view() {
         // cloumn 3 is tensity
         current_data_view.setRows(
             data_table.getFilteredRows(
-                [{column: 3, value: current_tensity}]
+                [{column: 3, value: current_tensity * tensity_multiplier}]
             )
         );
-        return current_data_view;
     }
 
     function flush() {
-        current_data_view = update_data_view();
+        update_data_view();
         changeText("tensity", current_tensity);
         changeText("tensity2", current_tensity);
         changeText("finetuned", current_tune_flag ? "fine-tuned" : "not fine-tuned");
@@ -181,7 +183,7 @@ function drawChart() {
     }
 
     // Init the chart first.
-    current_data_view = update_data_view();
+    update_data_view();
     flush();
 
     change2FineTuned = function () {
@@ -195,5 +197,5 @@ function drawChart() {
     };
 
     dashboard.bind(filter, chart);
-    dashboard.draw(data_table);
+    dashboard.draw(current_data_view);
 }
