@@ -103,6 +103,7 @@ function drawChart() {
         //     console.log("READY!!!!!!!!!!!");
         //     flush();
         // });
+
     }
 
     function get_exact_std(slider_value) {
@@ -197,23 +198,28 @@ function drawChart() {
         build_slider();
         setup_data_table();
         build_dashboard();
+        set_lim();
     }
 
     init();
 
 ////////// Event Handler //////////
+    function set_lim() {
+        var method = filter.getState()['selectedValues'][0];
+        var xlim = figure_info['xlim'][method];
+        var ylim = figure_info['ylim'][method];
+        var dx = 0.1 * (xlim[1] - xlim[0]);
+        var dy = 0.1 * (ylim[1] - ylim[0]);
+        chart.setOption("hAxis.viewWindow.min", xlim[0] - dx);
+        chart.setOption("hAxis.viewWindow.max", xlim[1] + dx);
+        chart.setOption("vAxis.viewWindow.min", ylim[0] - dy);
+        chart.setOption("vAxis.viewWindow.max", ylim[1] + dy);
+        flush();
+    }
 
-// Change method
-//     google.visualization.events.addListener(filter, 'statechange', function () {
-//         console.log("CHANEG METHOD!!!!!!!!!!!");
-//
-//         chart.setOption("vAxis.minValue", 0);
-//         chart.setOption("vAxis.maxValue", 0);
-//         chart.setOption("hAxis.minValue", 0);
-//         chart.setOption("hAxis.maxValue", 0);
-//
-//         flush();
-//     });
+
+    // Change method
+    google.visualization.events.addListener(filter, 'statechange', set_lim);
 
     change2FineTuned = function () {
         current_tune_flag = true;
