@@ -3,6 +3,7 @@ google.charts.setOnLoadCallback(drawChart);
 
 var data_table;
 var current_tune_flag = true;
+var current_color_flag = true;
 var current_tensity = 0;
 
 var rawData = $.parseJSON($.ajax({
@@ -108,6 +109,10 @@ function drawChart() {
         changeText("title_of_table", rawData['web_info']['title']);
         changeText("introduction", rawData['web_info']['introduction']);
         changeText("tensity", current_tensity);
+
+        document.getElementById('disable_color_button').innerHTML =
+            "Click to disable coloring";
+        // changeText("disable_color_button", "Click to disable coloring");
         // changeText("tensity2", "all");
         // changeText("finetuned", "all");
         changeText("update_date", rawData['web_info']['update_date']);
@@ -154,8 +159,6 @@ function drawChart() {
         }
 
         return new_data_table;
-
-
     }
 
 
@@ -169,7 +172,11 @@ function drawChart() {
         }
         data_table = new google.visualization.DataTable(newData);
 
-        data_table = parse_data_table(data_table);
+        if (current_color_flag) {
+            data_table = parse_data_table(data_table);
+        } else {
+            cluster_column_indices = [0, 1];
+        }
 
         // Fill the tooltip
         data_table.addColumn(
@@ -266,6 +273,17 @@ function drawChart() {
 
     clear_selection = function () {
         chart.getChart().setSelection();
+    };
+
+    change_color = function () {
+        current_color_flag = !current_color_flag;
+        init();
+        var button = document.getElementById('disable_color_button');
+        if (current_color_flag) {
+            button.innerHTML = "Click to disable coloring";
+        } else {
+            button.innerHTML = "Click to enable coloring";
+        }
     }
 
 }
