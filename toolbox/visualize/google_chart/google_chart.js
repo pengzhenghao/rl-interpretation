@@ -2,12 +2,12 @@ google.charts.load('current', {'packages': ['corechart', 'controls']});
 google.charts.setOnLoadCallback(drawChart);
 
 var data_table;
-var current_data_table;
+var current_data_view;
 var current_tune_flag = true;
 var current_tensity = 0;
 
 var rawData = $.parseJSON($.ajax({
-    url: 'test_data_with_cluster.json',
+    url: 'test_data2.json',
     dataType: "json",
     async: false
 }).responseText);
@@ -61,9 +61,10 @@ function drawChart() {
         'controlType': 'CategoryFilter',
         'containerId': 'control_div',
         'options': {
-            'filterColumnLabel': "ClusterMethod",
+            // 'filterColumnLabel': "x",
+            'filterColumnIndex': 0,
             'ui': {
-                'allowNone': false,
+                'allowNone': true,
                 "allowMultiple": true,
                 "allowTyping": false
             }
@@ -117,13 +118,15 @@ function drawChart() {
     changeText("tensity2", slider.value);
     changeText("update_date", rawData['web_info']['update_date']);
 
-    function update_data_table() {
+    setup_data_table();
+
+    function setup_data_table() {
         var newData;
         var std = current_tensity;
         if (current_tune_flag) {
-            newData = rawData['data']['fine_tuned'][std]
+            newData = rawData['data']['fine_tuned']['fft']
         } else {
-            newData = rawData['data']['not_fine_tuned'][std]
+            newData = rawData['data']['not_fine_tuned']['fft']
         }
         data_table = new google.visualization.DataTable(newData);
 
@@ -135,6 +138,7 @@ function drawChart() {
                 'p': {'html': true}
             }
         );
+
         var url, cell_html, row, extra;
         for (row = 0; row < data_table.getNumberOfRows(); row++) {
             url = data_table.getRowProperty(row, "url");
@@ -151,21 +155,33 @@ function drawChart() {
             }
             cell_html = '<dev style="padding:0 0 0 0">' + cell_html
                 + '</dev>';
-            data_table.setCell(row, 3, cell_html);
+            data_table.setCell(row, data_table.getNumberOfColumns() - 1, cell_html);
         }
-        return data_table
+
+        current_data_view = new google.visualization.DataView(data_table);
+        current_data_view.setColumns([0, 1]);
+    }
+
+    function update_data_view() {
+        // cloumn 3 is tensity
+        current_data_view.setRows(
+            data_table.getFilteredRows(
+                [{column: 3, value: current_tensity}]
+            )
+        );
+        return current_data_view;
     }
 
     function flush() {
-        data_table = update_data_table();
+        current_data_view = update_data_view();
         changeText("tensity", current_tensity);
         changeText("tensity2", current_tensity);
         changeText("finetuned", current_tune_flag ? "fine-tuned" : "not fine-tuned");
-        dashboard.draw(data_table);
+        dashboard.draw(current_data_view);
     }
 
     // Init the chart first.
-    data_table = update_data_table();
+    current_data_view = update_data_view();
     flush();
 
     change2FineTuned = function () {
