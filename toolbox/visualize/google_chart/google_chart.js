@@ -235,6 +235,7 @@ function drawChart() {
         setup_data_table();
         build_dashboard();
         set_lim();
+        flush();
     }
 
     init();
@@ -250,7 +251,6 @@ function drawChart() {
         chart.setOption("hAxis.viewWindow.max", xlim[1] + dx);
         chart.setOption("vAxis.viewWindow.min", ylim[0] - dy);
         chart.setOption("vAxis.viewWindow.max", ylim[1] + dy);
-        flush();
     }
 
 
@@ -259,16 +259,19 @@ function drawChart() {
 
     change2FineTuned = function () {
         current_tune_flag = true;
-        init();
+        setup_data_table();
+        flush();
     };
 
     change2NotFineTuned = function () {
         current_tune_flag = false;
-        init;
+        setup_data_table();
+        flush();
     };
 
     reset_slider = function () {
-        init();
+        build_slider();
+        flush();
     };
 
     clear_selection = function () {
@@ -277,7 +280,8 @@ function drawChart() {
 
     change_color = function () {
         current_color_flag = !current_color_flag;
-        init();
+        setup_data_table();
+        flush();
         var button = document.getElementById('disable_color_button');
         if (current_color_flag) {
             button.innerHTML = "Click to disable coloring";
