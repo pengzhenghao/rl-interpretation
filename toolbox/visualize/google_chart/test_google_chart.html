@@ -127,12 +127,6 @@ Placeholder for this html file:
                        id="tensitySlider">
             </div>
         </td>
-        <td>
-            <button style="margin: 1em 1em 1em 2em; vertical-align: center"
-                    onclick="reset_slider();">
-                Reset
-            </button>
-        </td>
     </tr>
     <tr>
         <td>
@@ -152,7 +146,7 @@ Placeholder for this html file:
             clustering scheme by choosing the different algorithms.
         </td>
     </tr>
-    <tr>
+    <tr align="center">
         <td>
             <div id="dashboard_div">
                 <div id="chart_div"
@@ -161,12 +155,27 @@ Placeholder for this html file:
             </div>
         </td>
     </tr>
+    <tr>
+        <td>
+            <button style="width:20em; margin: 1em 1em 1em 2em;;"
+                    onclick="clear_selection();">
+                Clear Selection
+            </button>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <button style="width:20em; margin: 1em 1em 1em 2em;;"
+                    onclick="reset_slider();">
+                Reset
+            </button>
+        </td>
+    </tr>
 </table>
 <div style="max-width: 900px; padding-top:10em; padding-bottom: 4em; text-align: center; font-size: 50%">
     The data used at this web page was collected on <span
         id="update_date"></span>.<br>
     Copyright &copy 2019 by Peng Zhenghao. All rights reserved.
-    <!--    Copyright © 2019 by <a href="https://pengzhenghao.github.io">Peng Zhenghao</a>. All rights reserved.-->
 </div>
 </body>
 </html>

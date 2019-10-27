@@ -225,8 +225,12 @@ function drawChart() {
         init;
     };
 
-    reset_slider = function (){
+    reset_slider = function () {
         init();
     };
+
+    clear_selection = function () {
+        chart.getChart().setSelection();
+    }
 
 }
