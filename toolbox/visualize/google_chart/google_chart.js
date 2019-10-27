@@ -28,6 +28,13 @@ function changeText(elementId, text) {
     element.innerText = text;
 }
 
+function get_fig_title(method) {
+    return method + " representation, " +
+        (current_tune_flag ? "fine-tuned" : "not fine-tuned") +
+        (typeof(current_tensity)==="string" ? "all noise tensity displayed" :  "noise tensity " +
+        current_tensity.toString())
+}
+
 
 function drawChart() {
     ////////// Step 1: Initialize The figure //////////
@@ -45,7 +52,7 @@ function drawChart() {
                 "containerId": "chart_div",
                 "options": {
                     "tooltip": {"isHtml": true, "trigger": "selection"},
-                    "title": figure_info['title'],
+                    // "title": figure_info['title'],
                     "hAxis": {
                         "title": figure_info['xlabel'],
                         "minValue": figure_info['xlim'] ? figure_info['xlim'][0] : null,
@@ -213,6 +220,7 @@ function drawChart() {
         // changeText("tensity2", current_tensity);
         // changeText("finetuned", current_tune_flag ? "fine-tuned" : "not fine-tuned");
         dashboard.draw(data_table);
+        chart.setOption("title", get_fig_title(filter.getState()['selectedValues'][0]))
     }
 
     function update_data_view() {
