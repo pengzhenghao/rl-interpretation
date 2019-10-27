@@ -2,16 +2,16 @@ google.charts.load('current', {'packages': ['corechart', 'controls']});
 google.charts.setOnLoadCallback(drawChart);
 
 var data_table;
-// var current_data_view;
 var current_tune_flag = true;
 var current_tensity = 0;
-// var current_method = null;
 
 var rawData = $.parseJSON($.ajax({
     url: 'test_data.json',
     dataType: "json",
     async: false
 }).responseText);
+
+var chart;
 
 function createCustomHTMLContent(videoPath) {
     return "" +
@@ -27,17 +27,13 @@ function changeText(elementId, text) {
     element.innerText = text;
 }
 
-// var filter;
-// var count = 0;
-
-// var chart;
 
 function drawChart() {
     ////////// Step 1: Initialize The figure //////////
     const figure_info = rawData['figure_info'];
     const tensity_multiplier = figure_info['tensity_multiplier'];
 
-    var dashboard, slider, chart, filter;
+    var dashboard, slider, filter;
 
     function build_dashboard() {
         chart = new google.visualization.ChartWrapper(
@@ -63,20 +59,7 @@ function drawChart() {
                     "theme": "maximized",
                     "fontSize": 12
                 },
-                "view": {'columns': [0, 1]}
-                // "view": {
-                //     'columns': [0, 1],
-                //     'rows': data_table.getFilteredRows(
-                //         [{
-                //             column: data_table.getColumnIndex("tensity"),
-                //             value: current_tensity * tensity_multiplier
-                //         }],
-                //         [{
-                //             column: data_table.getColumnIndex("method"),
-                //             value: rawData['figure_info']['methods'][0]
-                //         }]
-                //     )
-                // }
+                "view": {'columns': [0, 1]} // show all points regard of std.
             });
         filter = new google.visualization.ControlWrapper({
             'controlType': 'CategoryFilter',
@@ -99,11 +82,6 @@ function drawChart() {
             document.getElementById('dashboard_div'));
         dashboard.bind(filter, chart);
         dashboard.draw(data_table);
-        // google.visualization.events.addOneTimeListener(chart, 'ready', function () {
-        //     console.log("READY!!!!!!!!!!!");
-        //     flush();
-        // });
-
     }
 
     function get_exact_std(slider_value) {
@@ -187,7 +165,7 @@ function drawChart() {
                 "rows": tmp_dt.getFilteredRows(
                     [{
                         column: tmp_dt.getColumnIndex("tensity"),
-                        value: current_tensity * tensity_multiplier
+                        value: parseInt(current_tensity * tensity_multiplier)
                     }]
                 )
             });
@@ -218,7 +196,7 @@ function drawChart() {
     }
 
 
-    // Change method
+// Change method
     google.visualization.events.addListener(filter, 'statechange', set_lim);
 
     change2FineTuned = function () {
