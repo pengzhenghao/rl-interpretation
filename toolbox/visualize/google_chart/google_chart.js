@@ -7,7 +7,7 @@ var current_color_flag = true;
 var current_tensity = 0;
 
 var rawData = $.parseJSON($.ajax({
-    url: 'test_data.json',
+    url: '/Users/pengzhenghao/Desktop/tmp/1023/test_data.json',
     dataType: "json",
     async: false
 }).responseText);
@@ -118,8 +118,8 @@ function drawChart() {
         changeText("tensity", current_tensity);
 
         document.getElementById('disable_color_button').innerHTML =
-            "Click to disable coloring";
-        // changeText("disable_color_button", "Click to disable coloring");
+            "Click to disable clustering";
+        // changeText("disable_color_button", "Click to disable clustering");
         // changeText("tensity2", "all");
         // changeText("finetuned", "all");
         changeText("update_date", rawData['web_info']['update_date']);
@@ -292,9 +292,9 @@ function drawChart() {
         flush();
         var button = document.getElementById('disable_color_button');
         if (current_color_flag) {
-            button.innerHTML = "Click to disable coloring";
+            button.innerHTML = "Click to disable clustering";
         } else {
-            button.innerHTML = "Click to enable coloring";
+            button.innerHTML = "Click to enable clustering";
         }
     }
 
