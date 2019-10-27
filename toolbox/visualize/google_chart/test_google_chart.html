@@ -1,6 +1,10 @@
 <html>
 <head>
     <style>
+        .step1{
+            text-space: 2em;
+        }
+
         .step {
             padding-top: 2em;
             padding-bottom: 0.5em;
@@ -77,14 +81,16 @@ Placeholder for this html file:
     </tr>
     <tr>
         <td>
-            <button style="margin: 1em 1em 0 2em; width:10em;"
-                    onclick="changeRange();">
-                Button 1
-            </button>
-            <button style="margin: 1em 1em 0 2em; width:10em;"
-                    onclick="changeOptions();">
-                Button 2
-            </button>
+
+                <div id="control_div"></div>
+<!--            <button style="margin: 1em 1em 0 2em; width:10em;"-->
+<!--                    onclick="changeRange();">-->
+<!--                Button 1-->
+<!--            </button>-->
+<!--            <button style="margin: 1em 1em 0 2em; width:10em;"-->
+<!--                    onclick="changeOptions();">-->
+<!--                Button 2-->
+<!--            </button>-->
         </td>
     </tr>
     <tr>
@@ -144,8 +150,7 @@ Placeholder for this html file:
         <td>
             <div id="dashboard_div">
                 <div id="chart_div" style="width: 800px; height: 800px; padding: 2em"></div>
-                Choose a clustering algorithm.
-                <div id="control_div"></div>
+<!--                Choose a clustering algorithm.-->
             </div>
         </td>
     </tr>
@@ -153,7 +158,7 @@ Placeholder for this html file:
 <div style="max-width: 900px; padding-top:10em; padding-bottom: 4em; text-align: center; font-size: 50%">
     The data used at this web page was collected on <span
         id="update_date"></span>.<br>
-    Copyright © 2019 by Peng Zhenghao. All rights reserved.
+    Copyright &copy 2019 by Peng Zhenghao. All rights reserved.
     <!--    Copyright © 2019 by <a href="https://pengzhenghao.github.io">Peng Zhenghao</a>. All rights reserved.-->
 </div>
 </body>
