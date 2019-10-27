@@ -37,8 +37,7 @@ function drawChart() {
     const figure_info = rawData['figure_info'];
     const tensity_multiplier = figure_info['tensity_multiplier'];
 
-    var dashboard;
-    var chart, filter;
+    var dashboard, slider, chart, filter;
 
     function build_dashboard() {
         chart = new google.visualization.ChartWrapper(
@@ -111,26 +110,26 @@ function drawChart() {
     }
 
 // Create the slider for std changing
-    var slider = document.getElementById("tensitySlider");
-    slider.value = figure_info['tensities'][0];
-    slider.min = 0;
-    slider.max = figure_info['num_tensities'] - 1;
-    slider.oninput = function () {
-        current_tensity = get_exact_std(this.value);
-        flush();
-    };
-
-    var dis_str = get_exact_std(figure_info['tensities'][0]).toString();
-    for (var t=1;t<figure_info['tensities'].length; t++){
-        dis_str = dis_str + ", " + get_exact_std(t).toString();
+    function build_slider() {
+        slider = document.getElementById("tensitySlider");
+        slider.value = figure_info['tensities'][0];
+        slider.min = 0;
+        slider.max = figure_info['num_tensities'] - 1;
+        slider.oninput = function () {
+            current_tensity = get_exact_std(this.value);
+            flush();
+        };
+        var dis_str = get_exact_std(figure_info['tensities'][0]).toString();
+        for (var t = 1; t < figure_info['tensities'].length; t++) {
+            dis_str = dis_str + ", " + get_exact_std(t).toString();
+        }
+        current_tensity = "All of: \n" + dis_str;
+        changeText("title_of_table", rawData['web_info']['title']);
+        changeText("introduction", rawData['web_info']['introduction']);
+        changeText("tensity", current_tensity);
+        changeText("tensity2", "all");
+        changeText("update_date", rawData['web_info']['update_date']);
     }
-    current_tensity = "All of: \n" + dis_str;
-
-    changeText("title_of_table", rawData['web_info']['title']);
-    changeText("introduction", rawData['web_info']['introduction']);
-    changeText("tensity", current_tensity);
-    changeText("tensity2", "all");
-    changeText("update_date", rawData['web_info']['update_date']);
 
 ////////// Step 2: Define some useful function //////////
     function setup_data_table() {
@@ -195,9 +194,9 @@ function drawChart() {
     }
 
     function init() {
+        build_slider();
         setup_data_table();
         build_dashboard();
-
     }
 
     init();
@@ -224,6 +223,10 @@ function drawChart() {
     change2NotFineTuned = function () {
         current_tune_flag = false;
         init;
+    };
+
+    reset_slider = function (){
+        init();
     };
 
 }
