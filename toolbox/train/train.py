@@ -48,6 +48,7 @@ parser.add_argument("--exp-name", type=str, required=True)
 parser.add_argument("--env", type=str, default="BipedalWalker-v2")
 parser.add_argument("--run", type=str, default="PPO")
 parser.add_argument("--num-seeds", type=int, default=1)
+parser.add_argument("--num-gpus", type=float, default=0.15)
 args = parser.parse_args()
 
 print("Argument: ", args)
@@ -195,7 +196,7 @@ algo_specify_config = algo_specify_config_dict[args.run]
 
 general_config = {
     "env": args.env,
-    "num_gpus": 0.15,
+    "num_gpus": args.num_gpus,
     "num_cpus_for_driver": 0.2,
     "num_cpus_per_worker": 0.75
 }
