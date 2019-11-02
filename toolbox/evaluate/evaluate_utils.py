@@ -98,6 +98,10 @@ def restore_agent_with_mask(
         run_name, ckpt, env_name, extra_config=None, existing_agent=None
 ):
     register_fc_with_mask()
+    if extra_config is None:
+        logger.info("You do not specify the mask mode, "
+                    "we use 'multiply' mode as default.")
+        extra_config = {"model": {"custom_options": {"mask_mode": "multiply"}}}
     return _restore(
         "PPOAgentWithMask", run_name, ckpt, env_name, extra_config,
         existing_agent

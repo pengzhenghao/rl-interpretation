@@ -6,6 +6,7 @@ https://github.com/ray-project/ray/blob/master/rllib/models/tf/fcnet_v2.py
 """
 from __future__ import absolute_import, division, print_function
 
+import logging
 from collections import OrderedDict
 
 import numpy as np
@@ -27,7 +28,7 @@ from tensorflow.python.keras.backend import set_session
 
 from toolbox.modified_rllib.tf_policy_template import build_tf_policy
 from toolbox.modified_rllib.trainer_template import build_trainer
-import logging
+
 tf = try_import_tf()
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,10 @@ logger = logging.getLogger(__name__)
 
 # from toolbox.modified_rllib.tf_modelv2 import TFModelV2
 class MultiplyMaskLayer(Layer):
-    def __init__(self, output_dim, name, **kwargs):
+    def __init__(self, output_dim, name, mask_mode, **kwargs):
         self.output_dim = output_dim
+        self.mask_mode = mask_mode
+        assert mask_mode in ['multiply', 'add']
         super(MultiplyMaskLayer, self).__init__(**kwargs)
         self.kernel = self.add_variable(
             name=name,
@@ -48,8 +51,10 @@ class MultiplyMaskLayer(Layer):
         )
 
     def call(self, x, **kwargs):
-        # x, y = inp
-        ret = tf.multiply(x, self.kernel)
+        if self.mask_mode == 'add':
+            ret = tf.add(x, self.kernel)
+        else:  # self.mask_mode == "multiply"
+            ret = tf.multiply(x, self.kernel)
         return ret
 
     def compute_output_shape(self, input_shape):
@@ -71,6 +76,9 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
         activation_list = []
         self.activation_value = None
+
+        mask_mode = model_config.get("custom_options")["mask_mode"]
+        assert mask_mode in ['multiply', 'add']
 
         activation = get_activation_fn(model_config.get("fcnet_activation"))
         hiddens = model_config.get("fcnet_hiddens")
@@ -100,7 +108,8 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
                 # here is the multiplication
                 mask_name = "fc_{}_mask".format(i)
-                mask_layer = MultiplyMaskLayer(size, name=mask_name)
+                mask_layer = MultiplyMaskLayer(size, name=mask_name,
+                                               mask_mode=mask_mode)
                 last_layer = mask_layer(last_layer)
                 mask_placeholder_dict[mask_name] = mask_layer.get_kernel()
                 self.mask_layer_dict[mask_name] = mask_layer
@@ -127,7 +136,8 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
                 # here is the multiplication
                 mask_name = "fc_{}_mask".format(i)
-                mask_layer = MultiplyMaskLayer(size, name=mask_name)
+                mask_layer = MultiplyMaskLayer(size, name=mask_name,
+                                               mask_mode=mask_mode)
                 last_layer = mask_layer(last_layer)
                 mask_placeholder_dict[mask_name] = mask_layer.get_kernel()
                 self.mask_layer_dict[mask_name] = mask_layer

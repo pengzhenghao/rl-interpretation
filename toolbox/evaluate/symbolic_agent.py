@@ -30,7 +30,8 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             ckpt_info,
             mask_callback_info=None,
             name=None,
-            existing_weights=None
+            existing_weights=None,
+            mask_mode="multiply"
     ):
         super(MaskSymbolicAgent, self).__init__()
         self.ckpt_info = ckpt_info
@@ -38,6 +39,8 @@ class MaskSymbolicAgent(SymbolicAgentBase):
         self.agent_info['agent'] = None
         self.agent_info['parent'] = self.ckpt_info['name']
         self.agent_info['mask'] = None
+        self.mask_mode = mask_mode
+        assert mask_mode in ['multiply', 'add']
 
         if name is not None:
             self.name = name
@@ -135,13 +138,14 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             extra_config = None
         else:
             extra_config = {"num_workers": 0, "num_cpus_per_worker": 0}
+        extra_config['model'] = {"custom_options": {'mask_mode': self.mask_mode}}
 
         self.agent = restore_agent_with_mask(
             run_name,
             ckpt_path,
             env_name,
             extra_config=extra_config,
-            existing_agent=existing_agent
+            existing_agent=existing_agent,
         )
         self.agent = self.mask_callback(self.agent)
 
@@ -162,5 +166,8 @@ class MaskSymbolicAgent(SymbolicAgentBase):
                 "it for you.".format(self.name)
             )
             self.clear()
+        if self.weights is None:
+            logger.info("Cautions! You are getting the state of symbolic "
+                        "agent whose weight is none!")
         assert not self.initialized
         return copy.deepcopy(self.__dict__)
