@@ -90,7 +90,7 @@ for i, std in enumerate(std_search_range):
         yaml_path, num_agents, num_rollouts,
         num_workers, num_children,
         std, normal_mean, dir_name,
-        store=False, clear_at_end=False
+        # store=False, clear_at_end=False
         # We don't store it. We just need the result.
     )
 

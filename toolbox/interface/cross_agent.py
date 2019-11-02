@@ -545,17 +545,15 @@ class CrossAgentAnalyst:
         num_childs = len(child_names)
         num_parents = num_agents / num_childs
         assert int(num_parents) == num_parents
-        num_parents = int(num_parents)
+        # num_parents = int(num_parents)
         base_matrix = np.ones((num_agents, num_agents))
-        assert len(cka_similarity) / len(selected_surfix) == num_parents
-        for x in range(num_agents):
-            if x % num_childs < len(selected_surfix):
-                for y in range(num_agents):
-                    if y % num_childs < len(selected_surfix):
-                        idx = int(x / num_childs) + (x % num_childs)
-                        idy = int(y / num_childs) + (y % num_childs)
-                        cka_result = cka_similarity[idx, idy]
-                        base_matrix[x, y] = cka_result
+        # assert len(cka_similarity) / len(selected_surfix) == num_parents
+        for x in range(0, num_agents - 1):
+            for y in range(x, num_agents):
+                idx = int(x / num_childs) + (x % num_childs)
+                idy = int(y / num_childs) + (y % num_childs)
+                cka_result = cka_similarity[idx, idy]
+                base_matrix[x, y] = cka_result
 
         print("[CAA.cka_similarity] start to return")
         self.computed_results['similarity']['cka'] = base_matrix
@@ -824,9 +822,9 @@ class CrossAgentAnalyst:
         print("[CAA.summary] Start collect cluster_representation")
         return_dict['cluster_representation'] = {
             "cluster_df_dict":
-            copy.deepcopy(self.cluster_representation_cluster_df_dict),
+                copy.deepcopy(self.cluster_representation_cluster_df_dict),
             "prediction_dict":
-            copy.deepcopy(self.cluster_representation_prediction_dict)
+                copy.deepcopy(self.cluster_representation_prediction_dict)
         }
 
         return_dict['cluster_result'] = {}
