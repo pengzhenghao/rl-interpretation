@@ -72,7 +72,8 @@ def symbolic_agent_rollout(
             }
 
             spawned_agents[child_name] = \
-                MaskSymbolicAgent(master_agent_ckpt, callback_info)
+                MaskSymbolicAgent(master_agent_ckpt, callback_info,
+                                  name=child_name)
 
     rollout_ret = quick_rollout_from_symbolic_agents(
         spawned_agents, num_rollouts, num_workers, MujocoWrapper

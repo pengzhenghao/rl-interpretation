@@ -510,17 +510,17 @@ class CrossAgentAnalyst:
     def cka_similarity(self):
         agent_activation_dict = OrderedDict()
 
-        selected_surfix = ["child=0", "child=1", "child=2"]
+        # selected_surfix = ["child=0", "child=1", "child=2"]
 
         print("[CAA.cka_similarity] start to collect activation")
         for name, replay_result in self.agent_replay_info_dict.items():
-            if name.split(" ")[-1] in selected_surfix:
-                print(
-                    "[CAA.cka_similarity] Selected agent for cka: <{}>".
-                    format(name)
-                )
-                activation = replay_result['layer1']
-                agent_activation_dict[name] = activation
+            # if name.split(" ")[-1] in selected_surfix:
+            #     print(
+            #         "[CAA.cka_similarity] Selected agent for cka: <{}>".
+            #         format(name)
+            #     )
+            activation = replay_result['layer1']
+            agent_activation_dict[name] = activation
 
         print(
             "[CAA.cka_similarity] start to compute. Agent number: {}".format(
@@ -545,17 +545,15 @@ class CrossAgentAnalyst:
         num_childs = len(child_names)
         num_parents = num_agents / num_childs
         assert int(num_parents) == num_parents
-        num_parents = int(num_parents)
+        # num_parents = int(num_parents)
         base_matrix = np.ones((num_agents, num_agents))
-        assert len(cka_similarity) / len(selected_surfix) == num_parents
-        for x in range(num_agents):
-            if x % num_childs < len(selected_surfix):
-                for y in range(num_agents):
-                    if y % num_childs < len(selected_surfix):
-                        idx = int(x / num_childs) + (x % num_childs)
-                        idy = int(y / num_childs) + (y % num_childs)
-                        cka_result = cka_similarity[idx, idy]
-                        base_matrix[x, y] = cka_result
+        # assert len(cka_similarity) / len(selected_surfix) == num_parents
+        for x in range(0, num_agents - 1):
+            for y in range(x, num_agents):
+                idx = int(x / num_childs) + (x % num_childs)
+                idy = int(y / num_childs) + (y % num_childs)
+                cka_result = cka_similarity[idx, idy]
+                base_matrix[x, y] = cka_result
 
         print("[CAA.cka_similarity] start to return")
         self.computed_results['similarity']['cka'] = base_matrix
@@ -824,9 +822,9 @@ class CrossAgentAnalyst:
         print("[CAA.summary] Start collect cluster_representation")
         return_dict['cluster_representation'] = {
             "cluster_df_dict":
-            copy.deepcopy(self.cluster_representation_cluster_df_dict),
+                copy.deepcopy(self.cluster_representation_cluster_df_dict),
             "prediction_dict":
-            copy.deepcopy(self.cluster_representation_prediction_dict)
+                copy.deepcopy(self.cluster_representation_prediction_dict)
         }
 
         return_dict['cluster_result'] = {}
