@@ -105,6 +105,14 @@ if args.env == "BipedalWalker-v2":
             },
             "timesteps_total": int(5e6),
         },
+        "TD3": {
+            "config": {
+                "seed": tune.grid_search(list(range(100)))
+            },
+            "stop": {
+                "timesteps_total": int(1e7)
+            }
+        }
     }
 elif args.env == "BipedalWalkerHardcore-v2":
     algo_specify_config_dict = {
