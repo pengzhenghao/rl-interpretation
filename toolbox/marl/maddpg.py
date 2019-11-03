@@ -123,8 +123,9 @@ def before_learn_on_batch(multi_agent_batch, policies, train_batch_size):
         keys = ["_".join([k, str(i)]) for k in keys]
         samples.update(
             dict(
-                zip(keys,
-                    multi_agent_batch.policy_batches[pid].data.values())))
+                zip(keys, multi_agent_batch.policy_batches[pid].data.values())
+            )
+        )
 
     # Make ops and feed_dict to get "new_obs" from target action sampler.
     new_obs_ph_n = [p.new_obs_ph for p in policies.values()]
@@ -139,7 +140,8 @@ def before_learn_on_batch(multi_agent_batch, policies, train_batch_size):
     new_act_n = p.sess.run(target_act_sampler_n, feed_dict)
     samples.update(
         {"new_actions_%d" % i: new_act
-         for i, new_act in enumerate(new_act_n)})
+         for i, new_act in enumerate(new_act_n)}
+    )
 
     # Share samples among agents.
     policy_batches = {pid: SampleBatch(samples) for pid in policies.keys()}
@@ -154,16 +156,20 @@ def make_optimizer(workers, config):
         train_batch_size=config["train_batch_size"],
         before_learn_on_batch=before_learn_on_batch,
         synchronize_sampling=True,
-        prioritized_replay=False)
+        prioritized_replay=False
+    )
 
 
 def add_trainer_metrics(trainer, result):
     global_timestep = trainer.optimizer.num_steps_sampled
     result.update(
         timesteps_this_iter=global_timestep - trainer.train_start_timestep,
-        info=dict({
-            "num_target_updates": trainer.state["num_target_updates"],
-        }, **trainer.optimizer.stats()))
+        info=dict(
+            {
+                "num_target_updates": trainer.state["num_target_updates"],
+            }, **trainer.optimizer.stats()
+        )
+    )
 
 
 def collect_metrics(trainer):
@@ -180,4 +186,5 @@ MADDPGTrainer = GenericOffPolicyTrainer.with_updates(
     make_policy_optimizer=make_optimizer,
     after_train_result=add_trainer_metrics,
     collect_metrics_fn=collect_metrics,
-    before_evaluate_fn=None)
+    before_evaluate_fn=None
+)
