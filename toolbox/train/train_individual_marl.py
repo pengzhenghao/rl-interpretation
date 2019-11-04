@@ -9,18 +9,7 @@ from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper
 
 
-def on_train_result(info):
-    """info only contains trainer and result."""
-    sample_size = info['trainer'].config.get("joint_dataset_sample_size")
-    if sample_size is None:
-        print("[WARNING]!!! You do not specify the "
-              "joint_dataset_sample_size!! We will use 200 instead.")
-        sample_size = 200
-
-    # replay_buffers is a dict map policy_id to ReplayBuffer object.
-    trainer = info['trainer']
-    worker = trainer.workers.local_worker()
-
+def _collect_joint_dataset(trainer, worker, sample_size):
     joint_obs = []
     if hasattr(trainer.optimizer, "replay_buffers"):
         # If we are using maddpg, it use ReplayOptimizer, which has this
@@ -53,6 +42,21 @@ def on_train_result(info):
                 joint_obs.append(batch.slice(0, sample_size)['obs'])
 
     joint_obs = np.concatenate(joint_obs)
+    return joint_obs
+
+
+def on_train_result(info):
+    """info only contains trainer and result."""
+    sample_size = info['trainer'].config.get("joint_dataset_sample_size")
+    if sample_size is None:
+        print("[WARNING]!!! You do not specify the "
+              "joint_dataset_sample_size!! We will use 200 instead.")
+        sample_size = 200
+
+    # replay_buffers is a dict map policy_id to ReplayBuffer object.
+    trainer = info['trainer']
+    worker = trainer.workers.local_worker()
+    joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
 
     def _replay(policy, pid):
         act, _, infos = policy.compute_actions(joint_obs)
@@ -82,13 +86,13 @@ def on_train_result(info):
 
     js_matrix = js_distance(flatten)
     flatten_js_dist = js_matrix[mask]
-    info['result']['js_distance'] = {}
-    info['result']['js_distance']['overall_mean'] = flatten_js_dist.mean()
-    info['result']['js_distance']['overall_max'] = flatten_js_dist.max()
-    info['result']['js_distance']['overall_min'] = flatten_js_dist.min()
+    info['result']['distance_js'] = {}
+    info['result']['distance_js']['overall_mean'] = flatten_js_dist.mean()
+    info['result']['distance_js']['overall_max'] = flatten_js_dist.max()
+    info['result']['distance_js']['overall_min'] = flatten_js_dist.min()
     for i, pid in enumerate(ret.keys()):
         row_without_self = js_matrix[i][mask[i]]
-        info['result']['js_distance'][pid + "_mean"] = row_without_self.mean()
+        info['result']['distance_js'][pid + "_mean"] = row_without_self.mean()
 
 
 if __name__ == '__main__':
