@@ -18,10 +18,7 @@ def test_marl_individual_ppo():
     tmp_env = get_env_maker(env_name)()
 
     default_policy = (
-        None,
-        tmp_env.observation_space,
-        tmp_env.action_space,
-        {}
+        None, tmp_env.observation_space, tmp_env.action_space, {}
     )
 
     policy_names = ["Agent{}".format(i) for i in range(num_agents)]
@@ -45,9 +42,8 @@ def test_marl_individual_ppo():
             "log_level": "DEBUG",
             "num_gpus": num_gpus,
             "multiagent": {
-                "policies": {
-                    i: default_policy for i in policy_names
-                },
+                "policies": {i: default_policy
+                             for i in policy_names},
                 "policy_mapping_fn": policy_mapping_fn,
             },
         },
@@ -90,8 +86,11 @@ def test_marl_custom_metrics():
         print("returned sample batch of size {}".format(info["samples"].count))
 
     def on_train_result(info):
-        print("trainer.train() result: {} -> {} episodes".format(
-            info["trainer"], info["result"]["episodes_this_iter"]))
+        print(
+            "trainer.train() result: {} -> {} episodes".format(
+                info["trainer"], info["result"]["episodes_this_iter"]
+            )
+        )
         # you can mutate the result dict to add new fields to return
         info["result"]["callback_ok"] = True
 
@@ -108,10 +107,7 @@ def test_marl_custom_metrics():
     tmp_env = get_env_maker(env_name)()
 
     default_policy = (
-        None,
-        tmp_env.observation_space,
-        tmp_env.action_space,
-        {}
+        None, tmp_env.observation_space, tmp_env.action_space, {}
     )
 
     policy_names = ["Agent{}".format(i) for i in range(num_agents)]
@@ -143,9 +139,8 @@ def test_marl_custom_metrics():
             "log_level": "DEBUG",
             "num_gpus": num_gpus,
             "multiagent": {
-                "policies": {
-                    i: default_policy for i in policy_names
-                },
+                "policies": {i: default_policy
+                             for i in policy_names},
                 "policy_mapping_fn": policy_mapping_fn,
             },
         },

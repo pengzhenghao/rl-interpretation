@@ -19,18 +19,20 @@ if __name__ == "__main__":
     grouping = {
         "group_1": [0, 1],
     }
-    obs_space = Tuple([
-        TwoStepGame.observation_space,
-        TwoStepGame.observation_space,
-    ])
+    obs_space = Tuple(
+        [
+            TwoStepGame.observation_space,
+            TwoStepGame.observation_space,
+        ]
+    )
     act_space = Tuple([
         TwoStepGame.action_space,
         TwoStepGame.action_space,
     ])
     register_env(
-        "grouped_twostep",
-        lambda config: TwoStepGame(config).with_agent_groups(
-            grouping, obs_space=obs_space, act_space=act_space))
+        "grouped_twostep", lambda config: TwoStepGame(config).
+        with_agent_groups(grouping, obs_space=obs_space, act_space=act_space)
+    )
 
     obs_space_dict = {
         "agent_1": TwoStepGame.observation_space,
@@ -47,14 +49,18 @@ if __name__ == "__main__":
         },
         "multiagent": {
             "policies": {
-                "pol1": (None, TwoStepGame.observation_space,
-                         TwoStepGame.action_space, {
-                             "agent_id": 0,
-                         }),
-                "pol2": (None, TwoStepGame.observation_space,
-                         TwoStepGame.action_space, {
-                             "agent_id": 1,
-                         }),
+                "pol1": (
+                    None, TwoStepGame.observation_space,
+                    TwoStepGame.action_space, {
+                        "agent_id": 0,
+                    }
+                ),
+                "pol2": (
+                    None, TwoStepGame.observation_space,
+                    TwoStepGame.action_space, {
+                        "agent_id": 1,
+                    }
+                ),
             },
             "policy_mapping_fn": lambda x: "pol1" if x == 0 else "pol2",
         },

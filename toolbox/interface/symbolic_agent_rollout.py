@@ -37,8 +37,9 @@ def symbolic_agent_rollout(
 
     if os.path.exists(file_name):
         logger.warning(
-            "File Detected! We will load rollout results from <{}>".format(
-                file_name))
+            "File Detected! We will load rollout results from <{}>".
+            format(file_name)
+        )
         with open(file_name, 'rb') as f:
             rollout_ret = pickle.load(f)
         return rollout_ret, file_name
@@ -123,6 +124,13 @@ if __name__ == '__main__':
     initialize_ray(test_mode=True)
 
     symbolic_agent_rollout(
-        yaml_path, num_agents, num_rollouts, num_workers, num_children,
-        normal_std, normal_mean, dir_name, mask_mode=args.mask_mode
+        yaml_path,
+        num_agents,
+        num_rollouts,
+        num_workers,
+        num_children,
+        normal_std,
+        normal_mean,
+        dir_name,
+        mask_mode=args.mask_mode
     )

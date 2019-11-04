@@ -53,19 +53,15 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
 #
 #     return Env
 
-
 if __name__ == '__main__':
     import numpy as np
 
-    env_config = {
-        "env_name": "BipedalWalker-v2",
-        "agent_ids": list(range(10))
-    }
+    env_config = {"env_name": "BipedalWalker-v2", "agent_ids": list(range(10))}
 
     mae = MultiAgentEnvWrapper(env_config)
     mae.reset()
     while True:
-        ret = mae.step({i: np.zeros((17,)) for i in range(10)})
+        ret = mae.step({i: np.zeros((17, )) for i in range(10)})
         if ret[2]['__all__']:
             print("Finish! ", ret)
             break
