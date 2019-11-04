@@ -4,9 +4,9 @@ import numpy as np
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.distance import joint_dataset_distance
+from toolbox.distance import joint_dataset_distance, js_distance
 from toolbox.env import get_env_maker
-from toolbox.marl.multiagent_env_wrapper import MultiAgentEnvWrapper
+from toolbox.marl import MultiAgentEnvWrapper
 
 
 def on_train_result(info):
@@ -70,16 +70,25 @@ def on_train_result(info):
     mask = np.logical_not(
         np.diag(np.ones(dist_matrix.shape[0])).astype(np.bool)
     )
-    flatten_dist = dist_matrix[mask]
 
+    flatten_dist = dist_matrix[mask]
     info['result']['distance'] = {}
     info['result']['distance']['overall_mean'] = flatten_dist.mean()
     info['result']['distance']['overall_max'] = flatten_dist.max()
     info['result']['distance']['overall_min'] = flatten_dist.min()
-
     for i, pid in enumerate(ret.keys()):
         row_without_self = dist_matrix[i][mask[i]]
         info['result']['distance'][pid + "_mean"] = row_without_self.mean()
+
+    js_matrix = js_distance(flatten)
+    flatten_js_dist = js_matrix[mask]
+    info['result']['js_distance'] = {}
+    info['result']['js_distance']['overall_mean'] = flatten_js_dist.mean()
+    info['result']['js_distance']['overall_max'] = flatten_js_dist.max()
+    info['result']['js_distance']['overall_min'] = flatten_js_dist.min()
+    for i, pid in enumerate(ret.keys()):
+        row_without_self = js_matrix[i][mask[i]]
+        info['result']['js_distance'][pid + "_mean"] = row_without_self.mean()
 
 
 if __name__ == '__main__':
@@ -93,7 +102,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     exp_name = args.exp_name
-    env_name = args.env_name
+    env_name = args.env
     num_timesteps = int(args.num_timesteps)
 
     initialize_ray(num_gpus=args.num_gpus)

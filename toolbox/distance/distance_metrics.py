@@ -36,20 +36,26 @@ def _build_matrix(iterable, apply_function, default_value=0):
     return matrix
 
 
-def js_distance(flatten, num_agents, num_samples):
+def js_distance(action_list):
+    num_agents = len(action_list)
+
+    num_samples = action_list[0].shape[0] / num_agents
+    assert float(int(num_samples)) == round(num_samples, 4)
+    num_samples = int(num_samples)
+
     js_matrix = np.zeros((num_agents, num_agents))
 
-    for i1 in range(len(flatten) - 1):
-        source = flatten[i1][i1 * num_samples:(i1 + 1) * num_samples]
-        for i2 in range(i1, len(flatten)):
-            target = flatten[i2][i2 * num_samples:(i2 + 1) * num_samples]
+    for i1 in range(len(action_list) - 1):
+        source = action_list[i1][i1 * num_samples:(i1 + 1) * num_samples]
+        for i2 in range(i1, len(action_list)):
+            target = action_list[i2][i2 * num_samples:(i2 + 1) * num_samples]
             average_distribution_source = \
                 (source +
-                 flatten[i2][i1 * num_samples: (i1 + 1) * num_samples]
+                 action_list[i2][i1 * num_samples: (i1 + 1) * num_samples]
                  ) / 2
             average_distribution_target = \
                 (target +
-                 flatten[i1][i2 * num_samples: (i2 + 1) * num_samples]
+                 action_list[i1][i2 * num_samples: (i2 + 1) * num_samples]
                  ) / 2
 
             js_divergence = _get_kl_divergence(
