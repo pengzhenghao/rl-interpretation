@@ -23,14 +23,14 @@ def _build_matrix(iterable, apply_function, default_value=0):
     return matrix
 
 
-def test_marl_individual_ppo(extra_config, local_mode=True):
+def test_marl_individual_ppo(extra_config, local_mode=True, test_mode=True):
     num_gpus = 4
     exp_name = "test_marl_individual_ppo"
     env_name = "BipedalWalker-v2"
     num_iters = 50
-    num_agents = 4
+    num_agents = 8
 
-    initialize_ray(test_mode=True, num_gpus=num_gpus, local_mode=local_mode)
+    initialize_ray(test_mode=test_mode, num_gpus=num_gpus, local_mode=local_mode)
 
     tmp_env = get_env_maker(env_name)()
 
@@ -128,7 +128,7 @@ def test_marl_custom_metrics():
         }
         # now we have a mapping: policy_id to joint_dataset_replay in 'ret'
 
-        flatten = [tup[0] for tup in ret.values()]  # flatten action array
+        flatten = [act for act, infos in ret.values()]  # flatten action array
         apply_function = lambda x, y: np.linalg.norm(x - y)
         dist_matrix = _build_matrix(flatten, apply_function)
 
@@ -137,15 +137,20 @@ def test_marl_custom_metrics():
         )
         flatten_dist = dist_matrix[mask]
 
-        info['result']['distance_mean'] = flatten_dist.mean()
-        info['result']['distance_max'] = flatten_dist.max()
-        info['result']['distance_min'] = flatten_dist.min()
+        info['result']['distance'] = {}
+        info['result']['distance']['overall_mean'] = flatten_dist.mean()
+        info['result']['distance']['overall_max'] = flatten_dist.max()
+        info['result']['distance']['overall_min'] = flatten_dist.min()
+
+        for i, pid in enumerate(ret.keys()):
+            row_without_self = dist_matrix[i][mask[i]]
+            info['result']['distance'][pid + "_mean"] = row_without_self.mean()
 
     extra_config = {"callbacks": {
         "on_train_result": on_train_result
     }}
 
-    test_marl_individual_ppo(extra_config, local_mode=True)
+    test_marl_individual_ppo(extra_config, local_mode=False, test_mode=False)
 
 
 if __name__ == '__main__':
