@@ -4,6 +4,7 @@ import numpy as np
 from ray import tune
 
 from toolbox import initialize_ray
+from toolbox.utils import get_num_gpus
 from toolbox.distance import joint_dataset_distance, js_distance
 from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper
@@ -102,6 +103,7 @@ if __name__ == '__main__':
     parser.add_argument("--run", type=str, default="PPO")
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-agents", type=int, default=10)
+    parser.add_argument("--num-seeds", type=int, default=5)
     parser.add_argument("--num-timesteps", type=float, default=5e6)
     parser.add_argument("--test-mode", action="store_true")
     args = parser.parse_args()
@@ -127,8 +129,9 @@ if __name__ == '__main__':
             "agent_ids": policy_names
         },
         "log_level": "DEBUG" if args.test_mode else "ERROR",
-        "num_gpus": args.num_gpus,
+        "num_gpus": get_num_gpus(args.num_seeds),
         "num_envs_per_worker": 16,
+        "sample_batch_size": 256,
         "multiagent": {
             "policies": {i: default_policy
                          for i in policy_names},
