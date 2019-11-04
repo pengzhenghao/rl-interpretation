@@ -6,7 +6,7 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.distance import joint_dataset_distance, js_distance
 from toolbox.env import get_env_maker
-from toolbox.marl import MultiAgentEnvWrapper
+from toolbox.additional_loss import MultiAgentEnvWrapper
 from toolbox.utils import get_num_gpus
 
 

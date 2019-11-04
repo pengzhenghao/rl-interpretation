@@ -4,11 +4,11 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.distance import joint_dataset_distance
 from toolbox.env import get_env_maker
-from toolbox.marl.multiagent_env_wrapper import MultiAgentEnvWrapper
+from toolbox.additional_loss.multiagent_env_wrapper import MultiAgentEnvWrapper
 
 
 def test_marl_individual_ppo(extra_config, local_mode=True, test_mode=True):
-    num_gpus = 4
+    num_gpus = 0
     exp_name = "test_marl_individual_ppo"
     env_name = "BipedalWalker-v2"
     num_iters = 50
@@ -134,7 +134,7 @@ def test_marl_custom_metrics():
         "on_train_result": on_train_result
     }}
 
-    test_marl_individual_ppo(extra_config, local_mode=False, test_mode=False)
+    test_marl_individual_ppo(extra_config, local_mode=True, test_mode=False)
 
 
 if __name__ == '__main__':
