@@ -2,25 +2,9 @@ import numpy as np
 from ray import tune
 
 from toolbox import initialize_ray
+from toolbox.distance import joint_dataset_distance
 from toolbox.env import get_env_maker
 from toolbox.marl.multiagent_env_wrapper import MultiAgentEnvWrapper
-
-
-def _build_matrix(iterable, apply_function, default_value=0):
-    """
-    Copied from toolbox.interface.cross_agent_analysis
-    """
-    length = len(iterable)
-    matrix = np.empty((length, length))
-    matrix.fill(default_value)
-    for i1 in range(length - 1):
-        for i2 in range(i1, length):
-            repr1 = iterable[i1]
-            repr2 = iterable[i2]
-            result = apply_function(repr1, repr2)
-            matrix[i1, i2] = result
-            matrix[i2, i1] = result
-    return matrix
 
 
 def test_marl_individual_ppo(extra_config, local_mode=True, test_mode=True):
@@ -30,7 +14,8 @@ def test_marl_individual_ppo(extra_config, local_mode=True, test_mode=True):
     num_iters = 50
     num_agents = 8
 
-    initialize_ray(test_mode=test_mode, num_gpus=num_gpus, local_mode=local_mode)
+    initialize_ray(test_mode=test_mode, num_gpus=num_gpus,
+                   local_mode=local_mode)
 
     tmp_env = get_env_maker(env_name)()
 
@@ -129,8 +114,7 @@ def test_marl_custom_metrics():
         # now we have a mapping: policy_id to joint_dataset_replay in 'ret'
 
         flatten = [act for act, infos in ret.values()]  # flatten action array
-        apply_function = lambda x, y: np.linalg.norm(x - y)
-        dist_matrix = _build_matrix(flatten, apply_function)
+        dist_matrix = joint_dataset_distance(flatten)
 
         mask = np.logical_not(
             np.diag(np.ones(dist_matrix.shape[0])).astype(np.bool)
