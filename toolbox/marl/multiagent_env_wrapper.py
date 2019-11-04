@@ -37,6 +37,10 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         dones["__all__"] = len(self.dones) == len(self.agent_ids)
         return obs, rewards, dones, infos
 
+    def seed(self, s):
+        for env in self.envs.values():
+            env.seed(s)
+
 
 if __name__ == '__main__':
     import numpy as np

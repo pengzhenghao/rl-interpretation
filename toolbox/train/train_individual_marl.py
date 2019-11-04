@@ -142,7 +142,7 @@ if __name__ == '__main__':
         },
         "num_sgd_iter": 10,
         "seed": tune.grid_search(
-            list(range(args.num_seed))) if args.num_seed != 0 else 0
+            list(range(args.num_seeds))) if args.num_seeds != 0 else 0
     }
 
     tune.run(
