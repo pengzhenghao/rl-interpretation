@@ -13,7 +13,7 @@ def test_marl_individual_ppo():
     num_iters = 50
     num_agents = 8
 
-    initialize_ray(test_mode=True, num_gpus=num_gpus)
+    initialize_ray(test_mode=True, num_gpus=num_gpus, local_mode=True)
 
     tmp_env = get_env_maker(env_name)()
 

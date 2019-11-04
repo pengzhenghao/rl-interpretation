@@ -161,6 +161,9 @@ def make_optimizer(workers, config):
 
 
 def add_trainer_metrics(trainer, result):
+    """The result here, is the return object from the below
+    collect_metrics!! So this function is in some way
+    overlap with the below function!"""
     global_timestep = trainer.optimizer.num_steps_sampled
     result.update(
         timesteps_this_iter=global_timestep - trainer.train_start_timestep,
@@ -173,6 +176,20 @@ def add_trainer_metrics(trainer, result):
 
 
 def collect_metrics(trainer):
+    """
+    The input is a trainer. If the collect_metrics_fn is not provided,
+    the trainer will call its collect_metrics just like what this function do
+    here. So in fact the function you see here is useless.
+
+    The trainer.collect_metrics call optimizer metrics, who
+    calls self.stats / summary_episode(episode) and so on.
+
+    It seems like here is collecting some metrics like time
+    consumption and other 'meta-metrics', which is not highly
+    related to the training.
+
+    Our custom 'diversity' metric seems not should be collected here.
+    """
     result = trainer.collect_metrics()
     return result
 
