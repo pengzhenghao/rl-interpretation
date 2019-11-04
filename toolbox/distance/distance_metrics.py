@@ -40,6 +40,7 @@ def js_distance(action_list):
     num_agents = len(action_list)
 
     num_samples = action_list[0].shape[0] / num_agents
+    # num_samples should be integer
     assert float(int(num_samples)) == round(num_samples, 4)
     num_samples = int(num_samples)
 

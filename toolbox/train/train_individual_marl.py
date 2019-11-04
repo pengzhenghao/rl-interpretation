@@ -103,13 +103,15 @@ if __name__ == '__main__':
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-agents", type=int, default=10)
     parser.add_argument("--num-timesteps", type=float, default=5e6)
+    parser.add_argument("--test-mode", action="store_true")
     args = parser.parse_args()
 
     exp_name = args.exp_name
     env_name = args.env
     num_timesteps = int(args.num_timesteps)
 
-    initialize_ray(num_gpus=args.num_gpus)
+    initialize_ray(num_gpus=args.num_gpus, test_mode=args.test_mode,
+                   object_store_memory=40 * 1024 * 1024 * 1024)
 
     policy_names = ["ppo_agent{}".format(i) for i in range(args.num_agents)]
 
@@ -124,8 +126,9 @@ if __name__ == '__main__':
             "env_name": env_name,
             "agent_ids": policy_names
         },
-        "log_level": "DEBUG",
+        "log_level": "DEBUG" if args.test_mode else "ERROR",
         "num_gpus": args.num_gpus,
+        "num_envs_per_worker": 16,
         "multiagent": {
             "policies": {i: default_policy
                          for i in policy_names},
@@ -133,7 +136,8 @@ if __name__ == '__main__':
         },
         "callbacks": {
             "on_train_result": on_train_result
-        }
+        },
+        "num_sgd_iter": 10
     }
 
     tune.run(
