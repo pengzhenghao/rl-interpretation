@@ -10,13 +10,11 @@ import logging
 from collections import OrderedDict
 
 import numpy as np
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, \
-    validate_config, update_kl, \
-    warn_about_bad_reward_scales, choose_policy_optimizer
-from ray.rllib.agents.ppo.ppo_policy import kl_and_loss_stats, setup_config, \
-    clip_gradients, EntropyCoeffSchedule, KLCoeffMixin, ppo_surrogate_loss, \
-    LearningRateSchedule, BEHAVIOUR_LOGITS, postprocess_ppo_gae, \
-    ValueNetworkMixin
+from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
+from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
+    EntropyCoeffSchedule, \
+    KLCoeffMixin, LearningRateSchedule, BEHAVIOUR_LOGITS, ValueNetworkMixin
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.misc import normc_initializer, get_activation_fn
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
@@ -26,8 +24,7 @@ from ray.tune.util import merge_dicts
 from tensorflow.keras.layers import Layer
 from tensorflow.python.keras.backend import set_session
 
-from toolbox.modified_rllib.tf_policy_template import build_tf_policy
-from toolbox.modified_rllib.trainer_template import build_trainer
+# from toolbox.modified_rllib.trainer_template import build_trainer
 
 tf = try_import_tf()
 
@@ -108,8 +105,9 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
                 # here is the multiplication
                 mask_name = "fc_{}_mask".format(i)
-                mask_layer = MultiplyMaskLayer(size, name=mask_name,
-                                               mask_mode=mask_mode)
+                mask_layer = MultiplyMaskLayer(
+                    size, name=mask_name, mask_mode=mask_mode
+                )
                 last_layer = mask_layer(last_layer)
                 mask_placeholder_dict[mask_name] = mask_layer.get_kernel()
                 self.mask_layer_dict[mask_name] = mask_layer
@@ -136,8 +134,9 @@ class FullyConnectedNetworkWithMask(TFModelV2):
 
                 # here is the multiplication
                 mask_name = "fc_{}_mask".format(i)
-                mask_layer = MultiplyMaskLayer(size, name=mask_name,
-                                               mask_mode=mask_mode)
+                mask_layer = MultiplyMaskLayer(
+                    size, name=mask_name, mask_mode=mask_mode
+                )
                 last_layer = mask_layer(last_layer)
                 mask_placeholder_dict[mask_name] = mask_layer.get_kernel()
                 self.mask_layer_dict[mask_name] = mask_layer
@@ -314,15 +313,10 @@ model_config = {
 
 ppo_agent_default_config_with_mask = merge_dicts(DEFAULT_CONFIG, model_config)
 
-PPOTFPolicyWithMask = build_tf_policy(
+PPOTFPolicyWithMask = PPOTFPolicy.with_updates(
     name="PPOTFPolicyWithMask",
     get_default_config=lambda: ppo_agent_default_config_with_mask,
-    loss_fn=ppo_surrogate_loss,
-    stats_fn=kl_and_loss_stats,
     extra_action_fetches_fn=vf_preds_and_logits_fetches_new,
-    postprocess_fn=postprocess_ppo_gae,
-    gradients_fn=clip_gradients,
-    before_init=setup_config,
     before_loss_init=setup_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
@@ -371,13 +365,11 @@ class AddMaskInfoMixin(object):
         )
 
 
-PPOAgentWithMask = build_trainer(
+# PPOTrainer.with_updates
+
+PPOAgentWithMask = PPOTrainer.with_updates(
     name="PPOWithMask",
     default_config=ppo_agent_default_config_with_mask,
     default_policy=PPOTFPolicyWithMask,
-    make_policy_optimizer=choose_policy_optimizer,
-    validate_config=validate_config,
-    after_optimizer_step=update_kl,
-    after_train_result=warn_about_bad_reward_scales,
     mixins=[AddMaskInfoMixin]
 )
