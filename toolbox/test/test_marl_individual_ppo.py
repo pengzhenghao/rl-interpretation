@@ -38,7 +38,7 @@ def test_marl_individual_ppo(extra_config, local_mode=True):
         None, tmp_env.observation_space, tmp_env.action_space, {}
     )
 
-    policy_names = ["Agent{}".format(i) for i in range(num_agents)]
+    policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
 
     def policy_mapping_fn(aid):
         # print("input aid: ", aid)
@@ -74,6 +74,7 @@ def test_marl_individual_ppo(extra_config, local_mode=True):
 
 def test_marl_custom_metrics():
     def on_train_result(info):
+        """info only contains trainer and result."""
         sample_size = info['trainer'].config.get("joint_dataset_sample_size")
         if sample_size is None:
             print("[WARNING]!!! You do not specify the "
@@ -82,23 +83,50 @@ def test_marl_custom_metrics():
 
         # replay_buffers is a dict map policy_id to ReplayBuffer object.
         trainer = info['trainer']
+        worker = trainer.workers.local_worker()
 
         joint_obs = []
-        for policy_id, replay_buffer in \
-                trainer.optimizer.replay_buffers.items():
-            obs = replay_buffer.sample(sample_size)[0]
-            joint_obs.append(obs)
+        if hasattr(trainer.optimizer, "replay_buffers"):
+            # If we are using maddpg, it use ReplayOptimizer, which has this
+            # attribute.
+            for policy_id, replay_buffer in \
+                    trainer.optimizer.replay_buffers.items():
+                obs = replay_buffer.sample(sample_size)[0]
+                joint_obs.append(obs)
+        else:
+            # If we are using individual PPO, it has no replay buffer,
+            # so it seems we have to rollout here to collect the observations
+            multi_agent_batch = worker.sample()
+
+            for pid, batch in multi_agent_batch.policy_batches.items():
+                count = batch.count
+                batch.shuffle()
+                if count < sample_size:
+                    print("[WARNING]!!! Your rollout sample size is "
+                          "less than the replay sample size! "
+                          "Check codes here!")
+                    cnt = 0
+                    while True:
+                        end = min(count, sample_size - cnt)
+                        joint_obs.append(batch.slice(0, end)['obs'])
+                        if end < count:
+                            break
+                        cnt += end
+                        batch.shuffle()
+                else:
+                    joint_obs.append(batch.slice(0, sample_size)['obs'])
+
         joint_obs = np.concatenate(joint_obs)
 
-        ret = {}
-        if hasattr(trainer.workers, "policy_map"):
-            iters = trainer.workers.policy_map.items()
-        else:
-            iters = trainer.workers.local_worker().policy_map.items()
-        for pid, policy in iters:
+        def _replay(policy, pid):
             act, _, infos = policy.compute_actions(joint_obs)
-            ret[pid] = [act, infos]
-            # now we have a mapping: policy_id to joint_dataset_replay in 'ret'
+            return pid, act, infos
+
+        ret = {
+            pid: [act, infos]
+            for pid, act, infos in worker.foreach_policy(_replay)
+        }
+        # now we have a mapping: policy_id to joint_dataset_replay in 'ret'
 
         flatten = [tup[0] for tup in ret.values()]  # flatten action array
         apply_function = lambda x, y: np.linalg.norm(x - y)
@@ -117,7 +145,7 @@ def test_marl_custom_metrics():
         "on_train_result": on_train_result
     }}
 
-    test_marl_individual_ppo(extra_config, local_mode=False)
+    test_marl_individual_ppo(extra_config, local_mode=True)
 
 
 if __name__ == '__main__':
