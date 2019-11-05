@@ -1,13 +1,11 @@
 """Copied from rllib."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from collections import namedtuple
 import logging
+from collections import namedtuple
 
-from ray.rllib.utils.debug import log_once, summarize
 from ray.rllib.utils import try_import_tf
+from ray.rllib.utils.debug import log_once, summarize
 
 tf = try_import_tf()
 
@@ -55,7 +53,9 @@ class LocalSyncParallelOptimizerModified(object):
     def __init__(self,
                  optimizer,
                  devices,
-                 input_placeholders,
+                 input_placeholders_split,
+                 input_placeholders_nosplit,
+                 input_names,
                  rnn_inputs,
                  max_per_device_batch_size,
                  build_graph,
@@ -63,12 +63,42 @@ class LocalSyncParallelOptimizerModified(object):
         self.optimizer = optimizer
         self.devices = devices
         self.max_per_device_batch_size = max_per_device_batch_size
-        self.loss_inputs = input_placeholders + rnn_inputs
+
+        assert not rnn_inputs
+        # self.loss_inputs = input_placeholders_split + rnn_inputs
+        self.loss_inputs = input_placeholders_split
+        self.loss_inputs_nosplit = input_placeholders_nosplit
+
+        self.all_loss_inputs = []
+        for i, k in input_names:
+            for phi, phk, ph in self.loss_inputs_nosplit:
+                if phi==i and phk==k:
+                    self.all_loss_inputs.append([i, k, ph])
+                    continue
+            for phi, phk, ph in self.loss_inputs:
+                if phi==i and phk==k:
+                    self.all_loss_inputs.append([i, k, ph])
+                    continue
+        assert len(self.all_loss_inputs) == len(input_names)
+        assert len(self.all_loss_inputs) == len(self.loss_inputs) + len(self.loss_inputs_nosplit)
+
+        # self.all_loss_inputs = self.loss_inputs + self.loss_inputs_nosplit
+        # self.all_loss_inputs = self.loss_inputs.copy()
+        # self.all_loss_inputs.update(self.loss_inputs_nosplit.copy())
+
         self.build_graph = build_graph
+        self.input_names = input_names
 
         # First initialize the shared loss network
         with tf.name_scope(TOWER_SCOPE_NAME):
-            self._shared_loss = build_graph(self.loss_inputs)
+
+            tmp_list = []
+            for i, k in self.input_names:
+                for phi, phk, ph in self.all_loss_inputs:
+                    if phi == i and phk == k:
+                        tmp_list.append(ph)
+
+            self._shared_loss = build_graph(tmp_list)
         shared_ops = tf.get_collection(
             tf.GraphKeys.UPDATE_OPS, scope=tf.get_variable_scope().name)
 
@@ -87,13 +117,14 @@ class LocalSyncParallelOptimizerModified(object):
         # Split on the CPU in case the data doesn't fit in GPU memory.
         with tf.device("/cpu:0"):
             data_splits = zip(
-                *[tf.split(ph, len(devices)) for ph in self.loss_inputs])
+                *[tf.split(ph, len(devices)) for (_, _, ph) in \
+                  self.loss_inputs])
 
         self._towers = []
         for device, device_placeholders in zip(self.devices, data_splits):
             self._towers.append(
                 self._setup_device(device, device_placeholders,
-                                   len(input_placeholders)))
+                                   len(input_placeholders_split)))
 
         avg = average_gradients([t.grads for t in self._towers])
         if grad_norm_clipping:
@@ -148,8 +179,8 @@ class LocalSyncParallelOptimizerModified(object):
                     })))
 
         feed_dict = {}
-        assert len(self.loss_inputs) == len(inputs + state_inputs), \
-            (self.loss_inputs, inputs, state_inputs)
+        assert len(self.all_loss_inputs) == len(inputs + state_inputs), \
+            (self.all_loss_inputs, inputs, state_inputs)
 
         # Let's suppose we have the following input data, and 2 devices:
         # 1 2 3 4 5 6 7                              <- state inputs shape
@@ -168,8 +199,9 @@ class LocalSyncParallelOptimizerModified(object):
             self._loaded_max_seq_len = 1
 
         sequences_per_minibatch = (
-            self.max_per_device_batch_size // self._loaded_max_seq_len * len(
-                self.devices))
+                self.max_per_device_batch_size // self._loaded_max_seq_len *
+                len(
+                    self.devices))
         if sequences_per_minibatch < 1:
             logger.warn(
                 ("Target minibatch size is {}, however the rollout sequence "
@@ -188,8 +220,8 @@ class LocalSyncParallelOptimizerModified(object):
             logger.info(
                 ("Divided {} rollout sequences, each of length {}, among "
                  "{} devices.").format(
-                     len(smallest_array), self._loaded_max_seq_len,
-                     len(self.devices)))
+                    len(smallest_array), self._loaded_max_seq_len,
+                    len(self.devices)))
 
         if sequences_per_minibatch < len(self.devices):
             raise ValueError(
@@ -210,11 +242,11 @@ class LocalSyncParallelOptimizerModified(object):
             assert len(state_inputs[0]) * seq_len == len(inputs[0]), \
                 (len(state_inputs[0]), sequences_per_minibatch, seq_len,
                  len(inputs[0]))
-            for ph, arr in zip(self.loss_inputs, inputs + state_inputs):
+            for (_, _, ph), arr in zip(self.all_loss_inputs, inputs + state_inputs):
                 feed_dict[ph] = arr
             truncated_len = len(inputs[0])
         else:
-            for ph, arr in zip(self.loss_inputs, inputs + state_inputs):
+            for (_, _, ph), arr in zip(self.all_loss_inputs, inputs + state_inputs):
                 truncated_arr = make_divisible_by(arr, sequences_per_minibatch)
                 feed_dict[ph] = truncated_arr
                 truncated_len = len(truncated_arr)
@@ -258,6 +290,10 @@ class LocalSyncParallelOptimizerModified(object):
         for tower in self._towers:
             fetches.update(tower.loss_graph._get_grad_and_stats_fetches())
 
+        # just a test
+        import numpy as np
+        feed_dict[self.loss_inputs_nosplit[1][2]] = np.ones((768, 4), dtype='float32')
+
         return sess.run(fetches, feed_dict=feed_dict)
 
     def get_common_loss(self):
@@ -272,13 +308,15 @@ class LocalSyncParallelOptimizerModified(object):
             with tf.name_scope(TOWER_SCOPE_NAME):
                 device_input_batches = []
                 device_input_slices = []
-                for i, ph in enumerate(device_input_placeholders):
+                for i, ((org_i, key, _), ph) in enumerate(
+                        zip(self.loss_inputs,
+                            device_input_placeholders)):
                     current_batch = tf.Variable(
                         ph,
                         trainable=False,
                         validate_shape=False,
                         collections=[])
-                    device_input_batches.append(current_batch)
+                    device_input_batches.append([org_i, key, current_batch])
                     if i < num_data_in:
                         scale = self._max_seq_len
                         granularity = self._max_seq_len
@@ -292,13 +330,50 @@ class LocalSyncParallelOptimizerModified(object):
                         ([self._per_device_batch_size // scale * granularity] +
                          [-1] * len(ph.shape[1:])))
                     current_slice.set_shape(ph.shape)
-                    device_input_slices.append(current_slice)
-                graph_obj = self.build_graph(device_input_slices)
+                    device_input_slices.append([org_i, key, current_slice])
+
+                # device_input_slices.update(self.loss_inputs_nosplit.copy())
+
+
+
+                tmp_slice = []
+                for i, k in self.input_names:
+                    for si, sk, s in device_input_slices:
+                        if i==si and sk==k:
+                            tmp_slice.append(s)
+                            continue
+                    for si, sk, s in self.loss_inputs_nosplit:
+                        if i==si and sk==k:
+                            tmp_slice.append(s)
+                            continue
+
+                assert len(tmp_slice) == len(self.all_loss_inputs)
+
+                graph_obj = self.build_graph(tmp_slice)
                 device_grads = graph_obj.gradients(self.optimizer,
                                                    graph_obj._loss)
+
+            tmp_batch = []
+            for i,k in self.input_names:
+                for bi, bk, b in device_input_batches:
+                    if i==bi and bk==k:
+                        tmp_batch.append(b)
+                        continue
+                for bi, bk, b in self.loss_inputs_nosplit:
+                    if bi==i and bk==k:
+                        tmp_batch.append(
+                            tf.Variable(
+                                b,
+                                trainable=False,
+                                validate_shape=False,
+                                collections=[])
+                        )
+                        continue
+
+            assert len(tmp_batch) == len(self.all_loss_inputs)
             return Tower(
                 tf.group(
-                    *[batch.initializer for batch in device_input_batches]),
+                    *[batch.initializer for batch in tmp_batch]),
                 device_grads, graph_obj)
 
 

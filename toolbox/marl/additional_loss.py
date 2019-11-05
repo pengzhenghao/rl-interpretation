@@ -81,7 +81,7 @@ class AddLossMixin(object):
 
         feed_dict = {}
 
-        # parse the cross-policy info and put them into feed_dict
+        ########## parse the cross-policy info and put in feed_dict ##########
         joint_obs_ph = self._loss_input_dict[JOINT_OBS]
         feed_dict[joint_obs_ph] = cross_policy_obj[JOINT_OBS]
 
@@ -89,6 +89,7 @@ class AddLossMixin(object):
         feed_dict[replay_ph] = np.concatenate(
             list(cross_policy_obj[PEER_ACTION].values())
         )
+        ########## Finish add cross-policy info ##########
 
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
@@ -183,9 +184,7 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
 
     def norm(x, y):
         subtract = tf.subtract(x, y)
-
         norm = tf.reduce_mean(subtract ** 2)
-
         print(
             "Inside norm(x, y). the shape of sub: {}, the shape of norm "
             "{}".format(
@@ -259,6 +258,7 @@ def choose_policy_optimizer(workers, config):
 
     return LocalMultiGPUOptimizerModified(
         workers,
+        [JOINT_OBS, PEER_ACTION],
         process_multiagent_batch_fn,
         sgd_batch_size=config["sgd_minibatch_size"],
         num_sgd_iter=config["num_sgd_iter"],

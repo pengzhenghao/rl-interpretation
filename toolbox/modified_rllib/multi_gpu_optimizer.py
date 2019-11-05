@@ -27,6 +27,7 @@ import math
 
 class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
     def __init__(self, workers,
+                 no_split_list,
                  process_multiagent_batch_fn=None,
                  sgd_batch_size=128,
                  num_sgd_iter=10,
@@ -92,10 +93,21 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                             rnn_inputs = []
                         self.optimizers[policy_id] = (
                             LocalSyncParallelOptimizerModified(
-                                policy._optimizer, self.devices,
-                                [v
-                                 for _, v in policy._loss_inputs], rnn_inputs,
-                                self.per_device_batch_size, policy.copy))
+                                policy._optimizer,
+                                self.devices,
+                                [[i, k, v]
+                                 for i, (k, v) in enumerate(policy._loss_inputs)
+                                 if k not in no_split_list],
+                                [[i, k, v]
+                                 for i, (k, v) in enumerate(policy._loss_inputs)
+                                 if k in no_split_list],
+                                [[i, k]
+                                 for i, (k, _) in enumerate(policy._loss_inputs)],
+                                rnn_inputs,
+                                self.per_device_batch_size,
+                                policy.copy
+                            )
+                        )
 
                 self.sess = self.workers.local_worker().tf_sess
                 self.sess.run(tf.global_variables_initializer())
