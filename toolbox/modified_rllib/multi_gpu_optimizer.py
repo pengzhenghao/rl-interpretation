@@ -88,7 +88,8 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
         num_loaded_tuples = {}
 
         if self.process_multiagent_batch_fn is not None:
-            cross_policy_obj = self.process_multiagent_batch_fn(samples)
+            cross_policy_obj = self.process_multiagent_batch_fn(samples,
+                                                                self.workers)
         else:
             cross_policy_obj = None
 

@@ -7,16 +7,16 @@ from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, PPOLoss, \
     LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, ValueNetworkMixin
 from ray.rllib.evaluation.postprocessing import compute_advantages, \
     Postprocessing
-from ray.rllib.models.tf.fcnet_v2 import FullyConnectedNetwork
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.tf_policy import ACTION_LOGP
+
+from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 
 from toolbox import initialize_ray
 from toolbox.marl import MultiAgentEnvWrapper
 
 from ray.rllib.optimizers import SyncSamplesOptimizer
 from toolbox.modified_rllib.multi_gpu_optimizer import LocalMultiGPUOptimizerModified
-from ray.rllib.policy.sample_batch import MultiAgentBatch
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +33,6 @@ def postprocess_ppo_gae(policy,
                         sample_batch,
                         other_agent_batches=None,
                         episode=None):
-    """This file is copied from ray.rllib"""
-    """Adds the policy logits, VF preds, and advantages to the trajectory."""
-
-    print('enter: postprocess_ppo_gae')
-
     completed = sample_batch["dones"][-1]
     if completed:
         last_r = 0.0
@@ -57,75 +52,13 @@ def postprocess_ppo_gae(policy,
         use_gae=policy.config["use_gae"])
 
     if not policy.loss_initialized():
+        # add some variable in batch to initialize the place holder.
         batch[JOINT_OBS] = np.zeros_like(
             sample_batch[SampleBatch.CUR_OBS], dtype=np.float32)
         batch[PEER_ACTION] = np.zeros_like(
             sample_batch[SampleBatch.ACTIONS], dtype=np.float32)
 
     return batch
-    # return batch
-    # if policy.loss_initialized():
-    #     pass
-    #     if other_agent_batches and ("joint_dataset" not in
-    #     episode.user_data):
-    #         policy_names = list(episode._policies.keys())
-    #         policy_names = sorted(
-    #             policy_names,
-    #             key=lambda ppo_agentx: int(ppo_agentx.split('agent')[1])
-    #         )
-    #
-    #         tmp_dataset = {}
-    #         for pid, (_, other_agent_batch) in other_agent_batches.items():
-    #             assert pid in policy_names
-    #             tmp_dataset[pid] = other_agent_batch[
-    #             other_agent_batch.CUR_OBS]
-    #
-    #         # Because this postprocess function is in per-policy mode,
-    #         # instead of in a cross-policy (multi-agent) mode,
-    #         # so in fact I do not know what current policy name is!
-    #         # I have to guess from the info I have now.
-    #         my_name = set(policy_names).difference(set(tmp_dataset.keys()))
-    #         assert len(my_name) == 1, (my_name, policy_names,
-    #         other_agent_batches)
-    #         my_name = my_name.pop()
-    #
-    #         tmp_dataset[my_name] = sample_batch[sample_batch.CUR_OBS]
-    #
-    #         assert set(policy_names) == set(tmp_dataset.keys())
-    #
-    #         joint_dataset = np.concatenate([
-    #             tmp_dataset[pid] for pid in policy_names
-    #         ])  # in fact it is joint observation
-    #
-    #         # batch['joint_dataset'] = joint_dataset
-    #
-    #         print("Finish build joint dataset its shape: {},"
-    #               " the shape of each element: {}".format(
-    #             joint_dataset.shape, [v.shape for v in tmp_dataset.values()]
-    #         ))
-    #
-    #         # episode.user_data['joint_dataset'] = joint_dataset
-    # else:
-    #     print('strange. joint dataset already exist??',
-    #           episode.user_data['joint_dataset'].shape)
-    # assert (not policy.loss_initialized()) or \
-    #        ("joint_dataset" in episode.user_data)
-    #
-    # act, _, infos = policy.compute_actions(episode.user_data[
-    # 'joint_dataset'])
-    # else:
-    #     batch['joint_dataset'] = np.zeros_like(
-    #         sample_batch[SampleBatch.CUR_OBS], dtype=np.float32)
-    #     # make a fake action
-    #     # act = sample_batch[SampleBatch.ACTIONS]
-    #     act = np.zeros_like(
-    #         sample_batch[SampleBatch.ACTIONS])
-    #
-    # batch["joint_dataset_replay"] = act
-    # return batch
-
-
-from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 
 
 class AddLossMixin(object):
@@ -143,9 +76,6 @@ class AddLossMixin(object):
         Returns:
             feed dict of data
         """
-
-        print("please stop here", cross_policy_obj)
-
         feed_dict = {}
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
@@ -194,12 +124,6 @@ class AddLossMixin(object):
 
 def ppo_surrogate_loss(policy, model, dist_class, train_batch):
     """Copied from PPOTFPolicy"""
-
-    print('enter: ppo_surrogate_loss')
-
-    # if policy.loss_initialized():
-    # print('please stop here loss init?: ', policy.loss_initialized())
-
     logits, state = model.from_batch(train_batch)
     action_dist = dist_class(logits, model)
 
@@ -234,17 +158,8 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
 
     loss = policy.loss_obj.loss
 
-    # just for test
-    # loss += tf.norm(train_batch[JOINT_OBS])
-
     joint_obs_ph = train_batch[JOINT_OBS]
-    joint_obs_length = joint_obs_ph.shape.as_list()[0]
     peer_act_ph = train_batch[PEER_ACTION]
-
-    # test only
-    # peer_act_ph_shape = peer_act_ph.shape.as_list()
-    # assert len(peer_act_ph_shape) == 2
-    # assert peer_act_ph_shape[0] % joint_obs_length == 0
 
     def reshape(x):
         return x
@@ -278,11 +193,45 @@ AdditionalLossPPOTFPolicy = PPOTFPolicy.with_updates(
         ValueNetworkMixin, AddLossMixin
     ])
 
-def process_multiagent_batch_fn(multiagent_batch):
-    assert isinstance(multiagent_batch, MultiAgentBatch)
-    print("PSH!!!")
 
+def process_multiagent_batch_fn(multi_agent_batch, workers):
+    config = workers._remote_config
+    sample_size = config.get("sample_batch_size") or 200
 
+    joint_obs = []
+    for pid, batch in multi_agent_batch.policy_batches.items():
+        count = batch.count
+        batch.shuffle()
+        if count < sample_size:
+            print("[WARNING]!!! Your rollout sample size is "
+                  "less than the replay sample size! "
+                  "Check codes here!")
+            cnt = 0
+            while True:
+                end = min(count, sample_size - cnt)
+                joint_obs.append(batch.slice(0, end)['obs'])
+                if end < count:
+                    break
+                cnt += end
+                batch.shuffle()
+        else:
+            joint_obs.append(batch.slice(0, sample_size)['obs'])
+    joint_obs = np.concatenate(joint_obs)
+
+    print("[JOINT_DATASET] joint_obs shape: {}, policy sample sizes: {}".format(
+        joint_obs.shape,
+        [b.count for b in multi_agent_batch.policy_batches.values()]
+    ))
+
+    def _replay(policy, pid):
+        act, _, infos = policy.compute_actions(joint_obs)
+        return pid, act, infos
+    ret = {
+        pid: act
+        for pid, act, infos in workers.local_worker().foreach_policy(_replay)
+    }
+    info = {JOINT_OBS: joint_obs, PEER_ACTION: ret}
+    return info
 
 
 def choose_policy_optimizer(workers, config):
@@ -314,61 +263,60 @@ AdditionalLossPPOTrainer = PPOTrainer.with_updates(
 )
 
 
-def on_sample_end(info):
-    print('please stop here')
-
-    worker = info['worker']
-    multi_agent_batch = info['samples']
-    sample_size = 200
-
-    # worker = trainer.workers.local_worker()
-    # joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
-
-    joint_obs = []
-
-    for pid, batch in multi_agent_batch.policy_batches.items():
-        count = batch.count
-        batch.shuffle()
-        if count < sample_size:
-            print("[WARNING]!!! Your rollout sample size is "
-                  "less than the replay sample size! "
-                  "Check codes here!")
-            cnt = 0
-            while True:
-                end = min(count, sample_size - cnt)
-                joint_obs.append(batch.slice(0, end)['obs'])
-                if end < count:
-                    break
-                cnt += end
-                batch.shuffle()
-        else:
-            joint_obs.append(batch.slice(0, sample_size)['obs'])
-
-    joint_obs = np.concatenate(joint_obs)
-
-    print("joint_obs shape: {}, policy sample sizes: {}".format(
-        joint_obs.shape,
-        [b.count for b in multi_agent_batch.policy_batches.values()]
-    ))
-
-    # print('pls stop here')
-
-    def _replay(policy, pid):
-        act, _, infos = policy.compute_actions(joint_obs)
-        return pid, act, infos
-
-    ret = [
-        act
-        for pid, act, infos in worker.foreach_policy(_replay)
-    ]
-
-    ret = np.stack(ret)
-
-    # for batch in multi_agent_batch.policy_batches.values():
-    #     batch[JOINT_OBS] = joint_obs
-    #     batch[PEER_ACTION] = ret
-
-    print("please stop hrer")
+# def on_sample_end(info):
+#     print('please stop here')
+#
+#     worker = info['worker']
+#     multi_agent_batch = info['samples']
+#     sample_size = 200
+#
+#     # worker = trainer.workers.local_worker()
+#     # joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
+#
+#     joint_obs = []
+#
+#     for pid, batch in multi_agent_batch.policy_batches.items():
+#         count = batch.count
+#         batch.shuffle()
+#         if count < sample_size:
+#             print("[WARNING]!!! Your rollout sample size is "
+#                   "less than the replay sample size! "
+#                   "Check codes here!")
+#             cnt = 0
+#             while True:
+#                 end = min(count, sample_size - cnt)
+#                 joint_obs.append(batch.slice(0, end)['obs'])
+#                 if end < count:
+#                     break
+#                 cnt += end
+#                 batch.shuffle()
+#         else:
+#             joint_obs.append(batch.slice(0, sample_size)['obs'])
+#
+#     joint_obs = np.concatenate(joint_obs)
+#
+#     print("joint_obs shape: {}, policy sample sizes: {}".format(
+#         joint_obs.shape,
+#         [b.count for b in multi_agent_batch.policy_batches.values()]
+#     ))
+#
+#
+#     def _replay(policy, pid):
+#         act, _, infos = policy.compute_actions(joint_obs)
+#         return pid, act, infos
+#
+#     ret = {
+#         pid: act
+#         for pid, act, infos in worker.foreach_policy(_replay)
+#     }
+#
+#     # ret = np.stack(ret)
+#
+#     # for batch in multi_agent_batch.policy_batches.values():
+#     #     batch[JOINT_OBS] = joint_obs
+#     #     batch[PEER_ACTION] = ret
+#
+#     print("please stop hrer")
 
     # # now we have a mapping: policy_id to joint_dataset_replay in 'ret'
     #
@@ -394,9 +342,9 @@ if __name__ == '__main__':
                          for i in policy_names},
             "policy_mapping_fn": lambda x: x,
         },
-        "callbacks": {
-            "on_sample_end": on_sample_end
-        }
+        # "callbacks": {
+        #     "on_sample_end": on_sample_end
+        # }
     }
 
     agent = AdditionalLossPPOTrainer(
