@@ -76,7 +76,20 @@ class AddLossMixin(object):
         Returns:
             feed dict of data
         """
+
+        print("pls")
+
         feed_dict = {}
+
+        # parse the cross-policy info and put them into feed_dict
+        joint_obs_ph = self._loss_input_dict[JOINT_OBS]
+        feed_dict[joint_obs_ph] = cross_policy_obj[JOINT_OBS]
+
+        replay_ph = self._loss_input_dict[PEER_ACTION]
+        feed_dict[replay_ph] = np.concatenate(
+            list(cross_policy_obj[PEER_ACTION].values())
+        )
+
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
                     len(batch[SampleBatch.CUR_OBS]) %
@@ -91,7 +104,8 @@ class AddLossMixin(object):
             if shuffle:
                 batch.shuffle()
             for k, ph in self._loss_inputs:
-                feed_dict[ph] = batch[k]
+                if k in batch:
+                    feed_dict[ph] = batch[k]
             return feed_dict
 
         if self._state_inputs:
@@ -256,72 +270,10 @@ def choose_policy_optimizer(workers, config):
         shuffle_sequences=config["shuffle_sequences"])
 
 
-
 AdditionalLossPPOTrainer = PPOTrainer.with_updates(
     default_policy=AdditionalLossPPOTFPolicy,
     make_policy_optimizer=choose_policy_optimizer
 )
-
-
-# def on_sample_end(info):
-#     print('please stop here')
-#
-#     worker = info['worker']
-#     multi_agent_batch = info['samples']
-#     sample_size = 200
-#
-#     # worker = trainer.workers.local_worker()
-#     # joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
-#
-#     joint_obs = []
-#
-#     for pid, batch in multi_agent_batch.policy_batches.items():
-#         count = batch.count
-#         batch.shuffle()
-#         if count < sample_size:
-#             print("[WARNING]!!! Your rollout sample size is "
-#                   "less than the replay sample size! "
-#                   "Check codes here!")
-#             cnt = 0
-#             while True:
-#                 end = min(count, sample_size - cnt)
-#                 joint_obs.append(batch.slice(0, end)['obs'])
-#                 if end < count:
-#                     break
-#                 cnt += end
-#                 batch.shuffle()
-#         else:
-#             joint_obs.append(batch.slice(0, sample_size)['obs'])
-#
-#     joint_obs = np.concatenate(joint_obs)
-#
-#     print("joint_obs shape: {}, policy sample sizes: {}".format(
-#         joint_obs.shape,
-#         [b.count for b in multi_agent_batch.policy_batches.values()]
-#     ))
-#
-#
-#     def _replay(policy, pid):
-#         act, _, infos = policy.compute_actions(joint_obs)
-#         return pid, act, infos
-#
-#     ret = {
-#         pid: act
-#         for pid, act, infos in worker.foreach_policy(_replay)
-#     }
-#
-#     # ret = np.stack(ret)
-#
-#     # for batch in multi_agent_batch.policy_batches.values():
-#     #     batch[JOINT_OBS] = joint_obs
-#     #     batch[PEER_ACTION] = ret
-#
-#     print("please stop hrer")
-
-    # # now we have a mapping: policy_id to joint_dataset_replay in 'ret'
-    #
-    # flatten = [act for act, infos in ret.values()]  # flatten action array
-    # dist_matrix = joint_dataset_distance(flatten)
 
 
 if __name__ == '__main__':
