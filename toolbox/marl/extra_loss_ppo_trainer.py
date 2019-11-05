@@ -11,6 +11,7 @@ from ray.rllib.optimizers import SyncSamplesOptimizer
 from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.tf_policy import ACTION_LOGP
+from ray.rllib.utils.explained_variance import explained_variance
 
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.modified_rllib.multi_gpu_optimizer import \
@@ -50,7 +51,7 @@ def postprocess_ppo_gae(policy,
         use_gae=policy.config["use_gae"])
 
     if not policy.loss_initialized():
-        # add some variable in batch to initialize the place holder.
+        # add some variable in batch to initialize the placeholders.
         batch[JOINT_OBS] = np.zeros_like(
             sample_batch[SampleBatch.CUR_OBS], dtype=np.float32)
         batch[PEER_ACTION] = np.zeros_like(
@@ -84,6 +85,9 @@ class AddLossMixin(object):
         feed_dict[replay_ph] = np.concatenate(
             list(cross_policy_obj[PEER_ACTION].values())
         )
+
+        assert feed_dict[replay_ph].shape[0] % feed_dict[joint_obs_ph].shape[
+            0] == 0
 
         # The below codes are copied from rllib.
 
@@ -177,26 +181,54 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
     joint_obs_ph = train_batch[JOINT_OBS]
     peer_act_ph = train_batch[PEER_ACTION]
 
+    logger.debug(
+        "The joint_obs_ph shape: {}, the peer_act_ph shape: {}".format(
+            joint_obs_ph.shape, peer_act_ph.shape
+        ))
+
     replay_act = tf.split(model.base_model(joint_obs_ph)[0], 2, axis=1)[0]
     novelty_loss = -norm(replay_act, reshape(joint_obs_ph, peer_act_ph))
+
+    policy.novelty_loss = novelty_loss
 
     alpha = policy.config["novelty_loss_param"]
 
     assert 0 <= alpha <= 1
 
-    return (1 - alpha) * loss + alpha * novelty_loss
+    total_loss = (1 - alpha) * loss + alpha * novelty_loss
+    policy.total_loss = total_loss
+    return total_loss
+
+
+def kl_and_loss_stats_modified(policy, train_batch):
+    return {
+        "novelty_loss": policy.novelty_loss,
+        "cur_kl_coeff": tf.cast(policy.kl_coeff, tf.float64),
+        "cur_lr": tf.cast(policy.cur_lr, tf.float64),
+        # "total_loss": policy.loss_obj.loss,
+        "total_loss": policy.total_loss,
+        "policy_loss": policy.loss_obj.mean_policy_loss,
+        "vf_loss": policy.loss_obj.mean_vf_loss,
+        "vf_explained_var": explained_variance(
+            train_batch[Postprocessing.VALUE_TARGETS],
+            policy.model.value_function()),
+        "kl": policy.loss_obj.mean_kl,
+        "entropy": policy.loss_obj.mean_entropy,
+        "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
+    }
 
 
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
 
-additional_loss_ppo_tf_policy_default_config = DEFAULT_CONFIG.copy()
-additional_loss_ppo_tf_policy_default_config.update(
+extra_loss_ppo_tf_policy_default_config = DEFAULT_CONFIG.copy()
+extra_loss_ppo_tf_policy_default_config.update(
     novelty_loss_param=0.5, joint_dataset_sample_batch_size=200
 )
 
 AdditionalLossPPOTFPolicy = PPOTFPolicy.with_updates(
-    get_default_config=lambda: additional_loss_ppo_tf_policy_default_config,
+    get_default_config=lambda: extra_loss_ppo_tf_policy_default_config,
     postprocess_fn=postprocess_ppo_gae,
+    stats_fn=kl_and_loss_stats_modified,
     loss_fn=ppo_surrogate_loss,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
@@ -206,7 +238,8 @@ AdditionalLossPPOTFPolicy = PPOTFPolicy.with_updates(
 
 def process_multiagent_batch_fn(multi_agent_batch, workers):
     config = workers._remote_config
-    sample_size = config.get("joint_dataset_sample_batch_size") or 200
+    sample_size = config.get("joint_dataset_sample_batch_size")
+    assert sample_size is not None
 
     joint_obs = []
     for pid, batch in multi_agent_batch.policy_batches.items():
@@ -227,6 +260,8 @@ def process_multiagent_batch_fn(multi_agent_batch, workers):
         else:
             joint_obs.append(batch.slice(0, sample_size)['obs'])
     joint_obs = np.concatenate(joint_obs)
+    assert len(joint_obs) == sample_size * len(
+        multi_agent_batch.policy_batches)
 
     def _replay(policy, pid):
         act, _, infos = policy.compute_actions(joint_obs)
@@ -263,6 +298,7 @@ def choose_policy_optimizer(workers, config):
 
 
 ExtraLossPPOTrainer = PPOTrainer.with_updates(
+    default_config=extra_loss_ppo_tf_policy_default_config,
     default_policy=AdditionalLossPPOTFPolicy,
     make_policy_optimizer=choose_policy_optimizer
 )
@@ -275,7 +311,7 @@ if __name__ == '__main__':
 
     # This is only test code.
     initialize_ray(test_mode=True, local_mode=False)
-    num_agents = 8
+    num_agents = 3
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
 
@@ -285,7 +321,7 @@ if __name__ == '__main__':
         "env": MultiAgentEnvWrapper,
         "env_config": env_config,
         "log_level": "DEBUG",
-        "sample_batch_size": 200,
+        "joint_dataset_sample_batch_size": 20,
         "multiagent": {
             "policies": {i: (None, env.observation_space, env.action_space, {})
                          for i in policy_names},
@@ -302,6 +338,6 @@ if __name__ == '__main__':
         name="DELETEME_TEST_extra_loss_ppo_trainer",
         checkpoint_at_end=True,
         checkpoint_freq=10,
-        stop={"timesteps_total": 50000},
+        stop={"timesteps_total": 5000},
         config=config,
     )

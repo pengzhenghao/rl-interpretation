@@ -101,7 +101,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, required=True)
     parser.add_argument("--env", type=str, default="BipedalWalker-v2")
-    parser.add_argument("--run", type=str, default="PPO")
+    parser.add_argument("--run", type=str, default="individual")
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-agents", type=int, default=10)
     parser.add_argument("--num-seeds", type=int, default=0)
