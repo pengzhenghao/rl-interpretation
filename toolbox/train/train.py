@@ -33,11 +33,11 @@ Zhenghao, Aug 18
 """
 
 import argparse
-import logging
 
-import ray
 from ray import tune
 from ray.rllib.utils import merge_dicts
+
+from toolbox.utils import initialize_ray, get_local_dir
 
 # The arguments below is copied from
 # https://github.com/araffin/rl-baselines-zoo/blob/master/hyperparams/ppo2.yml
@@ -194,15 +194,16 @@ general_config = {
 
 run_config = merge_dicts(general_config, algo_specify_config['config'])
 
-ray.init(logging_level=logging.ERROR, log_to_driver=False)
+initialize_ray()
 tune.run(
     args.run,
     name=args.exp_name,
     verbose=1,
+    local_dir=get_local_dir(),
     checkpoint_freq=1,
     checkpoint_at_end=True,
     stop={"timesteps_total": algo_specify_config['timesteps_total']}
-        if "timesteps_total" in algo_specify_config \
+    if "timesteps_total" in algo_specify_config \
         else algo_specify_config['stop']
     ,
     config=run_config,

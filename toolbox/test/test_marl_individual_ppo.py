@@ -1,10 +1,10 @@
 import numpy as np
 from ray import tune
 
-from toolbox import initialize_ray
+from toolbox.utils import initialize_ray, get_local_dir
 from toolbox.distance import joint_dataset_distance
 from toolbox.env import get_env_maker
-from toolbox.additional_loss.multiagent_env_wrapper import MultiAgentEnvWrapper
+from toolbox.marl import MultiAgentEnvWrapper
 
 
 def test_marl_individual_ppo(extra_config, local_mode=True, test_mode=True):
@@ -49,6 +49,7 @@ def test_marl_individual_ppo(extra_config, local_mode=True, test_mode=True):
 
     tune.run(
         "PPO",
+        local_dir=get_local_dir(),
         name=exp_name,
         checkpoint_at_end=True,
         checkpoint_freq=10,

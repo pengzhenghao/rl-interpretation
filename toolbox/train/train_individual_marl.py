@@ -3,11 +3,10 @@ import argparse
 import numpy as np
 from ray import tune
 
-from toolbox import initialize_ray
 from toolbox.distance import joint_dataset_distance, js_distance
 from toolbox.env import get_env_maker
-from toolbox.additional_loss import MultiAgentEnvWrapper
-from toolbox.utils import get_num_gpus
+from toolbox.marl import MultiAgentEnvWrapper
+from toolbox.utils import get_num_gpus, get_local_dir, initialize_ray
 
 
 def _collect_joint_dataset(trainer, worker, sample_size):
@@ -147,6 +146,7 @@ if __name__ == '__main__':
 
     tune.run(
         "PPO",
+        local_dir=get_local_dir(),
         name=exp_name,
         checkpoint_at_end=True,
         checkpoint_freq=10,

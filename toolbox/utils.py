@@ -8,6 +8,7 @@ from sys import getsizeof
 
 import numpy as np
 import ray
+from distro import linux_distribution
 from ray.internal.internal_api import unpin_object_data
 
 
@@ -31,6 +32,25 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False, **kwargs):
         print("Successfully initialize Ray!")
     if not local_mode:
         print("Available resources: ", ray.available_resources())
+
+
+def get_local_dir():
+    """This function should be called before all tune.run!!!"""
+    local_dir = None
+    if linux_distribution(False)[0] == 'centos':
+        # This is a workaround for the centos server does not store data
+        # at home dir.
+        local_dir = "/data1/pengzh/ray_results"
+
+        # To make sure we are really talking about the same machine.
+        assert linux_distribution(False)[1] == '7'
+        assert linux_distribution(False)[2] == 'Core'
+        assert linux_distribution(True)[0] == 'CentOS Linux'
+        import pwd
+        import os
+
+        assert pwd.getpwuid(os.getuid())[0] == 'b146466'
+    return local_dir
 
 
 def get_random_string():
