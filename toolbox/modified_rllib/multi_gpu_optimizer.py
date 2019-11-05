@@ -21,7 +21,8 @@ from ray.rllib.policy.tf_policy import TFPolicy
 from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
 
 from ray.rllib.utils.timer import TimerStat
-from toolbox.modified_rllib.multi_gpu_impl import LocalSyncParallelOptimizerModified
+from toolbox.modified_rllib.multi_gpu_impl import \
+    LocalSyncParallelOptimizerModified
 import math
 
 
@@ -95,14 +96,17 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                             LocalSyncParallelOptimizerModified(
                                 policy._optimizer,
                                 self.devices,
-                                { (i, k): v
-                                 for i, (k, v) in enumerate(policy._loss_inputs)
+                                {(i, k): v
+                                 for i, (k, v) in
+                                 enumerate(policy._loss_inputs)
                                  if k not in no_split_list},
-                                { (i, k): v
-                                 for i, (k, v) in enumerate(policy._loss_inputs)
+                                {(i, k): v
+                                 for i, (k, v) in
+                                 enumerate(policy._loss_inputs)
                                  if k in no_split_list},
                                 [(i, k)
-                                 for i, (k, _) in enumerate(policy._loss_inputs)],
+                                 for i, (k, _) in
+                                 enumerate(policy._loss_inputs)],
                                 rnn_inputs,
                                 self.per_device_batch_size,
                                 policy.copy

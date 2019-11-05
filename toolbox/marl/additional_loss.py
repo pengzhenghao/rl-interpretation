@@ -7,16 +7,15 @@ from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, PPOLoss, \
     LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, ValueNetworkMixin
 from ray.rllib.evaluation.postprocessing import compute_advantages, \
     Postprocessing
+from ray.rllib.optimizers import SyncSamplesOptimizer
+from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.tf_policy import ACTION_LOGP
 
-from ray.rllib.policy.rnn_sequencing import chop_into_sequences
-
 from toolbox import initialize_ray
 from toolbox.marl import MultiAgentEnvWrapper
-
-from ray.rllib.optimizers import SyncSamplesOptimizer
-from toolbox.modified_rllib.multi_gpu_optimizer import LocalMultiGPUOptimizerModified
+from toolbox.modified_rllib.multi_gpu_optimizer import \
+    LocalMultiGPUOptimizerModified
 
 logger = logging.getLogger(__name__)
 
@@ -76,12 +75,9 @@ class AddLossMixin(object):
         Returns:
             feed dict of data
         """
-
-        print("pls")
-
         feed_dict = {}
 
-        ########## parse the cross-policy info and put in feed_dict ##########
+        # parse the cross-policy info and put in feed_dict <- What we modified
         joint_obs_ph = self._loss_input_dict[JOINT_OBS]
         feed_dict[joint_obs_ph] = cross_policy_obj[JOINT_OBS]
 
@@ -89,7 +85,8 @@ class AddLossMixin(object):
         feed_dict[replay_ph] = np.concatenate(
             list(cross_policy_obj[PEER_ACTION].values())
         )
-        ########## Finish add cross-policy info ##########
+
+        # The below codes are copied from rllib.
 
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
@@ -99,7 +96,6 @@ class AddLossMixin(object):
                 batch[SampleBatch.AGENT_INDEX]) == 0)  # not multiagent
         else:
             meets_divisibility_reqs = True
-
         # Simple case: not RNN nor do we need to pad
         if not self._state_inputs and meets_divisibility_reqs:
             if shuffle:
@@ -108,14 +104,12 @@ class AddLossMixin(object):
                 if k in batch:
                     feed_dict[ph] = batch[k]
             return feed_dict
-
         if self._state_inputs:
             max_seq_len = self._max_seq_len
             dynamic_max = True
         else:
             max_seq_len = self._batch_divisibility_req
             dynamic_max = False
-
         # RNN or multi-agent case
         feature_keys = [k for k, v in self._loss_inputs]
         state_keys = [
@@ -135,6 +129,14 @@ class AddLossMixin(object):
             feed_dict[self._loss_input_dict[k]] = v
         feed_dict[self._seq_lens] = seq_lens
         return feed_dict
+
+
+def reshape(obs, act):
+    return tf.reshape(act, [-1, tf.shape(obs)[0], tf.shape(act)[1]])
+
+
+def norm(x, y):
+    return tf.reduce_mean(tf.subtract(x, y) ** 2)
 
 
 def ppo_surrogate_loss(policy, model, dist_class, train_batch):
@@ -176,22 +178,6 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
     joint_obs_ph = train_batch[JOINT_OBS]
     peer_act_ph = train_batch[PEER_ACTION]
 
-    def reshape(obs, act):
-        return tf.reshape(
-            act,
-            [-1, tf.shape(obs)[0], tf.shape(act)[1]]
-        )
-
-    def norm(x, y):
-        subtract = tf.subtract(x, y)
-        norm = tf.reduce_mean(subtract ** 2)
-        print(
-            "Inside norm(x, y). the shape of sub: {}, the shape of norm "
-            "{}".format(
-                subtract.shape, norm.shape
-            ), x.shape, y.shape)
-        return norm
-
     replay_act = tf.split(model.base_model(joint_obs_ph)[0], 2, axis=1)[0]
     novelty_loss = -norm(replay_act, reshape(joint_obs_ph, peer_act_ph))
 
@@ -216,9 +202,9 @@ def process_multiagent_batch_fn(multi_agent_batch, workers):
         count = batch.count
         batch.shuffle()
         if count < sample_size:
-            print("[WARNING]!!! Your rollout sample size is "
-                  "less than the replay sample size! "
-                  "Check codes here!")
+            logger.info("Your rollout sample size {} is "
+                        "less than the replay sample size {}! "
+                        "Check codes here!".format(count, sample_size))
             cnt = 0
             while True:
                 end = min(count, sample_size - cnt)
@@ -231,20 +217,15 @@ def process_multiagent_batch_fn(multi_agent_batch, workers):
             joint_obs.append(batch.slice(0, sample_size)['obs'])
     joint_obs = np.concatenate(joint_obs)
 
-    print("[JOINT_DATASET] joint_obs shape: {}, policy sample sizes: {}".format(
-        joint_obs.shape,
-        [b.count for b in multi_agent_batch.policy_batches.values()]
-    ))
-
     def _replay(policy, pid):
         act, _, infos = policy.compute_actions(joint_obs)
         return pid, act, infos
+
     ret = {
         pid: act
         for pid, act, infos in workers.local_worker().foreach_policy(_replay)
     }
-    info = {JOINT_OBS: joint_obs, PEER_ACTION: ret}
-    return info
+    return {JOINT_OBS: joint_obs, PEER_ACTION: ret}
 
 
 def choose_policy_optimizer(workers, config):
@@ -275,9 +256,9 @@ AdditionalLossPPOTrainer = PPOTrainer.with_updates(
     make_policy_optimizer=choose_policy_optimizer
 )
 
-
 if __name__ == '__main__':
-    initialize_ray(test_mode=True, local_mode=True)
+    # This is only test code.
+    initialize_ray(test_mode=True, local_mode=False)
     num_agents = 2
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
@@ -293,10 +274,7 @@ if __name__ == '__main__':
             "policies": {i: (None, env.observation_space, env.action_space, {})
                          for i in policy_names},
             "policy_mapping_fn": lambda x: x,
-        },
-        # "callbacks": {
-        #     "on_sample_end": on_sample_end
-        # }
+        }
     }
 
     agent = AdditionalLossPPOTrainer(
@@ -305,5 +283,3 @@ if __name__ == '__main__':
     )
 
     agent.train()
-    # agent.train()
-    # agent.train()
