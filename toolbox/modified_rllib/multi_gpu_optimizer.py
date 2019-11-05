@@ -1,23 +1,16 @@
 from __future__ import absolute_import, division, print_function
 
 import logging
-import math
 from collections import defaultdict
 
 import numpy as np
 import ray
 from ray.rllib.evaluation.metrics import LEARNER_STATS_KEY
-from ray.rllib.optimizers.multi_gpu_impl import LocalSyncParallelOptimizer
-from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
+from ray.rllib.optimizers import SyncSamplesOptimizer, LocalMultiGPUOptimizer
 from ray.rllib.optimizers.rollout import collect_samples
 from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, \
     MultiAgentBatch
-from ray.rllib.policy.tf_policy import TFPolicy
 from ray.rllib.utils import try_import_tf
-from ray.rllib.utils.annotations import override
-from ray.rllib.utils.timer import TimerStat
-
-from ray.rllib.optimizers import SyncSamplesOptimizer, LocalMultiGPUOptimizer
 
 tf = try_import_tf()
 
@@ -25,6 +18,31 @@ logger = logging.getLogger(__name__)
 
 
 class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
+    def __init__(self, workers,
+                 process_multiagent_batch_fn=None,
+                 sgd_batch_size=128,
+                 num_sgd_iter=10,
+                 sample_batch_size=200,
+                 num_envs_per_worker=1,
+                 train_batch_size=1024,
+                 num_gpus=0,
+                 standardize_fields=[],
+                 shuffle_sequences=True):
+        """We introduce a new feature which the original rllib do not have,
+        that is allow to parse the cross policy information and store then
+        in an object, which will be passed to each policy."""
+        self.process_multiagent_batch_fn = process_multiagent_batch_fn
+        super(LocalMultiGPUOptimizerModified, self).__init__(
+            workers,
+            sgd_batch_size,
+            num_sgd_iter,
+            sample_batch_size,
+            num_envs_per_worker,
+            train_batch_size,
+            num_gpus,
+            standardize_fields,
+            shuffle_sequences)
+
     def step(self):
         """Override the original codes to add other policies infos."""
         with self.update_weights_timer:
@@ -68,6 +86,12 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                 batch[field] = standardized
 
         num_loaded_tuples = {}
+
+        if self.process_multiagent_batch_fn is not None:
+            cross_policy_obj = self.process_multiagent_batch_fn(samples)
+        else:
+            cross_policy_obj = None
+
         with self.load_timer:
             for policy_id, batch in samples.policy_batches.items():
                 if policy_id not in self.policies:
@@ -77,7 +101,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                 policy._debug_vars()
                 tuples = policy._get_loss_inputs_dict(
                     batch, shuffle=self.shuffle_sequences,
-                    multiagent_batch=samples)  ### HERE!
+                    cross_policy_obj=cross_policy_obj)  ### HERE!
                 data_keys = [ph for _, ph in policy._loss_inputs]
                 if policy._state_inputs:
                     state_keys = policy._state_inputs + [policy._seq_lens]
@@ -115,34 +139,9 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
         return fetches
 
 
-
 def _averaged(kv):
     out = {}
     for k, v in kv.items():
         if v[0] is not None and not isinstance(v[0], dict):
             out[k] = np.mean(v)
     return out
-
-
-
-
-# copied from PPO
-def choose_policy_optimizer(workers, config):
-    if config["simple_optimizer"]:
-        return SyncSamplesOptimizer(
-            workers,
-            num_sgd_iter=config["num_sgd_iter"],
-            train_batch_size=config["train_batch_size"],
-            sgd_minibatch_size=config["sgd_minibatch_size"],
-            standardize_fields=["advantages"])
-
-    return LocalMultiGPUOptimizerModified(
-        workers,
-        sgd_batch_size=config["sgd_minibatch_size"],
-        num_sgd_iter=config["num_sgd_iter"],
-        num_gpus=config["num_gpus"],
-        sample_batch_size=config["sample_batch_size"],
-        num_envs_per_worker=config["num_envs_per_worker"],
-        train_batch_size=config["train_batch_size"],
-        standardize_fields=["advantages"],
-        shuffle_sequences=config["shuffle_sequences"])

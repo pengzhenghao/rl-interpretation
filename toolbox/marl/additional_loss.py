@@ -3,7 +3,8 @@ import logging
 import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo import PPOTrainer
-from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, PPOLoss
+from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, PPOLoss, \
+    LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, ValueNetworkMixin
 from ray.rllib.evaluation.postprocessing import compute_advantages, \
     Postprocessing
 from ray.rllib.models.tf.fcnet_v2 import FullyConnectedNetwork
@@ -13,7 +14,12 @@ from ray.rllib.policy.tf_policy import ACTION_LOGP
 from toolbox import initialize_ray
 from toolbox.marl import MultiAgentEnvWrapper
 
+from ray.rllib.optimizers import SyncSamplesOptimizer
+from toolbox.modified_rllib.multi_gpu_optimizer import LocalMultiGPUOptimizerModified
+from ray.rllib.policy.sample_batch import MultiAgentBatch
+
 logger = logging.getLogger(__name__)
+
 # Frozen logits of the policy that computed the action
 BEHAVIOUR_LOGITS = "behaviour_logits"
 OPPONENT_OBS = "opponent_obs"
@@ -21,25 +27,6 @@ OPPONENT_ACTION = "opponent_action"
 
 PEER_ACTION = "other_replay"
 JOINT_OBS = "joint_dataset"
-
-
-class CustomLossModel(FullyConnectedNetwork):
-    def custom_loss(self, policy_loss, loss_inputs):
-        return policy_loss
-        # replay, _ = self.base_model(loss_inputs[JOINT_OBS])
-        #
-        # # should be [num_other * joint_dataset, num_act]
-        # def reshape(x):
-        #     return x
-        #
-        # def norm(x, y):
-        #     norm = tf.reduce_mean(tf.subtract(x, y)**2)
-        #     return norm
-        #
-        # # negative to make "minimize loss" to "maximize distance"
-        # novelty_loss = -norm(reshape(loss_inputs[PEER_ACTION]))
-        #
-        # return policy_loss + novelty_loss
 
 
 def postprocess_ppo_gae(policy,
@@ -138,6 +125,71 @@ def postprocess_ppo_gae(policy,
     # return batch
 
 
+from ray.rllib.policy.rnn_sequencing import chop_into_sequences
+
+
+class AddLossMixin(object):
+    """Copied from tf_policy.py"""
+
+    def _get_loss_inputs_dict(self, batch, shuffle, cross_policy_obj):
+        """Return a feed dict from a batch.
+
+        Arguments:
+            batch (SampleBatch): batch of data to derive inputs from
+            shuffle (bool): whether to shuffle batch sequences. Shuffle may
+                be done in-place. This only makes sense if you're further
+                applying minibatch SGD after getting the outputs.
+
+        Returns:
+            feed dict of data
+        """
+
+        print("please stop here", cross_policy_obj)
+
+        feed_dict = {}
+        if self._batch_divisibility_req > 1:
+            meets_divisibility_reqs = (
+                    len(batch[SampleBatch.CUR_OBS]) %
+                    self._batch_divisibility_req == 0
+                    and max(
+                batch[SampleBatch.AGENT_INDEX]) == 0)  # not multiagent
+        else:
+            meets_divisibility_reqs = True
+
+        # Simple case: not RNN nor do we need to pad
+        if not self._state_inputs and meets_divisibility_reqs:
+            if shuffle:
+                batch.shuffle()
+            for k, ph in self._loss_inputs:
+                feed_dict[ph] = batch[k]
+            return feed_dict
+
+        if self._state_inputs:
+            max_seq_len = self._max_seq_len
+            dynamic_max = True
+        else:
+            max_seq_len = self._batch_divisibility_req
+            dynamic_max = False
+
+        # RNN or multi-agent case
+        feature_keys = [k for k, v in self._loss_inputs]
+        state_keys = [
+            "state_in_{}".format(i) for i in range(len(self._state_inputs))
+        ]
+        feature_sequences, initial_states, seq_lens = chop_into_sequences(
+            batch[SampleBatch.EPS_ID],
+            batch[SampleBatch.UNROLL_ID],
+            batch[SampleBatch.AGENT_INDEX], [batch[k] for k in feature_keys],
+            [batch[k] for k in state_keys],
+            max_seq_len,
+            dynamic_max=dynamic_max,
+            shuffle=shuffle)
+        for k, v in zip(feature_keys, feature_sequences):
+            feed_dict[self._loss_input_dict[k]] = v
+        for k, v in zip(state_keys, initial_states):
+            feed_dict[self._loss_input_dict[k]] = v
+        feed_dict[self._seq_lens] = seq_lens
+        return feed_dict
 
 
 def ppo_surrogate_loss(policy, model, dist_class, train_batch):
@@ -206,8 +258,8 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         norm = tf.reduce_mean(subtract ** 2)
 
         print(
-            "Inside norm(x, y). the shape of sub: {}, the shape of norm {"
-            "}".format(
+            "Inside norm(x, y). the shape of sub: {}, the shape of norm "
+            "{}".format(
                 subtract.shape, norm.shape
             ), x.shape, y.shape)
         return norm
@@ -220,9 +272,41 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
 
 AdditionalLossPPOTFPolicy = PPOTFPolicy.with_updates(
     postprocess_fn=postprocess_ppo_gae,
-    loss_fn=ppo_surrogate_loss
-)
-from toolbox.modified_rllib.multi_gpu_optimizer import choose_policy_optimizer
+    loss_fn=ppo_surrogate_loss,
+    mixins=[
+        LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
+        ValueNetworkMixin, AddLossMixin
+    ])
+
+def process_multiagent_batch_fn(multiagent_batch):
+    assert isinstance(multiagent_batch, MultiAgentBatch)
+    print("PSH!!!")
+
+
+
+
+def choose_policy_optimizer(workers, config):
+    if config["simple_optimizer"]:
+        return SyncSamplesOptimizer(
+            workers,
+            num_sgd_iter=config["num_sgd_iter"],
+            train_batch_size=config["train_batch_size"],
+            sgd_minibatch_size=config["sgd_minibatch_size"],
+            standardize_fields=["advantages"])
+
+    return LocalMultiGPUOptimizerModified(
+        workers,
+        process_multiagent_batch_fn,
+        sgd_batch_size=config["sgd_minibatch_size"],
+        num_sgd_iter=config["num_sgd_iter"],
+        num_gpus=config["num_gpus"],
+        sample_batch_size=config["sample_batch_size"],
+        num_envs_per_worker=config["num_envs_per_worker"],
+        train_batch_size=config["train_batch_size"],
+        standardize_fields=["advantages"],
+        shuffle_sequences=config["shuffle_sequences"])
+
+
 
 AdditionalLossPPOTrainer = PPOTrainer.with_updates(
     default_policy=AdditionalLossPPOTFPolicy,
@@ -280,9 +364,9 @@ def on_sample_end(info):
 
     ret = np.stack(ret)
 
-    for batch in multi_agent_batch.policy_batches.values():
-        batch[JOINT_OBS] = joint_obs
-        batch[PEER_ACTION] = ret
+    # for batch in multi_agent_batch.policy_batches.values():
+    #     batch[JOINT_OBS] = joint_obs
+    #     batch[PEER_ACTION] = ret
 
     print("please stop hrer")
 
@@ -293,14 +377,10 @@ def on_sample_end(info):
 
 
 if __name__ == '__main__':
-    from ray.rllib.models import ModelCatalog
-
     initialize_ray(test_mode=True, local_mode=True)
     num_agents = 2
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
-
-    ModelCatalog.register_custom_model("custom_loss", CustomLossModel)
 
     env_config = {"env_name": "BipedalWalker-v2", "agent_ids": policy_names}
     env = MultiAgentEnvWrapper(env_config)
@@ -316,9 +396,6 @@ if __name__ == '__main__':
         },
         "callbacks": {
             "on_sample_end": on_sample_end
-        },
-        "model": {
-            "custom_model": "custom_loss"
         }
     }
 
