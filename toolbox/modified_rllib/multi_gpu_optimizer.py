@@ -95,13 +95,13 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                             LocalSyncParallelOptimizerModified(
                                 policy._optimizer,
                                 self.devices,
-                                [[i, k, v]
+                                { (i, k): v
                                  for i, (k, v) in enumerate(policy._loss_inputs)
-                                 if k not in no_split_list],
-                                [[i, k, v]
+                                 if k not in no_split_list},
+                                { (i, k): v
                                  for i, (k, v) in enumerate(policy._loss_inputs)
-                                 if k in no_split_list],
-                                [[i, k]
+                                 if k in no_split_list},
+                                [(i, k)
                                  for i, (k, _) in enumerate(policy._loss_inputs)],
                                 rnn_inputs,
                                 self.per_device_batch_size,

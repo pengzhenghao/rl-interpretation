@@ -181,10 +181,6 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
             act,
             [-1, tf.shape(obs)[0], tf.shape(act)[1]]
         )
-        # return x
-        # act_shape = x.shape.as_list()[-1]
-        # shape = [-1, joint_obs_length, act_shape]
-        # return tf.reshape(x, shape)
 
     def norm(x, y):
         subtract = tf.subtract(x, y)

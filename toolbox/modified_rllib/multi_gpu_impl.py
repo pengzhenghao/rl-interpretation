@@ -64,40 +64,30 @@ class LocalSyncParallelOptimizerModified(object):
         self.devices = devices
         self.max_per_device_batch_size = max_per_device_batch_size
 
-        assert not rnn_inputs
-        # self.loss_inputs = input_placeholders_split + rnn_inputs
+        assert not rnn_inputs # just a workaround, do not consider RNN.
+
+        self.input_names = input_names
         self.loss_inputs = input_placeholders_split
         self.loss_inputs_nosplit = input_placeholders_nosplit
 
-        self.all_loss_inputs = []
-        for i, k in input_names:
-            for phi, phk, ph in self.loss_inputs_nosplit:
-                if phi == i and phk == k:
-                    self.all_loss_inputs.append([i, k, ph])
-                    continue
-            for phi, phk, ph in self.loss_inputs:
-                if phi == i and phk == k:
-                    self.all_loss_inputs.append([i, k, ph])
-                    continue
+        self.all_loss_inputs = {}
+        for pair_key in input_names:
+            if pair_key in self.loss_inputs_nosplit:
+                self.all_loss_inputs[pair_key] = self.loss_inputs_nosplit[
+                    pair_key]
+            else:
+                self.all_loss_inputs[pair_key] = self.loss_inputs[pair_key]
+
         assert len(self.all_loss_inputs) == len(input_names)
         assert len(self.all_loss_inputs) == len(self.loss_inputs) + len(
             self.loss_inputs_nosplit)
 
-        # self.all_loss_inputs = self.loss_inputs + self.loss_inputs_nosplit
-        # self.all_loss_inputs = self.loss_inputs.copy()
-        # self.all_loss_inputs.update(self.loss_inputs_nosplit.copy())
-
         self.build_graph = build_graph
-        self.input_names = input_names
 
         # First initialize the shared loss network
         with tf.name_scope(TOWER_SCOPE_NAME):
-
-            tmp_list = []
-            for i, k in self.input_names:
-                for phi, phk, ph in self.all_loss_inputs:
-                    if phi == i and phk == k:
-                        tmp_list.append(ph)
+            tmp_list = [self.all_loss_inputs[pair_key] for pair_key in
+                        self.input_names]
 
             self._shared_loss = build_graph(tmp_list)
         shared_ops = tf.get_collection(
@@ -118,8 +108,8 @@ class LocalSyncParallelOptimizerModified(object):
         # Split on the CPU in case the data doesn't fit in GPU memory.
         with tf.device("/cpu:0"):
             data_splits = zip(
-                *[tf.split(ph, len(devices)) for (_, _, ph) in \
-                  self.loss_inputs])
+                *[tf.split(ph, len(devices)) for ph in \
+                  self.loss_inputs.values()])
 
         self._towers = []
         for device, device_placeholders in zip(self.devices, data_splits):
@@ -243,13 +233,13 @@ class LocalSyncParallelOptimizerModified(object):
             assert len(state_inputs[0]) * seq_len == len(inputs[0]), \
                 (len(state_inputs[0]), sequences_per_minibatch, seq_len,
                  len(inputs[0]))
-            for (_, _, ph), arr in zip(self.all_loss_inputs,
-                                       inputs + state_inputs):
+            for ph, arr in zip(self.all_loss_inputs.values(),
+                               inputs + state_inputs):
                 feed_dict[ph] = arr
             truncated_len = len(inputs[0])
         else:
-            for (_, _, ph), arr in zip(self.all_loss_inputs,
-                                       inputs + state_inputs):
+            for ph, arr in zip(self.all_loss_inputs.values(),
+                               inputs + state_inputs):
                 truncated_arr = make_divisible_by(arr, sequences_per_minibatch)
                 feed_dict[ph] = truncated_arr
                 truncated_len = len(truncated_arr)
@@ -292,12 +282,6 @@ class LocalSyncParallelOptimizerModified(object):
         fetches = {"train": self._train_op}
         for tower in self._towers:
             fetches.update(tower.loss_graph._get_grad_and_stats_fetches())
-
-        # just a test
-        import numpy as np
-        feed_dict[self.loss_inputs_nosplit[1][2]] = np.ones((768, 4),
-                                                            dtype='float32')
-
         return sess.run(fetches, feed_dict=feed_dict)
 
     def get_common_loss(self):
@@ -310,17 +294,17 @@ class LocalSyncParallelOptimizerModified(object):
         assert num_data_in <= len(device_input_placeholders)
         with tf.device(device):
             with tf.name_scope(TOWER_SCOPE_NAME):
-                device_input_batches = []
-                device_input_slices = []
-                for i, ((org_i, key, _), ph) in enumerate(
-                        zip(self.loss_inputs,
+                device_input_batches = {}
+                device_input_slices = {}
+                for i, (pair_key, ph) in enumerate(
+                        zip(self.loss_inputs.keys(),
                             device_input_placeholders)):
                     current_batch = tf.Variable(
                         ph,
                         trainable=False,
                         validate_shape=False,
                         collections=[])
-                    device_input_batches.append([org_i, key, current_batch])
+                    device_input_batches[pair_key] = current_batch
                     if i < num_data_in:
                         scale = self._max_seq_len
                         granularity = self._max_seq_len
@@ -334,43 +318,32 @@ class LocalSyncParallelOptimizerModified(object):
                         ([self._per_device_batch_size // scale * granularity] +
                          [-1] * len(ph.shape[1:])))
                     current_slice.set_shape(ph.shape)
-                    device_input_slices.append([org_i, key, current_slice])
-
-                # device_input_slices.update(self.loss_inputs_nosplit.copy())
+                    device_input_slices[pair_key] = current_slice
 
                 tmp_batch = []
                 tmp_batch_map = {}
-                for i, k in self.input_names:
-                    found = False
-                    for bi, bk, b in device_input_batches:
-                        if i == bi and bk == k:
-                            tmp_batch.append(b)
-                            found = True
-                            break
-                    if found: continue
-                    for bi, bk, b in self.loss_inputs_nosplit:
-                        if bi == i and bk == k:
-                            vb = tf.Variable(
-                                b,
-                                trainable=False,
-                                validate_shape=False,
-                                collections=[])
-                            vb.set_shape(b.shape)
-                            tmp_batch.append(vb)
-                            tmp_batch_map[(i, k)] = vb
-                            break
+                for pair_key in self.input_names:
+                    if pair_key in device_input_batches:
+                        tmp_batch.append(device_input_batches[pair_key])
+                        tmp_batch_map[pair_key] = device_input_batches[
+                            pair_key]
+                    else:
+                        vb = tf.Variable(
+                            self.loss_inputs_nosplit[pair_key],
+                            trainable=False,
+                            validate_shape=False,
+                            collections=[])
+                        vb.set_shape(self.loss_inputs_nosplit[pair_key].shape)
+                        tmp_batch.append(vb)
+                        tmp_batch_map[pair_key] = vb
                 assert len(tmp_batch) == len(self.all_loss_inputs)
 
                 tmp_slice = []
-                for i, k in self.input_names:
-                    found = False
-                    for si, sk, s in device_input_slices:
-                        if i == si and sk == k:
-                            tmp_slice.append(s)
-                            found = True
-                            break
-                    if found: continue
-                    tmp_slice.append(tmp_batch_map[(i, k)])
+                for pair_key in self.input_names:
+                    if pair_key in device_input_slices:
+                        tmp_slice.append(device_input_slices[pair_key])
+                    else:
+                        tmp_slice.append(tmp_batch_map[pair_key])
                 assert len(tmp_slice) == len(self.all_loss_inputs)
 
                 graph_obj = self.build_graph(tmp_slice)
