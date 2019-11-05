@@ -6,7 +6,7 @@ from collections import defaultdict
 import numpy as np
 import ray
 from ray.rllib.evaluation.metrics import LEARNER_STATS_KEY
-from ray.rllib.optimizers import SyncSamplesOptimizer, LocalMultiGPUOptimizer
+from ray.rllib.optimizers import LocalMultiGPUOptimizer
 from ray.rllib.optimizers.rollout import collect_samples
 from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, \
     MultiAgentBatch
@@ -15,6 +15,14 @@ from ray.rllib.utils import try_import_tf
 tf = try_import_tf()
 
 logger = logging.getLogger(__name__)
+
+from ray.rllib.policy.tf_policy import TFPolicy
+
+from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
+
+from ray.rllib.utils.timer import TimerStat
+from toolbox.modified_rllib.multi_gpu_impl import LocalSyncParallelOptimizerModified
+import math
 
 
 class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
@@ -32,16 +40,65 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
         that is allow to parse the cross policy information and store then
         in an object, which will be passed to each policy."""
         self.process_multiagent_batch_fn = process_multiagent_batch_fn
-        super(LocalMultiGPUOptimizerModified, self).__init__(
-            workers,
-            sgd_batch_size,
-            num_sgd_iter,
-            sample_batch_size,
-            num_envs_per_worker,
-            train_batch_size,
-            num_gpus,
-            standardize_fields,
-            shuffle_sequences)
+        PolicyOptimizer.__init__(self, workers)
+
+        self.batch_size = sgd_batch_size
+        self.num_sgd_iter = num_sgd_iter
+        self.num_envs_per_worker = num_envs_per_worker
+        self.sample_batch_size = sample_batch_size
+        self.train_batch_size = train_batch_size
+        self.shuffle_sequences = shuffle_sequences
+        if not num_gpus:
+            self.devices = ["/cpu:0"]
+        else:
+            self.devices = [
+                "/gpu:{}".format(i) for i in range(int(math.ceil(num_gpus)))
+            ]
+        self.batch_size = int(sgd_batch_size / len(self.devices)) * len(
+            self.devices)
+        assert self.batch_size % len(self.devices) == 0
+        assert self.batch_size >= len(self.devices), "batch size too small"
+        self.per_device_batch_size = int(self.batch_size / len(self.devices))
+        self.sample_timer = TimerStat()
+        self.load_timer = TimerStat()
+        self.grad_timer = TimerStat()
+        self.update_weights_timer = TimerStat()
+        self.standardize_fields = standardize_fields
+
+        logger.info("LocalMultiGPUOptimizer devices {}".format(self.devices))
+
+        self.policies = dict(self.workers.local_worker()
+                             .foreach_trainable_policy(lambda p, i: (i, p)))
+        logger.debug("Policies to train: {}".format(self.policies))
+        for policy_id, policy in self.policies.items():
+            if not isinstance(policy, TFPolicy):
+                raise ValueError(
+                    "Only TF graph policies are supported with multi-GPU. "
+                    "Try setting `simple_optimizer=True` instead.")
+
+        # per-GPU graph copies created below must share vars with the policy
+        # reuse is set to AUTO_REUSE because Adam nodes are created after
+        # all of the device copies are created.
+        self.optimizers = {}
+        with self.workers.local_worker().tf_sess.graph.as_default():
+            with self.workers.local_worker().tf_sess.as_default():
+                for policy_id, policy in self.policies.items():
+                    with tf.variable_scope(policy_id, reuse=tf.AUTO_REUSE):
+                        if policy._state_inputs:
+                            rnn_inputs = policy._state_inputs + [
+                                policy._seq_lens
+                            ]
+                        else:
+                            rnn_inputs = []
+                        self.optimizers[policy_id] = (
+                            LocalSyncParallelOptimizerModified(
+                                policy._optimizer, self.devices,
+                                [v
+                                 for _, v in policy._loss_inputs], rnn_inputs,
+                                self.per_device_batch_size, policy.copy))
+
+                self.sess = self.workers.local_worker().tf_sess
+                self.sess.run(tf.global_variables_initializer())
 
     def step(self):
         """Override the original codes to add other policies infos."""
