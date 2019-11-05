@@ -176,8 +176,12 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
     joint_obs_ph = train_batch[JOINT_OBS]
     peer_act_ph = train_batch[PEER_ACTION]
 
-    def reshape(x):
-        return x
+    def reshape(obs, act):
+        return tf.reshape(
+            act,
+            [-1, tf.shape(obs)[0], tf.shape(act)[1]]
+        )
+        # return x
         # act_shape = x.shape.as_list()[-1]
         # shape = [-1, joint_obs_length, act_shape]
         # return tf.reshape(x, shape)
@@ -193,7 +197,7 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         return norm
 
     replay_act = tf.split(model.base_model(joint_obs_ph)[0], 2, axis=1)[0]
-    novelty_loss = -norm(replay_act, reshape(peer_act_ph))
+    novelty_loss = -norm(replay_act, reshape(joint_obs_ph, peer_act_ph))
 
     return (loss + novelty_loss) / 2
 
