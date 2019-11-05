@@ -8,6 +8,8 @@ from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.utils import get_num_gpus, get_local_dir, initialize_ray
 
+from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
+
 
 def _collect_joint_dataset(trainer, worker, sample_size):
     joint_obs = []
@@ -110,6 +112,12 @@ if __name__ == '__main__':
     exp_name = args.exp_name
     env_name = args.env
     num_timesteps = int(args.num_timesteps)
+    run_name = args.run
+
+    run_object = {
+        "individual": "PPO",
+        "extra_loss": ExtraLossPPOTrainer
+    }[run_name]
 
     initialize_ray(num_gpus=args.num_gpus, test_mode=args.test_mode,
                    object_store_memory=40 * 1024 * 1024 * 1024)
@@ -145,7 +153,7 @@ if __name__ == '__main__':
     }
 
     tune.run(
-        "PPO",
+        run_object,
         local_dir=get_local_dir(),
         name=exp_name,
         checkpoint_at_end=True,

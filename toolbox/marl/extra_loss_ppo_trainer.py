@@ -251,7 +251,7 @@ def choose_policy_optimizer(workers, config):
         shuffle_sequences=config["shuffle_sequences"])
 
 
-AdditionalLossPPOTrainer = PPOTrainer.with_updates(
+ExtraLossPPOTrainer = PPOTrainer.with_updates(
     default_policy=AdditionalLossPPOTFPolicy,
     make_policy_optimizer=choose_policy_optimizer
 )
@@ -277,7 +277,7 @@ if __name__ == '__main__':
         }
     }
 
-    agent = AdditionalLossPPOTrainer(
+    agent = ExtraLossPPOTrainer(
         env=MultiAgentEnvWrapper,
         config=config
     )
