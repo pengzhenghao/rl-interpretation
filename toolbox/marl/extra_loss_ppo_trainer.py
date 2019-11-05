@@ -12,7 +12,6 @@ from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.tf_policy import ACTION_LOGP
 
-from toolbox import initialize_ray
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
@@ -181,10 +180,22 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
     replay_act = tf.split(model.base_model(joint_obs_ph)[0], 2, axis=1)[0]
     novelty_loss = -norm(replay_act, reshape(joint_obs_ph, peer_act_ph))
 
-    return (loss + novelty_loss) / 2
+    alpha = policy.config["novelty_loss_param"]
 
+    assert 0 <= alpha <= 1
+
+    return (1 - alpha) * loss + alpha * novelty_loss
+
+
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
+
+additional_loss_ppo_tf_policy_default_config = DEFAULT_CONFIG.copy()
+additional_loss_ppo_tf_policy_default_config.update(
+    novelty_loss_param=0.5, joint_dataset_sample_batch_size=200
+)
 
 AdditionalLossPPOTFPolicy = PPOTFPolicy.with_updates(
+    get_default_config=lambda: additional_loss_ppo_tf_policy_default_config,
     postprocess_fn=postprocess_ppo_gae,
     loss_fn=ppo_surrogate_loss,
     mixins=[
@@ -195,7 +206,7 @@ AdditionalLossPPOTFPolicy = PPOTFPolicy.with_updates(
 
 def process_multiagent_batch_fn(multi_agent_batch, workers):
     config = workers._remote_config
-    sample_size = config.get("sample_batch_size") or 200
+    sample_size = config.get("joint_dataset_sample_batch_size") or 200
 
     joint_obs = []
     for pid, batch in multi_agent_batch.policy_batches.items():
@@ -257,9 +268,14 @@ ExtraLossPPOTrainer = PPOTrainer.with_updates(
 )
 
 if __name__ == '__main__':
+    from toolbox import initialize_ray
+    from ray import tune
+    from toolbox.utils import get_local_dir
+    from toolbox.train.train_individual_marl import on_train_result
+
     # This is only test code.
     initialize_ray(test_mode=True, local_mode=False)
-    num_agents = 2
+    num_agents = 8
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
 
@@ -274,12 +290,18 @@ if __name__ == '__main__':
             "policies": {i: (None, env.observation_space, env.action_space, {})
                          for i in policy_names},
             "policy_mapping_fn": lambda x: x,
-        }
+        },
+        "callbacks": {
+            "on_train_result": on_train_result
+        },
     }
 
-    agent = ExtraLossPPOTrainer(
-        env=MultiAgentEnvWrapper,
-        config=config
+    tune.run(
+        ExtraLossPPOTrainer,
+        local_dir=get_local_dir(),
+        name="DELETEME_TEST_extra_loss_ppo_trainer",
+        checkpoint_at_end=True,
+        checkpoint_freq=10,
+        stop={"timesteps_total": 50000},
+        config=config,
     )
-
-    agent.train()

@@ -136,7 +136,7 @@ if __name__ == '__main__':
             "agent_ids": policy_names
         },
         "log_level": "DEBUG" if args.test_mode else "ERROR",
-        "num_gpus": get_num_gpus(args.num_seeds),
+        "num_gpus": get_num_gpus(args.num_seeds + 1),
         "num_envs_per_worker": 16,
         "sample_batch_size": 256,
         "multiagent": {
