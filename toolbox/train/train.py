@@ -48,6 +48,7 @@ parser.add_argument("--exp-name", type=str, required=True)
 parser.add_argument("--env", type=str, default="BipedalWalker-v2")
 parser.add_argument("--run", type=str, default="PPO")
 parser.add_argument("--num-seeds", type=int, default=1)
+parser.add_argument("--num-gpus", type=int, default=4)
 args = parser.parse_args()
 
 print("Argument: ", args)
@@ -177,6 +178,33 @@ elif args.env == "HalfCheetah-v2":
             }
         }
     }
+elif args.env == "Humanoid-v2":
+    algo_specify_config_dict = {
+        "PPO": {
+            "stop": {
+                "episode_reward_mean": 6000,
+            },
+            "config": {
+                "seed": tune.grid_search(list(range(10))),
+                "gamma": 0.995,
+                "lambda": 0.95,
+                "clip_param": 0.2,
+                "kl_coeff": 1.0,
+                "num_sgd_iter": 20,
+                "lr": 0.0001,
+                "sgd_minibatch_size": 32768,
+                "horizon": 5000,
+                "train_batch_size": 320000,
+                "model":
+                    {"free_log_std": True},
+                "num_workers": 32,
+                "num_gpus": 4,
+                # "batch_mode": "complete_episodes",
+                # "observation_filter": "MeanStdFilter",
+                "num_cpus_for_driver": 1
+            }
+        }
+    }
 else:
     raise NotImplementedError(
         "Only prepared BipedalWalker and "
@@ -194,7 +222,7 @@ general_config = {
 
 run_config = merge_dicts(general_config, algo_specify_config['config'])
 
-initialize_ray()
+initialize_ray(num_gpus=args.num_gpus)
 tune.run(
     args.run,
     name=args.exp_name,
