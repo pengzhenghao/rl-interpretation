@@ -2,13 +2,14 @@ import argparse
 
 import numpy as np
 from ray import tune
+from ray.rllib.policy.sample_batch import MultiAgentBatch
 
 from toolbox.distance import joint_dataset_distance, js_distance
 from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
 from toolbox.utils import get_num_gpus, get_local_dir, initialize_ray
-from ray.rllib.policy.sample_batch import MultiAgentBatch
+
 
 def _collect_joint_dataset(trainer, worker, sample_size):
     joint_obs = []
@@ -26,14 +27,22 @@ def _collect_joint_dataset(trainer, worker, sample_size):
         # Force to collect enough data for us to use.
         tmp_batch = worker.sample()
         count_dict = {k: v.count for k, v in tmp_batch.policy_batches.items()}
+        for k in worker.policy_map.keys():
+            if k not in count_dict:
+                count_dict[k] = 0
         samples = [tmp_batch]
-        while any(c<sample_size for c in count_dict.values()):
+        while any(c < sample_size for c in count_dict.values()):
             tmp_batch = worker.sample()
             for k, v in tmp_batch.policy_batches.items():
                 assert k in count_dict, count_dict
                 count_dict[k] += v.count
             samples.append(tmp_batch)
         multi_agent_batch = MultiAgentBatch.concat_samples(samples)
+
+        assert len(multi_agent_batch.policy_batches) == \
+               len(worker.policy_map), \
+            (len(multi_agent_batch.policy_batches), len(worker.policy_map),
+             multi_agent_batch.policy_batches.keys())
 
         for pid, batch in multi_agent_batch.policy_batches.items():
             batch.shuffle()
@@ -44,9 +53,15 @@ def _collect_joint_dataset(trainer, worker, sample_size):
 
             joint_obs.append(batch.slice(0, sample_size)['obs'])
 
+    assert len(joint_obs) == len(worker.policy_map), (
+    len(joint_obs), [v.shape for v in joint_obs], len(worker.policy_map),
+    multi_agent_batch.policy_batches.keys())
     joint_obs = np.concatenate(joint_obs)
-    assert len(worker.policy_map) == len(trainer.config['multiagent']['policies'])
-    assert joint_obs.shape[0] % len(worker.policy_map) == 0
+    assert len(worker.policy_map) == len(
+        trainer.config['multiagent']['policies']), (
+        multi_agent_batch.policy_batches.keys())
+    assert joint_obs.shape[0] % len(worker.policy_map) == 0, (
+    worker.policy_map.keys(), multi_agent_batch.policy_batches.keys())
     return joint_obs
 
 

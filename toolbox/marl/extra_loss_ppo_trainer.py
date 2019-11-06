@@ -250,14 +250,17 @@ def process_multiagent_batch_fn(multi_agent_batch, self_optimizer):
     print("[DEBUG] In process_mtag_batch_fn: sample_size is: ", sample_size)
 
     samples = [multi_agent_batch]
-    cound_dict = defaultdict(
-        int, {k: v.count for k, v in multi_agent_batch.policy_batches.items()}
-    )
-    while any([v < sample_size for v in cound_dict.values()]):
+    count_dict = {k: v.count for k, v in multi_agent_batch.policy_batches.items()}
+    for k in self_optimizer.workers.local_worker().policy_map.keys():
+        if k not in count_dict:
+            count_dict[k] = 0
+
+    while any([v < sample_size for v in count_dict.values()]):
         tmp_batch = self_optimizer.workers.local_worker().sample()
         samples.append(tmp_batch)
         for k, v in tmp_batch.policy_batches.items():
-            cound_dict[k] += v.count
+            assert k in count_dict, count_dict
+            count_dict[k] += v.count
     multi_agent_batch = MultiAgentBatch.concat_samples(samples)
 
     # FIXME: problem. nobody can promise the multi_agent_batch has sufficient \
