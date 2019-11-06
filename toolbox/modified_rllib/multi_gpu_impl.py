@@ -1,9 +1,10 @@
-"""Copied from rllib."""
-from __future__ import absolute_import, division, print_function
-
+"""Copied from rllib. Our main modification is that we allow
+no-gpu-split data input. So overcome troubles if we want to input
+strange shape data which can not be spread across gpus."""
 import logging
-from collections import namedtuple
 
+from ray.rllib.optimizers.multi_gpu_impl import average_gradients, \
+    make_divisible_by, Tower
 from ray.rllib.utils import try_import_tf
 from ray.rllib.utils.debug import log_once, summarize
 
@@ -64,7 +65,7 @@ class LocalSyncParallelOptimizerModified(object):
         self.devices = devices
         self.max_per_device_batch_size = max_per_device_batch_size
 
-        assert not rnn_inputs # just a workaround, do not consider RNN.
+        assert not rnn_inputs  # just a workaround, do not consider RNN.
 
         self.input_names = input_names
         self.loss_inputs = input_placeholders_split
@@ -239,18 +240,16 @@ class LocalSyncParallelOptimizerModified(object):
             truncated_len = len(inputs[0])
         else:
             for (pair_key, ph), arr in zip(self.all_loss_inputs.items(),
-                               inputs + state_inputs):
+                                           inputs + state_inputs):
                 if pair_key in self.loss_inputs:
                     # If this data should be truncated, then truncate it.
-                    truncated_arr = make_divisible_by(arr, sequences_per_minibatch)
+                    truncated_arr = make_divisible_by(arr,
+                                                      sequences_per_minibatch)
                     feed_dict[ph] = truncated_arr
                     truncated_len = len(truncated_arr)
                 else:
-                    print("MULTIGPUIMPL!!! This data is not truncated!",
-                          pair_key, ph, arr.shape)
                     # otherwise just use the pure data.
                     feed_dict[ph] = arr
-                    #
 
         sess.run([t.init_op for t in self._towers], feed_dict=feed_dict)
 
@@ -362,63 +361,3 @@ class LocalSyncParallelOptimizerModified(object):
                 tf.group(
                     *[batch.initializer for batch in tmp_batch]),
                 device_grads, graph_obj)
-
-
-# Each tower is a copy of the loss graph pinned to a specific device.
-Tower = namedtuple("Tower", ["init_op", "grads", "loss_graph"])
-
-
-def make_divisible_by(a, n):
-    if type(a) is int:
-        return a - a % n
-    return a[0:a.shape[0] - a.shape[0] % n]
-
-
-def average_gradients(tower_grads):
-    """Averages gradients across towers.
-
-    Calculate the average gradient for each shared variable across all towers.
-    Note that this function provides a synchronization point across all towers.
-
-    Args:
-        tower_grads: List of lists of (gradient, variable) tuples. The outer
-            list is over individual gradients. The inner list is over the
-            gradient calculation for each tower.
-
-    Returns:
-       List of pairs of (gradient, variable) where the gradient has been
-           averaged across all towers.
-
-    TODO(ekl): We could use NCCL if this becomes a bottleneck.
-    """
-
-    average_grads = []
-    for grad_and_vars in zip(*tower_grads):
-
-        # Note that each grad_and_vars looks like the following:
-        #   ((grad0_gpu0, var0_gpu0), ... , (grad0_gpuN, var0_gpuN))
-        grads = []
-        for g, _ in grad_and_vars:
-            if g is not None:
-                # Add 0 dimension to the gradients to represent the tower.
-                expanded_g = tf.expand_dims(g, 0)
-
-                # Append on a 'tower' dimension which we will average over
-                # below.
-                grads.append(expanded_g)
-
-        if not grads:
-            continue
-
-        # Average over the 'tower' dimension.
-        grad = tf.concat(axis=0, values=grads)
-        grad = tf.reduce_mean(grad, 0)
-
-        # Keep in mind that the Variables are redundant because they are shared
-        # across towers. So .. we will just return the first tower's pointer to
-        # the Variable.
-        v = grad_and_vars[0][1]
-        grad_and_var = (grad, v)
-        average_grads.append(grad_and_var)
-
-    return average_grads

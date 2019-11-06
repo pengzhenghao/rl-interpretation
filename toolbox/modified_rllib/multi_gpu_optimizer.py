@@ -1,3 +1,6 @@
+"""Copied from rllib. The main modification is that we allow the
+cross-policies data processing. Besides, we also modify a bit to fit the
+changes in multi_gpu_impl.py."""
 from __future__ import absolute_import, division, print_function
 
 import logging

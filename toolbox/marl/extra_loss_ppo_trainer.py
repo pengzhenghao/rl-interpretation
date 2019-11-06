@@ -255,9 +255,6 @@ def process_multiagent_batch_fn(multi_agent_batch, self_optimizer):
     assert sample_size is not None, "You should specify the value of: " \
                                     "joint_dataset_sample_batch_size " \
                                     "in config!"
-
-    print("[DEBUG] In process_mtag_batch_fn: sample_size is: ", sample_size)
-
     samples = [multi_agent_batch]
     count_dict = {k: v.count for k, v in
                   multi_agent_batch.policy_batches.items()}
@@ -303,11 +300,6 @@ def process_multiagent_batch_fn(multi_agent_batch, self_optimizer):
     assert joint_obs.shape[0] % len(ret) == 0, (joint_obs.shape, len(ret))
     assert joint_obs.shape[0] == len(ret) * sample_size, (
         {k: v.shape for k, v in ret.items()}, joint_obs.shape, len(ret))
-
-    print("[RETURN DATA FROM JOINTCOLELCTON] joint_obs: {}, peer {}]".format(
-        joint_obs.shape, {k: v.shape for k, v in ret.items()}
-    ))
-
     return {JOINT_OBS: joint_obs, PEER_ACTION: ret}
 
 
@@ -335,7 +327,7 @@ def choose_policy_optimizer(workers, config):
 
 
 def validate_config_modified(config):
-    print("DEBUG MESSAGE!!!", config)
+    # print("DEBUG MESSAGE!!!", config)
     assert "joint_dataset_sample_batch_size" in config
     assert "novelty_loss_param" in config
     validate_config(config)
