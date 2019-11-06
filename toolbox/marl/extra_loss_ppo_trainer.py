@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 
 import numpy as np
 import tensorflow as tf
@@ -9,7 +10,7 @@ from ray.rllib.evaluation.postprocessing import compute_advantages, \
     Postprocessing
 from ray.rllib.optimizers import SyncSamplesOptimizer
 from ray.rllib.policy.rnn_sequencing import chop_into_sequences
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch
 from ray.rllib.policy.tf_policy import ACTION_LOGP
 from ray.rllib.utils.explained_variance import explained_variance
 
@@ -134,12 +135,16 @@ class AddLossMixin(object):
         return feed_dict
 
 
-def reshape(obs, act):
-    return tf.reshape(act, [-1, tf.shape(obs)[0], tf.shape(act)[1]])
+# def reshape(obs, act):
+#     return tf.reshape(act, [-1, tf.shape(obs)[0], tf.shape(act)[1]])
 
 
-def norm(x, y):
-    return tf.reduce_mean(tf.subtract(x, y) ** 2)
+def norm(my_act, other_act):
+    flatten = tf.reshape(my_act, [-1])
+    other_act = tf.reshape(other_act,
+                           [-1, tf.shape(my_act)[0] * tf.shape(my_act)[1]])
+    print("IN NORM", flatten.shape, other_act.shape)
+    return tf.reduce_mean(tf.subtract(flatten, other_act) ** 2)
 
 
 def ppo_surrogate_loss(policy, model, dist_class, train_batch):
@@ -178,6 +183,7 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
 
     loss = policy.loss_obj.loss
 
+    # The below codes is what we append
     joint_obs_ph = train_batch[JOINT_OBS]
     peer_act_ph = train_batch[PEER_ACTION]
 
@@ -187,13 +193,11 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         ))
 
     replay_act = tf.split(model.base_model(joint_obs_ph)[0], 2, axis=1)[0]
-    novelty_loss = -norm(replay_act, reshape(joint_obs_ph, peer_act_ph))
+    novelty_loss = -norm(replay_act, peer_act_ph)  # only take
 
     policy.novelty_loss = novelty_loss
 
     alpha = policy.config["novelty_loss_param"]
-
-    assert 0 <= alpha <= 1
 
     total_loss = (1 - alpha) * loss + alpha * novelty_loss
     policy.total_loss = total_loss
@@ -236,10 +240,32 @@ AdditionalLossPPOTFPolicy = PPOTFPolicy.with_updates(
     ])
 
 
-def process_multiagent_batch_fn(multi_agent_batch, workers):
-    config = workers._remote_config
+def process_multiagent_batch_fn(multi_agent_batch, self_optimizer):
+    config = self_optimizer.workers._remote_config
     sample_size = config.get("joint_dataset_sample_batch_size")
-    assert sample_size is not None
+    assert sample_size is not None, "You should specify the value of: " \
+                                    "joint_dataset_sample_batch_size " \
+                                    "in config!"
+
+    print("[DEBUG] In process_mtag_batch_fn: sample_size is: ", sample_size)
+
+    samples = [multi_agent_batch]
+    cound_dict = defaultdict(
+        int, {k: v.count for k, v in multi_agent_batch.policy_batches.items()}
+    )
+    while any([v < sample_size for v in cound_dict.values()]):
+        tmp_batch = self_optimizer.workers.local_worker().sample()
+        samples.append(tmp_batch)
+        for k, v in tmp_batch.policy_batches.items():
+            cound_dict[k] += v.count
+    multi_agent_batch = MultiAgentBatch.concat_samples(samples)
+
+    # FIXME: problem. nobody can promise the multi_agent_batch has sufficient \
+    #  data.
+    assert all([
+        b.count >= sample_size for b in \
+        multi_agent_batch.policy_batches.values()
+    ]), [b.count for b in multi_agent_batch.policy_batches.values()]
 
     joint_obs = []
     for pid, batch in multi_agent_batch.policy_batches.items():
@@ -267,10 +293,15 @@ def process_multiagent_batch_fn(multi_agent_batch, workers):
         act, _, infos = policy.compute_actions(joint_obs)
         return pid, act, infos
 
+    # TODO: can check if the infos[logits] equal to act.
     ret = {
         pid: act
-        for pid, act, infos in workers.local_worker().foreach_policy(_replay)
+        for pid, act, infos in
+        self_optimizer.workers.local_worker().foreach_policy(_replay)
     }
+    assert joint_obs.shape[0] % len(ret) == 0, (joint_obs.shape, len(ret))
+    assert joint_obs.shape[0] == len(ret) * sample_size, (
+        {k: v.shape for k, v in ret.items()}, joint_obs.shape, len(ret))
     return {JOINT_OBS: joint_obs, PEER_ACTION: ret}
 
 
@@ -311,7 +342,7 @@ if __name__ == '__main__':
 
     # This is only test code.
     initialize_ray(test_mode=True, local_mode=False)
-    num_agents = 3
+    num_agents = 5
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
 
@@ -321,7 +352,7 @@ if __name__ == '__main__':
         "env": MultiAgentEnvWrapper,
         "env_config": env_config,
         "log_level": "DEBUG",
-        "joint_dataset_sample_batch_size": 20,
+        "joint_dataset_sample_batch_size": 131,
         "multiagent": {
             "policies": {i: (None, env.observation_space, env.action_space, {})
                          for i in policy_names},
@@ -336,8 +367,8 @@ if __name__ == '__main__':
         ExtraLossPPOTrainer,
         local_dir=get_local_dir(),
         name="DELETEME_TEST_extra_loss_ppo_trainer",
-        checkpoint_at_end=True,
-        checkpoint_freq=10,
-        stop={"timesteps_total": 5000},
+        # checkpoint_at_end=True,
+        # checkpoint_freq=10,
+        stop={"timesteps_total": 10000},
         config=config,
     )

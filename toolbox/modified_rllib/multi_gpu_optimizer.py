@@ -162,7 +162,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
 
         if self.process_multiagent_batch_fn is not None:
             cross_policy_obj = self.process_multiagent_batch_fn(samples,
-                                                                self.workers)
+                                                                self)
         else:
             cross_policy_obj = None
 

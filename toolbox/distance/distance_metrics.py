@@ -41,7 +41,9 @@ def js_distance(action_list):
 
     num_samples = action_list[0].shape[0] / num_agents
     # num_samples should be integer
-    assert float(int(num_samples)) == round(num_samples, 4)
+    assert action_list[0].shape[0] % num_agents == 0, (
+        action_list, [i.shape for i in action_list], action_list[0].shape,
+        num_agents)
     num_samples = int(num_samples)
 
     js_matrix = np.zeros((num_agents, num_agents))

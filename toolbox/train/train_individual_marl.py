@@ -6,10 +6,9 @@ from ray import tune
 from toolbox.distance import joint_dataset_distance, js_distance
 from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper
-from toolbox.utils import get_num_gpus, get_local_dir, initialize_ray
-
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
-
+from toolbox.utils import get_num_gpus, get_local_dir, initialize_ray
+from ray.rllib.policy.sample_batch import MultiAgentBatch
 
 def _collect_joint_dataset(trainer, worker, sample_size):
     joint_obs = []
@@ -23,37 +22,41 @@ def _collect_joint_dataset(trainer, worker, sample_size):
     else:
         # If we are using individual PPO, it has no replay buffer,
         # so it seems we have to rollout here to collect the observations
-        multi_agent_batch = worker.sample()
+
+        # Force to collect enough data for us to use.
+        tmp_batch = worker.sample()
+        count_dict = {k: v.count for k, v in tmp_batch.policy_batches.items()}
+        samples = [tmp_batch]
+        while any(c<sample_size for c in count_dict.values()):
+            tmp_batch = worker.sample()
+            for k, v in tmp_batch.policy_batches.items():
+                assert k in count_dict, count_dict
+                count_dict[k] += v.count
+            samples.append(tmp_batch)
+        multi_agent_batch = MultiAgentBatch.concat_samples(samples)
 
         for pid, batch in multi_agent_batch.policy_batches.items():
-            count = batch.count
             batch.shuffle()
-            if count < sample_size:
-                print("[WARNING]!!! Your rollout sample size is "
-                      "less than the replay sample size! "
-                      "Check codes here!")
-                cnt = 0
-                while True:
-                    end = min(count, sample_size - cnt)
-                    joint_obs.append(batch.slice(0, end)['obs'])
-                    if end < count:
-                        break
-                    cnt += end
-                    batch.shuffle()
-            else:
-                joint_obs.append(batch.slice(0, sample_size)['obs'])
+            assert batch.count >= sample_size, (
+                batch, batch.count,
+                [b.count for b in batch.policy_batches.values()]
+            )
+
+            joint_obs.append(batch.slice(0, sample_size)['obs'])
 
     joint_obs = np.concatenate(joint_obs)
+    assert len(worker.policy_map) == len(trainer.config['multiagent']['policies'])
+    assert joint_obs.shape[0] % len(worker.policy_map) == 0
     return joint_obs
 
 
 def on_train_result(info):
     """info only contains trainer and result."""
-    sample_size = info['trainer'].config.get("joint_dataset_sample_size")
-    if sample_size is None:
-        print("[WARNING]!!! You do not specify the "
-              "joint_dataset_sample_size!! We will use 200 instead.")
-        sample_size = 200
+    sample_size = info['trainer'].config.get("joint_dataset_sample_batch_size")
+
+    assert sample_size is not None, "You should specify the value of: " \
+                                    "joint_dataset_sample_batch_size " \
+                                    "in config!"
 
     # replay_buffers is a dict map policy_id to ReplayBuffer object.
     trainer = info['trainer']
@@ -69,6 +72,11 @@ def on_train_result(info):
         for pid, act, infos in worker.foreach_policy(_replay)
     }
     # now we have a mapping: policy_id to joint_dataset_replay in 'ret'
+
+    assert len(ret) == len(trainer.config['multiagent']['policies']), \
+        "The number of agents is not compatible! {}".format(
+            (len(ret), len(trainer.config['multiagent']['policies']),
+             worker.policy_map))
 
     flatten = [act for act, infos in ret.values()]  # flatten action array
     dist_matrix = joint_dataset_distance(flatten)
