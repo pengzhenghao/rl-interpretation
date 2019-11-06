@@ -238,7 +238,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
     }
 
 
-AdditionalLossPPOTFPolicy = PPOTFPolicy.with_updates(
+ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
+    name="ExtraLossPPO",
     get_default_config=lambda: extra_loss_ppo_tf_policy_default_config,
     postprocess_fn=postprocess_ppo_gae,
     stats_fn=kl_and_loss_stats_modified,
@@ -334,9 +335,10 @@ def validate_config_modified(config):
 
 
 ExtraLossPPOTrainer = PPOTrainer.with_updates(
+    name="ExtraLossPPO",
     default_config=extra_loss_ppo_tf_policy_default_config,
     validate_config=validate_config_modified,
-    default_policy=AdditionalLossPPOTFPolicy,
+    default_policy=ExtraLossPPOTFPolicy,
     make_policy_optimizer=choose_policy_optimizer
 )
 
