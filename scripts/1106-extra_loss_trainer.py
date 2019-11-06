@@ -128,7 +128,7 @@ if __name__ == '__main__':
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-agents", type=int, default=10)
     parser.add_argument("--num-seeds", type=int, default=0)
-    parser.add_argument("--novelty", type=float, required=True)
+    # parser.add_argument("--novelty", type=float, required=True)
     parser.add_argument("--num-timesteps", type=float, default=5e6)
     parser.add_argument("--test-mode", action="store_true")
     args = parser.parse_args()
@@ -160,7 +160,7 @@ if __name__ == '__main__':
             "agent_ids": policy_names
         },
         "log_level": "DEBUG" if args.test_mode else "ERROR",
-        "num_gpus": get_num_gpus(args.num_seeds + 1),
+        "num_gpus": 0.5,
         "num_envs_per_worker": 16,
         "sample_batch_size": 256,
         "joint_dataset_sample_batch_size": 200,
@@ -172,7 +172,7 @@ if __name__ == '__main__':
         "callbacks": {
             "on_train_result": on_train_result
         },
-        "novelty_loss_param": args.novelty,
+        "novelty_loss_param": tune.grid_search([0.01, 0.05, 0.1, 0.2, 0.5]),
         "num_sgd_iter": 10,
         "seed": tune.grid_search(
             list(range(args.num_seeds))) if args.num_seeds != 0 else 0
