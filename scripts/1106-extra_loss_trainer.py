@@ -162,7 +162,7 @@ if __name__ == '__main__':
             "agent_ids": policy_names
         },
         "log_level": "DEBUG" if args.test_mode else "ERROR",
-        "num_gpus": 2,
+        "num_gpus": 1,
         "num_cpus_per_worker": 2,
         "num_envs_per_worker": 16,
         "sample_batch_size": 256,
