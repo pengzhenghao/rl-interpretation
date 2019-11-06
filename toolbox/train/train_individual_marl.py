@@ -162,6 +162,7 @@ if __name__ == '__main__':
         "num_gpus": get_num_gpus(args.num_seeds + 1),
         "num_envs_per_worker": 16,
         "sample_batch_size": 256,
+        "joint_dataset_sample_batch_size": 200,
         "multiagent": {
             "policies": {i: default_policy
                          for i in policy_names},

@@ -238,11 +238,19 @@ class LocalSyncParallelOptimizerModified(object):
                 feed_dict[ph] = arr
             truncated_len = len(inputs[0])
         else:
-            for ph, arr in zip(self.all_loss_inputs.values(),
+            for (pair_key, ph), arr in zip(self.all_loss_inputs.items(),
                                inputs + state_inputs):
-                truncated_arr = make_divisible_by(arr, sequences_per_minibatch)
-                feed_dict[ph] = truncated_arr
-                truncated_len = len(truncated_arr)
+                if pair_key in self.loss_inputs:
+                    # If this data should be truncated, then truncate it.
+                    truncated_arr = make_divisible_by(arr, sequences_per_minibatch)
+                    feed_dict[ph] = truncated_arr
+                    truncated_len = len(truncated_arr)
+                else:
+                    print("MULTIGPUIMPL!!! This data is not truncated!",
+                          pair_key, ph, arr.shape)
+                    # otherwise just use the pure data.
+                    feed_dict[ph] = arr
+                    #
 
         sess.run([t.init_op for t in self._towers], feed_dict=feed_dict)
 
