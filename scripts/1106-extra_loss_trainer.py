@@ -144,7 +144,7 @@ if __name__ == '__main__':
     }[run_name]
 
     initialize_ray(num_gpus=args.num_gpus, test_mode=args.test_mode,
-                   object_store_memory=40 * 1024 * 1024 * 1024)
+                   object_store_memory=25 * 1024 * 1024 * 1024)
 
     policy_names = ["ppo_agent{}".format(i) for i in range(args.num_agents)]
 
