@@ -8,7 +8,7 @@ from toolbox.distance import joint_dataset_distance, js_distance
 from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
-from toolbox.utils import get_num_gpus, get_local_dir, initialize_ray
+from toolbox.utils import get_local_dir, initialize_ray
 
 
 def _collect_joint_dataset(trainer, worker, sample_size):
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     parser.add_argument("--exp-name", type=str, required=True)
     parser.add_argument("--env", type=str, default="BipedalWalker-v2")
     parser.add_argument("--run", type=str, default="individual")
-    # parser.add_argument("--num-gpus", type=int, default=4)
+    parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-agents", type=int, default=10)
     parser.add_argument("--num-seeds", type=int, default=0)
     # parser.add_argument("--novelty", type=float, required=True)
@@ -143,7 +143,8 @@ if __name__ == '__main__':
         "extra_loss": ExtraLossPPOTrainer
     }[run_name]
 
-    initialize_ray(test_mode=args.test_mode,
+    initialize_ray(num_gpus=args.num_gpus,
+                   test_mode=args.test_mode,
                    object_store_memory=25 * 1024 * 1024 * 1024,
                    temp_dir="/data1/pengzh/tmp")
 
