@@ -202,8 +202,25 @@ elif args.env == "Humanoid-v2":
                 "num_workers": 8,
                 "num_cpus_per_worker": 0.8,
                 "num_gpus": 0.45,
-                # "batch_mode": "complete_episodes",
-                # "observation_filter": "MeanStdFilter",
+                "num_cpus_for_driver": 0.5
+            }
+        }
+    }
+elif args.env == "Walker2d-v2":
+    algo_specify_config_dict = {
+        "PPO": {
+            "stop":{
+                "timesteps_total": int(1e7),
+                "episode_reward_mean": 3000
+            },
+            "config": {
+                "kl_coeff": 1.0,
+                "num_sgd_iter": 20,
+                "lr": 0.0001,
+                "sgd_minibatch_size": 32768,
+                "train_batch_size": 320000,
+                "num_cpus_per_worker": 0.8,
+                "num_gpus": 0.45,
                 "num_cpus_for_driver": 0.5
             }
         }
