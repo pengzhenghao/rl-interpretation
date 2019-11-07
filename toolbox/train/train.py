@@ -214,6 +214,7 @@ elif args.env == "Walker2d-v2":
                 "episode_reward_mean": 3000
             },
             "config": {
+                "seed": tune.grid_search(list(range(10))),
                 "kl_coeff": 1.0,
                 "num_sgd_iter": 20,
                 "lr": 0.0001,
