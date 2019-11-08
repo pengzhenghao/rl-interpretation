@@ -210,7 +210,7 @@ elif args.env == "Walker2d-v2":
     algo_specify_config_dict = {
         "PPO": {
             "stop":{
-                "timesteps_total": int(1e8),
+                "timesteps_total": int(5e7),
                 "episode_reward_mean": 3000
             },
             "config": {
@@ -221,7 +221,7 @@ elif args.env == "Walker2d-v2":
                 "sgd_minibatch_size": 32768,
                 "train_batch_size": 320000,
                 "num_cpus_per_worker": 0.8,
-                "num_gpus": 0.45,
+                "num_gpus": 0.35,
                 "num_cpus_for_driver": 0.5
             }
         }
