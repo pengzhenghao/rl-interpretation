@@ -6,7 +6,6 @@ with open('test_data.json', 'r') as f:
 
 print(data)
 
-
 for i, cell in enumerate(data['data']['fine_tuned']['0']['rows']):
 
     cell['c'].append({'v': np.random.randint(6)})

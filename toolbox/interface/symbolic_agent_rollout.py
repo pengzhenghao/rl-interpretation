@@ -5,15 +5,13 @@ import os.path as osp
 import pickle
 from collections import OrderedDict
 
-# from toolbox.evaluate.rollout import rollout
-from toolbox.env.mujoco_wrapper import MujocoWrapper
+import ray
+
 from toolbox.evaluate.rollout import quick_rollout_from_symbolic_agents
 from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
 from toolbox.process_data.process_data import read_yaml
 
 logger = logging.getLogger(__name__)
-
-import ray
 
 
 def symbolic_agent_rollout(
@@ -26,7 +24,8 @@ def symbolic_agent_rollout(
         normal_mean,
         dir_name,
         clear_at_end=True,
-        store=True
+        store=True,
+        mask_mode="multiply"
 ):
     assert ray.is_initialized()
 
@@ -36,10 +35,11 @@ def symbolic_agent_rollout(
         )
     )
 
-    # initialize_ray(num_gpus=4, test_mode=False)
-
     if os.path.exists(file_name):
-        "File Dected! We will load rollout results from <{}>".format(file_name)
+        logger.warning(
+            "File Detected! We will load rollout results from <{}>".
+            format(file_name)
+        )
         with open(file_name, 'rb') as f:
             rollout_ret = pickle.load(f)
         return rollout_ret, file_name
@@ -48,7 +48,7 @@ def symbolic_agent_rollout(
     master_agents = OrderedDict()
 
     for name, ckpt in name_ckpt_mapping.items():
-        agent = MaskSymbolicAgent(ckpt)
+        agent = MaskSymbolicAgent(ckpt, mask_mode=mask_mode)
         master_agents[name] = agent
 
     spawned_agents = OrderedDict()
@@ -73,10 +73,10 @@ def symbolic_agent_rollout(
 
             spawned_agents[child_name] = \
                 MaskSymbolicAgent(master_agent_ckpt, callback_info,
-                                  name=child_name)
+                                  name=child_name, mask_mode=mask_mode)
 
     rollout_ret = quick_rollout_from_symbolic_agents(
-        spawned_agents, num_rollouts, num_workers, MujocoWrapper
+        spawned_agents, num_rollouts, num_workers
     )
 
     if clear_at_end:
@@ -105,6 +105,7 @@ if __name__ == '__main__':
     parser.add_argument("--num-rollouts", type=int, default=10)
     parser.add_argument("--std", type=float, required=True)
     parser.add_argument("--mean", type=float, default=1.0)
+    parser.add_argument("--mask-mode", type=str, default="multiply")
     args = parser.parse_args()
 
     yaml_path = args.yaml_path
@@ -118,7 +119,18 @@ if __name__ == '__main__':
 
     dir_name = args.output_path
 
+    from toolbox.utils import initialize_ray
+
+    initialize_ray(test_mode=True)
+
     symbolic_agent_rollout(
-        yaml_path, num_agents, num_rollouts, num_workers, num_children,
-        normal_std, normal_mean, dir_name
+        yaml_path,
+        num_agents,
+        num_rollouts,
+        num_workers,
+        num_children,
+        normal_std,
+        normal_mean,
+        dir_name,
+        mask_mode=args.mask_mode
     )

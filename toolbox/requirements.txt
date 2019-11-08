@@ -1,4 +1,4 @@
-cloudpickle==0.8.0
+cloudpickle==1.1.1
 Cython==0.29.6
 gym==0.12.1
 lz4
@@ -9,7 +9,8 @@ mkl-random
 opencv-python==4.0.0.21
 pytest==4.3.1
 ray==0.7.6
-tensorboard==1.14.0
+tensorboard==1.15.0
+tensorflow-probability
 yapf==0.27
 numpy==1.16.0
 ray[debug]
@@ -21,3 +22,4 @@ yattag
 box2d-py==2.3.8
 sklearn
 seaborn
+distro

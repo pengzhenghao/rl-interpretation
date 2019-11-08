@@ -33,11 +33,11 @@ Zhenghao, Aug 18
 """
 
 import argparse
-import logging
 
-import ray
 from ray import tune
 from ray.rllib.utils import merge_dicts
+
+from toolbox.utils import initialize_ray, get_local_dir
 
 # The arguments below is copied from
 # https://github.com/araffin/rl-baselines-zoo/blob/master/hyperparams/ppo2.yml
@@ -48,7 +48,8 @@ parser.add_argument("--exp-name", type=str, required=True)
 parser.add_argument("--env", type=str, default="BipedalWalker-v2")
 parser.add_argument("--run", type=str, default="PPO")
 parser.add_argument("--num-seeds", type=int, default=1)
-parser.add_argument("--num-gpus", type=float, default=0.15)
+parser.add_argument("--num-gpus", type=int, default=4)
+parser.add_argument("--test-mode", action="store_true")
 args = parser.parse_args()
 
 print("Argument: ", args)
@@ -106,14 +107,6 @@ if args.env == "BipedalWalker-v2":
             },
             "timesteps_total": int(5e6),
         },
-        "TD3": {
-            "config": {
-                "seed": tune.grid_search(list(range(100)))
-            },
-            "stop": {
-                "timesteps_total": int(1e7)
-            }
-        }
     }
 elif args.env == "BipedalWalkerHardcore-v2":
     algo_specify_config_dict = {
@@ -186,6 +179,49 @@ elif args.env == "HalfCheetah-v2":
             }
         }
     }
+elif args.env == "Humanoid-v2":
+    algo_specify_config_dict = {
+        "PPO": {
+            "stop": {
+                "episode_reward_mean": 6000,
+                "timesteps_total": int(2e8)
+            },
+            "config": {
+                "seed": tune.grid_search(list(range(10))),
+                "gamma": 0.995,
+                "lambda": 0.95,
+                "clip_param": 0.2,
+                "kl_coeff": 1.0,
+                "num_sgd_iter": 20,
+                "lr": 0.0001,
+                "horizon": 5000,
+                'sgd_minibatch_size': 4096,
+                'train_batch_size': 65536,
+                "num_workers": 16,
+                "num_envs_per_worker": 16
+            }
+        }
+    }
+elif args.env == "Walker2d-v3":
+    algo_specify_config_dict = {
+        "PPO": {
+            "stop":{
+                "timesteps_total": int(5e7),
+                "episode_reward_mean": 4000
+            },
+            "config": {
+                "seed": tune.grid_search(list(range(10))),
+                "kl_coeff": 1.0,
+                "num_sgd_iter": 20,
+                "lr": 0.0001,
+                # "sgd_minibatch_size": 32768,
+                # "train_batch_size": 320000,
+                "num_cpus_per_worker": 0.8,
+                "num_gpus": 0.35,
+                "num_cpus_for_driver": 0.5
+            }
+        }
+    }
 else:
     raise NotImplementedError(
         "Only prepared BipedalWalker and "
@@ -195,24 +231,25 @@ else:
 algo_specify_config = algo_specify_config_dict[args.run]
 
 general_config = {
+    "log_level": "DEBUG" if args.test_mode else "ERROR",
     "env": args.env,
-    "num_gpus": args.num_gpus,
+    "num_gpus": 0.15,
     "num_cpus_for_driver": 0.2,
     "num_cpus_per_worker": 0.75
 }
 
 run_config = merge_dicts(general_config, algo_specify_config['config'])
 
-ray.init(logging_level=logging.ERROR, log_to_driver=False)
+initialize_ray(num_gpus=args.num_gpus, test_mode=args.test_mode)
 tune.run(
     args.run,
     name=args.exp_name,
     verbose=1,
+    local_dir=get_local_dir(),
     checkpoint_freq=1,
     checkpoint_at_end=True,
     stop={"timesteps_total": algo_specify_config['timesteps_total']}
-        if "timesteps_total" in algo_specify_config \
-        else algo_specify_config['stop']
-    ,
+    if "timesteps_total" in algo_specify_config \
+        else algo_specify_config['stop'],
     config=run_config,
 )
