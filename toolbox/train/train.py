@@ -1,37 +1,3 @@
-"""
-To Jiankai:
-
-Please help me run the ES / A2C / DDPG / IMPALA experiments in
-BipedalWalker environment.
-
-To run this scripts, pip install gym / ray / gym[box2d], I guess it's enough.
-And then run:
-
-nohup python startup.py --exp-name 0818-es-exp --run ES > logfile.log 2>&1 &
-nohup python startup.py --exp-name 0818-a2c-exp --run A2C > logfile.log 2>&1 &
-nohup python startup.py --exp-name 0818-ddpg-exp --run DDPG > logfile.log
-2>&1 &
-nohup python startup.py --exp-name 0818-impala-exp --run IMPALA >
-logfile.log 2>&1 &
-
-Doesn't matter how you run the script, name the exp or how to store the data.
-I suggest not to run all scripts at the same times. Because each script will
-conduct lots of trials and will definitely exhaust all resources.
-
-Thank you very much!
-
--- appendix --
-
-1. I have tried the A2C, but all 300 experiments failed??
-
-2. The hyperparameter is copied from
-https://github.com/araffin/rl-baselines-zoo/tree/master/hyperparams
-I can't tell whether they are optimal, and even they have same meaning in Ray.
-Just run and see.. Since the absolute performance is not so important.
-
-Zhenghao, Aug 18
-"""
-
 import argparse
 
 from ray import tune
@@ -193,7 +159,7 @@ elif args.env == "Humanoid-v2":
                 "clip_param": 0.2,
                 "kl_coeff": 1.0,
                 "num_sgd_iter": 20,
-                "lr": 0.0001,
+                "lr": 0.0003,
                 "horizon": 5000,
                 'sgd_minibatch_size': 4096,
                 'train_batch_size': 65536,
