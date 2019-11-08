@@ -211,7 +211,7 @@ elif args.env == "Walker2d-v2":
         "PPO": {
             "stop":{
                 "timesteps_total": int(5e7),
-                "episode_reward_mean": 3000
+                "episode_reward_mean": 4000
             },
             "config": {
                 "seed": tune.grid_search(list(range(10))),
