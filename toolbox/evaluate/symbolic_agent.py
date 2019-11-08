@@ -138,7 +138,11 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             extra_config = None
         else:
             extra_config = {"num_workers": 0, "num_cpus_per_worker": 0}
-        extra_config['model'] = {"custom_options": {'mask_mode': self.mask_mode}}
+        extra_config['model'] = {
+            "custom_options": {
+                'mask_mode': self.mask_mode
+            }
+        }
 
         self.agent = restore_agent_with_mask(
             run_name,
@@ -167,7 +171,9 @@ class MaskSymbolicAgent(SymbolicAgentBase):
             )
             self.clear()
         if self.weights is None:
-            logger.info("Cautions! You are getting the state of symbolic "
-                        "agent whose weight is none!")
+            logger.info(
+                "Cautions! You are getting the state of symbolic "
+                "agent whose weight is none!"
+            )
         assert not self.initialized
         return copy.deepcopy(self.__dict__)

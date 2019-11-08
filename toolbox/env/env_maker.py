@@ -6,7 +6,7 @@ try:
     from toolbox.env.mujoco_wrapper import MujocoWrapper, \
         HalfCheetahV2NoBackground, HalfCheetahV3NoBackground, \
         HopperV3NoBackground, Walker2dV3NoBackground
-except gym.error.DependencyNotInstalled:
+except Exception:
     print(
         "Filed to import mujoco environment wrapper. "
         "This may because you didn't install mujoco_py."
