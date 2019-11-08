@@ -184,7 +184,7 @@ elif args.env == "Humanoid-v2":
         "PPO": {
             "stop": {
                 "episode_reward_mean": 6000,
-                "timesteps_total": int(1.5e8)
+                "timesteps_total": int(2e8)
             },
             "config": {
                 "seed": tune.grid_search(list(range(10))),
@@ -194,14 +194,11 @@ elif args.env == "Humanoid-v2":
                 "kl_coeff": 1.0,
                 "num_sgd_iter": 20,
                 "lr": 0.0001,
-                "sgd_minibatch_size": 32768,
                 "horizon": 5000,
-                "train_batch_size": 320000,
-                "num_workers": 8,
-                "num_envs_per_worker": 8,
-                "num_cpus_per_worker": 0.9,
-                "num_gpus": 0.4,
-                "num_cpus_for_driver": 0.5
+                'sgd_minibatch_size': 4096,
+                'train_batch_size': 65536,
+                "num_workers": 16,
+                "num_envs_per_worker": 16
             }
         }
     }
