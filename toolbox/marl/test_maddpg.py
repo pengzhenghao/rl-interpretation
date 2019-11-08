@@ -89,8 +89,20 @@ def test_maddpg_basic(extra_config=None, local_mode=True):
 
 
 def test_maddpg_custom_metrics():
+    # Comments on this function may be meaningless...
     def on_episode_start(info):
-        pass
+        print("Enter on_episode_start, current ep id: {},"
+              " ep length: {}, total reward: {}".format(
+            info['episode'].episode_id,
+            info['episode'].length,
+            info['episode'].total_reward,
+        ))
+        # info['policy']['default_policy'] is the policy, maybe you can get
+        # agents pool from here.
+        # info = policy, env, episode
+
+        # you can also put the data into the user_data and put results at
+        # custom_metrics
         # episode = info["episode"]
         # print("episode {} started".format(episode.episode_id))
         #
@@ -100,7 +112,19 @@ def test_maddpg_custom_metrics():
         # episode.user_data["pole_angles"] = []
 
     def on_episode_step(info):
-        pass
+        print("Enter on_episode_step, current ep id: {},"
+              " ep length: {}, total reward: {}".format(
+            info['episode'].episode_id,
+            info['episode'].length,
+            info['episode'].total_reward,
+        ))
+
+        base_env = info['env']
+
+        for env_id in range(len(base_env.envs)):
+            base_env.try_reset(env_id)
+            print("Finish 'try_reset' for env: ", env_id)
+
         # episode = info["episode"]
         # pole_angle = abs(episode.last_observation_for()[2])
         # raw_angle = abs(episode.last_raw_obs_for()[2])
@@ -108,7 +132,12 @@ def test_maddpg_custom_metrics():
         # episode.user_data["pole_angles"].append(pole_angle)
 
     def on_episode_end(info):
-        pass
+        print("Enter on_episode_end, current ep id: {},"
+              " ep length: {}, total reward: {}".format(
+            info['episode'].episode_id,
+            info['episode'].length,
+            info['episode'].total_reward,
+        ))
         # episode = info["episode"]
         # print('episode')
         # pole_angle = np.mean(episode.user_data["pole_angles"])
@@ -121,6 +150,7 @@ def test_maddpg_custom_metrics():
         and the samples. The samples is a 'MultiAgentBatch'
         """
         pass
+        # print("info")
         # batch = info['samples']
         # joint_dataset = SampleBatch.concat_samples([
         #     i for i in batch.policy_batches.values()
@@ -224,7 +254,7 @@ def test_maddpg_custom_metrics():
         },
     }
 
-    test_maddpg_basic(extra_config, local_mode=False)
+    test_maddpg_basic(extra_config, local_mode=True)
 
 
 if __name__ == "__main__":
