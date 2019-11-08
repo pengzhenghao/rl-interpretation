@@ -206,7 +206,7 @@ elif args.env == "Humanoid-v2":
             }
         }
     }
-elif args.env == "Walker2d-v2":
+elif args.env == "Walker2d-v3":
     algo_specify_config_dict = {
         "PPO": {
             "stop":{
