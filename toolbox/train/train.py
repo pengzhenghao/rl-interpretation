@@ -197,11 +197,10 @@ elif args.env == "Humanoid-v2":
                 "sgd_minibatch_size": 32768,
                 "horizon": 5000,
                 "train_batch_size": 320000,
-                "model":
-                    {"free_log_std": True},
                 "num_workers": 8,
-                "num_cpus_per_worker": 0.8,
-                "num_gpus": 0.45,
+                "num_envs_per_worker": 8,
+                "num_cpus_per_worker": 0.9,
+                "num_gpus": 0.4,
                 "num_cpus_for_driver": 0.5
             }
         }
@@ -218,8 +217,8 @@ elif args.env == "Walker2d-v3":
                 "kl_coeff": 1.0,
                 "num_sgd_iter": 20,
                 "lr": 0.0001,
-                "sgd_minibatch_size": 32768,
-                "train_batch_size": 320000,
+                # "sgd_minibatch_size": 32768,
+                # "train_batch_size": 320000,
                 "num_cpus_per_worker": 0.8,
                 "num_gpus": 0.35,
                 "num_cpus_for_driver": 0.5
