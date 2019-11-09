@@ -1,6 +1,6 @@
 import os
 from collections import OrderedDict
-
+import argparse
 import gym
 import numpy as np
 from ray import tune
@@ -16,6 +16,11 @@ LOWER_NOVEL_BOUND = -0.1
 
 
 class IPDEnv:
+    """
+    A hacking workaround to implement IPD. This is not used for
+    large-scale training since assign each environment with N agents
+    is not practicable.
+    """
     def __init__(self, env_config):
         for key in env_config_required_items:
             assert key in env_config

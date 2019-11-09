@@ -185,6 +185,7 @@ def rearange_name_ckpt_mapping_according_to_cluster_prediction(
 
 
 def read_yaml(yaml_path, number=None, mode='top'):
+    yaml_path = os.path.abspath(os.path.expanduser(yaml_path))
     with open(yaml_path, 'r') as f:
         name_ckpt_list = yaml.safe_load(f)
     name_ckpt_mapping = make_ordereddict(name_ckpt_list, number, mode)
