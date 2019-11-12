@@ -4,14 +4,15 @@ import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config
-from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, PPOLoss, \
-    LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, ValueNetworkMixin
+from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
+    LearningRateSchedule, \
+    EntropyCoeffSchedule, KLCoeffMixin, \
+    ValueNetworkMixin, ppo_surrogate_loss
 from ray.rllib.evaluation.postprocessing import compute_advantages, \
     Postprocessing
 from ray.rllib.optimizers import SyncSamplesOptimizer
 from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch
-from ray.rllib.policy.tf_policy import ACTION_LOGP
 from ray.rllib.utils.explained_variance import explained_variance
 from ray.tune.util import merge_dicts
 
@@ -29,7 +30,7 @@ OPPONENT_ACTION = "opponent_action"
 PEER_ACTION = "other_replay"
 JOINT_OBS = "joint_dataset"
 
-extra_loss_ppo_tf_policy_default_config = merge_dicts(DEFAULT_CONFIG, dict(
+extra_loss_ppo_default_config = merge_dicts(DEFAULT_CONFIG, dict(
     novelty_loss_param=0.5, joint_dataset_sample_batch_size=200
 ))
 
@@ -161,61 +162,28 @@ def norm(my_act, other_act):
     return mean
 
 
-def ppo_surrogate_loss(policy, model, dist_class, train_batch):
-    """Copied from PPOTFPolicy"""
-    logits, state = model.from_batch(train_batch)
-    action_dist = dist_class(logits, model)
-
-    if state:
-        max_seq_len = tf.reduce_max(train_batch["seq_lens"])
-        mask = tf.sequence_mask(train_batch["seq_lens"], max_seq_len)
-        mask = tf.reshape(mask, [-1])
-    else:
-        mask = tf.ones_like(
-            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool)
-
-    policy.loss_obj = PPOLoss(
-        policy.action_space,
-        dist_class,
-        model,
-        train_batch[Postprocessing.VALUE_TARGETS],
-        train_batch[Postprocessing.ADVANTAGES],
-        train_batch[SampleBatch.ACTIONS],
-        train_batch[BEHAVIOUR_LOGITS],
-        train_batch[ACTION_LOGP],
-        train_batch[SampleBatch.VF_PREDS],
-        action_dist,
-        model.value_function(),
-        policy.kl_coeff,
-        mask,
-        entropy_coeff=policy.entropy_coeff,
-        clip_param=policy.config["clip_param"],
-        vf_clip_param=policy.config["vf_clip_param"],
-        vf_loss_coeff=policy.config["vf_loss_coeff"],
-        use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"])
-
-    loss = policy.loss_obj.loss
-
-    # The below codes is what we append
+def novelty_loss(policy, model, dist_class, train_batch):
+    # Novelty loss
     joint_obs_ph = train_batch[JOINT_OBS]
     peer_act_ph = train_batch[PEER_ACTION]
-
     logger.debug(
         "The joint_obs_ph shape: {}, the peer_act_ph shape: {}".format(
             joint_obs_ph.shape, peer_act_ph.shape
         ))
-
     ret_act, _ = model.base_model(joint_obs_ph)
     splits_act = tf.split(ret_act, 2, axis=1)
     my_act = splits_act[0]
-    novelty_loss = -norm(my_act, peer_act_ph)  # only take
+    nov_loss = -norm(my_act, peer_act_ph)  # only take
+    policy.novelty_loss = nov_loss
+    return novelty_loss
 
-    policy.novelty_loss = novelty_loss
 
+def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
+    """Add novelty loss with original ppo loss"""
+    original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
+    nov_loss = novelty_loss(policy, model, dist_class, train_batch)
     alpha = policy.config["novelty_loss_param"]
-
-    total_loss = (1 - alpha) * loss + alpha * novelty_loss
+    total_loss = (1 - alpha) * original_loss + alpha * nov_loss
     policy.total_loss = total_loss
     return total_loss
 
@@ -239,11 +207,11 @@ def kl_and_loss_stats_modified(policy, train_batch):
 
 
 ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
-    name="ExtraLossPPO",
-    get_default_config=lambda: extra_loss_ppo_tf_policy_default_config,
+    name="ExtraLossPPOTFPolicy",
+    get_default_config=lambda: extra_loss_ppo_default_config,
     postprocess_fn=postprocess_ppo_gae,
     stats_fn=kl_and_loss_stats_modified,
-    loss_fn=ppo_surrogate_loss,
+    loss_fn=extra_loss_ppo_loss,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
         ValueNetworkMixin, AddLossMixin
@@ -328,7 +296,6 @@ def choose_policy_optimizer(workers, config):
 
 
 def validate_config_modified(config):
-    # print("DEBUG MESSAGE!!!", config)
     assert "joint_dataset_sample_batch_size" in config
     assert "novelty_loss_param" in config
     validate_config(config)
@@ -336,7 +303,7 @@ def validate_config_modified(config):
 
 ExtraLossPPOTrainer = PPOTrainer.with_updates(
     name="ExtraLossPPO",
-    default_config=extra_loss_ppo_tf_policy_default_config,
+    default_config=extra_loss_ppo_default_config,
     validate_config=validate_config_modified,
     default_policy=ExtraLossPPOTFPolicy,
     make_policy_optimizer=choose_policy_optimizer
