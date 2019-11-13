@@ -134,7 +134,6 @@ if __name__ == '__main__':
 
     exp_name = args.exp_name
     env_name = args.env
-    num_timesteps = int(args.num_timesteps)
     run_name = args.run
 
     run_dict = {
