@@ -129,7 +129,6 @@ if __name__ == '__main__':
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-agents", type=int, default=10)
     parser.add_argument("--num-seeds", type=int, default=0)
-    parser.add_argument("--num-timesteps", type=float, default=5e6)
     parser.add_argument("--test-mode", action="store_true")
     args = parser.parse_args()
 
@@ -144,11 +143,6 @@ if __name__ == '__main__':
         "off_policy_tnb": OffTNBPPOTrainer
     }
 
-    assert run_name in run_dict, "--run argument should be in {}, " \
-                                 "but you provide {}." \
-                                 "".format(run_dict.keys(), run_name)
-
-    run_object = run_dict[run_name]
     run_specify_config = {
         "individual": {},
         "extra_loss": {
@@ -156,6 +150,17 @@ if __name__ == '__main__':
         },
         "off_policy_tnb": {},
     }
+
+    run_specify_stop = {
+        "individual": {"timesteps_total": int(1e7)},
+        "extra_loss": {"timesteps_total": int(1e7)},
+        "off_policy_tnb": {"timesteps_total": int(1e7),
+                           "episode_reward_mean": 310 * args.num_agents}
+    }
+
+    assert run_name in run_dict, "--run argument should be in {}, " \
+                                 "but you provide {}." \
+                                 "".format(run_dict.keys(), run_name)
 
     initialize_ray(num_gpus=args.num_gpus,
                    test_mode=args.test_mode,
@@ -197,11 +202,11 @@ if __name__ == '__main__':
     config.update(run_specify_config[run_name])
 
     tune.run(
-        run_object,
+        run_dict[run_name],
         local_dir=get_local_dir(),
         name=exp_name,
         checkpoint_at_end=True,
         checkpoint_freq=10,
-        stop={"timesteps_total": num_timesteps},
+        stop=run_specify_stop[run_name],
         config=config,
     )
