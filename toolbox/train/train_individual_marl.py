@@ -9,7 +9,7 @@ from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
 from toolbox.marl.off_policy_tnb import OffTNBPPOTrainer
-from toolbox.utils import get_num_gpus, get_local_dir, initialize_ray
+from toolbox.utils import get_local_dir, initialize_ray
 
 
 def _collect_joint_dataset(trainer, worker, sample_size):
@@ -149,9 +149,18 @@ if __name__ == '__main__':
                                  "".format(run_dict.keys(), run_name)
 
     run_object = run_dict[run_name]
+    run_specify_config = {
+        "individual": {},
+        "extra_loss": {
+            "novelty_loss_param": tune.grid_search([0.01, 0.05, 0.1, 0.2, 0.5])
+        },
+        "off_policy_tnb": {},
+    }
 
-    initialize_ray(num_gpus=args.num_gpus, test_mode=args.test_mode,
-                   object_store_memory=40 * 1024 * 1024 * 1024)
+    initialize_ray(num_gpus=args.num_gpus,
+                   test_mode=args.test_mode,
+                   object_store_memory=25 * 1024 * 1024 * 1024,
+                   temp_dir="/data1/pengzh/tmp")
 
     policy_names = ["ppo_agent{}".format(i) for i in range(args.num_agents)]
 
@@ -167,7 +176,9 @@ if __name__ == '__main__':
             "agent_ids": policy_names
         },
         "log_level": "DEBUG" if args.test_mode else "ERROR",
-        "num_gpus": get_num_gpus(args.num_seeds + 1),
+        "num_gpus": 1,
+        "num_cpus_per_worker": 2,
+        "num_cpus_for_driver": 2,
         "num_envs_per_worker": 16,
         "sample_batch_size": 256,
         "joint_dataset_sample_batch_size": 200,
@@ -183,6 +194,7 @@ if __name__ == '__main__':
         "seed": tune.grid_search(
             list(range(args.num_seeds))) if args.num_seeds != 0 else 0
     }
+    config.update(run_specify_config[run_name])
 
     tune.run(
         run_object,
