@@ -206,6 +206,24 @@ def kl_and_loss_stats_modified(policy, train_batch):
     }
 
 
+def kl_and_loss_stats_without_total_loss(policy, train_batch):
+    return {
+        "novelty_loss": policy.novelty_loss,
+        "cur_kl_coeff": tf.cast(policy.kl_coeff, tf.float64),
+        "cur_lr": tf.cast(policy.cur_lr, tf.float64),
+        # "total_loss": policy.loss_obj.loss,
+        # "total_loss": policy.total_loss,
+        "policy_loss": policy.loss_obj.mean_policy_loss,
+        "vf_loss": policy.loss_obj.mean_vf_loss,
+        "vf_explained_var": explained_variance(
+            train_batch[Postprocessing.VALUE_TARGETS],
+            policy.model.value_function()),
+        "kl": policy.loss_obj.mean_kl,
+        "entropy": policy.loss_obj.mean_entropy,
+        "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
+    }
+
+
 ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
     name="ExtraLossPPOTFPolicy",
     get_default_config=lambda: extra_loss_ppo_default_config,
