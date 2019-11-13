@@ -50,7 +50,7 @@ if __name__ == '__main__':
     mae = MultiAgentEnvWrapper(env_config)
     mae.reset()
     while True:
-        ret = mae.step({i: np.zeros((17,)) for i in range(10)})
+        ret = mae.step({i: np.zeros((17, )) for i in range(10)})
         if ret[2]['__all__']:
             print("Finish! ", ret)
             break

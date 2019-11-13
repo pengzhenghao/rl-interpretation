@@ -5,9 +5,9 @@ from toolbox.marl.extra_loss_ppo_trainer import novelty_loss, \
     ppo_surrogate_loss, ExtraLossPPOTFPolicy, DEFAULT_CONFIG, merge_dicts, \
     ExtraLossPPOTrainer, validate_config, kl_and_loss_stats_without_total_loss
 
-off_tnb_ppo_default_config = merge_dicts(DEFAULT_CONFIG, dict(
-    joint_dataset_sample_batch_size=200
-))
+off_tnb_ppo_default_config = merge_dicts(
+    DEFAULT_CONFIG, dict(joint_dataset_sample_batch_size=200)
+)
 
 
 def off_tnb_loss(policy, model, dist_class, train_batch):
@@ -57,20 +57,23 @@ def off_tnb_gradients(policy, optimizer, loss):
     policy_grad_norm = tf.linalg.l2_normalize(policy_grad_flatten)
     novelty_grad_norm = tf.linalg.l2_normalize(novelty_grad_flatten)
     cos_similarity = tf.reduce_sum(
-        tf.multiply(policy_grad_norm, novelty_grad_norm))
+        tf.multiply(policy_grad_norm, novelty_grad_norm)
+    )
 
     def less_90_deg():
         tg = policy_grad_norm + novelty_grad_norm
         tg = tf.linalg.l2_normalize(tg)
-        mag = (tf.norm(tf.multiply(policy_grad_flatten, tg)) +
-               tf.norm(tf.multiply(novelty_grad_flatten, tg))) / 2
+        mag = (
+            tf.norm(tf.multiply(policy_grad_flatten, tg)) +
+            tf.norm(tf.multiply(novelty_grad_flatten, tg))
+        ) / 2
         tg = tg * mag
         return tg
 
     def greater_90_deg():
-        tg = - cos_similarity * novelty_grad_norm + policy_grad_norm
-        tg = tg * tf.norm(
-            tf.multiply(policy_grad_norm, tg))
+        tg = -cos_similarity * novelty_grad_norm + policy_grad_norm
+        tg = tf.linalg.l2_normalize(tg)
+        tg = tg * tf.norm(tf.multiply(policy_grad_norm, tg))
         # Here is a modification to the origianl TNB, we add 1/2 here.
         tg = tg / 2
         return tg
@@ -85,10 +88,8 @@ def off_tnb_gradients(policy, optimizer, loss):
             return_gradients.append((None, var))
             continue
         size = flat_shape.as_list()[0]
-        grad = total_grad[count: count + size]
-        return_gradients.append(
-            (tf.reshape(grad, org_shape), var)
-        )
+        grad = total_grad[count:count + size]
+        return_gradients.append((tf.reshape(grad, org_shape), var))
         count += size
 
     return return_gradients
@@ -139,8 +140,10 @@ if __name__ == '__main__':
         "log_level": "DEBUG",
         "joint_dataset_sample_batch_size": 131,
         "multiagent": {
-            "policies": {i: (None, env.observation_space, env.action_space, {})
-                         for i in policy_names},
+            "policies": {
+                i: (None, env.observation_space, env.action_space, {})
+                for i in policy_names
+            },
             "policy_mapping_fn": lambda x: x,
         },
         "callbacks": {

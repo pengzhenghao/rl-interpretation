@@ -30,15 +30,15 @@ OPPONENT_ACTION = "opponent_action"
 PEER_ACTION = "other_replay"
 JOINT_OBS = "joint_dataset"
 
-extra_loss_ppo_default_config = merge_dicts(DEFAULT_CONFIG, dict(
-    novelty_loss_param=0.5, joint_dataset_sample_batch_size=200
-))
+extra_loss_ppo_default_config = merge_dicts(
+    DEFAULT_CONFIG,
+    dict(novelty_loss_param=0.5, joint_dataset_sample_batch_size=200)
+)
 
 
-def postprocess_ppo_gae(policy,
-                        sample_batch,
-                        other_agent_batches=None,
-                        episode=None):
+def postprocess_ppo_gae(
+        policy, sample_batch, other_agent_batches=None, episode=None
+):
     completed = sample_batch["dones"][-1]
     if completed:
         last_r = 0.0
@@ -46,22 +46,26 @@ def postprocess_ppo_gae(policy,
         next_state = []
         for i in range(policy.num_state_tensors()):
             next_state.append([sample_batch["state_out_{}".format(i)][-1]])
-        last_r = policy._value(sample_batch[SampleBatch.NEXT_OBS][-1],
-                               sample_batch[SampleBatch.ACTIONS][-1],
-                               sample_batch[SampleBatch.REWARDS][-1],
-                               *next_state)
+        last_r = policy._value(
+            sample_batch[SampleBatch.NEXT_OBS][-1],
+            sample_batch[SampleBatch.ACTIONS][-1],
+            sample_batch[SampleBatch.REWARDS][-1], *next_state
+        )
     batch = compute_advantages(
         sample_batch,
         last_r,
         policy.config["gamma"],
         policy.config["lambda"],
-        use_gae=policy.config["use_gae"])
+        use_gae=policy.config["use_gae"]
+    )
 
     if not policy.loss_initialized():
         batch[JOINT_OBS] = np.zeros_like(
-            sample_batch[SampleBatch.CUR_OBS], dtype=np.float32)
+            sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
+        )
         batch[PEER_ACTION] = np.zeros_like(
-            sample_batch[SampleBatch.ACTIONS], dtype=np.float32)
+            sample_batch[SampleBatch.ACTIONS], dtype=np.float32
+        )
 
     return batch
 
@@ -99,8 +103,8 @@ class AddLossMixin(object):
              len(cross_policy_obj[PEER_ACTION]),
              *self.config["joint_dataset_sample_batch_size"])
 
-        assert len(cross_policy_obj[PEER_ACTION]) == len(
-            self.config["multiagent"]["policies"])
+        assert len(cross_policy_obj[PEER_ACTION]
+                   ) == len(self.config["multiagent"]["policies"])
 
         feed_dict[replay_ph] = concat_replay_act
 
@@ -111,10 +115,10 @@ class AddLossMixin(object):
 
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                    len(batch[SampleBatch.CUR_OBS]) %
-                    self._batch_divisibility_req == 0
-                    and max(
-                batch[SampleBatch.AGENT_INDEX]) == 0)  # not multiagent
+                len(batch[SampleBatch.CUR_OBS]) %
+                self._batch_divisibility_req == 0
+                and max(batch[SampleBatch.AGENT_INDEX]) == 0
+            )  # not multiagent
         else:
             meets_divisibility_reqs = True
         # Simple case: not RNN nor do we need to pad
@@ -143,7 +147,8 @@ class AddLossMixin(object):
             [batch[k] for k in state_keys],
             max_seq_len,
             dynamic_max=dynamic_max,
-            shuffle=shuffle)
+            shuffle=shuffle
+        )
         for k, v in zip(feature_keys, feature_sequences):
             feed_dict[self._loss_input_dict[k]] = v
         for k, v in zip(state_keys, initial_states):
@@ -157,7 +162,7 @@ def norm(my_act, other_act):
     single_representation_length = tf.shape(my_act)[0] * tf.shape(my_act)[1]
     other_act = tf.reshape(other_act, [-1, single_representation_length])
     subtract = tf.subtract(flatten, other_act)
-    square = subtract ** 2
+    square = subtract**2
     mean = tf.reduce_mean(square)
     return mean
 
@@ -169,7 +174,8 @@ def novelty_loss(policy, model, dist_class, train_batch):
     logger.debug(
         "The joint_obs_ph shape: {}, the peer_act_ph shape: {}".format(
             joint_obs_ph.shape, peer_act_ph.shape
-        ))
+        )
+    )
     ret_act, _ = model.base_model(joint_obs_ph)
     splits_act = tf.split(ret_act, 2, axis=1)
     my_act = splits_act[0]
@@ -190,37 +196,58 @@ def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
 
 def kl_and_loss_stats_modified(policy, train_batch):
     return {
-        "novelty_loss": policy.novelty_loss,
-        "cur_kl_coeff": tf.cast(policy.kl_coeff, tf.float64),
-        "cur_lr": tf.cast(policy.cur_lr, tf.float64),
+        "novelty_loss":
+        policy.novelty_loss,
+        "cur_kl_coeff":
+        tf.cast(policy.kl_coeff, tf.float64),
+        "cur_lr":
+        tf.cast(policy.cur_lr, tf.float64),
         # "total_loss": policy.loss_obj.loss,
-        "total_loss": policy.total_loss,
-        "policy_loss": policy.loss_obj.mean_policy_loss,
-        "vf_loss": policy.loss_obj.mean_vf_loss,
-        "vf_explained_var": explained_variance(
+        "total_loss":
+        policy.total_loss,
+        "policy_loss":
+        policy.loss_obj.mean_policy_loss,
+        "vf_loss":
+        policy.loss_obj.mean_vf_loss,
+        "vf_explained_var":
+        explained_variance(
             train_batch[Postprocessing.VALUE_TARGETS],
-            policy.model.value_function()),
-        "kl": policy.loss_obj.mean_kl,
-        "entropy": policy.loss_obj.mean_entropy,
-        "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
+            policy.model.value_function()
+        ),
+        "kl":
+        policy.loss_obj.mean_kl,
+        "entropy":
+        policy.loss_obj.mean_entropy,
+        "entropy_coeff":
+        tf.cast(policy.entropy_coeff, tf.float64),
     }
 
 
 def kl_and_loss_stats_without_total_loss(policy, train_batch):
     return {
-        "novelty_loss": policy.novelty_loss,
-        "cur_kl_coeff": tf.cast(policy.kl_coeff, tf.float64),
-        "cur_lr": tf.cast(policy.cur_lr, tf.float64),
+        "novelty_loss":
+        policy.novelty_loss,
+        "cur_kl_coeff":
+        tf.cast(policy.kl_coeff, tf.float64),
+        "cur_lr":
+        tf.cast(policy.cur_lr, tf.float64),
         # "total_loss": policy.loss_obj.loss,
         # "total_loss": policy.total_loss,
-        "policy_loss": policy.loss_obj.mean_policy_loss,
-        "vf_loss": policy.loss_obj.mean_vf_loss,
-        "vf_explained_var": explained_variance(
+        "policy_loss":
+        policy.loss_obj.mean_policy_loss,
+        "vf_loss":
+        policy.loss_obj.mean_vf_loss,
+        "vf_explained_var":
+        explained_variance(
             train_batch[Postprocessing.VALUE_TARGETS],
-            policy.model.value_function()),
-        "kl": policy.loss_obj.mean_kl,
-        "entropy": policy.loss_obj.mean_entropy,
-        "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
+            policy.model.value_function()
+        ),
+        "kl":
+        policy.loss_obj.mean_kl,
+        "entropy":
+        policy.loss_obj.mean_entropy,
+        "entropy_coeff":
+        tf.cast(policy.entropy_coeff, tf.float64),
     }
 
 
@@ -233,7 +260,8 @@ ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
         ValueNetworkMixin, AddLossMixin
-    ])
+    ]
+)
 
 
 def process_multiagent_batch_fn(multi_agent_batch, self_optimizer):
@@ -243,8 +271,10 @@ def process_multiagent_batch_fn(multi_agent_batch, self_optimizer):
                                     "joint_dataset_sample_batch_size " \
                                     "in config!"
     samples = [multi_agent_batch]
-    count_dict = {k: v.count for k, v in
-                  multi_agent_batch.policy_batches.items()}
+    count_dict = {
+        k: v.count
+        for k, v in multi_agent_batch.policy_batches.items()
+    }
     for k in self_optimizer.workers.local_worker().policy_map.keys():
         if k not in count_dict:
             count_dict[k] = 0
@@ -270,8 +300,8 @@ def process_multiagent_batch_fn(multi_agent_batch, self_optimizer):
 
     assert len(joint_obs) == len(count_dict)
     joint_obs = np.concatenate(joint_obs)
-    assert len(joint_obs) == sample_size * len(
-        multi_agent_batch.policy_batches)
+    assert len(joint_obs
+               ) == sample_size * len(multi_agent_batch.policy_batches)
     assert joint_obs.shape[0] % len(count_dict) == 0
 
     def _replay(policy, pid):
@@ -286,7 +316,9 @@ def process_multiagent_batch_fn(multi_agent_batch, self_optimizer):
     }
     assert joint_obs.shape[0] % len(ret) == 0, (joint_obs.shape, len(ret))
     assert joint_obs.shape[0] == len(ret) * sample_size, (
-        {k: v.shape for k, v in ret.items()}, joint_obs.shape, len(ret))
+        {k: v.shape
+         for k, v in ret.items()}, joint_obs.shape, len(ret)
+    )
     return {JOINT_OBS: joint_obs, PEER_ACTION: ret}
 
 
@@ -297,11 +329,11 @@ def choose_policy_optimizer(workers, config):
             num_sgd_iter=config["num_sgd_iter"],
             train_batch_size=config["train_batch_size"],
             sgd_minibatch_size=config["sgd_minibatch_size"],
-            standardize_fields=["advantages"])
+            standardize_fields=["advantages"]
+        )
 
     return LocalMultiGPUOptimizerModified(
-        workers,
-        [JOINT_OBS, PEER_ACTION],
+        workers, [JOINT_OBS, PEER_ACTION],
         process_multiagent_batch_fn,
         sgd_batch_size=config["sgd_minibatch_size"],
         num_sgd_iter=config["num_sgd_iter"],
@@ -310,7 +342,8 @@ def choose_policy_optimizer(workers, config):
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
         standardize_fields=["advantages"],
-        shuffle_sequences=config["shuffle_sequences"])
+        shuffle_sequences=config["shuffle_sequences"]
+    )
 
 
 def validate_config_modified(config):
@@ -350,8 +383,10 @@ if __name__ == '__main__':
         "log_level": "DEBUG",
         "joint_dataset_sample_batch_size": 131,
         "multiagent": {
-            "policies": {i: (None, env.observation_space, env.action_space, {})
-                         for i in policy_names},
+            "policies": {
+                i: (None, env.observation_space, env.action_space, {})
+                for i in policy_names
+            },
             "policy_mapping_fn": lambda x: x,
         },
         "callbacks": {

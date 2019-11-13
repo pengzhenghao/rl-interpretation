@@ -172,7 +172,7 @@ elif args.env == "Humanoid-v2":
 elif args.env == "Walker2d-v3":
     algo_specify_config_dict = {
         "PPO": {
-            "stop":{
+            "stop": {
                 "timesteps_total": int(5e7),
                 "episode_reward_mean": 4000
             },

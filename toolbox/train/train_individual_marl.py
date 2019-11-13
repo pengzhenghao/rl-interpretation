@@ -56,13 +56,15 @@ def _collect_joint_dataset(trainer, worker, sample_size):
 
     assert len(joint_obs) == len(worker.policy_map), (
         len(joint_obs), [v.shape for v in joint_obs], len(worker.policy_map),
-        multi_agent_batch.policy_batches.keys())
+        multi_agent_batch.policy_batches.keys()
+    )
     joint_obs = np.concatenate(joint_obs)
-    assert len(worker.policy_map) == len(
-        trainer.config['multiagent']['policies']), (
-        multi_agent_batch.policy_batches.keys())
+    assert len(worker.policy_map
+               ) == len(trainer.config['multiagent']['policies']
+                        ), (multi_agent_batch.policy_batches.keys())
     assert joint_obs.shape[0] % len(worker.policy_map) == 0, (
-        worker.policy_map.keys(), multi_agent_batch.policy_batches.keys())
+        worker.policy_map.keys(), multi_agent_batch.policy_batches.keys()
+    )
     return joint_obs
 
 
@@ -145,26 +147,35 @@ if __name__ == '__main__':
     run_specify_config = {
         "individual": {},
         "extra_loss": {
-            "novelty_loss_param": tune.grid_search([0.01, 0.05, 0.1, 0.2, 0.5])
+            "novelty_loss_param":
+            tune.grid_search([0.01, 0.05, 0.1, 0.2, 0.5])
         },
         "off_policy_tnb": {},
     }
 
     run_specify_stop = {
-        "individual": {"timesteps_total": int(1e7)},
-        "extra_loss": {"timesteps_total": int(1e7)},
-        "off_policy_tnb": {"timesteps_total": int(1e7),
-                           "episode_reward_mean": 310 * args.num_agents}
+        "individual": {
+            "timesteps_total": int(1e7)
+        },
+        "extra_loss": {
+            "timesteps_total": int(1e7)
+        },
+        "off_policy_tnb": {
+            "timesteps_total": int(1e7),
+            "episode_reward_mean": 310 * args.num_agents
+        }
     }
 
     assert run_name in run_dict, "--run argument should be in {}, " \
                                  "but you provide {}." \
                                  "".format(run_dict.keys(), run_name)
 
-    initialize_ray(num_gpus=args.num_gpus,
-                   test_mode=args.test_mode,
-                   object_store_memory=25 * 1024 * 1024 * 1024,
-                   temp_dir="/data1/pengzh/tmp")
+    initialize_ray(
+        num_gpus=args.num_gpus,
+        test_mode=args.test_mode,
+        object_store_memory=25 * 1024 * 1024 * 1024,
+        temp_dir="/data1/pengzh/tmp"
+    )
 
     policy_names = ["ppo_agent{}".format(i) for i in range(args.num_agents)]
 
@@ -174,18 +185,26 @@ if __name__ == '__main__':
     )
 
     config = {
-        "env": MultiAgentEnvWrapper,
+        "env":
+        MultiAgentEnvWrapper,
         "env_config": {
             "env_name": env_name,
             "agent_ids": policy_names
         },
-        "log_level": "DEBUG" if args.test_mode else "ERROR",
-        "num_gpus": 1,
-        "num_cpus_per_worker": 2,
-        "num_cpus_for_driver": 2,
-        "num_envs_per_worker": 16,
-        "sample_batch_size": 256,
-        "joint_dataset_sample_batch_size": 200,
+        "log_level":
+        "DEBUG" if args.test_mode else "ERROR",
+        "num_gpus":
+        0.5,
+        "num_cpus_per_worker":
+        2,
+        "num_cpus_for_driver":
+        2,
+        "num_envs_per_worker":
+        16,
+        "sample_batch_size":
+        256,
+        "joint_dataset_sample_batch_size":
+        200,
         "multiagent": {
             "policies": {i: default_policy
                          for i in policy_names},
@@ -194,9 +213,11 @@ if __name__ == '__main__':
         "callbacks": {
             "on_train_result": on_train_result
         },
-        "num_sgd_iter": 10,
-        "seed": tune.grid_search(
-            list(range(args.num_seeds))) if args.num_seeds != 0 else 0
+        "num_sgd_iter":
+        10,
+        "seed":
+        tune.grid_search(list(range(args.num_seeds)))
+        if args.num_seeds != 0 else 0
     }
     config.update(run_specify_config[run_name])
 

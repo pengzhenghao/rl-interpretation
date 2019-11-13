@@ -45,8 +45,7 @@ def test_maddpg_basic(extra_config=None, local_mode=True):
     ])
     register_env(
         "grouped_twostep", lambda config: TwoStepGame(config).
-            with_agent_groups(grouping, obs_space=obs_space,
-                              act_space=act_space)
+        with_agent_groups(grouping, obs_space=obs_space, act_space=act_space)
     )
 
     config = {
@@ -162,8 +161,10 @@ def test_maddpg_custom_metrics():
         config = info['trainer'].config
         sample_size = config.get("joint_dataset_sample_size")
         if sample_size is None:
-            print("[WARNING]!!! You do not specify the "
-                  "joint_dataset_sample_size!! We will use 200 instead.")
+            print(
+                "[WARNING]!!! You do not specify the "
+                "joint_dataset_sample_size!! We will use 200 instead."
+            )
             sample_size = 200
 
         # replay_buffers is a dict map policy_id to ReplayBuffer object.
@@ -200,10 +201,6 @@ def test_maddpg_custom_metrics():
         info['result']['distance_min'] = flatten_dist.min()
 
         # print("SUNHAO_MATRIX: ", sunhao_matrix)
-
-
-
-
 
     def on_postprocess_traj(info):
         episode = info["episode"]

@@ -30,17 +30,20 @@ import math
 
 
 class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
-    def __init__(self, workers,
-                 no_split_list,
-                 process_multiagent_batch_fn=None,
-                 sgd_batch_size=128,
-                 num_sgd_iter=10,
-                 sample_batch_size=200,
-                 num_envs_per_worker=1,
-                 train_batch_size=1024,
-                 num_gpus=0,
-                 standardize_fields=[],
-                 shuffle_sequences=True):
+    def __init__(
+            self,
+            workers,
+            no_split_list,
+            process_multiagent_batch_fn=None,
+            sgd_batch_size=128,
+            num_sgd_iter=10,
+            sample_batch_size=200,
+            num_envs_per_worker=1,
+            train_batch_size=1024,
+            num_gpus=0,
+            standardize_fields=[],
+            shuffle_sequences=True
+    ):
         """We introduce a new feature which the original rllib do not have,
         that is allow to parse the cross policy information and store then
         in an object, which will be passed to each policy."""
@@ -59,8 +62,8 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
             self.devices = [
                 "/gpu:{}".format(i) for i in range(int(math.ceil(num_gpus)))
             ]
-        self.batch_size = int(sgd_batch_size / len(self.devices)) * len(
-            self.devices)
+        self.batch_size = int(sgd_batch_size / len(self.devices)
+                              ) * len(self.devices)
         assert self.batch_size % len(self.devices) == 0
         assert self.batch_size >= len(self.devices), "batch size too small"
         self.per_device_batch_size = int(self.batch_size / len(self.devices))
@@ -72,14 +75,17 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
 
         logger.info("LocalMultiGPUOptimizer devices {}".format(self.devices))
 
-        self.policies = dict(self.workers.local_worker()
-                             .foreach_trainable_policy(lambda p, i: (i, p)))
+        self.policies = dict(
+            self.workers.local_worker().
+            foreach_trainable_policy(lambda p, i: (i, p))
+        )
         logger.debug("Policies to train: {}".format(self.policies))
         for policy_id, policy in self.policies.items():
             if not isinstance(policy, TFPolicy):
                 raise ValueError(
                     "Only TF graph policies are supported with multi-GPU. "
-                    "Try setting `simple_optimizer=True` instead.")
+                    "Try setting `simple_optimizer=True` instead."
+                )
 
         # per-GPU graph copies created below must share vars with the policy
         # reuse is set to AUTO_REUSE because Adam nodes are created after
@@ -97,21 +103,20 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                             rnn_inputs = []
                         self.optimizers[policy_id] = (
                             LocalSyncParallelOptimizerModified(
-                                policy._optimizer,
-                                self.devices,
-                                {(i, k): v
-                                 for i, (k, v) in
-                                 enumerate(policy._loss_inputs)
-                                 if k not in no_split_list},
-                                {(i, k): v
-                                 for i, (k, v) in
-                                 enumerate(policy._loss_inputs)
-                                 if k in no_split_list},
-                                [(i, k)
-                                 for i, (k, _) in
-                                 enumerate(policy._loss_inputs)],
-                                rnn_inputs,
-                                self.per_device_batch_size,
+                                policy._optimizer, self.devices, {
+                                    (i, k): v
+                                    for i,
+                                    (k, v) in enumerate(policy._loss_inputs)
+                                    if k not in no_split_list
+                                }, {
+                                    (i, k): v
+                                    for i,
+                                    (k, v) in enumerate(policy._loss_inputs)
+                                    if k in no_split_list
+                                }, [
+                                    (i, k) for i,
+                                    (k, _) in enumerate(policy._loss_inputs)
+                                ], rnn_inputs, self.per_device_batch_size,
                                 policy.copy
                             )
                         )
@@ -131,14 +136,16 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
             if self.workers.remote_workers():
                 samples = collect_samples(
                     self.workers.remote_workers(), self.sample_batch_size,
-                    self.num_envs_per_worker, self.train_batch_size)
+                    self.num_envs_per_worker, self.train_batch_size
+                )
                 if samples.count > self.train_batch_size * 2:
                     logger.info(
                         "Collected more training samples than expected "
-                        "(actual={}, train_batch_size={}). ".format(
-                            samples.count, self.train_batch_size) +
+                        "(actual={}, train_batch_size={}). ".
+                        format(samples.count, self.train_batch_size) +
                         "This may be because you have many workers or "
-                        "long episodes in 'complete_episodes' batch mode.")
+                        "long episodes in 'complete_episodes' batch mode."
+                    )
             else:
                 samples = []
                 while sum(s.count for s in samples) < self.train_batch_size:
@@ -147,9 +154,9 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
 
             # Handle everything as if multiagent
             if isinstance(samples, SampleBatch):
-                samples = MultiAgentBatch({
-                    DEFAULT_POLICY_ID: samples
-                }, samples.count)
+                samples = MultiAgentBatch(
+                    {DEFAULT_POLICY_ID: samples}, samples.count
+                )
 
         for policy_id, policy in self.policies.items():
             if policy_id not in samples.policy_batches:
@@ -164,8 +171,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
         num_loaded_tuples = {}
 
         if self.process_multiagent_batch_fn is not None:
-            cross_policy_obj = self.process_multiagent_batch_fn(samples,
-                                                                self)
+            cross_policy_obj = self.process_multiagent_batch_fn(samples, self)
         else:
             cross_policy_obj = None
 
@@ -177,8 +183,10 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                 policy = self.policies[policy_id]
                 policy._debug_vars()
                 tuples = policy._get_loss_inputs_dict(
-                    batch, shuffle=self.shuffle_sequences,
-                    cross_policy_obj=cross_policy_obj)  ### HERE!
+                    batch,
+                    shuffle=self.shuffle_sequences,
+                    cross_policy_obj=cross_policy_obj
+                )  ### HERE!
                 data_keys = [ph for _, ph in policy._loss_inputs]
                 if policy._state_inputs:
                     state_keys = policy._state_inputs + [policy._seq_lens]
@@ -187,7 +195,9 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                 num_loaded_tuples[policy_id] = (
                     self.optimizers[policy_id].load_data(
                         self.sess, [tuples[k] for k in data_keys],
-                        [tuples[k] for k in state_keys]))
+                        [tuples[k] for k in state_keys]
+                    )
+                )
 
         fetches = {}
         with self.grad_timer:
@@ -195,7 +205,8 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                 optimizer = self.optimizers[policy_id]
                 num_batches = max(
                     1,
-                    int(tuples_per_device) // int(self.per_device_batch_size))
+                    int(tuples_per_device) // int(self.per_device_batch_size)
+                )
                 logger.debug("== sgd epochs for {} ==".format(policy_id))
                 for i in range(self.num_sgd_iter):
                     iter_extra_fetches = defaultdict(list)
@@ -203,11 +214,13 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                     for batch_index in range(num_batches):
                         batch_fetches = optimizer.optimize(
                             self.sess, permutation[batch_index] *
-                                       self.per_device_batch_size)
+                            self.per_device_batch_size
+                        )
                         for k, v in batch_fetches[LEARNER_STATS_KEY].items():
                             iter_extra_fetches[k].append(v)
-                    logger.debug("{} {}".format(i,
-                                                _averaged(iter_extra_fetches)))
+                    logger.debug(
+                        "{} {}".format(i, _averaged(iter_extra_fetches))
+                    )
                 fetches[policy_id] = _averaged(iter_extra_fetches)
 
         self.num_steps_sampled += samples.count

@@ -52,6 +52,7 @@ def get_local_dir():
         assert pwd.getpwuid(os.getuid())[0] == 'b146466'
     return local_dir
 
+
 def get_random_string():
     return str(uuid.uuid4())[:8]
 
