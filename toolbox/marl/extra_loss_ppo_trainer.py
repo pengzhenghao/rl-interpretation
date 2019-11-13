@@ -175,7 +175,7 @@ def novelty_loss(policy, model, dist_class, train_batch):
     my_act = splits_act[0]
     nov_loss = -norm(my_act, peer_act_ph)  # only take
     policy.novelty_loss = nov_loss
-    return novelty_loss
+    return nov_loss
 
 
 def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
