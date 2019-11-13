@@ -7,7 +7,11 @@ from toolbox.marl.extra_loss_ppo_trainer import novelty_loss, \
     kl_and_loss_stats_without_total_loss
 
 tnb_ppo_default_config = merge_dicts(
-    DEFAULT_CONFIG, dict(joint_dataset_sample_batch_size=200)
+    DEFAULT_CONFIG, dict(
+        joint_dataset_sample_batch_size=200,
+        use_joint_dataset=True,
+        novelty_mode="mean"
+    )
 )
 
 
@@ -65,9 +69,9 @@ def tnb_gradients(policy, optimizer, loss):
         tg = policy_grad_norm + novelty_grad_norm
         tg = tf.linalg.l2_normalize(tg)
         mag = (
-            tf.norm(tf.multiply(policy_grad_flatten, tg)) +
-            tf.norm(tf.multiply(novelty_grad_flatten, tg))
-        ) / 2
+                      tf.norm(tf.multiply(policy_grad_flatten, tg)) +
+                      tf.norm(tf.multiply(novelty_grad_flatten, tg))
+              ) / 2
         tg = tg * mag
         return tg
 
