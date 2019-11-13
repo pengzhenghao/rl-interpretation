@@ -124,9 +124,8 @@ class AddLossMixin(object):
                 ]
             )  # exclude policy itself action
             feed_dict[replay_ph] = concat_replay_act
-
-            feed_dict[self._loss_input_dict[NO_SPLIT_ACTION]
-                      ] = batch['actions']
+            feed_dict[self._loss_input_dict[NO_SPLIT_ACTION]] = \
+                batch['actions']
 
         # The below codes are copied from rllib.
         if self._batch_divisibility_req > 1:
@@ -278,7 +277,7 @@ def cross_policy_object_use_joint_dataset(multi_agent_batch, self_optimizer):
         for pid, act, infos in
         self_optimizer.workers.local_worker().foreach_policy(_replay)
     }
-    return {JOINT_OBS: joint_obs, PEER_ACTION: ret, "policy_id": pid_list}
+    return {JOINT_OBS: joint_obs, PEER_ACTION: ret}
 
 
 def cross_policy_object_without_joint_dataset(
@@ -307,13 +306,17 @@ def cross_policy_object_without_joint_dataset(
     return return_dict
 
 
-def validate_config_modified(config):
+def validate_config_basic(config):
     assert "joint_dataset_sample_batch_size" in config
-    assert "novelty_loss_param" in config
     assert "use_joint_dataset" in config
     assert "novelty_mode" in config
     assert config["novelty_mode"] in ["mean", "min", "max"]
     validate_config(config)
+
+
+def validate_config_modified(config):
+    assert "novelty_param" in config
+    validate_config_basic(config)
 
 
 def choose_policy_optimizer(workers, config):
@@ -326,8 +329,8 @@ def choose_policy_optimizer(workers, config):
             standardize_fields=["advantages"]
         )
 
-    split_list = [JOINT_OBS, PEER_ACTION] if config['use_joint_dataset'] else \
-        [PEER_ACTION, NO_SPLIT_ACTION]
+    split_list = [JOINT_OBS, PEER_ACTION] \
+        if config['use_joint_dataset'] else [PEER_ACTION, NO_SPLIT_ACTION]
 
     return LocalMultiGPUOptimizerModified(
         workers,

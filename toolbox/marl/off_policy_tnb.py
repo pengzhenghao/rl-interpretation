@@ -3,14 +3,15 @@ import tensorflow as tf
 
 from toolbox.marl.extra_loss_ppo_trainer import novelty_loss, \
     ppo_surrogate_loss, ExtraLossPPOTFPolicy, DEFAULT_CONFIG, merge_dicts, \
-    ExtraLossPPOTrainer, validate_config, kl_and_loss_stats_without_total_loss
+    ExtraLossPPOTrainer, validate_config_basic, \
+    kl_and_loss_stats_without_total_loss
 
-off_tnb_ppo_default_config = merge_dicts(
+tnb_ppo_default_config = merge_dicts(
     DEFAULT_CONFIG, dict(joint_dataset_sample_batch_size=200)
 )
 
 
-def off_tnb_loss(policy, model, dist_class, train_batch):
+def tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
     nov_loss = novelty_loss(policy, model, dist_class, train_batch)
@@ -24,7 +25,7 @@ def _flatten(tensor):
     return flat, tensor.shape, flat.shape
 
 
-def off_tnb_gradients(policy, optimizer, loss):
+def tnb_gradients(policy, optimizer, loss):
     policy_grad = optimizer.compute_gradients(loss[0])
     novelty_grad = optimizer.compute_gradients(loss[1])
 
@@ -95,25 +96,19 @@ def off_tnb_gradients(policy, optimizer, loss):
     return return_gradients
 
 
-OffTNBPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
-    name="OffTNBPPOTFPolicy",
-    get_default_config=lambda: off_tnb_ppo_default_config,
-    loss_fn=off_tnb_loss,
-    gradients_fn=off_tnb_gradients,
+TNBPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
+    name="TNBPPOTFPolicy",
+    get_default_config=lambda: tnb_ppo_default_config,
+    loss_fn=tnb_loss,
+    gradients_fn=tnb_gradients,
     stats_fn=kl_and_loss_stats_without_total_loss
 )
 
-
-def validate_config_tnb(config):
-    assert "joint_dataset_sample_batch_size" in config
-    validate_config(config)
-
-
-OffTNBPPOTrainer = ExtraLossPPOTrainer.with_updates(
-    name="OffTNBPPO",
-    default_config=off_tnb_ppo_default_config,
-    validate_config=validate_config_tnb,
-    default_policy=OffTNBPPOTFPolicy
+TNBPPOTrainer = ExtraLossPPOTrainer.with_updates(
+    name="TNBPPO",
+    default_config=tnb_ppo_default_config,
+    validate_config=validate_config_basic,
+    default_policy=TNBPPOTFPolicy
 )
 
 if __name__ == '__main__':
@@ -152,7 +147,7 @@ if __name__ == '__main__':
     }
 
     tune.run(
-        OffTNBPPOTrainer,
+        TNBPPOTrainer,
         local_dir=get_local_dir(),
         name="DELETEME_TEST_extra_loss_ppo_trainer",
         stop={"timesteps_total": 2000},

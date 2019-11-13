@@ -35,32 +35,14 @@ def _collect_joint_dataset(trainer, worker, sample_size):
                 count_dict[k] += v.count
             samples.append(tmp_batch)
         multi_agent_batch = MultiAgentBatch.concat_samples(samples)
-
-        assert len(multi_agent_batch.policy_batches) == \
-               len(worker.policy_map), \
-            (len(multi_agent_batch.policy_batches), len(worker.policy_map),
-             multi_agent_batch.policy_batches.keys())
-
         for pid, batch in multi_agent_batch.policy_batches.items():
             batch.shuffle()
             assert batch.count >= sample_size, (
                 batch, batch.count,
                 [b.count for b in batch.policy_batches.values()]
             )
-
             joint_obs.append(batch.slice(0, sample_size)['obs'])
-
-    assert len(joint_obs) == len(worker.policy_map), (
-        len(joint_obs), [v.shape for v in joint_obs], len(worker.policy_map),
-        multi_agent_batch.policy_batches.keys()
-    )
     joint_obs = np.concatenate(joint_obs)
-    assert len(worker.policy_map
-               ) == len(trainer.config['multiagent']['policies']
-                        ), (multi_agent_batch.policy_batches.keys())
-    assert joint_obs.shape[0] % len(worker.policy_map) == 0, (
-        worker.policy_map.keys(), multi_agent_batch.policy_batches.keys()
-    )
     return joint_obs
 
 
@@ -86,12 +68,6 @@ def on_train_result(info):
         for pid, act, infos in worker.foreach_policy(_replay)
     }
     # now we have a mapping: policy_id to joint_dataset_replay in 'ret'
-
-    assert len(ret) == len(trainer.config['multiagent']['policies']), \
-        "The number of agents is not compatible! {}".format(
-            (len(ret), len(trainer.config['multiagent']['policies']),
-             worker.policy_map))
-
     flatten = [act for act, infos in ret.values()]  # flatten action array
     dist_matrix = joint_dataset_distance(flatten)
 
