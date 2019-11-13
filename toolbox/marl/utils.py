@@ -1,7 +1,11 @@
+import logging
+
 import numpy as np
 from ray.rllib.policy.sample_batch import MultiAgentBatch
 
 from toolbox.distance import joint_dataset_distance, js_distance
+
+logger = logging.getLogger(__name__)
 
 
 def _collect_joint_dataset(trainer, worker, sample_size):

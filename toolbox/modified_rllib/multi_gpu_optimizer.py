@@ -4,29 +4,27 @@ changes in multi_gpu_impl.py."""
 from __future__ import absolute_import, division, print_function
 
 import logging
+import math
 from collections import defaultdict
 
 import numpy as np
 import ray
 from ray.rllib.evaluation.metrics import LEARNER_STATS_KEY
 from ray.rllib.optimizers import LocalMultiGPUOptimizer
+from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
 from ray.rllib.optimizers.rollout import collect_samples
 from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, \
     MultiAgentBatch
+from ray.rllib.policy.tf_policy import TFPolicy
 from ray.rllib.utils import try_import_tf
+from ray.rllib.utils.timer import TimerStat
+
+from toolbox.modified_rllib.multi_gpu_impl import \
+    LocalSyncParallelOptimizerModified
 
 tf = try_import_tf()
 
 logger = logging.getLogger(__name__)
-
-from ray.rllib.policy.tf_policy import TFPolicy
-
-from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
-
-from ray.rllib.utils.timer import TimerStat
-from toolbox.modified_rllib.multi_gpu_impl import \
-    LocalSyncParallelOptimizerModified
-import math
 
 
 class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
@@ -185,7 +183,8 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                 tuples = policy._get_loss_inputs_dict(
                     batch,
                     shuffle=self.shuffle_sequences,
-                    cross_policy_obj=cross_policy_obj
+                    cross_policy_obj=cross_policy_obj,
+                    policy_id=policy_id
                 )  ### HERE!
                 data_keys = [ph for _, ph in policy._loss_inputs]
                 if policy._state_inputs:
