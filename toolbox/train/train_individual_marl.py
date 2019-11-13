@@ -8,6 +8,7 @@ from toolbox.distance import joint_dataset_distance, js_distance
 from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
+from toolbox.marl.off_policy_tnb import OffTNBPPOTrainer
 from toolbox.utils import get_num_gpus, get_local_dir, initialize_ray
 
 
@@ -54,14 +55,14 @@ def _collect_joint_dataset(trainer, worker, sample_size):
             joint_obs.append(batch.slice(0, sample_size)['obs'])
 
     assert len(joint_obs) == len(worker.policy_map), (
-    len(joint_obs), [v.shape for v in joint_obs], len(worker.policy_map),
-    multi_agent_batch.policy_batches.keys())
+        len(joint_obs), [v.shape for v in joint_obs], len(worker.policy_map),
+        multi_agent_batch.policy_batches.keys())
     joint_obs = np.concatenate(joint_obs)
     assert len(worker.policy_map) == len(
         trainer.config['multiagent']['policies']), (
         multi_agent_batch.policy_batches.keys())
     assert joint_obs.shape[0] % len(worker.policy_map) == 0, (
-    worker.policy_map.keys(), multi_agent_batch.policy_batches.keys())
+        worker.policy_map.keys(), multi_agent_batch.policy_batches.keys())
     return joint_obs
 
 
@@ -124,7 +125,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, required=True)
     parser.add_argument("--env", type=str, default="BipedalWalker-v2")
-    parser.add_argument("--run", type=str, default="individual")
+    parser.add_argument("--run", type=str, required=True)
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-agents", type=int, default=10)
     parser.add_argument("--num-seeds", type=int, default=0)
@@ -137,10 +138,17 @@ if __name__ == '__main__':
     num_timesteps = int(args.num_timesteps)
     run_name = args.run
 
-    run_object = {
+    run_dict = {
         "individual": "PPO",
-        "extra_loss": ExtraLossPPOTrainer
-    }[run_name]
+        "extra_loss": ExtraLossPPOTrainer,
+        "off_policy_tnb": OffTNBPPOTrainer
+    }
+
+    assert run_name in run_dict, "--run argument should be in {}, " \
+                                 "but you provide {}." \
+                                 "".format(run_dict.keys(), run_name)
+
+    run_object = run_dict[run_name]
 
     initialize_ray(num_gpus=args.num_gpus, test_mode=args.test_mode,
                    object_store_memory=40 * 1024 * 1024 * 1024)
