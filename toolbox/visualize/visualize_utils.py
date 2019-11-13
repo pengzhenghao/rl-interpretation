@@ -693,12 +693,9 @@ class VideoRecorder(object):
                         (width_margin + frame_width) * (col_id + 1) +
                         VIDEO_WIDTH_EDGE
                     ],
-                    "column":
-                    col_id,
-                    "row":
-                    row_id,
-                    "index":
-                    i
+                    "column": col_id,
+                    "row": row_id,
+                    "index": i
                 }
             )
         self.frame_range = frame_range
@@ -805,12 +802,9 @@ class SunhaoVideoRecorder(VideoRecorder):
                         (width_margin + frame_width) * (col_id + 1) +
                         VIDEO_WIDTH_EDGE
                     ],
-                    "column":
-                    col_id,
-                    "row":
-                    row_id,
-                    "index":
-                    i
+                    "column": col_id,
+                    "row": row_id,
+                    "index": i
                 }
             )
         self.frame_range = frame_range
@@ -852,16 +846,13 @@ class ImageEncoder(object):
     @property
     def version_info(self):
         return {
-            'backend':
-            self.backend,
-            'version':
-            str(
+            'backend': self.backend,
+            'version': str(
                 subprocess.check_output(
                     [self.backend, '-version'], stderr=subprocess.STDOUT
                 )
             ),
-            'cmdline':
-            self.cmdline
+            'cmdline': self.cmdline
         }
 
     def start(self):

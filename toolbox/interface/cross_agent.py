@@ -821,10 +821,12 @@ class CrossAgentAnalyst:
 
         print("[CAA.summary] Start collect cluster_representation")
         return_dict['cluster_representation'] = {
-            "cluster_df_dict":
-            copy.deepcopy(self.cluster_representation_cluster_df_dict),
-            "prediction_dict":
-            copy.deepcopy(self.cluster_representation_prediction_dict)
+            "cluster_df_dict": copy.deepcopy(
+                self.cluster_representation_cluster_df_dict
+            ),
+            "prediction_dict": copy.deepcopy(
+                self.cluster_representation_prediction_dict
+            )
         }
 
         return_dict['cluster_result'] = {}

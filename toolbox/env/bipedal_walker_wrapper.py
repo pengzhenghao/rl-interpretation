@@ -258,14 +258,18 @@ class BipedalWalkerWrapper(BipedalWalker):
             color=(0.9, 0.9, 1.0)
         )
         for poly, x1, x2 in self.cloud_poly:
-            if x2 < scroll / 2: continue
-            if x1 > scroll / 2 + viewport_w / SCALE: continue
+            if x2 < scroll / 2:
+                continue
+            if x1 > scroll / 2 + viewport_w / SCALE:
+                continue
             self.viewer.draw_polygon(
                 [(p[0] + scroll / 2, p[1]) for p in poly], color=(1, 1, 1)
             )
         for poly, color in self.terrain_poly:
-            if poly[1][0] < scroll: continue
-            if poly[0][0] > scroll + viewport_w / SCALE: continue
+            if poly[1][0] < scroll:
+                continue
+            if poly[0][0] > scroll + viewport_w / SCALE:
+                continue
             self.viewer.draw_polygon(poly, color=color)
 
         self.lidar_render = (self.lidar_render + 1) % 100

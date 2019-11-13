@@ -172,14 +172,17 @@ def feature_space_linear_cka(
     Returns:
       The value of CKA between X and Y.
     """
-    if verbose: print("[get_cka] start to reduce mean")
+    if verbose:
+        print("[get_cka] start to reduce mean")
     features_x = features_x - np.mean(features_x, 0, keepdims=True)
     features_y = features_y - np.mean(features_y, 0, keepdims=True)
 
-    if verbose: print("[get_cka] start to compute dot-product-simi")
+    if verbose:
+        print("[get_cka] start to compute dot-product-simi")
     dot_product_similarity = np.linalg.norm(features_x.T.dot(features_y))**2
 
-    if verbose: print("[get_cka] start to normalize x, y")
+    if verbose:
+        print("[get_cka] start to normalize x, y")
     normalization_x = np.linalg.norm(features_x.T.dot(features_x))
     normalization_y = np.linalg.norm(features_y.T.dot(features_y))
 
@@ -209,7 +212,8 @@ def feature_space_linear_cka(
             )
         )
 
-    if verbose: print("[get_cka] start to return")
+    if verbose:
+        print("[get_cka] start to return")
     return dot_product_similarity / (normalization_x * normalization_y)
 
 
