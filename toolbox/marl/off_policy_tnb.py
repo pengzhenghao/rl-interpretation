@@ -3,19 +3,19 @@ from toolbox.marl.extra_loss_ppo_trainer import novelty_loss, \
     ppo_surrogate_loss, ExtraLossPPOTFPolicy, DEFAULT_CONFIG, merge_dicts, \
     ExtraLossPPOTrainer, validate_config
 
-tnb_ppo_default_config = merge_dicts(DEFAULT_CONFIG, dict(
+off_tnb_ppo_default_config = merge_dicts(DEFAULT_CONFIG, dict(
     joint_dataset_sample_batch_size=200
 ))
 
 
-def tnb_loss(policy, model, dist_class, train_batch):
+def off_tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
     nov_loss = novelty_loss(policy, model, dist_class, train_batch)
     return [original_loss, nov_loss]
 
 
-def tnb_gradients(policy, optimizer, loss):
+def off_tnb_gradients(policy, optimizer, loss):
     policy_grad = optimizer.compute_gradients(loss[0])
     novelty_grad = optimizer.compute_gradients(loss[1])
 
@@ -25,13 +25,11 @@ def tnb_gradients(policy, optimizer, loss):
     return total_grad
 
 
-
-
-TNBPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
-    name="TNBPPOTFPolicy",
-    get_default_config=lambda: tnb_ppo_default_config,
-    loss_fn=tnb_loss,
-    gradients_fn=tnb_gradients
+OffTNBPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
+    name="OffTNBPPOTFPolicy",
+    get_default_config=lambda: off_tnb_ppo_default_config,
+    loss_fn=off_tnb_loss,
+    gradients_fn=off_tnb_gradients
 )
 
 
@@ -40,11 +38,11 @@ def validate_config_tnb(config):
     validate_config(config)
 
 
-TNBPPOTrainer = ExtraLossPPOTrainer.with_updates(
-    name="TNBPPO",
-    default_config=tnb_ppo_default_config,
+OffTNBPPOTrainer = ExtraLossPPOTrainer.with_updates(
+    name="OffTNBPPO",
+    default_config=off_tnb_ppo_default_config,
     validate_config=validate_config_tnb,
-    default_policy=TNBPPOTFPolicy
+    default_policy=OffTNBPPOTFPolicy
 )
 
 if __name__ == '__main__':
@@ -81,7 +79,7 @@ if __name__ == '__main__':
     }
 
     tune.run(
-        TNBPPOTrainer,
+        OffTNBPPOTrainer,
         local_dir=get_local_dir(),
         name="DELETEME_TEST_extra_loss_ppo_trainer",
         stop={"timesteps_total": 2000},
