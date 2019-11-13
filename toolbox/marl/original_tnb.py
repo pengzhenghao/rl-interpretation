@@ -12,19 +12,26 @@ def tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
     nov_loss = novelty_loss(policy, model, dist_class, train_batch)
+    return [original_loss, nov_loss]
+
+
+def tnb_gradients(policy, optimizer, loss):
+    policy_grad = optimizer.compute_gradients(loss[0])
+    novelty_grad = optimizer.compute_gradients(loss[1])
 
     # implement the logic of TNB
-    total_loss = original_loss + nov_loss
+    # TODO
+    total_grad = policy_grad + novelty_grad
+    return total_grad
 
-    policy.total_loss = total_loss
-    # return total_loss
-    return [original_loss, nov_loss]
+
 
 
 TNBPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
     name="TNBPPOTFPolicy",
     get_default_config=lambda: tnb_ppo_default_config,
     loss_fn=tnb_loss,
+    gradients_fn=tnb_gradients
 )
 
 
@@ -51,7 +58,7 @@ if __name__ == '__main__':
     num_gpus = 0
 
     # This is only test code.
-    initialize_ray(test_mode=True, local_mode=True, num_gpus=num_gpus)
+    initialize_ray(test_mode=True, local_mode=False, num_gpus=num_gpus)
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
 
@@ -77,6 +84,6 @@ if __name__ == '__main__':
         TNBPPOTrainer,
         local_dir=get_local_dir(),
         name="DELETEME_TEST_extra_loss_ppo_trainer",
-        stop={"timesteps_total": 50000},
+        stop={"timesteps_total": 2000},
         config=config,
     )
