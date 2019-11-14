@@ -3,11 +3,11 @@ import tensorflow as tf
 from ray import tune
 
 from toolbox import initialize_ray
+from toolbox.marl import on_train_result, MultiAgentEnvWrapper
 from toolbox.marl.extra_loss_ppo_trainer import novelty_loss, \
     ppo_surrogate_loss, DEFAULT_CONFIG, merge_dicts, ExtraLossPPOTrainer, \
     ExtraLossPPOTFPolicy, kl_and_loss_stats_without_total_loss, \
     validate_config_basic
-from toolbox.marl import on_train_result, MultiAgentEnvWrapper
 from toolbox.utils import get_local_dir
 
 tnb_ppo_default_config = merge_dicts(
@@ -100,6 +100,8 @@ def tnb_gradients(policy, optimizer, loss):
         tg = tg / 2
         return tg
 
+    policy.gradient_cosine_similarity = cos_similarity
+
     total_grad = tf.cond(cos_similarity > 0, less_90_deg, greater_90_deg)
 
     # reshape back the gradients
@@ -117,12 +119,22 @@ def tnb_gradients(policy, optimizer, loss):
     return return_gradients
 
 
+def grad_stats_fn(policy, batch, grads):
+    ret = {
+        "cos_similarity": policy.gradient_cosine_similarity,
+        # "policy_grad_norm": policy.policy_grad_norm,
+        # "novelty_grad_norm": policy.novelty_grad_norm
+    }
+    return ret
+
+
 TNBPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
     name="TNBPPOTFPolicy",
     get_default_config=lambda: tnb_ppo_default_config,
     loss_fn=tnb_loss,
     gradients_fn=tnb_gradients,
-    stats_fn=kl_and_loss_stats_without_total_loss
+    stats_fn=kl_and_loss_stats_without_total_loss,
+    grad_stats_fn=grad_stats_fn
 )
 
 TNBPPOTrainer = ExtraLossPPOTrainer.with_updates(
@@ -138,7 +150,7 @@ def test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=True):
     num_gpus = 0
 
     # This is only test code.
-    initialize_ray(test_mode=False, local_mode=local_mode, num_gpus=num_gpus)
+    initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
 
@@ -173,4 +185,4 @@ def test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=True):
 
 
 if __name__ == '__main__':
-    test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=False)
+    test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=True)
