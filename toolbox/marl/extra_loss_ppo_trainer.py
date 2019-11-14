@@ -32,7 +32,7 @@ OPPONENT_ACTION = "opponent_action"
 
 PEER_ACTION = "other_replay"
 JOINT_OBS = "joint_dataset"
-NO_SPLIT_ACTION = "no_split_actions"
+NO_SPLIT_OBS = "no_split_obs"
 
 extra_loss_ppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
@@ -74,8 +74,8 @@ def postprocess_ppo_gae(
                 sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
             )
         else:
-            batch[NO_SPLIT_ACTION] = np.zeros_like(
-                sample_batch[SampleBatch.ACTIONS], dtype=np.float32
+            batch[NO_SPLIT_OBS] = np.zeros_like(
+                sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
             )
         batch[PEER_ACTION] = np.zeros_like(
             sample_batch[SampleBatch.ACTIONS], dtype=np.float32
@@ -124,8 +124,8 @@ class AddLossMixin(object):
                 ]
             )  # exclude policy itself action
             feed_dict[replay_ph] = concat_replay_act
-            feed_dict[self._loss_input_dict[NO_SPLIT_ACTION]] = \
-                batch['actions']
+            feed_dict[self._loss_input_dict[NO_SPLIT_OBS]] = \
+                batch[SampleBatch.CUR_OBS]
 
         # The below codes are copied from rllib.
         if self._batch_divisibility_req > 1:
@@ -187,11 +187,11 @@ def norm(my_act, other_act, mode="mean"):
 def novelty_loss(policy, model, dist_class, train_batch):
     mode = policy.config['novelty_mode']
     if policy.config.get("use_joint_dataset"):
-        joint_obs_ph = train_batch[JOINT_OBS]
-        ret_act, _ = model.base_model(joint_obs_ph)
-        my_act = tf.split(ret_act, 2, axis=1)[0]
+        obs_ph = train_batch[JOINT_OBS]
     else:
-        my_act = train_batch[NO_SPLIT_ACTION]
+        obs_ph = train_batch[NO_SPLIT_OBS]
+    ret_act, _ = model.base_model(obs_ph)
+    my_act = tf.split(ret_act, 2, axis=1)[0]
     peer_act_ph = train_batch[PEER_ACTION]
     flatten = tf.reshape(my_act, [-1])
     other_act = tf.reshape(peer_act_ph, [-1, tf.shape(flatten)[0]])
@@ -330,7 +330,7 @@ def choose_policy_optimizer(workers, config):
         )
 
     split_list = [JOINT_OBS, PEER_ACTION] \
-        if config['use_joint_dataset'] else [PEER_ACTION, NO_SPLIT_ACTION]
+        if config['use_joint_dataset'] else [PEER_ACTION, NO_SPLIT_OBS]
 
     return LocalMultiGPUOptimizerModified(
         workers,

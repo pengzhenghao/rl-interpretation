@@ -5,7 +5,7 @@ from ray import tune
 from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper, on_train_result
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
-from toolbox.marl.off_policy_tnb import TNBPPOTrainer
+from toolbox.marl.task_novelty_bisector import TNBPPOTrainer
 from toolbox.utils import get_local_dir, initialize_ray
 
 if __name__ == '__main__':
@@ -29,7 +29,8 @@ if __name__ == '__main__':
         "off_policy_tnb": TNBPPOTrainer,
         "off_policy_tnb_min_novelty": TNBPPOTrainer,
         "on_policy_tnb": TNBPPOTrainer,
-        "on_policy_tnb_min_novelty": TNBPPOTrainer
+        "on_policy_tnb_min_novelty": TNBPPOTrainer,
+        "tnb_4in1": TNBPPOTrainer
     }
 
     run_specify_config = {
@@ -50,6 +51,10 @@ if __name__ == '__main__':
             "use_joint_dataset": False,
             "novelty_mode": "min"
         },
+        "tnb_4in1": {
+            "use_joint_dataset": tune.grid_search([True, False]),
+            "novelty_mode": tune.grid_search(["min", "mean"])
+        }
     }
 
     run_specify_stop = {
@@ -69,6 +74,7 @@ if __name__ == '__main__':
     run_specify_stop["on_policy_tnb_min_novelty"
                      ] = run_specify_stop["off_policy_tnb"]
     run_specify_stop["on_policy_tnb"] = run_specify_stop["off_policy_tnb"]
+    run_specify_stop["tnb_4in1"] = run_specify_stop["off_policy_tnb"]
 
     assert run_name in run_dict, "--run argument should be in {}, " \
                                  "but you provide {}." \
