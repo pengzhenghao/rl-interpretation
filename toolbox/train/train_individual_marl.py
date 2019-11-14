@@ -83,7 +83,7 @@ if __name__ == '__main__':
     initialize_ray(
         num_gpus=args.num_gpus,
         test_mode=args.test_mode,
-        object_store_memory=25 * 1024 * 1024 * 1024,
+        object_store_memory=40 * 1024 * 1024 * 1024,
         temp_dir="/data1/pengzh/tmp"
     )
 
@@ -101,12 +101,11 @@ if __name__ == '__main__':
             "agent_ids": policy_names
         },
         "log_level": "DEBUG" if args.test_mode else "ERROR",
-        "num_gpus": 0.5,
+        "num_gpus": 0.45,
         "num_cpus_per_worker": 2,
-        "num_cpus_for_driver": 2,
+        "num_cpus_for_driver": 1,
         "num_envs_per_worker": 16,
         "sample_batch_size": 256,
-        "joint_dataset_sample_batch_size": 200,
         "multiagent": {
             "policies": {i: default_policy
                          for i in policy_names},
