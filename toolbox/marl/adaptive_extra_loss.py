@@ -40,7 +40,8 @@ class NoveltyParamMixin(object):
             name="novelty_loss_param",
             shape=(),
             trainable=False,
-            dtype=tf.float32)
+            dtype=tf.float32
+        )
         self.maxlen = config['novelty_loss_running_length']
         self.novelty_stat = None
 
@@ -50,18 +51,23 @@ class NoveltyParamMixin(object):
         if self.novelty_stat is None:
             # lazy initialize
             self.novelty_loss_param_target = min(
-                sampled_novelty - self.increment, self.increment)
+                sampled_novelty - self.increment, self.increment
+            )
             self.novelty_stat = deque(
                 [self.novelty_loss_param_target] * self.maxlen,
-                maxlen=self.maxlen)
+                maxlen=self.maxlen
+            )
 
         self.novelty_stat.append(sampled_novelty)
         running_mean = np.mean(self.novelty_stat)
         # logger.debug("Current novelty {}, mean {}, target {}, param {
         # }".format(
-        print("Current novelty {}, mean {}, target {}, param {}".format(
-            sampled_novelty, running_mean, self.novelty_loss_param_target,
-            self.novelty_loss_param_val))
+        print(
+            "Current novelty {}, mean {}, target {}, param {}".format(
+                sampled_novelty, running_mean, self.novelty_loss_param_target,
+                self.novelty_loss_param_val
+            )
+        )
         if running_mean > self.novelty_loss_param_target + self.increment:
             msg = "We detected the novelty {} has exceeded" \
                   " the target {}, so we increase the target" \
@@ -79,24 +85,27 @@ class NoveltyParamMixin(object):
         elif sampled_novelty < self.novelty_loss_param_target - self.increment:
             # elif sampled_novelty < 0.5 * self.novelty_loss_param_target:
             self.novelty_loss_param_val *= 1.5
-        self.novelty_loss_param.load(self.novelty_loss_param_val,
-                                     session=self.get_session())
+        self.novelty_loss_param.load(
+            self.novelty_loss_param_val, session=self.get_session()
+        )
         return self.novelty_loss_param_val
 
 
 def update_novelty(trainer, fetches):
     if "novelty_loss" in fetches:
         # single-agent
-        trainer.workers.local_worker().for_policy(
-            lambda pi: pi.update_novelty(fetches["novelty_loss"]))
+        trainer.workers.local_worker(
+        ).for_policy(lambda pi: pi.update_novelty(fetches["novelty_loss"]))
     else:
 
         def update(pi, pi_id):
             if pi_id in fetches:
                 pi.update_novelty(fetches[pi_id]["novelty_loss"])
             else:
-                logger.debug("No data for {}, not updating"
-                             " novelty_loss_param".format(pi_id))
+                logger.debug(
+                    "No data for {}, not updating"
+                    " novelty_loss_param".format(pi_id)
+                )
 
         # multi-agent
         trainer.workers.local_worker().foreach_trainable_policy(update)
@@ -120,8 +129,9 @@ def warp_after_train_result(trainer, fetches):
 def setup_mixins_modified(policy, obs_space, action_space, config):
     ValueNetworkMixin.__init__(policy, obs_space, action_space, config)
     KLCoeffMixin.__init__(policy, config)
-    EntropyCoeffSchedule.__init__(policy, config["entropy_coeff"],
-                                  config["entropy_coeff_schedule"])
+    EntropyCoeffSchedule.__init__(
+        policy, config["entropy_coeff"], config["entropy_coeff_schedule"]
+    )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
     NoveltyParamMixin.__init__(policy, config)
 

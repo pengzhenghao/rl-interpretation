@@ -130,9 +130,9 @@ class AddLossMixin(object):
         # The below codes are copied from rllib.
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                    len(batch[SampleBatch.CUR_OBS]) %
-                    self._batch_divisibility_req == 0
-                    and max(batch[SampleBatch.AGENT_INDEX]) == 0
+                len(batch[SampleBatch.CUR_OBS]) %
+                self._batch_divisibility_req == 0
+                and max(batch[SampleBatch.AGENT_INDEX]) == 0
             )  # not multiagent
         else:
             meets_divisibility_reqs = True
