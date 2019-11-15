@@ -1,4 +1,6 @@
 # Please call this script at novel-rl directory.
+ulimit -u 65535
+ulimit -n 65535
 
 exp_name="1115-mixture_gaussian"
 
@@ -21,7 +23,7 @@ toolbox/action_distribution/train_mixture_gaussian.py \
 --num-seeds 1 > ${exp_name}_${env_name}.log 2>&1 &
 
 env_name="HalfCheetah-v2"
-OMP_NUM_THREADS=1 nohup python \
+nohup python \
 toolbox/action_distribution/train_mixture_gaussian.py \
 --exp-name ${exp_name}_${env_name} --num-gpus 5 --env ${env_name} \
 --num-seeds 1 > ${exp_name}_${env_name}.log 2>&1 &
