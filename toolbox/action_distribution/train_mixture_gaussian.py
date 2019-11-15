@@ -207,10 +207,11 @@ assert run_config['model']['custom_options']
 tune.run(
     PPOTrainerWithoutKL,
     name=args.exp_name,
-    # verbose=1,
+    verbose=1,
     local_dir=get_local_dir(),
     checkpoint_freq=1,
     checkpoint_at_end=True,
+    max_failures=10,
     stop={"timesteps_total": algo_specify_config['timesteps_total']}
     if "timesteps_total" in algo_specify_config \
         else algo_specify_config['stop'],
