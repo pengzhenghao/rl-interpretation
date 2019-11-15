@@ -27,3 +27,9 @@ nohup python \
 toolbox/action_distribution/train_mixture_gaussian.py \
 --exp-name ${exp_name}_${env_name} --num-gpus 4 --env ${env_name} \
 --num-seeds 1 > ${exp_name}_${env_name}.log 2>&1 &
+
+env_name="Humanoid-v2"
+CUDA_VISIBLE_DEVICES=4,5,6,7 nohup python \
+toolbox/action_distribution/train_mixture_gaussian.py \
+--exp-name ${exp_name}_${env_name} --num-gpus 4 --env ${env_name} \
+--num-seeds 1 > ${exp_name}_${env_name}.log 2>&1 &
