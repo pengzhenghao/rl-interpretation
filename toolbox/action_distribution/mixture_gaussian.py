@@ -14,34 +14,26 @@ class GaussianMixture(TFActionDistribution):
         self.k = model.model_config['custom_options']['num_components']
         input_length = inputs.shape.as_list()[1]
         action_length = int((input_length / self.k - 1) / 2)
-        num_splits = [action_length] * int((input_length - self.k) /
-        action_length) + [self.k]
-        # splits = tf.split(inputs, num_splits, axis=1)
+        num_splits = [action_length * self.k, action_length * self.k, self.k]
 
-        splits = tf.split(inputs, int(input_length / self.k), axis=1)
-        # self.log_stds = splits[:-1:2]
-
-        self.log_stds = splits[1::2]
-        self.stds = [tf.exp(log_std) for log_std in self.log_stds]
-        self.means = splits[:-1:2]
+        splits = tf.split(inputs, num_splits, axis=1)
+        self.stds = tf.reshape(splits[1], [-1, self.k, action_length])
+        self.means = tf.reshape(splits[0], [-1, self.k, action_length])
         self.weight = splits[-1]
 
         self.mixture_dist = tfd.Categorical(logits=self.weight)
-        # self.components_dist = tfd.MultivariateNormalDiag(
-        self.components_dist = tfd.Normal(
+        self.components_dist = tfd.MultivariateNormalDiag(
             self.means,  # One for each component.
             self.stds)
         self.gaussian_mixture_model = tfd.MixtureSameFamily(
             mixture_distribution=self.mixture_dist,
             components_distribution=self.components_dist
         )
+        self.inputs = inputs
         TFActionDistribution.__init__(self, inputs, model)
 
     def logp(self, x):
-        assert x.dtype == 'float32', x.dtype
-        ret = self.gaussian_mixture_model.log_prob(x)
-        # ret = tf.expand_dims(ret, 0)
-        return ret
+        return self.gaussian_mixture_model.log_prob(x)
 
     # def entropy(self):
     #     return self.gaussian_mixture_model.entropy()

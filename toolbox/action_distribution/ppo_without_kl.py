@@ -3,7 +3,7 @@ import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTFPolicy, PPOTrainer
 from ray.rllib.agents.ppo.ppo_policy import Postprocessing, SampleBatch, \
     BEHAVIOUR_LOGITS, ACTION_LOGP, explained_variance, ValueNetworkMixin, \
-    LearningRateSchedule
+    LearningRateSchedule, EntropyCoeffSchedule
 
 
 class PPOLossWithoutKL(object):
@@ -68,6 +68,10 @@ class PPOLossWithoutKL(object):
             advantages * logp_ratio,
             advantages * tf.clip_by_value(logp_ratio, 1 - clip_param,
                                           1 + clip_param))
+
+        # curr_entropy = curr_action_dist.entropy()
+        # self.mean_entropy = reduce_mean_valid(curr_entropy)
+
         self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
         if use_gae:
             vf_loss1 = tf.square(value_fn - value_targets)
@@ -76,10 +80,14 @@ class PPOLossWithoutKL(object):
             vf_loss2 = tf.square(vf_clipped - value_targets)
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
             self.mean_vf_loss = reduce_mean_valid(vf_loss)
-            loss = reduce_mean_valid(-surrogate_loss + vf_loss_coeff * vf_loss)
+            loss = reduce_mean_valid(
+                -surrogate_loss + vf_loss_coeff * vf_loss)
+                # - entropy_coeff * curr_entropy)
         else:
             self.mean_vf_loss = tf.constant(0.0)
-            loss = reduce_mean_valid(-surrogate_loss)
+            loss = reduce_mean_valid(
+                -surrogate_loss)
+            # - entropy_coeff * curr_entropy)
         self.loss = loss
 
 
@@ -108,6 +116,7 @@ def ppo_surrogate_loss_without_kl(policy, model, dist_class, train_batch):
         action_dist,
         model.value_function(),
         mask,
+        # entropy_coeff=policy.entropy_coeff,
         clip_param=policy.config["clip_param"],
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
@@ -131,6 +140,8 @@ def loss_stats(policy, train_batch):
 
 def setup_mixins_without_kl(policy, obs_space, action_space, config):
     ValueNetworkMixin.__init__(policy, obs_space, action_space, config)
+    # EntropyCoeffSchedule.__init__(policy, config["entropy_coeff"],
+    #                               config["entropy_coeff_schedule"])
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
 
 
@@ -139,10 +150,13 @@ PPOTFPolicyWithoutKL = PPOTFPolicy.with_updates(
     loss_fn=ppo_surrogate_loss_without_kl,
     stats_fn=loss_stats,
     before_loss_init=setup_mixins_without_kl,
-    mixins=[LearningRateSchedule, ValueNetworkMixin]
+    mixins=[LearningRateSchedule,
+            # EntropyCoeffSchedule,
+            ValueNetworkMixin]
 )
 
 PPOTrainerWithoutKL = PPOTrainer.with_updates(
     name="PPOWithoutKL",
     default_policy=PPOTFPolicyWithoutKL,
+    after_optimizer_step=None
 )
