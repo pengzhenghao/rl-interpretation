@@ -94,7 +94,7 @@ elif args.env == "HalfCheetah-v2":
                 'sgd_minibatch_size': 4096,
                 'train_batch_size': 65536,
                 "num_workers": 16,
-                "num_gpus": 1,
+                "num_gpus": 0.3,
                 "grad_clip": 0.5,
                 "num_envs_per_worker": 16,
                 # "batch_mode": "truncate_episodes",
