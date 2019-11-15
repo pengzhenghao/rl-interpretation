@@ -24,10 +24,12 @@ class GaussianMixture(TFActionDistribution):
         self.means = tf.reshape(splits[0], [-1, self.k, action_length])
         self.weight = splits[-1]
 
-        self.mixture_dist = tfd.Categorical(logits=self.weight)
+        self.mixture_dist = tfd.Categorical(logits=self.weight,
+                                            allow_nan_stats=False)
         self.components_dist = tfd.MultivariateNormalDiag(
             self.means,  # One for each component.
-            self.stds
+            self.stds,
+            allow_nan_stats=False
         )
         self.gaussian_mixture_model = tfd.MixtureSameFamily(
             mixture_distribution=self.mixture_dist,
