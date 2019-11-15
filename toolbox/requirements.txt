@@ -23,3 +23,4 @@ box2d-py==2.3.8
 sklearn
 seaborn
 distro
+gym[atari]
