@@ -130,9 +130,9 @@ class AddLossMixin(object):
         # The below codes are copied from rllib.
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                len(batch[SampleBatch.CUR_OBS]) %
-                self._batch_divisibility_req == 0
-                and max(batch[SampleBatch.AGENT_INDEX]) == 0
+                    len(batch[SampleBatch.CUR_OBS]) %
+                    self._batch_divisibility_req == 0
+                    and max(batch[SampleBatch.AGENT_INDEX]) == 0
             )  # not multiagent
         else:
             meets_divisibility_reqs = True
@@ -315,7 +315,7 @@ def validate_config_basic(config):
 
 
 def validate_config_modified(config):
-    assert "novelty_param" in config
+    assert "novelty_loss_param" in config
     validate_config_basic(config)
 
 
@@ -370,11 +370,11 @@ ExtraLossPPOTrainer = PPOTrainer.with_updates(
 
 
 def test_extra_loss_ppo_trainer_use_joint_dataset(extra_config=None):
-    num_agents = 5
+    num_agents = 3
     num_gpus = 0
 
     # This is only test code.
-    initialize_ray(test_mode=True, local_mode=False, num_gpus=num_gpus)
+    initialize_ray(test_mode=True, local_mode=True, num_gpus=num_gpus)
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
 
