@@ -183,7 +183,7 @@ algo_specify_config = algo_specify_config_dict[args.run]
 general_config = {
     "log_level": "DEBUG" if args.test_mode else "ERROR",
     "env": args.env,
-    "num_gpus": 0.15,
+    "num_gpus": 0.15 if 0.15<args.num_gpus else 0,
     "num_cpus_for_driver": 0.2,
     "num_cpus_per_worker": 0.75
 }
@@ -207,11 +207,11 @@ assert run_config['model']['custom_options']
 tune.run(
     PPOTrainerWithoutKL,
     name=args.exp_name,
-    verbose=1,
+    verbose=1 if not args.test_mode else 2,
     local_dir=get_local_dir(),
     checkpoint_freq=1,
     checkpoint_at_end=True,
-    max_failures=10,
+    max_failures=100,
     stop={"timesteps_total": algo_specify_config['timesteps_total']}
     if "timesteps_total" in algo_specify_config \
         else algo_specify_config['stop'],

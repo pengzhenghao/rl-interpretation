@@ -31,7 +31,8 @@ class GaussianMixture(TFActionDistribution):
         )
         self.gaussian_mixture_model = tfd.MixtureSameFamily(
             mixture_distribution=self.mixture_dist,
-            components_distribution=self.components_dist
+            components_distribution=self.components_dist,
+            allow_nan_stats=False
         )
         self.inputs = inputs
         TFActionDistribution.__init__(self, inputs, model)
