@@ -172,6 +172,30 @@ elif args.env == "Hopper-v2":
             }
         }
     }
+elif args.env == "atari":
+    # We have result at https://github.com/ray-project/rl-experiments
+    algo_specify_config_dict = {
+        "PPO": {
+            "stop": {
+                "timesteps_total": int(2.5e7)
+            },
+            "config": {
+                "lambda": 0.95,
+                "kl_coeff": 0.5,
+                "clip_rewards": True,
+                "clip_param": 0.1,
+                "vf_clip_param": 10.0,
+                "entropy_coeff": 0.01,
+                "train_batch_size": 5000,
+                "sample_batch_size": 100,
+                "sgd_minibatch_size": 500,
+                "num_sgd_iter": 10,
+                "num_workers": 10,
+                "num_envs_per_worker": 5,
+                "vf_share_layers": True
+            }
+        }
+    }
 else:
     raise NotImplementedError(
         "Only prepared BipedalWalker and "
@@ -182,7 +206,12 @@ algo_specify_config = algo_specify_config_dict[args.run]
 
 general_config = {
     "log_level": "DEBUG" if args.test_mode else "ERROR",
-    "env": args.env,
+    "env": args.env if args.env!= "atari" else tune.grid_search([
+        "BreakoutNoFrameskip-v4",
+        "BeamRiderNoFrameskip-v4",
+        "QbertNoFrameskip-v4",
+        "SpaceInvadersNoFrameskip-v4"
+    ]),
     "num_gpus": 0.15 if 0.15<args.num_gpus else 0,
     "num_cpus_for_driver": 0.2,
     "num_cpus_per_worker": 0.75
@@ -198,7 +227,7 @@ register_gaussian_mixture()
 run_config["model"] = {
     "custom_action_dist": GaussianMixture.name,
     "custom_options": {
-        "num_components": 7
+        "num_components": tune.grid_search([1, 2, 3, 5, 10])
     }
 }
 
@@ -206,7 +235,7 @@ assert run_config['model']['custom_options']
 
 tune.run(
     PPOTrainerWithoutKL,
-    name=args.exp_name,
+    name=args.exp_name if args.exp_name != "atari" else tune.grid_search([]),
     verbose=1 if not args.test_mode else 2,
     local_dir=get_local_dir(),
     checkpoint_freq=1,
