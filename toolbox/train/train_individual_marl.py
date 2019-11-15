@@ -4,6 +4,7 @@ from ray import tune
 
 from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper, on_train_result
+from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
 from toolbox.marl.task_novelty_bisector import TNBPPOTrainer
 from toolbox.utils import get_local_dir, initialize_ray
@@ -26,6 +27,7 @@ if __name__ == '__main__':
     run_dict = {
         "individual": "PPO",
         "extra_loss": ExtraLossPPOTrainer,
+        "adaptive_extra_loss": AdaptiveExtraLossPPOTrainer,
         "off_policy_tnb": TNBPPOTrainer,
         "off_policy_tnb_min_novelty": TNBPPOTrainer,
         "on_policy_tnb": TNBPPOTrainer,
@@ -35,6 +37,7 @@ if __name__ == '__main__':
 
     run_specify_config = {
         "individual": {},
+        "adaptive_extra_loss": {},
         "extra_loss": {
             "novelty_loss_param": tune.grid_search(
                 [0.01, 0.05, 0.1, 0.2, 0.5]
@@ -70,11 +73,13 @@ if __name__ == '__main__':
         }
     }
     run_specify_stop["off_policy_tnb_min_novelty"
-                     ] = run_specify_stop["off_policy_tnb"]
+    ] = run_specify_stop["off_policy_tnb"]
     run_specify_stop["on_policy_tnb_min_novelty"
-                     ] = run_specify_stop["off_policy_tnb"]
+    ] = run_specify_stop["off_policy_tnb"]
     run_specify_stop["on_policy_tnb"] = run_specify_stop["off_policy_tnb"]
     run_specify_stop["tnb_4in1"] = run_specify_stop["off_policy_tnb"]
+    run_specify_stop["adaptive_extra_loss"] = run_specify_stop[
+        "adaptive_extra_loss"]
 
     assert run_name in run_dict, "--run argument should be in {}, " \
                                  "but you provide {}." \
@@ -84,7 +89,7 @@ if __name__ == '__main__':
         num_gpus=args.num_gpus,
         test_mode=args.test_mode,
         object_store_memory=40 * 1024 * 1024 * 1024,
-        temp_dir="/data1/pengzh/tmp"
+        # temp_dir="/data1/pengzh/tmp"
     )
 
     policy_names = ["ppo_agent{}".format(i) for i in range(args.num_agents)]
@@ -101,7 +106,8 @@ if __name__ == '__main__':
             "agent_ids": policy_names
         },
         "log_level": "DEBUG" if args.test_mode else "ERROR",
-        "num_gpus": 0.45,
+        # "num_gpus": 0.45,
+        "num_gpus": 1,
         "num_cpus_per_worker": 2,
         "num_cpus_for_driver": 1,
         "num_envs_per_worker": 16,

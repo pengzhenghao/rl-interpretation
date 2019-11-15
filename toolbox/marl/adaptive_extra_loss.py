@@ -19,8 +19,8 @@ adaptive_extra_loss_ppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         novelty_loss_param_init=0.000001,
-        novelty_loss_increment=100.0,
-        novelty_loss_running_length=100,
+        novelty_loss_increment=10.0,
+        novelty_loss_running_length=10,
         joint_dataset_sample_batch_size=200,
         novelty_mode="mean",
         use_joint_dataset=True
@@ -31,8 +31,8 @@ adaptive_extra_loss_ppo_default_config = merge_dicts(
 class NoveltyParamMixin(object):
     def __init__(self, config):
         self.novelty_loss_param_val = config['novelty_loss_param_init']
-        self.increment = config[
-            'novelty_loss_increment']  # may be need to tune this value
+        # may be need to tune this value
+        self.increment = config['novelty_loss_increment']
         # self.novelty_loss_param_target = self.increment  # hard coded
         self.novelty_loss_param_target = None
         self.novelty_loss_param = tf.get_variable(
@@ -43,19 +43,23 @@ class NoveltyParamMixin(object):
             dtype=tf.float32)
         self.maxlen = config['novelty_loss_running_length']
         self.novelty_stat = None
-        # self.novelty_stat = deque([self.novelty_loss_param_target] * maxlen,
-        #                           maxlen=maxlen)
 
     def update_novelty(self, sampled_novelty):
-        if self.novelty_stat is None:
-            self.novelty_loss_param_target = sampled_novelty - self.increment
-            self.novelty_stat = deque(
-                [sampled_novelty - self.increment] * self.maxlen,
-                maxlen=self.maxlen)
         sampled_novelty = -sampled_novelty
+
+        if self.novelty_stat is None:
+            # lazy initialize
+            self.novelty_loss_param_target = min(
+                sampled_novelty - self.increment, self.increment)
+            self.novelty_stat = deque(
+                [self.novelty_loss_param_target] * self.maxlen,
+                maxlen=self.maxlen)
+
         self.novelty_stat.append(sampled_novelty)
         running_mean = np.mean(self.novelty_stat)
-        logger.debug("Current novelty {}, mean {}, target {}, param {}".format(
+        # logger.debug("Current novelty {}, mean {}, target {}, param {
+        # }".format(
+        print("Current novelty {}, mean {}, target {}, param {}".format(
             sampled_novelty, running_mean, self.novelty_loss_param_target,
             self.novelty_loss_param_val))
         if running_mean > self.novelty_loss_param_target + self.increment:
@@ -66,6 +70,7 @@ class NoveltyParamMixin(object):
                 self.novelty_loss_param_target + self.increment,
                 sampled_novelty)
             logger.info(msg)
+            print(msg)
             self.novelty_loss_param_target += self.increment
 
         if sampled_novelty > self.increment + self.novelty_loss_param_target:
