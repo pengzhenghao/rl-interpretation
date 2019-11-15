@@ -94,16 +94,13 @@ elif args.env == "HalfCheetah-v2":
                 'sgd_minibatch_size': 4096,
                 'train_batch_size': 65536,
                 "num_workers": 16,
-                "num_gpus": 1,
+                "num_gpus": 0.5,
                 "grad_clip": 0.5,
                 "num_envs_per_worker": 16,
-                # "batch_mode": "truncate_episodes",
-                # "observation_filter": "MeanStdFilter",
             },
             "stop": {
                 "episode_reward_mean": 9800,
                 "timesteps_total": int(1.5e8)
-                # "time_total_s": 10800
             }
         }
     }
@@ -127,7 +124,7 @@ elif args.env == "Humanoid-v2":
                 'train_batch_size': 65536,
                 "num_workers": 16,
                 "num_envs_per_worker": 16,
-                "num_gpus": 1
+                "num_gpus": 0.5
             }
         }
     }
@@ -146,7 +143,7 @@ elif args.env == "Walker2d-v3":
                 "sgd_minibatch_size": 2048,
                 "train_batch_size": 20000,
                 "num_cpus_per_worker": 0.8,
-                "num_gpus": 0.3,
+                "num_gpus": 0.18,
                 "num_cpus_for_driver": 0.5
             }
         }
@@ -167,7 +164,7 @@ elif args.env == "Hopper-v2":
                 "train_batch_size": 10000,
                 "sgd_minibatch_size": 2048,
                 "num_cpus_per_worker": 0.8,
-                "num_gpus": 0.3,
+                "num_gpus": 0.18,
                 "num_cpus_for_driver": 0.5
             }
         }

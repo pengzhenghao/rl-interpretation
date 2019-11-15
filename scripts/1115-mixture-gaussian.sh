@@ -25,5 +25,5 @@ toolbox/action_distribution/train_mixture_gaussian.py \
 env_name="HalfCheetah-v2"
 nohup python \
 toolbox/action_distribution/train_mixture_gaussian.py \
---exp-name ${exp_name}_${env_name} --num-gpus 5 --env ${env_name} \
+--exp-name ${exp_name}_${env_name} --num-gpus 4 --env ${env_name} \
 --num-seeds 1 > ${exp_name}_${env_name}.log 2>&1 &
