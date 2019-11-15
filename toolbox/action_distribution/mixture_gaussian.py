@@ -1,9 +1,12 @@
+import logging
+
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.tf_action_dist import TFActionDistribution
 
+logger = logging.getLogger(__name__)
 tfd = tfp.distributions
 
 
@@ -24,7 +27,8 @@ class GaussianMixture(TFActionDistribution):
         self.mixture_dist = tfd.Categorical(logits=self.weight)
         self.components_dist = tfd.MultivariateNormalDiag(
             self.means,  # One for each component.
-            self.stds)
+            self.stds
+        )
         self.gaussian_mixture_model = tfd.MixtureSameFamily(
             mixture_distribution=self.mixture_dist,
             components_distribution=self.components_dist
@@ -51,7 +55,8 @@ class GaussianMixture(TFActionDistribution):
 
 def register_gaussian_mixture():
     ModelCatalog.register_custom_action_dist(
-        GaussianMixture.name, GaussianMixture)
+        GaussianMixture.name, GaussianMixture
+    )
 
 
 register_gaussian_mixture()
@@ -59,20 +64,23 @@ register_gaussian_mixture()
 if __name__ == '__main__':
     from ray import tune
     from toolbox import initialize_ray
-    from toolbox.action_distribution import PPOTrainerWithoutKL
 
     initialize_ray(test_mode=True, local_mode=True)
 
     tune.run(
-        # "PPO",
-        PPOTrainerWithoutKL,
+        "TD3",
+        # PPOTrainerWithoutKL,
         local_dir="/tmp/ray",
         name="DELETE_ME_TEST",
         config={
             "env": "BipedalWalker-v2",
+            "log_level": "DEBUG",
             "model": {
                 "custom_action_dist": GaussianMixture.name,
-                "custom_options": {"num_components": 7}}
+                "custom_options": {
+                    "num_components": 7
+                }
+            }
         },
-        stop={"timesteps_total": 1000}
+        stop={"timesteps_total": 10000}
     )

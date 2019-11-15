@@ -7,26 +7,28 @@ from ray.rllib.agents.ppo.ppo_policy import Postprocessing, SampleBatch, \
 
 
 class PPOLossWithoutKL(object):
-    def __init__(self,
-                 action_space,
-                 dist_class,
-                 model,
-                 value_targets,
-                 advantages,
-                 actions,
-                 prev_logits,
-                 prev_actions_logp,
-                 vf_preds,
-                 curr_action_dist,
-                 value_fn,
-                 # cur_kl_coeff,
-                 valid_mask,
-                 # entropy_coeff=0,
-                 clip_param=0.1,
-                 vf_clip_param=0.1,
-                 vf_loss_coeff=1.0,
-                 use_gae=True,
-                 model_config=None):
+    def __init__(
+            self,
+            action_space,
+            dist_class,
+            model,
+            value_targets,
+            advantages,
+            actions,
+            prev_logits,
+            prev_actions_logp,
+            vf_preds,
+            curr_action_dist,
+            value_fn,
+            # cur_kl_coeff,
+            valid_mask,
+            # entropy_coeff=0,
+            clip_param=0.1,
+            vf_clip_param=0.1,
+            vf_loss_coeff=1.0,
+            use_gae=True,
+            model_config=None
+    ):
         """Constructs the loss for Proximal Policy Objective.
 
         Arguments:
@@ -66,8 +68,9 @@ class PPOLossWithoutKL(object):
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
         surrogate_loss = tf.minimum(
             advantages * logp_ratio,
-            advantages * tf.clip_by_value(logp_ratio, 1 - clip_param,
-                                          1 + clip_param))
+            advantages *
+            tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
+        )
 
         # curr_entropy = curr_action_dist.entropy()
         # self.mean_entropy = reduce_mean_valid(curr_entropy)
@@ -76,17 +79,16 @@ class PPOLossWithoutKL(object):
         if use_gae:
             vf_loss1 = tf.square(value_fn - value_targets)
             vf_clipped = vf_preds + tf.clip_by_value(
-                value_fn - vf_preds, -vf_clip_param, vf_clip_param)
+                value_fn - vf_preds, -vf_clip_param, vf_clip_param
+            )
             vf_loss2 = tf.square(vf_clipped - value_targets)
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
             self.mean_vf_loss = reduce_mean_valid(vf_loss)
-            loss = reduce_mean_valid(
-                -surrogate_loss + vf_loss_coeff * vf_loss)
-                # - entropy_coeff * curr_entropy)
+            loss = reduce_mean_valid(-surrogate_loss + vf_loss_coeff * vf_loss)
+            # - entropy_coeff * curr_entropy)
         else:
             self.mean_vf_loss = tf.constant(0.0)
-            loss = reduce_mean_valid(
-                -surrogate_loss)
+            loss = reduce_mean_valid(-surrogate_loss)
             # - entropy_coeff * curr_entropy)
         self.loss = loss
 
@@ -101,7 +103,8 @@ def ppo_surrogate_loss_without_kl(policy, model, dist_class, train_batch):
         mask = tf.reshape(mask, [-1])
     else:
         mask = tf.ones_like(
-            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool)
+            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
+        )
 
     policy.loss_obj = PPOLossWithoutKL(
         policy.action_space,
@@ -121,7 +124,8 @@ def ppo_surrogate_loss_without_kl(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"])
+        model_config=policy.config["model"]
+    )
 
     return policy.loss_obj.loss
 
@@ -134,7 +138,8 @@ def loss_stats(policy, train_batch):
         "vf_loss": policy.loss_obj.mean_vf_loss,
         "vf_explained_var": explained_variance(
             train_batch[Postprocessing.VALUE_TARGETS],
-            policy.model.value_function())
+            policy.model.value_function()
+        )
     }
 
 
@@ -150,9 +155,11 @@ PPOTFPolicyWithoutKL = PPOTFPolicy.with_updates(
     loss_fn=ppo_surrogate_loss_without_kl,
     stats_fn=loss_stats,
     before_loss_init=setup_mixins_without_kl,
-    mixins=[LearningRateSchedule,
-            # EntropyCoeffSchedule,
-            ValueNetworkMixin]
+    mixins=[
+        LearningRateSchedule,
+        # EntropyCoeffSchedule,
+        ValueNetworkMixin
+    ]
 )
 
 PPOTrainerWithoutKL = PPOTrainer.with_updates(
