@@ -10,7 +10,8 @@ from toolbox.marl import MultiAgentEnvWrapper, on_train_result
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTFPolicy, \
     ExtraLossPPOTrainer, ValueNetworkMixin, KLCoeffMixin, AddLossMixin, \
     LearningRateSchedule, EntropyCoeffSchedule, DEFAULT_CONFIG, merge_dicts, \
-    validate_config_basic, ppo_surrogate_loss, novelty_loss
+    validate_config_basic, ppo_surrogate_loss, novelty_loss, \
+    kl_and_loss_stats_modified
 from toolbox.utils import get_local_dir, initialize_ray
 
 logger = logging.getLogger(__name__)
@@ -30,11 +31,19 @@ adaptive_extra_loss_ppo_default_config = merge_dicts(
 
 class NoveltyParamMixin(object):
     def __init__(self, config):
-        self.novelty_loss_param_val = config['novelty_loss_param_init']
         # may be need to tune this value
         self.increment = config['novelty_loss_increment']
-        # self.novelty_loss_param_target = self.increment  # hard coded
-        self.novelty_loss_param_target = None
+
+        self.novelty_loss_param_val = config['novelty_loss_param_init']
+        self.novelty_target = np.nan
+        # For stat purpose only.
+        self.novelty_target_tensor = tf.get_variable(
+            initializer=tf.constant_initializer(self.novelty_target),
+            name="novelty_target",
+            shape=(),
+            trainable=False,
+            dtype=tf.float32
+        )
         self.novelty_loss_param = tf.get_variable(
             initializer=tf.constant_initializer(self.novelty_loss_param_val),
             name="novelty_loss_param",
@@ -50,44 +59,42 @@ class NoveltyParamMixin(object):
 
         if self.novelty_stat is None:
             # lazy initialize
-            self.novelty_loss_param_target = min(
+            self.novelty_target = min(
                 sampled_novelty - self.increment, self.increment
             )
             self.novelty_stat = deque(
-                [self.novelty_loss_param_target] * self.maxlen,
+                [self.novelty_target] * self.maxlen,
                 maxlen=self.maxlen
             )
 
         self.novelty_stat.append(sampled_novelty)
         running_mean = np.mean(self.novelty_stat)
-        # logger.debug("Current novelty {}, mean {}, target {}, param {
-        # }".format(
-        print(
+        logger.debug(
             "Current novelty {}, mean {}, target {}, param {}".format(
-                sampled_novelty, running_mean, self.novelty_loss_param_target,
+                sampled_novelty, running_mean, self.novelty_target,
                 self.novelty_loss_param_val
             )
         )
-        if running_mean > self.novelty_loss_param_target + self.increment:
+        if running_mean > self.novelty_target + self.increment:
             msg = "We detected the novelty {} has exceeded" \
                   " the target {}, so we increase the target" \
                   " to: {}. (instant novelty: {})".format(
-                running_mean, self.novelty_loss_param_target,
-                self.novelty_loss_param_target + self.increment,
+                running_mean, self.novelty_target,
+                self.novelty_target + self.increment,
                 sampled_novelty)
             logger.info(msg)
-            print(msg)
-            self.novelty_loss_param_target += self.increment
+            self.novelty_target += self.increment
 
-        if sampled_novelty > self.increment + self.novelty_loss_param_target:
-            # if sampled_novelty > 2.0 * self.novelty_loss_param_target:
+        if sampled_novelty > self.increment + self.novelty_target:
+            # if sampled_novelty > 2.0 * self.novelty_target:
             self.novelty_loss_param_val *= 0.5
-        elif sampled_novelty < self.novelty_loss_param_target - self.increment:
-            # elif sampled_novelty < 0.5 * self.novelty_loss_param_target:
+        elif sampled_novelty < self.novelty_target - self.increment:
+            # elif sampled_novelty < 0.5 * self.novelty_target:
             self.novelty_loss_param_val *= 1.5
-        self.novelty_loss_param.load(
-            self.novelty_loss_param_val, session=self.get_session()
-        )
+        self.novelty_loss_param.load(self.novelty_loss_param_val,
+                                     session=self.get_session())
+        self.novelty_target_tensor.load(self.novelty_target,
+                                        session=self.get_session())
         return self.novelty_loss_param_val
 
 
@@ -121,7 +128,7 @@ def adaptive_extra_loss_ppo_loss(policy, model, dist_class, train_batch):
     return total_loss
 
 
-def warp_after_train_result(trainer, fetches):
+def wrap_after_train_result(trainer, fetches):
     update_novelty(trainer, fetches)
     update_kl(trainer, fetches)
 
@@ -136,11 +143,21 @@ def setup_mixins_modified(policy, obs_space, action_space, config):
     NoveltyParamMixin.__init__(policy, config)
 
 
+def wrap_stats_fn(policy, train_batch):
+    ret = kl_and_loss_stats_modified(policy, train_batch)
+    ret.update(
+        novelty_loss_param=policy.novelty_loss_param,
+        novelty_target=policy.novelty_target_tensor
+    )
+    return ret
+
+
 AdaptiveExtraLossPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
     name="AdaptiveExtraLossPPOTFPolicy",
     get_default_config=lambda: adaptive_extra_loss_ppo_default_config,
     before_loss_init=setup_mixins_modified,
     loss_fn=adaptive_extra_loss_ppo_loss,
+    stats_fn=wrap_stats_fn,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
         ValueNetworkMixin, AddLossMixin, NoveltyParamMixin
@@ -149,7 +166,7 @@ AdaptiveExtraLossPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
 
 AdaptiveExtraLossPPOTrainer = ExtraLossPPOTrainer.with_updates(
     name="AdaptiveExtraLossPPO",
-    after_optimizer_step=warp_after_train_result,
+    after_optimizer_step=wrap_after_train_result,
     validate_config=validate_config_basic,
     default_config=adaptive_extra_loss_ppo_default_config,
     default_policy=AdaptiveExtraLossPPOTFPolicy,
@@ -161,7 +178,7 @@ def test1(extra_config=None):
     num_gpus = 0
 
     # This is only test code.
-    initialize_ray(test_mode=True, local_mode=False, num_gpus=num_gpus)
+    initialize_ray(test_mode=True, local_mode=True, num_gpus=num_gpus)
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
 
