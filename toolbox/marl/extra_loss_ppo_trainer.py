@@ -2,7 +2,6 @@ import logging
 
 import numpy as np
 import tensorflow as tf
-from ray import tune
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
@@ -17,11 +16,8 @@ from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch
 from ray.rllib.utils.explained_variance import explained_variance
 from ray.tune.util import merge_dicts
 
-from toolbox import initialize_ray
-from toolbox.marl import MultiAgentEnvWrapper, on_train_result
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
-from toolbox.utils import get_local_dir
 
 logger = logging.getLogger(__name__)
 
@@ -133,9 +129,9 @@ class AddLossMixin(object):
         # The below codes are copied from rllib.
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                len(batch[SampleBatch.CUR_OBS]) %
-                self._batch_divisibility_req == 0
-                and max(batch[SampleBatch.AGENT_INDEX]) == 0
+                    len(batch[SampleBatch.CUR_OBS]) %
+                    self._batch_divisibility_req == 0
+                    and max(batch[SampleBatch.AGENT_INDEX]) == 0
             )  # not multiagent
         else:
             meets_divisibility_reqs = True
@@ -381,52 +377,3 @@ ExtraLossPPOTrainer = PPOTrainer.with_updates(
     default_policy=ExtraLossPPOTFPolicy,
     make_policy_optimizer=choose_policy_optimizer
 )
-
-
-def test_extra_loss_ppo_trainer_use_joint_dataset(extra_config=None):
-    num_agents = 3
-    num_gpus = 0
-
-    # This is only test code.
-    initialize_ray(test_mode=True, local_mode=True, num_gpus=num_gpus)
-
-    policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
-
-    env_config = {"env_name": "BipedalWalker-v2", "agent_ids": policy_names}
-    env = MultiAgentEnvWrapper(env_config)
-    config = {
-        "env": MultiAgentEnvWrapper,
-        "env_config": env_config,
-        "num_gpus": num_gpus,
-        "log_level": "DEBUG",
-        "joint_dataset_sample_batch_size": 37,
-        "multiagent": {
-            "policies": {
-                i: (None, env.observation_space, env.action_space, {})
-                for i in policy_names
-            },
-            "policy_mapping_fn": lambda x: x,
-        },
-        "callbacks": {
-            "on_train_result": on_train_result
-        },
-    }
-    if extra_config:
-        config.update(extra_config)
-
-    tune.run(
-        ExtraLossPPOTrainer,
-        local_dir=get_local_dir(),
-        name="DELETEME_TEST_extra_loss_ppo_trainer",
-        stop={"timesteps_total": 5000},
-        config=config
-    )
-
-
-def test_extra_loss_ppo_trainer_without_joint_dataset():
-    test_extra_loss_ppo_trainer_use_joint_dataset({"use_joint_dataset": False})
-
-
-if __name__ == '__main__':
-    test_extra_loss_ppo_trainer_use_joint_dataset()
-    test_extra_loss_ppo_trainer_without_joint_dataset()

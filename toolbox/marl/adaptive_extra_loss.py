@@ -3,15 +3,12 @@ from collections import deque
 
 import numpy as np
 import tensorflow as tf
-from ray import tune
 from ray.rllib.agents.ppo.ppo import update_kl
 
-from toolbox.marl import MultiAgentEnvWrapper, on_train_result
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTFPolicy, \
     ExtraLossPPOTrainer, ValueNetworkMixin, KLCoeffMixin, AddLossMixin, \
     LearningRateSchedule, EntropyCoeffSchedule, DEFAULT_CONFIG, merge_dicts, \
     validate_config_basic, kl_and_loss_stats_modified
-from toolbox.utils import get_local_dir, initialize_ray
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +18,6 @@ adaptive_extra_loss_ppo_default_config = merge_dicts(
         novelty_loss_param_init=0.000001,
         novelty_loss_increment=10.0,
         novelty_loss_running_length=10,
-        novelty_loss_smart_change=False,
         joint_dataset_sample_batch_size=200,
         novelty_mode="mean",
         use_joint_dataset=True
@@ -54,7 +50,7 @@ class NoveltyParamMixin(object):
         self.maxlen = config['novelty_loss_running_length']
         self.novelty_stat = None
 
-    def update_novelty(self, sampled_novelty, policy_loss):
+    def update_novelty(self, sampled_novelty):
         sampled_novelty = -sampled_novelty
 
         if self.novelty_stat is None:
@@ -161,52 +157,3 @@ AdaptiveExtraLossPPOTrainer = ExtraLossPPOTrainer.with_updates(
     default_config=adaptive_extra_loss_ppo_default_config,
     default_policy=AdaptiveExtraLossPPOTFPolicy,
 )
-
-
-def test1(extra_config=None):
-    num_agents = 3
-    num_gpus = 0
-
-    # This is only test code.
-    initialize_ray(test_mode=True, local_mode=True, num_gpus=num_gpus)
-
-    policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
-
-    env_config = {"env_name": "BipedalWalker-v2", "agent_ids": policy_names}
-    env = MultiAgentEnvWrapper(env_config)
-    config = {
-        "env": MultiAgentEnvWrapper,
-        "env_config": env_config,
-        "num_gpus": num_gpus,
-        "log_level": "DEBUG",
-        "joint_dataset_sample_batch_size": 37,
-        "multiagent": {
-            "policies": {
-                i: (None, env.observation_space, env.action_space, {})
-                for i in policy_names
-            },
-            "policy_mapping_fn": lambda x: x,
-        },
-        "callbacks": {
-            "on_train_result": on_train_result
-        },
-    }
-    if extra_config:
-        config.update(extra_config)
-
-    tune.run(
-        AdaptiveExtraLossPPOTrainer,
-        local_dir=get_local_dir(),
-        name="DELETEME_TEST_extra_loss_ppo_trainer",
-        stop={"timesteps_total": 50000},
-        config=config
-    )
-
-
-def test2():
-    test1({"use_joint_dataset": False})
-
-
-if __name__ == '__main__':
-    test1()
-    # test2()
