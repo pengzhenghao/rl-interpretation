@@ -20,7 +20,8 @@ class GaussianMixture(TFActionDistribution):
         num_splits = [action_length * self.k, action_length * self.k, self.k]
 
         splits = tf.split(inputs, num_splits, axis=1)
-        self.stds = tf.reshape(splits[1], [-1, self.k, action_length])
+        log_stds = tf.reshape(splits[1], [-1, self.k, action_length])
+        self.stds = tf.exp(log_stds)
         self.means = tf.reshape(splits[0], [-1, self.k, action_length])
         self.weight = splits[-1]
 

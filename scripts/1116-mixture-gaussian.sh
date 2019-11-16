@@ -2,7 +2,7 @@
 ulimit -u 65535
 ulimit -n 65535
 
-exp_name="1115-mixture_gaussian"
+exp_name="1116-mixture_gaussian"
 
 env_name="BipedalWalker-v2"
 CUDA_VISIBLE_DEVICES=1 nohup python \
