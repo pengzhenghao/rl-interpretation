@@ -46,7 +46,8 @@ if __name__ == '__main__':
             "novelty_loss_param_step": tune.grid_search([0.01, 0.05, 0.1])
         },
         "extra_loss": {
-            "novelty_loss_param": tune.grid_search([0.01, 0.05, 0.1, 0.2, 0.5])
+            "novelty_loss_param": tune.grid_search(
+                [0.0005, 0.001, 0.005, 0.01, 0.05])
         },
         "off_policy_tnb": {},
         "off_policy_tnb_min_novelty": {
