@@ -4,6 +4,8 @@ from toolbox import initialize_ray, get_local_dir
 from toolbox.marl import MultiAgentEnvWrapper, on_train_result
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
+from toolbox.marl.smart_adaptive_extra_loss import \
+    SmartAdaptiveExtraLossPPOTrainer
 
 
 def _base_test(trainer, local_mode=False, extra_config=None, t=5000):
@@ -64,3 +66,13 @@ def test_extra_loss_ppo_trainer1():
 def test_extra_loss_ppo_trainer2():
     _base_test(ExtraLossPPOTrainer, local_mode=False,
                extra_config={"use_joint_dataset": True})
+
+
+def test_smart_adaptive_extra_loss_trainer1():
+    _base_test(SmartAdaptiveExtraLossPPOTrainer, False,
+               {"waiting_iteration": 2, "use_joint_dataset": True}, t=10000)
+
+
+def test_smart_adaptive_extra_loss_trainer2():
+    _base_test(SmartAdaptiveExtraLossPPOTrainer, False,
+               {"waiting_iteration": 2, "use_joint_dataset": False}, t=10000)
