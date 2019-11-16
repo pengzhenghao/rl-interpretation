@@ -6,6 +6,8 @@ from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper, on_train_result
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
+from toolbox.marl.smart_adaptive_extra_loss import \
+    SmartAdaptiveExtraLossPPOTrainer
 from toolbox.marl.task_novelty_bisector import TNBPPOTrainer
 from toolbox.utils import get_local_dir, initialize_ray
 
@@ -28,6 +30,7 @@ if __name__ == '__main__':
         "individual": "PPO",
         "extra_loss": ExtraLossPPOTrainer,
         "adaptive_extra_loss": AdaptiveExtraLossPPOTrainer,
+        "smart_adaptive_extra_loss": SmartAdaptiveExtraLossPPOTrainer,
         "off_policy_tnb": TNBPPOTrainer,
         "off_policy_tnb_min_novelty": TNBPPOTrainer,
         "on_policy_tnb": TNBPPOTrainer,
@@ -38,10 +41,12 @@ if __name__ == '__main__':
     run_specify_config = {
         "individual": {},
         "adaptive_extra_loss": {},
+        "smart_adaptive_extra_loss": {
+            "num_gpus": 0.2,
+            "novelty_loss_param_step": tune.grid_search([0.01, 0.05, 0.1])
+        },
         "extra_loss": {
-            "novelty_loss_param": tune.grid_search(
-                [0.01, 0.05, 0.1, 0.2, 0.5]
-            )
+            "novelty_loss_param": tune.grid_search([0.01, 0.05, 0.1, 0.2, 0.5])
         },
         "off_policy_tnb": {},
         "off_policy_tnb_min_novelty": {
@@ -73,12 +78,14 @@ if __name__ == '__main__':
         }
     }
     run_specify_stop["off_policy_tnb_min_novelty"
-                     ] = run_specify_stop["off_policy_tnb"]
+    ] = run_specify_stop["off_policy_tnb"]
     run_specify_stop["on_policy_tnb_min_novelty"
-                     ] = run_specify_stop["off_policy_tnb"]
+    ] = run_specify_stop["off_policy_tnb"]
     run_specify_stop["on_policy_tnb"] = run_specify_stop["off_policy_tnb"]
     run_specify_stop["tnb_4in1"] = run_specify_stop["off_policy_tnb"]
     run_specify_stop["adaptive_extra_loss"] = run_specify_stop["extra_loss"]
+    run_specify_stop["smart_adaptive_extra_loss"] = run_specify_stop[
+        "extra_loss"]
 
     assert run_name in run_dict, "--run argument should be in {}, " \
                                  "but you provide {}." \
