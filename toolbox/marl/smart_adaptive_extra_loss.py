@@ -89,8 +89,13 @@ class SmartNoveltyParamMixin(object):
 
 def after_train_result(trainer, result):
     def update(policy, policy_id):
-        policy.update_novelty_loss_param(
-            result["policy_reward_max"][policy_id])
+        reward_list = result["policy_reward_max"]
+        if policy_id in reward_list:
+            policy.update_novelty_loss_param(
+                reward_list[policy_id])
+        else:
+            logger.debug("No policy_reward_max for {}, not updating "
+                         "novelty_loss_param.".format(policy_id))
 
     trainer.workers.local_worker().foreach_trainable_policy(update)
 
