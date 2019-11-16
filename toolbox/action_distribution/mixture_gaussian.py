@@ -9,7 +9,17 @@ from ray.rllib.models.tf.tf_action_dist import TFActionDistribution
 logger = logging.getLogger(__name__)
 tfd = tfp.distributions
 
+"""This codes is still contains bugs. But I can not find it.
 
+The most significant symptom is the NaN may raise as the sample, which
+cause BipedalWalker-v2 raise "AssertionError: r.LengthSquared() > 0.0f"
+error and Mujoco env raise "mujoco_py.builder.MujocoException: Unknown
+ warning type Time = 0.0000.Check for NaN in simulation." error.
+
+But I have not really try to look at does it really yield NaN as sample.
+
+Anyway, this branch is closed. 
+"""
 class GaussianMixture(TFActionDistribution):
     name = "GaussianMixture"
 
