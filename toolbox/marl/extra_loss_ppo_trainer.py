@@ -86,6 +86,9 @@ def postprocess_ppo_gae(
 class AddLossMixin(object):
     """Copied from tf_policy.py"""
 
+    def __init__(self, alpha):
+        self.novelty_loss_param = alpha
+
     def _get_loss_inputs_dict(
             self, batch, shuffle, cross_policy_obj, policy_id=None
     ):
@@ -204,7 +207,7 @@ def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
     nov_loss = novelty_loss(policy, model, dist_class, train_batch)
-    alpha = policy.config["novelty_loss_param"]
+    alpha = policy.novelty_loss_param
     total_loss = (1 - alpha) * original_loss + alpha * nov_loss
     policy.total_loss = total_loss
     return total_loss
@@ -348,12 +351,23 @@ def choose_policy_optimizer(workers, config):
     )
 
 
+def setup_mixins(policy, obs_space, action_space, config):
+    AddLossMixin.__init__(policy, config['novelty_loss_param'])
+    ValueNetworkMixin.__init__(policy, obs_space, action_space, config)
+    KLCoeffMixin.__init__(policy, config)
+    EntropyCoeffSchedule.__init__(
+        policy, config["entropy_coeff"], config["entropy_coeff_schedule"]
+    )
+    LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
+
+
 ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
     name="ExtraLossPPOTFPolicy",
     get_default_config=lambda: extra_loss_ppo_default_config,
     postprocess_fn=postprocess_ppo_gae,
     stats_fn=kl_and_loss_stats_modified,
     loss_fn=extra_loss_ppo_loss,
+    before_loss_init=setup_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
         ValueNetworkMixin, AddLossMixin

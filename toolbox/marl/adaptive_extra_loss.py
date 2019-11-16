@@ -10,8 +10,7 @@ from toolbox.marl import MultiAgentEnvWrapper, on_train_result
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTFPolicy, \
     ExtraLossPPOTrainer, ValueNetworkMixin, KLCoeffMixin, AddLossMixin, \
     LearningRateSchedule, EntropyCoeffSchedule, DEFAULT_CONFIG, merge_dicts, \
-    validate_config_basic, ppo_surrogate_loss, novelty_loss, \
-    kl_and_loss_stats_modified
+    validate_config_basic, kl_and_loss_stats_modified
 from toolbox.utils import get_local_dir, initialize_ray
 
 logger = logging.getLogger(__name__)
@@ -22,6 +21,7 @@ adaptive_extra_loss_ppo_default_config = merge_dicts(
         novelty_loss_param_init=0.000001,
         novelty_loss_increment=10.0,
         novelty_loss_running_length=10,
+        novelty_loss_smart_change=False,
         joint_dataset_sample_batch_size=200,
         novelty_mode="mean",
         use_joint_dataset=True
@@ -54,7 +54,7 @@ class NoveltyParamMixin(object):
         self.maxlen = config['novelty_loss_running_length']
         self.novelty_stat = None
 
-    def update_novelty(self, sampled_novelty):
+    def update_novelty(self, sampled_novelty, policy_loss):
         sampled_novelty = -sampled_novelty
 
         if self.novelty_stat is None:
@@ -63,8 +63,7 @@ class NoveltyParamMixin(object):
                 sampled_novelty - self.increment, self.increment
             )
             self.novelty_stat = deque(
-                [self.novelty_target] * self.maxlen,
-                maxlen=self.maxlen
+                [self.novelty_target] * self.maxlen, maxlen=self.maxlen
             )
 
         self.novelty_stat.append(sampled_novelty)
@@ -91,10 +90,12 @@ class NoveltyParamMixin(object):
         elif sampled_novelty < self.novelty_target - self.increment:
             # elif sampled_novelty < 0.5 * self.novelty_target:
             self.novelty_loss_param_val *= 1.5
-        self.novelty_loss_param.load(self.novelty_loss_param_val,
-                                     session=self.get_session())
-        self.novelty_target_tensor.load(self.novelty_target,
-                                        session=self.get_session())
+        self.novelty_loss_param.load(
+            self.novelty_loss_param_val, session=self.get_session()
+        )
+        self.novelty_target_tensor.load(
+            self.novelty_target, session=self.get_session()
+        )
         return self.novelty_loss_param_val
 
 
@@ -116,16 +117,6 @@ def update_novelty(trainer, fetches):
 
         # multi-agent
         trainer.workers.local_worker().foreach_trainable_policy(update)
-
-
-def adaptive_extra_loss_ppo_loss(policy, model, dist_class, train_batch):
-    """Add novelty loss with original ppo loss"""
-    original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
-    nov_loss = novelty_loss(policy, model, dist_class, train_batch)
-    alpha = policy.novelty_loss_param
-    total_loss = (1 - alpha) * original_loss + alpha * nov_loss
-    policy.total_loss = total_loss
-    return total_loss
 
 
 def wrap_after_train_result(trainer, fetches):
@@ -156,7 +147,6 @@ AdaptiveExtraLossPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
     name="AdaptiveExtraLossPPOTFPolicy",
     get_default_config=lambda: adaptive_extra_loss_ppo_default_config,
     before_loss_init=setup_mixins_modified,
-    loss_fn=adaptive_extra_loss_ppo_loss,
     stats_fn=wrap_stats_fn,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
