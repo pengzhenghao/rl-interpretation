@@ -20,7 +20,7 @@ smart_adaptive_extra_loss_ppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         # How many iteration to wait if max_episode_reward is not increased.
-        waiting_iteration=10,
+        waiting_iteration=50,
         novelty_loss_param_step=0.05,
         joint_dataset_sample_batch_size=200,
         novelty_mode="mean",
@@ -31,9 +31,6 @@ smart_adaptive_extra_loss_ppo_default_config = merge_dicts(
 
 class SmartNoveltyParamMixin(object):
     def __init__(self, config):
-        # may be need to tune this value
-        # self.increment = config['novelty_loss_increment']
-
         self.novelty_loss_param_val = 0.0
         self.novelty_loss_param = tf.get_variable(
             initializer=tf.constant_initializer(self.novelty_loss_param_val),
@@ -57,11 +54,12 @@ class SmartNoveltyParamMixin(object):
 
         if len(self.reward_max_stat) < self.maxlen:
             # start tuning after the queue is full.
-            print("Current stat length: {}".format(len(self.reward_max_stat)))
+            logger.debug(
+                "Current stat length: {}".format(len(self.reward_max_stat)))
             return self.novelty_loss_param_val
 
-        if reward_max > history_max:
-            print(
+        if (reward_max < 0.0) or (reward_max > history_max * 1.1):
+            logger.info(
                 "Decrease alpha. from {} to {}. reward {}, history max {}"
                 "".format(
                     self.novelty_loss_param_val, max(
@@ -71,8 +69,8 @@ class SmartNoveltyParamMixin(object):
             # should decrease alpha
             self.novelty_loss_param_val = max(
                 0.0, self.novelty_loss_param_val - self.step)
-        else:
-            print(
+        elif reward_max < history_max * 0.9:
+            logger.info(
                 "Increase alpha. from {} to {}. reward {}, history max {}"
                 "".format(
                     self.novelty_loss_param_val, min(
@@ -80,7 +78,7 @@ class SmartNoveltyParamMixin(object):
                     reward_max, history_max))
 
             self.novelty_loss_param_val = min(
-                1.0, self.novelty_loss_param_val + self.step)
+                0.5, self.novelty_loss_param_val + self.step)
         self.novelty_loss_param.load(
             self.novelty_loss_param_val, session=self.get_session()
         )
