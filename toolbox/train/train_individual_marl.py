@@ -42,8 +42,8 @@ if __name__ == '__main__':
         "individual": {},
         "adaptive_extra_loss": {},
         "smart_adaptive_extra_loss": {
-            "num_gpus": 0.2,
-            "novelty_loss_param_step": tune.grid_search([0.01, 0.05, 0.1])
+            "num_gpus": 0.2,            "novelty_loss_param_step": tune.grid_search(
+                [0.0005, 0.001, 0.005, 0.01, 0.05])
         },
         "extra_loss": {
             "novelty_loss_param": tune.grid_search(
