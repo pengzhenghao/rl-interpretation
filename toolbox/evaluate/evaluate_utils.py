@@ -8,6 +8,8 @@ from ray.rllib.agents.registry import get_agent_class
 from ray.tune.util import merge_dicts
 from tensorflow import Graph
 
+from ray.rllib.agents import Trainer
+
 from toolbox.env.env_maker import get_env_maker
 from toolbox.modified_rllib.agent_with_activation import (
     PPOAgentWithActivation, model_config, register_fc_with_activation
@@ -63,27 +65,21 @@ def _restore(
         extra_config=None,
         existing_agent=None
 ):
-    assert isinstance(agent_type, str) or callable(agent_type)
-    if callable(agent_type):
-        # We assume this is the agent_maker function which take no zero
-        # argument and return the agent.
-        logger.info(
-            "Detected a function as the agent_type, we"
-            "restore an agent by calling it: ", agent_type
-        )
-        agent = agent_type()
-    elif existing_agent is not None:
+    assert isinstance(agent_type, str) or isinstance(agent_type, Trainer)
+    if existing_agent is not None:
         agent = existing_agent
     else:
+        change_model = None
         if agent_type == "PPOAgentWithActivation":
             cls = PPOAgentWithActivation
             change_model = "fc_with_activation"
         elif agent_type == "PPOAgentWithMask":
             cls = PPOAgentWithMask
             change_model = "fc_with_mask"
+        elif isinstance(agent_type, Trainer):
+            cls = agent_type
         else:
             cls = get_agent_class(run_name)
-            change_model = None
         is_es_agent = run_name == "ES"
         config = build_config(ckpt, extra_config, is_es_agent, change_model)
         logger.info("The config of restored agent: ", config)
