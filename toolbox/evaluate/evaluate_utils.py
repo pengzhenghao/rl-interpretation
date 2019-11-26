@@ -46,8 +46,10 @@ def build_config(
                 config.update(pickle.load(f))
     if "num_workers" in config:
         config["num_workers"] = min(1, config["num_workers"])
-    args_config = {} if (is_es_agent or not use_activation_model) \
-        else {"model": model_config}
+    if is_es_agent or (not use_activation_model):
+        args_config = {}
+    else:
+        args_config = {"model": model_config}
     if has_gpu():
         args_config.update({"num_gpus_per_worker": 0.1})
     config = merge_dicts(config, args_config)

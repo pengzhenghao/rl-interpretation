@@ -157,3 +157,10 @@ AdaptiveExtraLossPPOTrainer = ExtraLossPPOTrainer.with_updates(
     default_config=adaptive_extra_loss_ppo_default_config,
     default_policy=AdaptiveExtraLossPPOTFPolicy,
 )
+
+if __name__ == '__main__':
+    from toolbox import initialize_ray
+
+    print("Prepare to create AELPPO")
+    initialize_ray(test_mode=True, num_gpus=0)
+    AdaptiveExtraLossPPOTrainer(env="BipedalWalker-v2", config=None)
