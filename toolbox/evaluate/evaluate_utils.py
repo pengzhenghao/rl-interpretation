@@ -65,7 +65,7 @@ def _restore(
         extra_config=None,
         existing_agent=None
 ):
-    assert isinstance(agent_type, str) or isinstance(agent_type, Trainer)
+    assert isinstance(agent_type, str) or issubclass(agent_type, Trainer)
     if existing_agent is not None:
         agent = existing_agent
     else:
@@ -76,7 +76,7 @@ def _restore(
         elif agent_type == "PPOAgentWithMask":
             cls = PPOAgentWithMask
             change_model = "fc_with_mask"
-        elif isinstance(agent_type, Trainer):
+        elif issubclass(agent_type, Trainer):
             cls = agent_type
         else:
             cls = get_agent_class(run_name)
