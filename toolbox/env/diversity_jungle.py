@@ -1,7 +1,10 @@
 import copy
+import matplotlib
+matplotlib.use("MacOSX")
 
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 
 class FourWayGridWorld:
@@ -18,6 +21,7 @@ class FourWayGridWorld:
         self.map[int((N - 1) / 2), N - 1] = self.right
         self.loc = np.asarray([np.random.randint(N), np.random.randint(N)])
         self.step_num = 0
+        self.init_render = False
 
     def step(self, action):
         action = np.clip(action, -1, 1)
@@ -37,7 +41,10 @@ class FourWayGridWorld:
     def render(self):
         map_self = copy.deepcopy(self.map)
         map_self[int(self.loc[0]), int(self.loc[1])] = -5
-        plt.imshow(map_self)
+        if not self.init_render:
+            self.canvas = plt.imshow(map_self, animated=True)
+        self.canvas.set_data(map_self)
+        plt.draw()
 
     def reset(self):
         self.map = np.ones((self.N, self.N)) * (-0.1)
@@ -59,5 +66,7 @@ if __name__ == '__main__':
         print("Current t {}, observation {}, reward {}, done {}.".format(
             t, o, r, d)
         )
+        env.render()
+        time.sleep(0.2)
         if d:
             break
