@@ -46,39 +46,44 @@ class SmartNoveltyParamMixin(object):
     def update_novelty_loss_param(self, reward_max):
         if self.reward_max_stat is None:
             # lazy initialize
-            self.reward_max_stat = deque(
-                [reward_max], maxlen=self.maxlen
-            )
+            self.reward_max_stat = deque([reward_max], maxlen=self.maxlen)
         history_max = np.max(self.reward_max_stat)
         self.reward_max_stat.append(reward_max)
 
         if len(self.reward_max_stat) < self.maxlen:
             # start tuning after the queue is full.
             logger.debug(
-                "Current stat length: {}".format(len(self.reward_max_stat)))
+                "Current stat length: {}".format(len(self.reward_max_stat))
+            )
             return self.novelty_loss_param_val
 
         if (reward_max < 0.0) or (reward_max > history_max * 1.1):
             logger.info(
                 "Decrease alpha. from {} to {}. reward {}, history max {}"
                 "".format(
-                    self.novelty_loss_param_val, max(
-                        0.0, self.novelty_loss_param_val - self.step),
-                    reward_max, history_max))
+                    self.novelty_loss_param_val,
+                    max(0.0, self.novelty_loss_param_val - self.step),
+                    reward_max, history_max
+                )
+            )
 
             # should decrease alpha
             self.novelty_loss_param_val = max(
-                0.0, self.novelty_loss_param_val - self.step)
+                0.0, self.novelty_loss_param_val - self.step
+            )
         elif reward_max < history_max * 0.9:
             logger.info(
                 "Increase alpha. from {} to {}. reward {}, history max {}"
                 "".format(
-                    self.novelty_loss_param_val, min(
-                        1.0, self.novelty_loss_param_val + self.step),
-                    reward_max, history_max))
+                    self.novelty_loss_param_val,
+                    min(1.0, self.novelty_loss_param_val + self.step),
+                    reward_max, history_max
+                )
+            )
 
             self.novelty_loss_param_val = min(
-                0.5, self.novelty_loss_param_val + self.step)
+                0.5, self.novelty_loss_param_val + self.step
+            )
         self.novelty_loss_param.load(
             self.novelty_loss_param_val, session=self.get_session()
         )
@@ -89,11 +94,12 @@ def after_train_result(trainer, result):
     def update(policy, policy_id):
         reward_list = result["policy_reward_max"]
         if policy_id in reward_list:
-            policy.update_novelty_loss_param(
-                reward_list[policy_id])
+            policy.update_novelty_loss_param(reward_list[policy_id])
         else:
-            logger.debug("No policy_reward_max for {}, not updating "
-                         "novelty_loss_param.".format(policy_id))
+            logger.debug(
+                "No policy_reward_max for {}, not updating "
+                "novelty_loss_param.".format(policy_id)
+            )
 
     trainer.workers.local_worker().foreach_trainable_policy(update)
 
@@ -110,9 +116,7 @@ def setup_mixins_modified(policy, obs_space, action_space, config):
 
 def wrap_stats_fn(policy, train_batch):
     ret = kl_and_loss_stats_modified(policy, train_batch)
-    ret.update(
-        novelty_loss_param=policy.novelty_loss_param
-    )
+    ret.update(novelty_loss_param=policy.novelty_loss_param)
     return ret
 
 

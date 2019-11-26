@@ -49,30 +49,54 @@ def _base_test(trainer, local_mode=False, extra_config=None, t=5000):
 
 
 def test_adaptive_extra_loss_trainer1():
-    _base_test(AdaptiveExtraLossPPOTrainer, local_mode=False,
-               extra_config={"use_joint_dataset": False})
+    _base_test(
+        AdaptiveExtraLossPPOTrainer,
+        local_mode=False,
+        extra_config={"use_joint_dataset": False}
+    )
 
 
 def test_adaptive_extra_loss_trainer2():
-    _base_test(AdaptiveExtraLossPPOTrainer, local_mode=False,
-               extra_config={"use_joint_dataset": True})
+    _base_test(
+        AdaptiveExtraLossPPOTrainer,
+        local_mode=False,
+        extra_config={"use_joint_dataset": True}
+    )
 
 
 def test_extra_loss_ppo_trainer1():
-    _base_test(ExtraLossPPOTrainer, local_mode=False,
-               extra_config={"use_joint_dataset": False})
+    _base_test(
+        ExtraLossPPOTrainer,
+        local_mode=False,
+        extra_config={"use_joint_dataset": False}
+    )
 
 
 def test_extra_loss_ppo_trainer2():
-    _base_test(ExtraLossPPOTrainer, local_mode=False,
-               extra_config={"use_joint_dataset": True})
+    _base_test(
+        ExtraLossPPOTrainer,
+        local_mode=False,
+        extra_config={"use_joint_dataset": True}
+    )
 
 
 def test_smart_adaptive_extra_loss_trainer1():
-    _base_test(SmartAdaptiveExtraLossPPOTrainer, False,
-               {"waiting_iteration": 2, "use_joint_dataset": True}, t=10000)
+    _base_test(
+        SmartAdaptiveExtraLossPPOTrainer,
+        False, {
+            "waiting_iteration": 2,
+            "use_joint_dataset": True
+        },
+        t=10000
+    )
 
 
 def test_smart_adaptive_extra_loss_trainer2():
-    _base_test(SmartAdaptiveExtraLossPPOTrainer, False,
-               {"waiting_iteration": 2, "use_joint_dataset": False}, t=10000)
+    _base_test(
+        SmartAdaptiveExtraLossPPOTrainer,
+        False, {
+            "waiting_iteration": 2,
+            "use_joint_dataset": False
+        },
+        t=10000
+    )

@@ -1,14 +1,14 @@
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
 
+import logging
 import os
 import pickle
 
+from ray.rllib.agents import Trainer
 from ray.rllib.agents.registry import get_agent_class
 from ray.tune.util import merge_dicts
 from tensorflow import Graph
-
-from ray.rllib.agents import Trainer
 
 from toolbox.env.env_maker import get_env_maker
 from toolbox.modified_rllib.agent_with_activation import (
@@ -19,12 +19,16 @@ from toolbox.modified_rllib.agent_with_mask import (
     ppo_agent_default_config_with_mask
 )
 from toolbox.utils import has_gpu
-import logging
+
 logger = logging.getLogger(__name__)
 
 
 def build_config(
-        ckpt, extra_config=None, is_es_agent=False, change_model=None
+        ckpt,
+        extra_config=None,
+        is_es_agent=False,
+        change_model=None,
+        use_activation_model=True
 ):
     if extra_config is None:
         extra_config = {}
@@ -42,7 +46,8 @@ def build_config(
                 config.update(pickle.load(f))
     if "num_workers" in config:
         config["num_workers"] = min(1, config["num_workers"])
-    args_config = {} if is_es_agent else {"model": model_config}
+    args_config = {} if (is_es_agent or not use_activation_model) \
+        else {"model": model_config}
     if has_gpu():
         args_config.update({"num_gpus_per_worker": 0.1})
     config = merge_dicts(config, args_config)
@@ -70,18 +75,23 @@ def _restore(
         agent = existing_agent
     else:
         change_model = None
+        use_activation_model = False
         if agent_type == "PPOAgentWithActivation":
             cls = PPOAgentWithActivation
             change_model = "fc_with_activation"
+            use_activation_model = True
         elif agent_type == "PPOAgentWithMask":
             cls = PPOAgentWithMask
             change_model = "fc_with_mask"
+            use_activation_model = True
         elif issubclass(agent_type, Trainer):
             cls = agent_type
         else:
             cls = get_agent_class(run_name)
         is_es_agent = run_name == "ES"
-        config = build_config(ckpt, extra_config, is_es_agent, change_model)
+        config = build_config(
+            ckpt, extra_config, is_es_agent, change_model, use_activation_model
+        )
         logger.info("The config of restored agent: ", config)
         agent = cls(env=env_name, config=config)
     if ckpt is not None:
