@@ -19,7 +19,8 @@ class FourWayGridWorld:
         self.map[0, int((N - 1) / 2)] = self.up
         self.map[N - 1, int((N - 1) / 2)] = self.down
         self.map[int((N - 1) / 2), N - 1] = self.right
-        self.loc = np.asarray([np.random.randint(N), np.random.randint(N)])
+        self.loc = np.array([0, 0])
+        # self.loc = np.asarray([np.random.randint(N), np.random.randint(N)])
         self.step_num = 0
         self.init_render = False
 
@@ -52,8 +53,10 @@ class FourWayGridWorld:
         self.map[0, int((self.N - 1) / 2)] = self.up
         self.map[self.N - 1, int((self.N - 1) / 2)] = self.down
         self.map[int((self.N - 1) / 2), self.N - 1] = self.right
-        self.loc = np.asarray(
-            [np.random.randint(self.N), np.random.randint(self.N)])
+        # self.loc = np.asarray(
+        #     [np.random.randint(s/elf.N), np.random.randint(self.N)])
+
+        self.loc = np.array([0, 0])
         self.step_num = 0
         return self.loc
 
@@ -62,7 +65,7 @@ if __name__ == '__main__':
     env = FourWayGridWorld()
     obs = env.reset()
     for t in range(100):
-        o, r, d = env.step(np.random.normal(size=2))
+        o, r, d = env.step(np.ones(2))
         print("Current t {}, observation {}, reward {}, done {}.".format(
             t, o, r, d)
         )
