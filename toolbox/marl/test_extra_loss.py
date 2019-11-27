@@ -80,10 +80,10 @@ def test_extra_loss_ppo_trainer2():
     )
 
 
-def test_smart_adaptive_extra_loss_trainer1():
+def test_smart_adaptive_extra_loss_trainer1(local_mode=False):
     _base_test(
         SmartAdaptiveExtraLossPPOTrainer,
-        False, {
+        local_mode, {
             "waiting_iteration": 2,
             "use_joint_dataset": True
         },
@@ -91,12 +91,24 @@ def test_smart_adaptive_extra_loss_trainer1():
     )
 
 
-def test_smart_adaptive_extra_loss_trainer2():
+def test_smart_adaptive_extra_loss_trainer2(local_mode=False):
     _base_test(
         SmartAdaptiveExtraLossPPOTrainer,
-        False, {
+        local_mode, {
             "waiting_iteration": 2,
             "use_joint_dataset": False
+        },
+        t=10000
+    )
+
+
+def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
+    _base_test(
+        SmartAdaptiveExtraLossPPOTrainer,
+        local_mode, {
+            "waiting_iteration": 2,
+            "use_joint_dataset": True,
+            "performance_evaluation_metric": "mean"
         },
         t=10000
     )

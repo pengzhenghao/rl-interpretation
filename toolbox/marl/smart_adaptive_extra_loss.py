@@ -24,7 +24,8 @@ smart_adaptive_extra_loss_ppo_default_config = merge_dicts(
         novelty_loss_param_step=0.05,
         joint_dataset_sample_batch_size=200,
         novelty_mode="mean",
-        use_joint_dataset=True
+        use_joint_dataset=True,
+        performance_evaluation_metric="max",
     )
 )
 
@@ -40,50 +41,60 @@ class SmartNoveltyParamMixin(object):
             dtype=tf.float32
         )
         self.maxlen = config['waiting_iteration']
-        self.reward_max_stat = None
+        self.reward_stat = None
         self.step = config['novelty_loss_param_step']
+        if config['performance_evaluation_metric'] == "max":
+            self.metric = np.min
+        elif config['performance_evaluation_metric'] == "mean":
+            self.metric = np.mean
+        else:
+            raise ValueError(
+                "We expect 'performance_evaluation_metric' "
+                "in ['max', 'mean']"
+            )
 
-    def update_novelty_loss_param(self, reward_max):
-        if self.reward_max_stat is None:
+    def update_novelty_loss_param(self, performance):
+        if self.reward_stat is None:
             # lazy initialize
-            self.reward_max_stat = deque([reward_max], maxlen=self.maxlen)
-        history_max = np.max(self.reward_max_stat)
-        self.reward_max_stat.append(reward_max)
+            self.reward_stat = deque([performance], maxlen=self.maxlen)
+        history_performance = self.metric(self.reward_stat)
+        self.reward_stat.append(performance)
 
-        if len(self.reward_max_stat) < self.maxlen:
+        if len(self.reward_stat) < self.maxlen:
             # start tuning after the queue is full.
             logger.debug(
-                "Current stat length: {}".format(len(self.reward_max_stat))
+                "Current stat length: {}".format(len(self.reward_stat))
             )
             return self.novelty_loss_param_val
 
-        if (reward_max < 0.0) or (reward_max > history_max * 1.1):
-            logger.info(
-                "Decrease alpha. from {} to {}. reward {}, history max {}"
-                "".format(
-                    self.novelty_loss_param_val,
-                    max(0.0, self.novelty_loss_param_val - self.step),
-                    reward_max, history_max
-                )
-            )
-
+        if (performance < 0.0) or (performance > history_performance * 1.1):
             # should decrease alpha
+            old_value = self.novelty_loss_param_val
             self.novelty_loss_param_val = max(
                 0.0, self.novelty_loss_param_val - self.step
             )
-        elif reward_max < history_max * 0.9:
+
             logger.info(
-                "Increase alpha. from {} to {}. reward {}, history max {}"
+                "Decrease alpha. from {} to {}. reward {}, history max {}"
                 "".format(
-                    self.novelty_loss_param_val,
-                    min(1.0, self.novelty_loss_param_val + self.step),
-                    reward_max, history_max
+                    old_value, self.novelty_loss_param_val, performance,
+                    history_performance
                 )
             )
 
+        elif performance < history_performance * 0.9:
+            old_value = self.novelty_loss_param_val
             self.novelty_loss_param_val = min(
                 0.5, self.novelty_loss_param_val + self.step
             )
+            logger.info(
+                "Increase alpha. from {} to {}. reward {}, history max {}"
+                "".format(
+                    old_value, self.novelty_loss_param_val, performance,
+                    history_performance
+                )
+            )
+
         self.novelty_loss_param.load(
             self.novelty_loss_param_val, session=self.get_session()
         )
@@ -92,7 +103,13 @@ class SmartNoveltyParamMixin(object):
 
 def after_train_result(trainer, result):
     def update(policy, policy_id):
-        reward_list = result["policy_reward_max"]
+        if policy.config['performance_evaluation_metric'] == "max":
+            reward_list = result["policy_reward_max"]
+        elif policy.config['performance_evaluation_metric'] == "mean":
+            reward_list = result["policy_reward_mean"]
+        else:
+            raise ValueError("performance_evaluation_metric wrong!")
+
         if policy_id in reward_list:
             policy.update_novelty_loss_param(reward_list[policy_id])
         else:
@@ -142,7 +159,9 @@ SmartAdaptiveExtraLossPPOTrainer = ExtraLossPPOTrainer.with_updates(
 if __name__ == '__main__':
     from toolbox.marl.test_extra_loss import \
         test_smart_adaptive_extra_loss_trainer1, \
-        test_adaptive_extra_loss_trainer2
+        test_smart_adaptive_extra_loss_trainer2, \
+        test_smart_adaptive_extra_loss_trainer3
 
-    test_smart_adaptive_extra_loss_trainer1()
-    test_adaptive_extra_loss_trainer2()
+    test_smart_adaptive_extra_loss_trainer1(False)
+    test_smart_adaptive_extra_loss_trainer2(False)
+    test_smart_adaptive_extra_loss_trainer3(False)
