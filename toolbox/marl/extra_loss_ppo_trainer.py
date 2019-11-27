@@ -82,8 +82,15 @@ def postprocess_ppo_gae(
 class AddLossMixin(object):
     """Copied from tf_policy.py"""
 
-    def __init__(self, alpha=None):
-        self.novelty_loss_param = alpha
+    def __init__(self, config):
+        if "novelty_loss_param_init" in config:
+            self.novelty_loss_param = config["novelty_loss_param_init"]
+        elif "novelty_loss_param" in config:
+            self.novelty_loss_param = config["novelty_loss_param"]
+        else:
+            logger.warning("You Do Not Specify 'novelty_loss_param_init' or"
+                           " 'novelty_loss_param' in config, so we do not"
+                           " define policy.novelty_loss_param")
 
     def _get_loss_inputs_dict(
             self, batch, shuffle, cross_policy_obj, policy_id=None
@@ -348,7 +355,7 @@ def choose_policy_optimizer(workers, config):
 
 
 def setup_mixins(policy, obs_space, action_space, config):
-    AddLossMixin.__init__(policy, config.get('novelty_loss_param'))
+    AddLossMixin.__init__(policy, config)
     ValueNetworkMixin.__init__(policy, obs_space, action_space, config)
     KLCoeffMixin.__init__(policy, config)
     EntropyCoeffSchedule.__init__(
