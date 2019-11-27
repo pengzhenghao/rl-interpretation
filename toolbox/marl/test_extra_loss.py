@@ -1,3 +1,5 @@
+import pytest
+
 from ray import tune
 
 from toolbox import initialize_ray, get_local_dir
@@ -9,7 +11,7 @@ from toolbox.marl.smart_adaptive_extra_loss import \
     SmartAdaptiveExtraLossPPOTrainer
 
 
-def _base_test(trainer, local_mode=False, extra_config=None, t=5000):
+def _base(trainer, local_mode=False, extra_config=None, t=5000):
     num_agents = 3
     num_gpus = 0
 
@@ -53,7 +55,7 @@ def _base_test(trainer, local_mode=False, extra_config=None, t=5000):
 
 
 def test_adaptive_extra_loss_trainer1():
-    _base_test(
+    _base(
         AdaptiveExtraLossPPOTrainer,
         local_mode=False,
         extra_config={"use_joint_dataset": False}
@@ -61,7 +63,7 @@ def test_adaptive_extra_loss_trainer1():
 
 
 def test_adaptive_extra_loss_trainer2():
-    _base_test(
+    _base(
         AdaptiveExtraLossPPOTrainer,
         local_mode=False,
         extra_config={"use_joint_dataset": True}
@@ -69,7 +71,7 @@ def test_adaptive_extra_loss_trainer2():
 
 
 def test_extra_loss_ppo_trainer1():
-    _base_test(
+    _base(
         ExtraLossPPOTrainer,
         local_mode=False,
         extra_config={"use_joint_dataset": False}
@@ -77,7 +79,7 @@ def test_extra_loss_ppo_trainer1():
 
 
 def test_extra_loss_ppo_trainer2():
-    _base_test(
+    _base(
         ExtraLossPPOTrainer,
         local_mode=False,
         extra_config={"use_joint_dataset": True}
@@ -85,7 +87,7 @@ def test_extra_loss_ppo_trainer2():
 
 
 def test_smart_adaptive_extra_loss_trainer1(local_mode=False):
-    _base_test(
+    _base(
         SmartAdaptiveExtraLossPPOTrainer,
         local_mode, {
             "waiting_iteration": 2,
@@ -96,7 +98,7 @@ def test_smart_adaptive_extra_loss_trainer1(local_mode=False):
 
 
 def test_smart_adaptive_extra_loss_trainer2(local_mode=False):
-    _base_test(
+    _base(
         SmartAdaptiveExtraLossPPOTrainer,
         local_mode, {
             "waiting_iteration": 2,
@@ -107,7 +109,7 @@ def test_smart_adaptive_extra_loss_trainer2(local_mode=False):
 
 
 def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
-    _base_test(
+    _base(
         SmartAdaptiveExtraLossPPOTrainer,
         local_mode, {
             "waiting_iteration": 2,
@@ -119,10 +121,13 @@ def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
 
 
 def test_adaptive_tnb():
-    _base_test(AdaptiveTNBPPOTrainer, extra_config={}, t=20000)
-    _base_test(AdaptiveTNBPPOTrainer, extra_config={
-        "clip_novelty_gradient": False
-    })
-    _base_test(AdaptiveTNBPPOTrainer, extra_config={
-        "use_second_component": True
-    })
+    _base(AdaptiveTNBPPOTrainer, extra_config={}, t=20000)
+    _base(
+        AdaptiveTNBPPOTrainer, extra_config={"clip_novelty_gradient": False}
+    )
+    _base(
+        AdaptiveTNBPPOTrainer, extra_config={"use_second_component": True}
+    )
+
+if __name__ == '__main__':
+    uni
