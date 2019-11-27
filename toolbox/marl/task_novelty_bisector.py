@@ -182,10 +182,10 @@ def test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=True):
         TNBPPOTrainer,
         local_dir=get_local_dir(),
         name="DELETEME_TEST_extra_loss_ppo_trainer",
-        stop={"timesteps_total": 50000},
+        stop={"timesteps_total": 10000},
         config=config,
     )
 
 
 if __name__ == '__main__':
-    test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=True)
+    test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=False)
