@@ -11,10 +11,9 @@ from toolbox.utils import get_local_dir, initialize_ray
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--adaptive", action="store_true")
-    # We assert run the adaptive_tnb at the 8 GPUs machine.
     args = parser.parse_args()
 
-    num_gpus = 8 if args.adaptive else 4
+    num_gpus = 4
     num_agents = 10
     env_name = "BipedalWalker-v2"
     num_seeds = 2
@@ -58,10 +57,6 @@ if __name__ == '__main__':
         "seed": tune.grid_search(
             list(range(num_seeds))) if num_seeds > 1 else 0
     }
-
-    if args.adaptive:
-        # so you can only run 4 trails at 8 gpu machine.
-        config['num_gpus_per_worker'] = 2
 
     tune.run(
         AdaptiveTNBPPOTrainer if args.adaptive else TNBPPOTrainer,
