@@ -17,7 +17,7 @@ tnb_ppo_default_config = merge_dicts(
         use_joint_dataset=True,
         novelty_mode="mean",
         use_second_component=True,  # whether to apply the >90deg operation
-        simple_constraint=False  # whether to constraint length of g_novel
+        clip_novelty_gradient=False  # whether to constraint length of g_novel
     )
 )
 
@@ -88,7 +88,11 @@ def tnb_gradients(policy, optimizer, loss):
         tg = tf.linalg.l2_normalize(policy_grad_norm + novelty_grad_norm)
         pg_length = tf.norm(tf.multiply(policy_grad_flatten, tg))
         ng_length = tf.norm(tf.multiply(novelty_grad_flatten, tg))
-        if policy.config["simple_constraint"]:
+        if hasattr(policy, "novelty_loss_param"):
+            # we are not at the original TNB, at this time
+            # policy.novelty_loss_param exists, we multiplied it with g_novel.
+            ng_length = policy.novelty_loss_param * ng_length
+        if policy.config["clip_novelty_gradient"]:
             ng_length = tf.minimum(pg_length, ng_length)
         tg_lenth = (pg_length + ng_length) / 2
         tg = tg * tg_lenth

@@ -3,6 +3,7 @@ from ray import tune
 from toolbox import initialize_ray, get_local_dir
 from toolbox.marl import MultiAgentEnvWrapper, on_train_result
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer
+from toolbox.marl.adaptive_tnb import AdaptiveTNBPPOTrainer
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer
 from toolbox.marl.smart_adaptive_extra_loss import \
     SmartAdaptiveExtraLossPPOTrainer
@@ -24,7 +25,10 @@ def _base_test(trainer, local_mode=False, extra_config=None, t=5000):
         "env_config": env_config,
         "num_gpus": num_gpus,
         "log_level": "DEBUG",
-        "joint_dataset_sample_batch_size": 37,
+        "joint_dataset_sample_batch_size": 30,
+        "sample_batch_size": 20,
+        "train_batch_size": 40,
+        "sgd_minibatch_size": 16,
         "multiagent": {
             "policies": {
                 i: (None, env.observation_space, env.action_space, {})
@@ -112,3 +116,13 @@ def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
         },
         t=10000
     )
+
+
+def test_adaptive_tnb():
+    _base_test(AdaptiveTNBPPOTrainer, extra_config={}, t=20000)
+    _base_test(AdaptiveTNBPPOTrainer, extra_config={
+        "clip_novelty_gradient": False
+    })
+    _base_test(AdaptiveTNBPPOTrainer, extra_config={
+        "use_second_component": True
+    })
