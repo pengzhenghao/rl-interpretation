@@ -15,7 +15,9 @@ tnb_ppo_default_config = merge_dicts(
     dict(
         joint_dataset_sample_batch_size=200,
         use_joint_dataset=True,
-        novelty_mode="mean"
+        novelty_mode="mean",
+        use_second_component=True,  # whether to apply the >90deg operation
+        simple_constraint=False  # whether to constraint length of g_novel
     )
 )
 
@@ -83,26 +85,27 @@ def tnb_gradients(policy, optimizer, loss):
     )
 
     def less_90_deg():
-        tg = policy_grad_norm + novelty_grad_norm
-        tg = tf.linalg.l2_normalize(tg)
-        mag = (
-            tf.norm(tf.multiply(policy_grad_flatten, tg)) +
-            tf.norm(tf.multiply(novelty_grad_flatten, tg))
-        ) / 2
-        tg = tg * mag
+        tg = tf.linalg.l2_normalize(policy_grad_norm + novelty_grad_norm)
+        pg_length = tf.norm(tf.multiply(policy_grad_flatten, tg))
+        ng_length = tf.norm(tf.multiply(novelty_grad_flatten, tg))
+        if policy.config["simple_constraint"]:
+            ng_length = tf.minimum(pg_length, ng_length)
+        tg_lenth = (pg_length + ng_length) / 2
+        tg = tg * tg_lenth
         return tg
 
     def greater_90_deg():
         tg = -cos_similarity * novelty_grad_norm + policy_grad_norm
         tg = tf.linalg.l2_normalize(tg)
         tg = tg * tf.norm(tf.multiply(policy_grad_norm, tg))
-        # Here is a modification to the origianl TNB, we add 1/2 here.
-        tg = tg / 2
         return tg
 
     policy.gradient_cosine_similarity = cos_similarity
 
-    total_grad = tf.cond(cos_similarity > 0, less_90_deg, greater_90_deg)
+    if policy.config["use_second_component"]:
+        total_grad = tf.cond(cos_similarity > 0, less_90_deg, greater_90_deg)
+    else:
+        total_grad = less_90_deg()
 
     # reshape back the gradients
     return_gradients = []
