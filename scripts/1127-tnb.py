@@ -1,16 +1,23 @@
+import argparse
+
 from ray import tune
 
 from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper, on_train_result
+from toolbox.marl.adaptive_tnb import AdaptiveTNBPPOTrainer
 from toolbox.marl.task_novelty_bisector import TNBPPOTrainer
 from toolbox.utils import get_local_dir, initialize_ray
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--adaptive", action="store_true")
+    args = parser.parse_args()
+
     num_gpus = 4
     num_agents = 10
     env_name = "BipedalWalker-v2"
     num_seeds = 2
-    exp_name = "1127-tnb"
+    exp_name = "1127-adaptive_tnb" if args.adaptive else "1127-tnb"
 
     initialize_ray(
         num_gpus=num_gpus,
@@ -25,7 +32,7 @@ if __name__ == '__main__':
     config = {
         # This experiment specify config
         "use_second_component": tune.grid_search([True, False]),
-        "simple_constraint": tune.grid_search([True, False]),
+        "clip_novelty_gradient": tune.grid_search([True, False]),
 
         # some common config copied from train_individual_marl
         "env": MultiAgentEnvWrapper,
@@ -52,7 +59,7 @@ if __name__ == '__main__':
     }
 
     tune.run(
-        TNBPPOTrainer,
+        AdaptiveTNBPPOTrainer if args.adaptive else TNBPPOTrainer,
         local_dir=get_local_dir(),
         name=exp_name,
         checkpoint_at_end=True,
