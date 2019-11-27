@@ -21,7 +21,7 @@ smart_adaptive_extra_loss_ppo_default_config = merge_dicts(
     dict(
         # How many iteration to wait if max_episode_reward is not increased.
         waiting_iteration=50,
-        novelty_loss_param_step=0.05,
+        novelty_loss_param_step=0.005,
         joint_dataset_sample_batch_size=200,
         novelty_mode="mean",
         use_joint_dataset=True,
