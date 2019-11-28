@@ -131,3 +131,17 @@ def test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=False):
         local_mode=local_mode,
         extra_config={"use_joint_dataset": use_joint_dataset}
     )
+
+
+def test_restore():
+    from toolbox.evaluate import restore_agent
+    initialize_ray()
+    ckpt = "~/ray_results/1114-tnb_4in1" \
+           "/TNBPPO_MultiAgentEnvWrapper_2_novelty_mode=min," \
+           "use_joint_dataset=False_2019-11-14_10-30-29l456mu0o" \
+           "/checkpoint_60/checkpoint-60"
+    marl_agent = restore_agent(TNBPPOTrainer, ckpt, MultiAgentEnvWrapper)
+
+
+if __name__ == '__main__':
+    test_restore()

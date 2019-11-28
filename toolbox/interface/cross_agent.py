@@ -15,7 +15,7 @@ from toolbox.evaluate.replay import RemoteSymbolicReplayManager
 from toolbox.represent.process_fft import stack_fft, parse_df
 from toolbox.represent.process_similarity import build_cka_matrix
 
-DEFAULT_CONFIG = {"num_samples": 100, "pca_dim": 50}
+cross_agent_default_config = {"num_samples": 100, "pca_dim": 50}
 
 
 def get_kl_divergence(dist1, dist2):
@@ -224,7 +224,7 @@ class CrossAgentAnalyst:
             }
 
         self.rollout_dataset = None
-        self.config = config if config is not None else DEFAULT_CONFIG
+        self.config = config if config is not None else cross_agent_default_config
         self.initialized = False
 
     def _check_input(self):
