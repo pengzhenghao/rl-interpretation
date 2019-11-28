@@ -7,6 +7,7 @@ from toolbox.marl.smart_adaptive_extra_loss import \
     SmartAdaptiveExtraLossPPOTrainer
 from toolbox.utils import get_local_dir, initialize_ray
 
+
 if pybullet_envs:
     print("Successfully import pybullet_envs!")
 
