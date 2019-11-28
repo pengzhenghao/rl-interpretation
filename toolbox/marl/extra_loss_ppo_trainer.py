@@ -88,9 +88,11 @@ class AddLossMixin(object):
         elif "novelty_loss_param" in config:
             self.novelty_loss_param = config["novelty_loss_param"]
         else:
-            logger.warning("You Do Not Specify 'novelty_loss_param_init' or"
-                           " 'novelty_loss_param' in config, so we do not"
-                           " define policy.novelty_loss_param")
+            logger.warning(
+                "You Do Not Specify 'novelty_loss_param_init' or"
+                " 'novelty_loss_param' in config, so we do not"
+                " define policy.novelty_loss_param"
+            )
 
     def _get_loss_inputs_dict(
             self, batch, shuffle, cross_policy_obj, policy_id=None

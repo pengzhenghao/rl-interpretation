@@ -110,7 +110,8 @@ def test_smart_adaptive_extra_loss_trainer2(local_mode=False):
 def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
     _base(
         SmartAdaptiveExtraLossPPOTrainer,
-        local_mode, {
+        local_mode,
+        {
             "waiting_iteration": 2,
             "use_joint_dataset": True,
             "performance_evaluation_metric": "mean"
@@ -120,15 +121,13 @@ def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
 
 def test_adaptive_tnb():
     _base(AdaptiveTNBPPOTrainer, extra_config={})
-    _base(
-        AdaptiveTNBPPOTrainer, extra_config={"clip_novelty_gradient": False}
-    )
-    _base(
-        AdaptiveTNBPPOTrainer, extra_config={"use_second_component": True}
-    )
+    _base(AdaptiveTNBPPOTrainer, extra_config={"clip_novelty_gradient": False})
+    _base(AdaptiveTNBPPOTrainer, extra_config={"use_second_component": True})
 
 
 def test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=False):
-    _base(TNBPPOTrainer, local_mode=local_mode, extra_config={
-        "use_joint_dataset": use_joint_dataset
-    })
+    _base(
+        TNBPPOTrainer,
+        local_mode=local_mode,
+        extra_config={"use_joint_dataset": use_joint_dataset}
+    )
