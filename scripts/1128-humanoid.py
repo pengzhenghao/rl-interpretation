@@ -1,8 +1,5 @@
-import roboschool
 from ray import tune
 
-if roboschool:
-    print("Successfully import roboschool.")
 from toolbox.env import get_env_maker
 from toolbox.marl import MultiAgentEnvWrapper, on_train_result
 from toolbox.marl.smart_adaptive_extra_loss import \
