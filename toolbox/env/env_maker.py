@@ -12,6 +12,11 @@ except Exception:
         "This may because you didn't install mujoco_py."
     )
 
+try:
+    import pybullet_envs
+except Exception:
+    print("Failed to import pybullet_envs!")
+
 DEFAULT_SEED = 0
 
 
