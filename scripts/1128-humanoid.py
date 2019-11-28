@@ -12,7 +12,7 @@ from toolbox.utils import get_local_dir, initialize_ray
 if __name__ == '__main__':
     num_gpus = 4
     num_agents = 10
-    env_name = "RoboschoolHumanoid-v1"
+    env_name = "Humanoid-v2"
     num_seeds = 1
     exp_name = "1128-SAEL-humanoid"
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     config = {
         # This experiment specify config
-        "performance_evaluation_metric": tune.grid_search(['max', 'mean']),
+        # "performance_evaluation_metric": tune.grid_search(['max', 'mean']),
         "use_joint_dataset": tune.grid_search([True, False]),
         "novelty_mode": tune.grid_search(['min', 'mean']),
 
