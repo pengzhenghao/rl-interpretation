@@ -125,8 +125,8 @@ def test_smart_adaptive_extra_loss_trainer4(local_mode=False):
           env="HumanoidBulletEnv-v0")
 
 
-def test_smart_adaptive_extra_loss_trainer5():
-    _base(SmartAdaptiveExtraLossPPOTrainer, local_mode=True, env="CartPole-v0")
+def test_smart_adaptive_extra_loss_trainer5(local_mode=False):
+    _base(SmartAdaptiveExtraLossPPOTrainer, local_mode=local_mode, env="CartPole-v0")
 
 
 def test_adaptive_tnb():
@@ -155,4 +155,5 @@ def test_restore():
 
 if __name__ == '__main__':
     # test_restore()
-    test_smart_adaptive_extra_loss_trainer5()
+    # test_smart_adaptive_extra_loss_trainer4(True)
+    test_smart_adaptive_extra_loss_trainer5(True)

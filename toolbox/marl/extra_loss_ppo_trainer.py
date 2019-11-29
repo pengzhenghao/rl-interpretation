@@ -14,6 +14,7 @@ from ray.rllib.optimizers import SyncSamplesOptimizer
 from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch
 from ray.rllib.utils.explained_variance import explained_variance
+from ray.rllib.models.tf.tf_action_dist import DiagGaussian, Categorical
 from ray.tune.util import merge_dicts
 
 from toolbox.modified_rllib.multi_gpu_optimizer import \
@@ -180,16 +181,6 @@ class AddLossMixin(object):
         return feed_dict
 
 
-def norm(my_act, other_act, mode="mean"):
-    # the other_act should exclude itself.
-    subtract = tf.subtract(my_act, other_act)
-    normalized = tf.norm(subtract, axis=1)  # normalized for each policies.
-    if mode == "mean":
-        return tf.reduce_mean(normalized)
-    elif mode == "min":
-        return tf.reduce_min(normalized)
-    else:
-        return tf.reduce_max(normalized)
 
 
 def novelty_loss(policy, model, dist_class, train_batch):
@@ -198,12 +189,32 @@ def novelty_loss(policy, model, dist_class, train_batch):
         obs_ph = train_batch[JOINT_OBS]
     else:
         obs_ph = train_batch[NO_SPLIT_OBS]
+    if dist_class == DiagGaussian:
+        discrete = False
+    elif dist_class == Categorical:
+        discrete = True
+    else:
+        raise NotImplementedError(
+            "Only support DiagGaussian, Categorical distribution.")
+
+    # The ret_act is the 'behaviour_logits'
     ret_act, _ = model.base_model(obs_ph)
-    my_act = tf.split(ret_act, 2, axis=1)[0]
-    peer_act_ph = train_batch[PEER_ACTION]
-    flatten = tf.reshape(my_act, [-1])
-    other_act = tf.reshape(peer_act_ph, [-1, tf.shape(flatten)[0]])
-    nov_loss = -norm(flatten, other_act, mode)
+    if discrete:
+        # option1: use JS distance
+        pass
+    else:
+        my_act = tf.split(ret_act, 2, axis=1)[0]
+        peer_act_ph = train_batch[PEER_ACTION]
+        flatten = tf.reshape(my_act, [-1])
+        other_act = tf.reshape(peer_act_ph, [-1, tf.shape(flatten)[0]])
+        subtract = tf.subtract(my_act, other_act)
+        normalized = tf.norm(subtract, axis=1)  # normalized for each policies.
+        if mode == "mean":
+            nov_loss = -tf.reduce_mean(normalized)
+        elif mode == "min":
+            nov_loss = tf.reduce_min(normalized)
+        else:
+            nov_loss = tf.reduce_max(normalized)
     policy.novelty_loss = nov_loss
     return nov_loss
 
