@@ -10,7 +10,8 @@ from toolbox.marl.smart_adaptive_extra_loss import \
 from toolbox.marl.task_novelty_bisector import TNBPPOTrainer
 
 
-def _base(trainer, local_mode=False, extra_config=None, t=500):
+def _base(trainer, local_mode=False, extra_config=None, t=500,
+          env="BipedalWalker-v2"):
     num_agents = 3
     num_gpus = 0
 
@@ -19,7 +20,7 @@ def _base(trainer, local_mode=False, extra_config=None, t=500):
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
 
-    env_config = {"env_name": "BipedalWalker-v2", "agent_ids": policy_names}
+    env_config = {"env_name": env, "agent_ids": policy_names}
     env = MultiAgentEnvWrapper(env_config)
     config = {
         "env": MultiAgentEnvWrapper,
@@ -119,6 +120,15 @@ def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
     )
 
 
+def test_smart_adaptive_extra_loss_trainer4(local_mode=False):
+    _base(SmartAdaptiveExtraLossPPOTrainer, local_mode=local_mode,
+          env="HumanoidBulletEnv-v0")
+
+
+def test_smart_adaptive_extra_loss_trainer5():
+    _base(SmartAdaptiveExtraLossPPOTrainer, local_mode=True, env="CartPole-v0")
+
+
 def test_adaptive_tnb():
     _base(AdaptiveTNBPPOTrainer, extra_config={})
     _base(AdaptiveTNBPPOTrainer, extra_config={"clip_novelty_gradient": False})
@@ -144,4 +154,5 @@ def test_restore():
 
 
 if __name__ == '__main__':
-    test_restore()
+    # test_restore()
+    test_smart_adaptive_extra_loss_trainer5()

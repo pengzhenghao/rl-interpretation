@@ -84,7 +84,8 @@ def on_train_result(info):
         row_without_self = dist_matrix[i][mask[i]]
         info['result']['distance'][pid + "_mean"] = row_without_self.mean()
 
-    js_matrix = js_distance(flatten)
+    js_flatten = [infos['behaviour_logits'] for act, infos in ret.values()]
+    js_matrix = js_distance(js_flatten)
     flatten_js_dist = js_matrix[mask]
     info['result']['distance_js'] = {}
     info['result']['distance_js']['overall_mean'] = flatten_js_dist.mean()
