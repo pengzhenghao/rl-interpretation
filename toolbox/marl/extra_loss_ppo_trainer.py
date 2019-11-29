@@ -207,7 +207,7 @@ def novelty_loss(policy, model, dist_class, train_batch):
         peer_act_ph = train_batch[PEER_ACTION]
         flatten = tf.reshape(my_act, [-1])
         other_act = tf.reshape(peer_act_ph, [-1, tf.shape(flatten)[0]])
-        subtract = tf.subtract(my_act, other_act)
+        subtract = tf.subtract(flatten, other_act)
         normalized = tf.norm(subtract, axis=1)  # normalized for each policies.
         if mode == "mean":
             nov_loss = -tf.reduce_mean(normalized)

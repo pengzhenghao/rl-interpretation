@@ -155,5 +155,5 @@ def test_restore():
 
 if __name__ == '__main__':
     # test_restore()
-    # test_smart_adaptive_extra_loss_trainer4(True)
-    test_smart_adaptive_extra_loss_trainer5(True)
+    test_smart_adaptive_extra_loss_trainer4(False)
+    # test_smart_adaptive_extra_loss_trainer5(True)
