@@ -11,7 +11,7 @@ if __name__ == '__main__':
     num_agents = 10
     env_name = "HumanoidBulletEnv-v0"
     num_seeds = 1
-    exp_name = "1128-SAEL-humanoid"
+    exp_name = "1129-SAEL-humanoid"
 
     initialize_ray(
         num_gpus=num_gpus,
