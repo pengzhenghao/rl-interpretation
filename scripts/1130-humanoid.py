@@ -36,9 +36,9 @@ if __name__ == '__main__':
         "kl_coeff": 1.0,
         "lr": 0.0003,
         "horizon": 5000,
-        'sgd_minibatch_size': 4096,
-        'train_batch_size': 16384,
-        "num_workers": 16,
+        'sgd_minibatch_size': 1024,
+        'train_batch_size': 8192,
+        "num_workers": 8,
         "num_gpus": 1,
 
         # some common config copied from train_individual_marl
