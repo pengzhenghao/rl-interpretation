@@ -8,7 +8,7 @@ from ray.rllib.agents.ppo.ppo import update_kl
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTFPolicy, \
     ExtraLossPPOTrainer, ValueNetworkMixin, KLCoeffMixin, AddLossMixin, \
     LearningRateSchedule, EntropyCoeffSchedule, DEFAULT_CONFIG, merge_dicts, \
-    validate_config_basic, kl_and_loss_stats_modified
+    validate_config_basic, kl_and_loss_stats_modified, mixin_list
 
 logger = logging.getLogger(__name__)
 
@@ -144,10 +144,7 @@ AdaptiveExtraLossPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
     get_default_config=lambda: adaptive_extra_loss_ppo_default_config,
     before_loss_init=setup_mixins_modified,
     stats_fn=wrap_stats_fn,
-    mixins=[
-        LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin, AddLossMixin, NoveltyParamMixin
-    ]
+    mixins=mixin_list + [AddLossMixin, NoveltyParamMixin]
 )
 
 AdaptiveExtraLossPPOTrainer = ExtraLossPPOTrainer.with_updates(

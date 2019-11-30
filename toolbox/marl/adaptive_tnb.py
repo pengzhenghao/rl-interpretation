@@ -1,7 +1,7 @@
 from toolbox.marl.adaptive_extra_loss import setup_mixins_modified, \
     DEFAULT_CONFIG, merge_dicts, LearningRateSchedule, EntropyCoeffSchedule, \
     KLCoeffMixin, ValueNetworkMixin, AddLossMixin, NoveltyParamMixin, \
-    wrap_after_train_result, validate_config_basic
+    wrap_after_train_result, validate_config_basic, mixin_list
 from toolbox.marl.extra_loss_ppo_trainer import \
     kl_and_loss_stats_without_total_loss
 from toolbox.marl.task_novelty_bisector import TNBPPOTrainer, TNBPPOTFPolicy
@@ -35,10 +35,7 @@ AdaptivePPOTFPolicy = TNBPPOTFPolicy.with_updates(
     get_default_config=lambda: adaptive_tnb_default_config,
     before_loss_init=setup_mixins_modified,
     stats_fn=wrap_stats_fn,
-    mixins=[
-        LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin, AddLossMixin, NoveltyParamMixin
-    ]
+    mixins=mixin_list + [AddLossMixin, NoveltyParamMixin]
 )
 
 AdaptiveTNBPPOTrainer = TNBPPOTrainer.with_updates(

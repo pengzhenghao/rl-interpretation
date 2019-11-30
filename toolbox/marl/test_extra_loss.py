@@ -10,24 +10,24 @@ from toolbox.marl.smart_adaptive_extra_loss import \
 from toolbox.marl.task_novelty_bisector import TNBPPOTrainer
 
 
+# test_default_config = {}
+
+
 def _base(trainer, local_mode=False, extra_config=None, t=500,
-          env="BipedalWalker-v2"):
+          env_name="BipedalWalker-v2"):
     num_agents = 3
     num_gpus = 0
 
-    # This is only test code.
     initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
 
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
-
-    env_config = {"env_name": env, "agent_ids": policy_names}
+    env_config = {"env_name": env_name, "agent_ids": policy_names}
     env = MultiAgentEnvWrapper(env_config)
     config = {
         "env": MultiAgentEnvWrapper,
         "env_config": env_config,
         "num_gpus": num_gpus,
         "log_level": "DEBUG",
-        "joint_dataset_sample_batch_size": 30,
         "sample_batch_size": 20,
         "train_batch_size": 40,
         "sgd_minibatch_size": 16,
@@ -37,9 +37,6 @@ def _base(trainer, local_mode=False, extra_config=None, t=500,
                 for i in policy_names
             },
             "policy_mapping_fn": lambda x: x,
-        },
-        "callbacks": {
-            "on_train_result": on_train_result
         },
     }
     if extra_config:
@@ -54,8 +51,19 @@ def _base(trainer, local_mode=False, extra_config=None, t=500,
     )
 
 
+def _base_marl(trainer, local_mode=False, extra_config=None, t=500,
+               env_name="BipedalWalker-v2"):
+    config = {
+        "joint_dataset_sample_batch_size": 30,
+        "callbacks": {"on_train_result": on_train_result}
+    }
+    if extra_config:
+        config.update(extra_config)
+    _base(trainer, local_mode, config, t, env_name)
+
+
 def test_adaptive_extra_loss_trainer1():
-    _base(
+    _base_marl(
         AdaptiveExtraLossPPOTrainer,
         local_mode=False,
         extra_config={"use_joint_dataset": False}
@@ -63,7 +71,7 @@ def test_adaptive_extra_loss_trainer1():
 
 
 def test_adaptive_extra_loss_trainer2():
-    _base(
+    _base_marl(
         AdaptiveExtraLossPPOTrainer,
         local_mode=False,
         extra_config={"use_joint_dataset": True}
@@ -71,7 +79,7 @@ def test_adaptive_extra_loss_trainer2():
 
 
 def test_extra_loss_ppo_trainer1(local_mode=False):
-    _base(
+    _base_marl(
         ExtraLossPPOTrainer,
         local_mode=local_mode,
         extra_config={"use_joint_dataset": False}
@@ -79,7 +87,7 @@ def test_extra_loss_ppo_trainer1(local_mode=False):
 
 
 def test_extra_loss_ppo_trainer2():
-    _base(
+    _base_marl(
         ExtraLossPPOTrainer,
         local_mode=False,
         extra_config={"use_joint_dataset": True}
@@ -87,7 +95,7 @@ def test_extra_loss_ppo_trainer2():
 
 
 def test_smart_adaptive_extra_loss_trainer1(local_mode=False):
-    _base(
+    _base_marl(
         SmartAdaptiveExtraLossPPOTrainer,
         local_mode, {
             "waiting_iteration": 2,
@@ -98,7 +106,7 @@ def test_smart_adaptive_extra_loss_trainer1(local_mode=False):
 
 
 def test_smart_adaptive_extra_loss_trainer2(local_mode=False):
-    _base(
+    _base_marl(
         SmartAdaptiveExtraLossPPOTrainer,
         local_mode, {
             "waiting_iteration": 2,
@@ -109,7 +117,7 @@ def test_smart_adaptive_extra_loss_trainer2(local_mode=False):
 
 
 def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
-    _base(
+    _base_marl(
         SmartAdaptiveExtraLossPPOTrainer,
         local_mode,
         {
@@ -121,22 +129,25 @@ def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
 
 
 def test_smart_adaptive_extra_loss_trainer4(local_mode=False):
-    _base(SmartAdaptiveExtraLossPPOTrainer, local_mode=local_mode,
-          env="HumanoidBulletEnv-v0")
+    _base_marl(SmartAdaptiveExtraLossPPOTrainer, local_mode=local_mode,
+               env="HumanoidBulletEnv-v0")
 
 
 def test_smart_adaptive_extra_loss_trainer5(local_mode=False):
-    _base(SmartAdaptiveExtraLossPPOTrainer, local_mode=local_mode, env="CartPole-v0")
+    _base_marl(SmartAdaptiveExtraLossPPOTrainer, local_mode=local_mode,
+               env="CartPole-v0")
 
 
 def test_adaptive_tnb():
-    _base(AdaptiveTNBPPOTrainer, extra_config={})
-    _base(AdaptiveTNBPPOTrainer, extra_config={"clip_novelty_gradient": False})
-    _base(AdaptiveTNBPPOTrainer, extra_config={"use_second_component": True})
+    _base_marl(AdaptiveTNBPPOTrainer, extra_config={})
+    _base_marl(AdaptiveTNBPPOTrainer, extra_config={"clip_novelty_gradient":
+                                                        False})
+    _base_marl(AdaptiveTNBPPOTrainer,
+               extra_config={"use_second_component": True})
 
 
 def test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=False):
-    _base(
+    _base_marl(
         TNBPPOTrainer,
         local_mode=local_mode,
         extra_config={"use_joint_dataset": use_joint_dataset}

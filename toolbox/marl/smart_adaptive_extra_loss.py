@@ -12,7 +12,7 @@ from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer, \
     ExtraLossPPOTFPolicy, merge_dicts, DEFAULT_CONFIG, \
     kl_and_loss_stats_modified, ValueNetworkMixin, KLCoeffMixin, \
     EntropyCoeffSchedule, LearningRateSchedule, AddLossMixin, \
-    validate_config_basic
+    validate_config_basic, mixin_list
 
 logger = logging.getLogger(__name__)
 
@@ -142,10 +142,7 @@ SmartAdaptiveExtraLossPPOTFPolicy = ExtraLossPPOTFPolicy.with_updates(
     get_default_config=lambda: smart_adaptive_extra_loss_ppo_default_config,
     before_loss_init=setup_mixins_modified,
     stats_fn=wrap_stats_fn,
-    mixins=[
-        LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin, AddLossMixin, SmartNoveltyParamMixin
-    ]
+    mixins=mixin_list + [AddLossMixin, SmartNoveltyParamMixin]
 )
 
 SmartAdaptiveExtraLossPPOTrainer = ExtraLossPPOTrainer.with_updates(

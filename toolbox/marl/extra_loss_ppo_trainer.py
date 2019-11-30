@@ -10,12 +10,11 @@ from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models.tf.tf_action_dist import DiagGaussian, Categorical
 from ray.rllib.optimizers import SyncSamplesOptimizer
+from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch
-from ray.rllib.policy.tf_policy import TFPolicy
 from ray.rllib.utils.explained_variance import explained_variance
 from ray.tune.util import merge_dicts
 
-from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
 
@@ -29,6 +28,9 @@ OPPONENT_ACTION = "opponent_action"
 PEER_ACTION = "other_replay"
 JOINT_OBS = "joint_dataset"
 NO_SPLIT_OBS = "no_split_obs"
+
+mixin_list = [LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
+              ValueNetworkMixin]
 
 extra_loss_ppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
@@ -356,10 +358,7 @@ ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
     stats_fn=kl_and_loss_stats_modified,
     loss_fn=extra_loss_ppo_loss,
     before_loss_init=setup_mixins,
-    mixins=[
-        LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin, AddLossMixin
-    ]
+    mixins=mixin_list + [AddLossMixin]
 )
 
 ExtraLossPPOTrainer = PPOTrainer.with_updates(
