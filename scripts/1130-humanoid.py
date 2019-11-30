@@ -48,7 +48,7 @@ if __name__ == '__main__':
             "agent_ids": policy_names
         },
         "log_level": "ERROR",
-        "num_cpus_per_worker": 1,
+        "num_cpus_per_worker": 0.9,
         "num_cpus_for_driver": 1,
         "num_envs_per_worker": 16,
         "sample_batch_size": 256,
