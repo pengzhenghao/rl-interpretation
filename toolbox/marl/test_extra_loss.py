@@ -70,10 +70,10 @@ def test_adaptive_extra_loss_trainer2():
     )
 
 
-def test_extra_loss_ppo_trainer1():
+def test_extra_loss_ppo_trainer1(local_mode=False):
     _base(
         ExtraLossPPOTrainer,
-        local_mode=False,
+        local_mode=local_mode,
         extra_config={"use_joint_dataset": False}
     )
 
@@ -155,5 +155,5 @@ def test_restore():
 
 if __name__ == '__main__':
     # test_restore()
-    test_smart_adaptive_extra_loss_trainer4(False)
+    test_smart_adaptive_extra_loss_trainer4(True)
     # test_smart_adaptive_extra_loss_trainer5(True)

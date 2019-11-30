@@ -2,21 +2,20 @@ import logging
 
 import numpy as np
 import tensorflow as tf
-from ray.rllib.agents.ppo import PPOTrainer
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
+    PPOTrainer
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
-    LearningRateSchedule, \
-    EntropyCoeffSchedule, KLCoeffMixin, \
-    ValueNetworkMixin, ppo_surrogate_loss
-from ray.rllib.evaluation.postprocessing import compute_advantages, \
-    Postprocessing
-from ray.rllib.optimizers import SyncSamplesOptimizer
-from ray.rllib.policy.rnn_sequencing import chop_into_sequences
-from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch
-from ray.rllib.utils.explained_variance import explained_variance
+    LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, \
+    ValueNetworkMixin, ppo_surrogate_loss, postprocess_ppo_gae
+from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models.tf.tf_action_dist import DiagGaussian, Categorical
+from ray.rllib.optimizers import SyncSamplesOptimizer
+from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch
+from ray.rllib.policy.tf_policy import TFPolicy
+from ray.rllib.utils.explained_variance import explained_variance
 from ray.tune.util import merge_dicts
 
+from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
 
@@ -42,29 +41,14 @@ extra_loss_ppo_default_config = merge_dicts(
 )
 
 
-def postprocess_ppo_gae(
+def postprocess_ppo_gae_modified(
         policy, sample_batch, other_agent_batches=None, episode=None
 ):
-    completed = sample_batch["dones"][-1]
-    if completed:
-        last_r = 0.0
-    else:
-        next_state = []
-        for i in range(policy.num_state_tensors()):
-            next_state.append([sample_batch["state_out_{}".format(i)][-1]])
-        last_r = policy._value(
-            sample_batch[SampleBatch.NEXT_OBS][-1],
-            sample_batch[SampleBatch.ACTIONS][-1],
-            sample_batch[SampleBatch.REWARDS][-1], *next_state
-        )
-    batch = compute_advantages(
-        sample_batch,
-        last_r,
-        policy.config["gamma"],
-        policy.config["lambda"],
-        use_gae=policy.config["use_gae"]
-    )
-
+    """This function add extra placeholder, by creating new entries in batch
+    which the following RLLib procedure would detect and create placeholder
+    based on the shape of them."""
+    batch = postprocess_ppo_gae(policy, sample_batch, other_agent_batches,
+                                episode)
     if not policy.loss_initialized():
         if policy.config["use_joint_dataset"]:
             batch[JOINT_OBS] = np.zeros_like(
@@ -81,7 +65,10 @@ def postprocess_ppo_gae(
 
 
 class AddLossMixin(object):
-    """Copied from tf_policy.py"""
+    """When training, this Mixin add the sharing data into feed_dict.
+
+    Originally, it's a function of tf_policy, so we copied some codes from
+    tf_policy.py"""
 
     def __init__(self, config):
         if "novelty_loss_param_init" in config:
@@ -98,20 +85,8 @@ class AddLossMixin(object):
     def _get_loss_inputs_dict(
             self, batch, shuffle, cross_policy_obj, policy_id=None
     ):
-        """Return a feed dict from a batch.
-
-        Arguments:
-            batch (SampleBatch): batch of data to derive inputs from
-            shuffle (bool): whether to shuffle batch sequences. Shuffle may
-                be done in-place. This only makes sense if you're further
-                applying minibatch SGD after getting the outputs.
-
-        Returns:
-            feed dict of data
-        """
+        """When training, add the required data into the feed_dict."""
         feed_dict = {}
-
-        # What we modified
         if self.config["use_joint_dataset"]:
             # parse the cross-policy info and put in feed_dict.
             replay_ph = self._loss_input_dict[PEER_ACTION]
@@ -136,12 +111,12 @@ class AddLossMixin(object):
             feed_dict[self._loss_input_dict[NO_SPLIT_OBS]] = \
                 batch[SampleBatch.CUR_OBS]
 
-        # The below codes are copied from rllib.
+        """The below codes are copied from rllib. """
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                len(batch[SampleBatch.CUR_OBS]) %
-                self._batch_divisibility_req == 0
-                and max(batch[SampleBatch.AGENT_INDEX]) == 0
+                    len(batch[SampleBatch.CUR_OBS]) %
+                    self._batch_divisibility_req == 0
+                    and max(batch[SampleBatch.AGENT_INDEX]) == 0
             )  # not multiagent
         else:
             meets_divisibility_reqs = True
@@ -181,8 +156,6 @@ class AddLossMixin(object):
         return feed_dict
 
 
-
-
 def novelty_loss(policy, model, dist_class, train_batch):
     mode = policy.config['novelty_mode']
     if policy.config.get("use_joint_dataset"):
@@ -200,8 +173,7 @@ def novelty_loss(policy, model, dist_class, train_batch):
     # The ret_act is the 'behaviour_logits'
     ret_act, _ = model.base_model(obs_ph)
     if discrete:
-        # option1: use JS distance
-        pass
+        raise NotImplementedError("We do not implement discrete action space.")
     else:
         my_act = tf.split(ret_act, 2, axis=1)[0]
         peer_act_ph = train_batch[PEER_ACTION]
@@ -380,7 +352,7 @@ def setup_mixins(policy, obs_space, action_space, config):
 ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
     name="ExtraLossPPOTFPolicy",
     get_default_config=lambda: extra_loss_ppo_default_config,
-    postprocess_fn=postprocess_ppo_gae,
+    postprocess_fn=postprocess_ppo_gae_modified,
     stats_fn=kl_and_loss_stats_modified,
     loss_fn=extra_loss_ppo_loss,
     before_loss_init=setup_mixins,
@@ -397,3 +369,8 @@ ExtraLossPPOTrainer = PPOTrainer.with_updates(
     default_policy=ExtraLossPPOTFPolicy,
     make_policy_optimizer=choose_policy_optimizer
 )
+
+if __name__ == '__main__':
+    from toolbox.marl.test_extra_loss import test_extra_loss_ppo_trainer1
+
+    test_extra_loss_ppo_trainer1(True)
