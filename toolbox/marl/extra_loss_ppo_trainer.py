@@ -6,7 +6,7 @@ from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
     PPOTrainer
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
     LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, \
-    ValueNetworkMixin, ppo_surrogate_loss, postprocess_ppo_gae
+    ValueNetworkMixin, ppo_surrogate_loss, postprocess_ppo_gae, setup_mixins
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models.tf.tf_action_dist import DiagGaussian, Categorical
 from ray.rllib.optimizers import SyncSamplesOptimizer
@@ -341,14 +341,9 @@ def choose_policy_optimizer(workers, config):
     )
 
 
-def setup_mixins(policy, obs_space, action_space, config):
+def setup_mixins_modified(policy, obs_space, action_space, config):
     AddLossMixin.__init__(policy, config)
-    ValueNetworkMixin.__init__(policy, obs_space, action_space, config)
-    KLCoeffMixin.__init__(policy, config)
-    EntropyCoeffSchedule.__init__(
-        policy, config["entropy_coeff"], config["entropy_coeff_schedule"]
-    )
-    LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
+    setup_mixins(policy, obs_space, action_space, config)
 
 
 ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
@@ -357,7 +352,7 @@ ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
     postprocess_fn=postprocess_ppo_gae_modified,
     stats_fn=kl_and_loss_stats_modified,
     loss_fn=extra_loss_ppo_loss,
-    before_loss_init=setup_mixins,
+    before_loss_init=setup_mixins_modified,
     mixins=mixin_list + [AddLossMixin]
 )
 
