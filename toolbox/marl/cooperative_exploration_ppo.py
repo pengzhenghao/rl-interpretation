@@ -107,7 +107,7 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, epidose=None):
         return postprocess_ppo_gae(policy, batch)
 
     batches = [postprocess_ppo_gae(policy, sample_batch)]
-    for pid, batch in others_batches.items():
+    for pid, (_, batch) in others_batches.items():
         # use my policy to postprocess other's trajectory.
         batches.append(postprocess_ppo_gae(policy, batch))
     return SampleBatch.concat_samples(batches)
@@ -234,6 +234,7 @@ def setup_mixins_modified(policy, obs_space, action_space, config):
 
 def validate_config_modified(config):
     validate_config(config)
+    print(config['train_batch_size'])
 
 
 CEPPOTFPolicy = PPOTFPolicy.with_updates(
@@ -252,7 +253,7 @@ CEPPOTrainer = PPOTrainer.with_updates(
     name="CEPPO",
     default_config=ceppo_default_config,
     default_policy=CEPPOTFPolicy,
-    # validate_config=validate_config_modified,
+    validate_config=validate_config_modified,
     # make_policy_optimizer=choose_policy_optimizer
 )
 
@@ -262,6 +263,7 @@ def debug_ceppo(local_mode):
 
     _base(CEPPOTrainer, local_mode, extra_config={
         # "learn_with_peers": True
+        "disable": True
     }, env_name="CartPole-v0")
 
 
@@ -291,14 +293,23 @@ def validate_ceppo(disable):
         "disable": disable,
     }
 
+    if disable:
+        config['train_batch_size'] = \
+            ceppo_default_config['train_batch_size'] * num_agents
+        config['num_workers'] = \
+            ceppo_default_config['num_workers'] * num_agents
+        # config['num_envs_per_worker'] = \
+        #     ceppo_default_config['num_envs_per_worker'] * num_agents
+
     tune.run(
         CEPPOTrainer,
         name="DELETEME_TEST_CEPPO",
-        stop={"timesteps_total": 50000},
+        # stop={"timesteps_total": 50000},
+        stop={"info/num_steps_trained": 50000},
         config=config
     )
 
 
 if __name__ == '__main__':
-    # debug_ceppo(local_mode=False)
-    validate_ceppo(disable=False)
+    debug_ceppo(local_mode=True)
+    # validate_ceppo(disable=True)
