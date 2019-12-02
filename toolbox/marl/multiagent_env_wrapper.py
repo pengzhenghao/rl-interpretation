@@ -11,6 +11,7 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         assert "env_name" in env_config
         agent_ids = env_config['agent_ids']
         self.agent_ids = agent_ids
+        self.env_name = env_config['env_name']
         self.env_maker = get_env_maker(env_config['env_name'])
         self.envs = {}
         if not isinstance(agent_ids, list):
@@ -41,6 +42,9 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         for env in self.envs.values():
             env.seed(s)
 
+    def __repr__(self):
+        return "MultiAgentEnvWrapper({})".format(self.env_name)
+
 
 if __name__ == '__main__':
     import numpy as np
@@ -50,7 +54,7 @@ if __name__ == '__main__':
     mae = MultiAgentEnvWrapper(env_config)
     mae.reset()
     while True:
-        ret = mae.step({i: np.zeros((17,)) for i in range(10)})
+        ret = mae.step({i: np.zeros((17, )) for i in range(10)})
         if ret[2]['__all__']:
             print("Finish! ", ret)
             break

@@ -1,0 +1,1 @@
+nohup python scripts/1127-smart_adaptive_extra_loss.py > 1127-smart_adaptive_extra_loss.log 2>&1 &

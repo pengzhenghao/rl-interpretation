@@ -14,8 +14,9 @@ def test_marl_individual_ppo(extra_config, local_mode=True, test_mode=True):
     num_iters = 50
     num_agents = 8
 
-    initialize_ray(test_mode=test_mode, num_gpus=num_gpus,
-                   local_mode=local_mode)
+    initialize_ray(
+        test_mode=test_mode, num_gpus=num_gpus, local_mode=local_mode
+    )
 
     tmp_env = get_env_maker(env_name)()
 
@@ -63,8 +64,10 @@ def test_marl_custom_metrics():
         """info only contains trainer and result."""
         sample_size = info['trainer'].config.get("joint_dataset_sample_size")
         if sample_size is None:
-            print("[WARNING]!!! You do not specify the "
-                  "joint_dataset_sample_size!! We will use 200 instead.")
+            print(
+                "[WARNING]!!! You do not specify the "
+                "joint_dataset_sample_size!! We will use 200 instead."
+            )
             sample_size = 200
 
         # replay_buffers is a dict map policy_id to ReplayBuffer object.
@@ -88,9 +91,11 @@ def test_marl_custom_metrics():
                 count = batch.count
                 batch.shuffle()
                 if count < sample_size:
-                    print("[WARNING]!!! Your rollout sample size is "
-                          "less than the replay sample size! "
-                          "Check codes here!")
+                    print(
+                        "[WARNING]!!! Your rollout sample size is "
+                        "less than the replay sample size! "
+                        "Check codes here!"
+                    )
                     cnt = 0
                     while True:
                         end = min(count, sample_size - cnt)
@@ -131,9 +136,7 @@ def test_marl_custom_metrics():
             row_without_self = dist_matrix[i][mask[i]]
             info['result']['distance'][pid + "_mean"] = row_without_self.mean()
 
-    extra_config = {"callbacks": {
-        "on_train_result": on_train_result
-    }}
+    extra_config = {"callbacks": {"on_train_result": on_train_result}}
 
     test_marl_individual_ppo(extra_config, local_mode=True, test_mode=False)
 

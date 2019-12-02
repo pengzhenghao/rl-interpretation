@@ -20,6 +20,19 @@ class DefaultMapping(collections.defaultdict):
         return value
 
 
+def _is_centos():
+    flag = linux_distribution(False)[0] == 'centos'
+    if flag:
+        # To make sure we are really talking about the same machine.
+        assert linux_distribution(False)[1] == '7'
+        assert linux_distribution(False)[2] == 'Core'
+        assert linux_distribution(True)[0] == 'CentOS Linux'
+        import pwd
+        import os
+        assert pwd.getpwuid(os.getuid())[0] == 'b146466'
+    return flag
+
+
 def initialize_ray(local_mode=False, num_gpus=0, test_mode=False, **kwargs):
     if not ray.is_initialized():
         ray.init(
@@ -27,6 +40,7 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False, **kwargs):
             log_to_driver=test_mode,
             local_mode=local_mode,
             num_gpus=num_gpus,
+            temp_dir="/data1/pengzh/tmp" if _is_centos() else None,
             **kwargs
         )
         print("Successfully initialize Ray!")
@@ -36,21 +50,8 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False, **kwargs):
 
 def get_local_dir():
     """This function should be called before all tune.run!!!"""
-    local_dir = None
-    if linux_distribution(False)[0] == 'centos':
-        # This is a workaround for the centos server does not store data
-        # at home dir.
-        local_dir = "/data1/pengzh/ray_results"
+    return "/data1/pengzh/ray_results" if _is_centos() else None
 
-        # To make sure we are really talking about the same machine.
-        assert linux_distribution(False)[1] == '7'
-        assert linux_distribution(False)[2] == 'Core'
-        assert linux_distribution(True)[0] == 'CentOS Linux'
-        import pwd
-        import os
-
-        assert pwd.getpwuid(os.getuid())[0] == 'b146466'
-    return local_dir
 
 def get_random_string():
     return str(uuid.uuid4())[:8]

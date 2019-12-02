@@ -162,7 +162,7 @@ elif args.env == "Humanoid-v2":
                 "lr": 0.0003,
                 "horizon": 5000,
                 'sgd_minibatch_size': 4096,
-                'train_batch_size': 65536,
+                'train_batch_size': 16384,
                 "num_workers": 16,
                 "num_envs_per_worker": 16,
                 "num_gpus": 1
@@ -172,7 +172,7 @@ elif args.env == "Humanoid-v2":
 elif args.env == "Walker2d-v3":
     algo_specify_config_dict = {
         "PPO": {
-            "stop":{
+            "stop": {
                 "timesteps_total": int(5e7),
                 "episode_reward_mean": 4000
             },
