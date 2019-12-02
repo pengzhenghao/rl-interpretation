@@ -106,8 +106,13 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, epidose=None):
             [sample_batch] + [b for (_, b) in others_batches.values()])
         return postprocess_ppo_gae(policy, batch)
 
+    # use_myself_vf_preds
+    assert policy.config["use_myself_vf_preds"]
     batches = [postprocess_ppo_gae(policy, sample_batch)]
     for pid, (_, batch) in others_batches.items():
+        batch[SampleBatch.VF_PREDS] = policy._value_batch(
+            batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
+            batch[SampleBatch.PREV_REWARDS])
         # use my policy to postprocess other's trajectory.
         batches.append(postprocess_ppo_gae(policy, batch))
     return SampleBatch.concat_samples(batches)
@@ -298,8 +303,6 @@ def validate_ceppo(disable):
             ceppo_default_config['train_batch_size'] * num_agents
         config['num_workers'] = \
             ceppo_default_config['num_workers'] * num_agents
-        # config['num_envs_per_worker'] = \
-        #     ceppo_default_config['num_envs_per_worker'] * num_agents
 
     tune.run(
         CEPPOTrainer,
@@ -311,5 +314,5 @@ def validate_ceppo(disable):
 
 
 if __name__ == '__main__':
-    debug_ceppo(local_mode=True)
+    debug_ceppo(local_mode=False)
     # validate_ceppo(disable=True)
