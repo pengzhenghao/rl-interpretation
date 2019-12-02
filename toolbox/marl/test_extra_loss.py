@@ -9,12 +9,16 @@ from toolbox.marl.smart_adaptive_extra_loss import \
     SmartAdaptiveExtraLossPPOTrainer
 from toolbox.marl.task_novelty_bisector import TNBPPOTrainer
 
-
 # test_default_config = {}
 
 
-def _base(trainer, local_mode=False, extra_config=None, t=500,
-          env_name="BipedalWalker-v2"):
+def _base(
+        trainer,
+        local_mode=False,
+        extra_config=None,
+        t=500,
+        env_name="BipedalWalker-v2"
+):
     num_agents = 3
     num_gpus = 0
 
@@ -51,11 +55,18 @@ def _base(trainer, local_mode=False, extra_config=None, t=500,
     )
 
 
-def _base_marl(trainer, local_mode=False, extra_config=None, t=500,
-               env_name="BipedalWalker-v2"):
+def _base_marl(
+        trainer,
+        local_mode=False,
+        extra_config=None,
+        t=500,
+        env_name="BipedalWalker-v2"
+):
     config = {
         "joint_dataset_sample_batch_size": 30,
-        "callbacks": {"on_train_result": on_train_result}
+        "callbacks": {
+            "on_train_result": on_train_result
+        }
     }
     if extra_config:
         config.update(extra_config)
@@ -129,21 +140,29 @@ def test_smart_adaptive_extra_loss_trainer3(local_mode=False):
 
 
 def test_smart_adaptive_extra_loss_trainer4(local_mode=False):
-    _base_marl(SmartAdaptiveExtraLossPPOTrainer, local_mode=local_mode,
-               env="HumanoidBulletEnv-v0")
+    _base_marl(
+        SmartAdaptiveExtraLossPPOTrainer,
+        local_mode=local_mode,
+        env="HumanoidBulletEnv-v0"
+    )
 
 
 def test_smart_adaptive_extra_loss_trainer5(local_mode=False):
-    _base_marl(SmartAdaptiveExtraLossPPOTrainer, local_mode=local_mode,
-               env="CartPole-v0")
+    _base_marl(
+        SmartAdaptiveExtraLossPPOTrainer,
+        local_mode=local_mode,
+        env="CartPole-v0"
+    )
 
 
 def test_adaptive_tnb():
     _base_marl(AdaptiveTNBPPOTrainer, extra_config={})
-    _base_marl(AdaptiveTNBPPOTrainer, extra_config={"clip_novelty_gradient":
-                                                        False})
-    _base_marl(AdaptiveTNBPPOTrainer,
-               extra_config={"use_second_component": True})
+    _base_marl(
+        AdaptiveTNBPPOTrainer, extra_config={"clip_novelty_gradient": False}
+    )
+    _base_marl(
+        AdaptiveTNBPPOTrainer, extra_config={"use_second_component": True}
+    )
 
 
 def test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=False):

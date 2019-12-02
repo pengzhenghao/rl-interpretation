@@ -29,8 +29,9 @@ PEER_ACTION = "other_replay"
 JOINT_OBS = "joint_dataset"
 NO_SPLIT_OBS = "no_split_obs"
 
-mixin_list = [LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-              ValueNetworkMixin]
+mixin_list = [
+    LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, ValueNetworkMixin
+]
 
 extra_loss_ppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
@@ -49,8 +50,9 @@ def postprocess_ppo_gae_modified(
     """This function add extra placeholder, by creating new entries in batch
     which the following RLLib procedure would detect and create placeholder
     based on the shape of them."""
-    batch = postprocess_ppo_gae(policy, sample_batch, other_agent_batches,
-                                episode)
+    batch = postprocess_ppo_gae(
+        policy, sample_batch, other_agent_batches, episode
+    )
     if not policy.loss_initialized():
         if policy.config["use_joint_dataset"]:
             batch[JOINT_OBS] = np.zeros_like(
@@ -112,13 +114,12 @@ class AddLossMixin(object):
             feed_dict[replay_ph] = concat_replay_act
             feed_dict[self._loss_input_dict[NO_SPLIT_OBS]] = \
                 batch[SampleBatch.CUR_OBS]
-
         """The below codes are copied from rllib. """
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                    len(batch[SampleBatch.CUR_OBS]) %
-                    self._batch_divisibility_req == 0
-                    and max(batch[SampleBatch.AGENT_INDEX]) == 0
+                len(batch[SampleBatch.CUR_OBS]) %
+                self._batch_divisibility_req == 0
+                and max(batch[SampleBatch.AGENT_INDEX]) == 0
             )  # not multiagent
         else:
             meets_divisibility_reqs = True
@@ -170,7 +171,8 @@ def novelty_loss(policy, model, dist_class, train_batch):
         discrete = True
     else:
         raise NotImplementedError(
-            "Only support DiagGaussian, Categorical distribution.")
+            "Only support DiagGaussian, Categorical distribution."
+        )
 
     # The ret_act is the 'behaviour_logits'
     ret_act, _ = model.base_model(obs_ph)

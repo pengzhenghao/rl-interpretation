@@ -5,9 +5,12 @@ from toolbox.cooperative_exploration.cooperative_exploration_ppo import \
 def debug_ceppo(local_mode):
     from toolbox.marl.test_extra_loss import _base
 
-    _base(CEPPOTrainer, local_mode, extra_config={
-        "disable": True
-    }, env_name="CartPole-v0")
+    _base(
+        CEPPOTrainer,
+        local_mode,
+        extra_config={"disable": True},
+        env_name="CartPole-v0"
+    )
 
 
 def validate_ceppo(disable, test_mode=False):

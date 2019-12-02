@@ -3,19 +3,29 @@ import tensorflow as tf
 from ray.rllib.agents.ppo.ppo_policy import PPOLoss as OriginalPPOLoss, \
     SampleBatch, BEHAVIOUR_LOGITS, ACTION_LOGP, Postprocessing
 
+required_peer_data_keys = {
+    Postprocessing.VALUE_TARGETS, Postprocessing.ADVANTAGES,
+    SampleBatch.ACTIONS, BEHAVIOUR_LOGITS, ACTION_LOGP, SampleBatch.VF_PREDS
+}
+
 
 class CEPPOLossObj:
     def __init__(self, loss_dict):
         self.loss = tf.reduce_mean(
-            tf.stack([l.loss for l in loss_dict.values()]))
+            tf.stack([l.loss for l in loss_dict.values()])
+        )
         self.mean_policy_loss = tf.reduce_mean(
-            tf.stack([l.mean_policy_loss for l in loss_dict.values()]))
+            tf.stack([l.mean_policy_loss for l in loss_dict.values()])
+        )
         self.mean_vf_loss = tf.reduce_mean(
-            tf.stack([l.mean_vf_loss for l in loss_dict.values()]))
+            tf.stack([l.mean_vf_loss for l in loss_dict.values()])
+        )
         self.mean_kl = tf.reduce_mean(
-            tf.stack([l.mean_kl for l in loss_dict.values()]))
+            tf.stack([l.mean_kl for l in loss_dict.values()])
+        )
         self.mean_entropy = tf.reduce_mean(
-            tf.stack([l.mean_entropy for l in loss_dict.values()]))
+            tf.stack([l.mean_entropy for l in loss_dict.values()])
+        )
 
 
 def ceppo_loss(policy, model, dist_class, train_batch):
@@ -23,7 +33,8 @@ def ceppo_loss(policy, model, dist_class, train_batch):
     action_dist = dist_class(logits, model)
 
     other_names = set(
-        k.split('-')[1] for k in train_batch.keys() if k.startswith("peer"))
+        k.split('-')[1] for k in train_batch.keys() if k.startswith("peer")
+    )
     assert other_names or policy.config['disable']
     other_names.add("prev")
 
@@ -42,8 +53,9 @@ def ceppo_loss(policy, model, dist_class, train_batch):
             # mask = tf.sequence_mask(train_batch["seq_lens"], max_seq_len)
             # mask = tf.reshape(mask, [-1])
         else:
-            mask = tf.ones_like(train_batch[find(Postprocessing.ADVANTAGES)],
-                                dtype=tf.bool)
+            mask = tf.ones_like(
+                train_batch[find(Postprocessing.ADVANTAGES)], dtype=tf.bool
+            )
 
         policy.loss_dict[peer] = OriginalPPOLoss(
             policy.action_space,
@@ -64,7 +76,8 @@ def ceppo_loss(policy, model, dist_class, train_batch):
             vf_clip_param=policy.config["vf_clip_param"],
             vf_loss_coeff=policy.config["vf_loss_coeff"],
             use_gae=policy.config["use_gae"],
-            model_config=policy.config["model"])
+            model_config=policy.config["model"]
+        )
     if policy.config['disable']:
         assert len(policy.loss_dict) == 1
     if policy.config['learn_with_peers']:
