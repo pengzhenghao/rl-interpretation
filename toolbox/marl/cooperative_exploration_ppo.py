@@ -97,34 +97,42 @@ def ceppo_loss(policy, model, dist_class, train_batch):
 
 
 def postprocess_ceppo(policy, sample_batch, others_batches=None, epidose=None):
-    if not policy.loss_initialized():
+    if not policy.loss_initialized() or policy.config['disable']:
         # Only for initialization. GAE postprocess done in the following func.
         return postprocess_ppo_gae(policy, sample_batch)
-    if policy.config['disable']:
-        batch = sample_batch
-    else:
-        # Fuse
+
+    if not policy.config["use_myself_vf_preds"]:
         batch = SampleBatch.concat_samples(
             [sample_batch] + [b for (_, b) in others_batches.values()])
+        return postprocess_ppo_gae(policy, batch)
 
-        # Replay to collect vf_pred
-        if policy.config['use_myself_vf_preds']:
-            joint_samples = batch.count
-            required_samples = policy.model._value_out.shape.as_list()[0]
-            if (required_samples is not None) and \
-                    (joint_samples != required_samples):
-                logger.info(
-                    "Detected mismatch of vf_placeholder (#{}) and joint "
-                    "batch data (#{}). So we update the value_batch function "
-                    "of policy.".format(required_samples, joint_samples))
-                policy._update_value_batch_function()
-            batch[SampleBatch.VF_PREDS] = policy._value_batch(
-                batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
-                batch[SampleBatch.PREV_REWARDS])
-
-    # Collect advantages
-    batch = postprocess_ppo_gae(policy, batch)
-    return batch
+    batches = [postprocess_ppo_gae(policy, sample_batch)]
+    for pid, batch in others_batches.items():
+        # use my policy to postprocess other's trajectory.
+        batches.append(postprocess_ppo_gae(policy, batch))
+    return SampleBatch.concat_samples(batches)
+    # # Fuse
+    # batch = SampleBatch.concat_samples(
+    #     [sample_batch] + [b for (_, b) in others_batches.values()])
+    #
+    # # Replay to collect vf_pred
+    # if policy.config['use_myself_vf_preds']:
+    #     joint_samples = batch.count
+    #     required_samples = policy.model._value_out.shape.as_list()[0]
+    #     if (required_samples is not None) and \
+    #             (joint_samples != required_samples):
+    #         logger.info(
+    #             "Detected mismatch of vf_placeholder (#{}) and joint "
+    #             "batch data (#{}). So we update the value_batch function "
+    #             "of policy.".format(required_samples, joint_samples))
+    #         policy._update_value_batch_function()
+    #     batch[SampleBatch.VF_PREDS] = policy._value_batch(
+    #         batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
+    #         batch[SampleBatch.PREV_REWARDS])
+    #
+    # # Collect advantages
+    # batch = postprocess_ppo_gae(policy, batch)
+    # return batch
 
 
 # def get_cross_policy_object(multi_agent_batch, self_optimizer):
@@ -253,7 +261,7 @@ def debug_ceppo(local_mode):
     from toolbox.marl.test_extra_loss import _base
 
     _base(CEPPOTrainer, local_mode, extra_config={
-        "learn_with_peers": True
+        # "learn_with_peers": True
     }, env_name="CartPole-v0")
 
 
@@ -280,7 +288,7 @@ def validate_ceppo(disable):
             },
             "policy_mapping_fn": lambda x: x,
         },
-        "disable": disable
+        "disable": disable,
     }
 
     tune.run(
@@ -293,4 +301,4 @@ def validate_ceppo(disable):
 
 if __name__ == '__main__':
     # debug_ceppo(local_mode=False)
-    validate_ceppo(disable=True)
+    validate_ceppo(disable=False)
