@@ -26,7 +26,7 @@ ceppo_default_config = merge_dicts(
 )
 
 
-def postprocess_ceppo(policy, sample_batch, others_batches=None, epidose=None):
+def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized() or policy.config['disable']:
         return postprocess_ppo_gae(policy, sample_batch)
 
