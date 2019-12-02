@@ -7,7 +7,7 @@ from ray.rllib.agents.ppo.ppo_policy import Postprocessing, SampleBatch, \
     PPOLoss as OriginalPPOLoss, setup_mixins, make_tf_callable
 
 from toolbox.marl.extra_loss_ppo_trainer import merge_dicts, \
-    validate_config, mixin_list
+    mixin_list
 
 logger = logging.getLogger(__name__)
 
@@ -116,91 +116,6 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, epidose=None):
         # use my policy to postprocess other's trajectory.
         batches.append(postprocess_ppo_gae(policy, batch))
     return SampleBatch.concat_samples(batches)
-    # # Fuse
-    # batch = SampleBatch.concat_samples(
-    #     [sample_batch] + [b for (_, b) in others_batches.values()])
-    #
-    # # Replay to collect vf_pred
-    # if policy.config['use_myself_vf_preds']:
-    #     joint_samples = batch.count
-    #     required_samples = policy.model._value_out.shape.as_list()[0]
-    #     if (required_samples is not None) and \
-    #             (joint_samples != required_samples):
-    #         logger.info(
-    #             "Detected mismatch of vf_placeholder (#{}) and joint "
-    #             "batch data (#{}). So we update the value_batch function "
-    #             "of policy.".format(required_samples, joint_samples))
-    #         policy._update_value_batch_function()
-    #     batch[SampleBatch.VF_PREDS] = policy._value_batch(
-    #         batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
-    #         batch[SampleBatch.PREV_REWARDS])
-    #
-    # # Collect advantages
-    # batch = postprocess_ppo_gae(policy, batch)
-    # return batch
-
-
-# def get_cross_policy_object(multi_agent_batch, self_optimizer):
-#     """Add contents into cross_policy_object, which passed to each policy."""
-#     return None
-# joint_batch = SampleBatch.concat_samples(
-#     [b for (_, b) in multi_agent_batch.policy_batches.item()])
-#
-# def _replay(policy, replay_pid):
-#     act, _, infos = policy.compute_actions(joint_batch['obs'])
-#     return replay_pid, act, infos
-#
-# for replay_pid, act, info in \
-#         self_optimizer.workers.local_worker().foreach_policy(_replay):
-# if act is None:
-#     continue
-
-# count_dict = {k: v.count for k, v in
-#               multi_agent_batch.policy_batches.items()}
-# for k in self_optimizer.workers.local_worker().policy_map.keys():
-#     if k not in count_dict:
-#         count_dict[k] = 0
-# sample_size = max(count_dict.values())
-# ret = {}
-# if min(count_dict.values()) < sample_size:
-#     samples = [multi_agent_batch]
-#     while min(count_dict.values()) < sample_size:
-#         tmp_batch = self_optimizer.workers.local_worker().sample()
-#         samples.append(tmp_batch)
-#         for k, b in tmp_batch.policy_batches.items():
-#             count_dict[k] += b.count
-#     multi_agent_batch = MultiAgentBatch.concat_samples(samples)
-# for pid, batch in multi_agent_batch.policy_batches.items():
-#     batch.shuffle()
-#     ret[pid] = batch.slice(0, sample_size)
-# assert 1 == len(set(b.count for b in ret.values())), ret
-#
-# for pid, policy, batch in zip():
-#     postprocess_ppo_gae(policy, batch)
-# return ret
-# return None
-
-
-# def choose_policy_optimizer(workers, config):
-#     if config["simple_optimizer"]:
-#         return SyncSamplesOptimizer(
-#             workers,
-#             num_sgd_iter=config["num_sgd_iter"],
-#             train_batch_size=config["train_batch_size"],
-#             sgd_minibatch_size=config["sgd_minibatch_size"],
-#             standardize_fields=["advantages"]
-#         )
-#     return LocalMultiGPUOptimizerModified(
-#         workers, [], get_cross_policy_object,
-#         sgd_batch_size=config["sgd_minibatch_size"],
-#         num_sgd_iter=config["num_sgd_iter"],
-#         num_gpus=config["num_gpus"],
-#         sample_batch_size=config["sample_batch_size"],
-#         num_envs_per_worker=config["num_envs_per_worker"],
-#         train_batch_size=config["train_batch_size"],
-#         standardize_fields=["advantages"],
-#         shuffle_sequences=config["shuffle_sequences"]
-#     )
 
 
 class ValueNetworkMixin2(object):
@@ -211,7 +126,7 @@ class ValueNetworkMixin2(object):
         if use_gae is None:
             use_gae = self.config['use_gae']
         if use_gae:
-            @make_tf_callable(self.get_session())
+            @make_tf_callable(self.get_session(), True)
             def value_batch(ob, prev_action, prev_reward):
                 # We do not support recurrent network now.
                 model_out, _ = self.model({
@@ -224,7 +139,7 @@ class ValueNetworkMixin2(object):
                 })
                 return self.model.value_function()
         else:
-            @make_tf_callable(self.get_session())
+            @make_tf_callable(self.get_session(), True)
             def value_batch(ob, prev_action, prev_reward):
                 return tf.zeros_like(prev_reward)
 
@@ -232,34 +147,22 @@ class ValueNetworkMixin2(object):
 
 
 def setup_mixins_modified(policy, obs_space, action_space, config):
-    # AddLossMixin.__init__(policy)
     ValueNetworkMixin2.__init__(policy, config)
     setup_mixins(policy, obs_space, action_space, config)
-
-
-def validate_config_modified(config):
-    validate_config(config)
-    print(config['train_batch_size'])
 
 
 CEPPOTFPolicy = PPOTFPolicy.with_updates(
     name="CEPPOTFPolicy",
     get_default_config=lambda: ceppo_default_config,
-    # loss_fn=ceppo_loss,
     postprocess_fn=postprocess_ceppo,
     before_loss_init=setup_mixins_modified,
-    # stats_fn=kl_and_loss_stats,
     mixins=mixin_list + [ValueNetworkMixin2]
-    # mixins=mixin_list + [ValueNetworkMixin2]
-    # mixins=mixin_list + [ValueNetworkMixin2, AddLossMixin]
 )
 
 CEPPOTrainer = PPOTrainer.with_updates(
     name="CEPPO",
     default_config=ceppo_default_config,
-    default_policy=CEPPOTFPolicy,
-    validate_config=validate_config_modified,
-    # make_policy_optimizer=choose_policy_optimizer
+    default_policy=CEPPOTFPolicy
 )
 
 
@@ -267,17 +170,16 @@ def debug_ceppo(local_mode):
     from toolbox.marl.test_extra_loss import _base
 
     _base(CEPPOTrainer, local_mode, extra_config={
-        # "learn_with_peers": True
         "disable": True
     }, env_name="CartPole-v0")
 
 
-def validate_ceppo(disable):
+def validate_ceppo(disable, test_mode=False):
     from ray import tune
     from toolbox import initialize_ray
     from toolbox.marl import MultiAgentEnvWrapper
 
-    initialize_ray(test_mode=False)
+    initialize_ray(test_mode=test_mode, local_mode=False)
 
     env_name = "CartPole-v0"
     num_agents = 3
@@ -314,5 +216,5 @@ def validate_ceppo(disable):
 
 
 if __name__ == '__main__':
-    debug_ceppo(local_mode=False)
-    # validate_ceppo(disable=True)
+    # debug_ceppo(local_mode=False)
+    validate_ceppo(disable=False, test_mode=True)
