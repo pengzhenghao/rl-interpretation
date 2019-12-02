@@ -9,22 +9,9 @@ from toolbox.marl.smart_adaptive_extra_loss import \
     SmartAdaptiveExtraLossPPOTrainer
 from toolbox.marl.task_novelty_bisector import TNBPPOTrainer
 
+
 # test_default_config = {}
-
-
-def _base(
-        trainer,
-        local_mode=False,
-        extra_config=None,
-        t=500,
-        env_name="BipedalWalker-v2",
-        num_agents=3
-):
-    # num_agents = 3
-    num_gpus = 0
-
-    initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
-
+def _get_default_test_config(num_agents, env_name, num_gpus):
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
     env_config = {"env_name": env_name, "agent_ids": policy_names}
     env = MultiAgentEnvWrapper(env_config)
@@ -44,6 +31,23 @@ def _base(
             "policy_mapping_fn": lambda x: x,
         },
     }
+    return config
+
+
+def _base(
+        trainer,
+        local_mode=False,
+        extra_config=None,
+        t=500,
+        env_name="BipedalWalker-v2",
+        num_agents=3
+):
+    # num_agents = 3
+    num_gpus = 0
+
+    initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
+
+    config = _get_default_test_config(num_agents, env_name, num_gpus)
     if extra_config:
         config.update(extra_config)
 

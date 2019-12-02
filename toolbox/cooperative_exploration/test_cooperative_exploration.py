@@ -1,10 +1,11 @@
 from ray import tune
 
-from toolbox import initialize_ray
-from toolbox.cooperative_exploration.cooperative_exploration_ppo import \
-    CEPPOTrainer, ceppo_default_config, OPTIONAL_MODES, DISABLE
+from toolbox import initialize_ray, get_local_dir
+from toolbox.cooperative_exploration.ceppo import \
+    CEPPOTrainer, OPTIONAL_MODES, DISABLE
+from toolbox.cooperative_exploration.cetd3 import CETD3Trainer
 from toolbox.marl import MultiAgentEnvWrapper
-from toolbox.marl.test_extra_loss import _base
+from toolbox.marl.test_extra_loss import _base, _get_default_test_config
 
 
 def debug_ceppo(local_mode):
@@ -20,10 +21,8 @@ def test_single_agent():
     _base(CEPPOTrainer, True, dict(mode=DISABLE), num_agents=1)
 
 
-def validate_ceppo(disable, test_mode=False):
+def _validate_base(extra_config, test_mode, env_name, trainer, stop=50000):
     initialize_ray(test_mode=test_mode, local_mode=False)
-
-    env_name = "CartPole-v0"
     num_agents = 3
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
     env_config = {"env_name": env_name, "agent_ids": policy_names}
@@ -39,25 +38,49 @@ def validate_ceppo(disable, test_mode=False):
             },
             "policy_mapping_fn": lambda x: x,
         },
-        "disable": disable,
     }
-
-    if disable:
-        config['train_batch_size'] = \
-            ceppo_default_config['train_batch_size'] * num_agents
-        config['num_workers'] = \
-            ceppo_default_config['num_workers'] * num_agents
-    tune.grid_search()
+    if extra_config:
+        config.update(extra_config)
     tune.run(
-        CEPPOTrainer,
+        trainer,
         name="DELETEME_TEST_CEPPO",
-        # stop={"timesteps_total": 50000},
-        stop={"info/num_steps_trained": 50000},
+        stop={"info/num_steps_trained": stop},
         config=config
     )
+
+
+def test_cetd3(local_mode=False):
+    num_gpus = 0
+    initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
+    config = _get_default_test_config(
+        num_agents=3, env_name="BipedalWalker-v2", num_gpus=num_gpus)
+    config.pop("sgd_minibatch_size")
+    config['timesteps_per_iteration'] = 80
+    config['pure_exploration_steps'] = 80
+    config['learning_starts'] = 180
+    tune.run(
+        CETD3Trainer,
+        local_dir=get_local_dir(),
+        name="DELETEME_TEST_extra_loss_ppo_trainer",
+        stop={"timesteps_total": 2000},
+        config=config
+    )
+
+
+def validate_ceppo():
+    _validate_base({"mode": tune.grid_search(OPTIONAL_MODES)}, False,
+                   "CartPole-v0", CEPPOTrainer)
+
+
+def validate_cetd3():
+    from toolbox.cooperative_exploration.cetd3 import SHARE_SAMPLE
+    _validate_base({"mode": tune.grid_search([SHARE_SAMPLE, None])}, False,
+                   "MountainCarContinuous-v0", CETD3Trainer)
 
 
 if __name__ == '__main__':
     # debug_ceppo(local_mode=False)
     # validate_ceppo(disable=False, test_mode=False)
-    test_single_agent()
+    # test_single_agent()
+    # test_cetd3(local_mode=False)
+    validate_cetd3()
