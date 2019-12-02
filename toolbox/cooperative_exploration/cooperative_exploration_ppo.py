@@ -95,8 +95,8 @@ def validate_and_rewrite_config(config):
         num_agents = len(config['multiagent']['policies'])
         config['train_batch_size'] = \
             ceppo_default_config['train_batch_size'] * num_agents
-        config['num_workers'] = \
-            ceppo_default_config['num_workers'] * num_agents
+        config['num_envs_per_worker'] = \
+            ceppo_default_config['num_envs_per_worker'] * num_agents
 
 
 CEPPOTFPolicy = PPOTFPolicy.with_updates(
