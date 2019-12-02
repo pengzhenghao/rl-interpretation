@@ -1,5 +1,7 @@
+from ray import tune
+
 from toolbox.cooperative_exploration.cooperative_exploration_ppo import \
-    CEPPOTrainer, ceppo_default_config
+    CEPPOTrainer, ceppo_default_config, OPTIONAL_MODES
 
 
 def debug_ceppo(local_mode):
@@ -8,7 +10,7 @@ def debug_ceppo(local_mode):
     _base(
         CEPPOTrainer,
         local_mode,
-        extra_config={"disable": True},
+        extra_config={"mode": tune.grid_search(OPTIONAL_MODES)},
         env_name="CartPole-v0"
     )
 
@@ -44,7 +46,7 @@ def validate_ceppo(disable, test_mode=False):
             ceppo_default_config['train_batch_size'] * num_agents
         config['num_workers'] = \
             ceppo_default_config['num_workers'] * num_agents
-
+    tune.grid_search()
     tune.run(
         CEPPOTrainer,
         name="DELETEME_TEST_CEPPO",

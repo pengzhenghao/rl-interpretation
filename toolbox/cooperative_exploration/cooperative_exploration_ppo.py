@@ -1,7 +1,8 @@
 import logging
 
 import tensorflow as tf
-from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG
+from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG, \
+    validate_config
 from ray.rllib.agents.ppo.ppo_policy import SampleBatch, \
     postprocess_ppo_gae, PPOTFPolicy, \
     setup_mixins, make_tf_callable, EntropyCoeffSchedule, ValueNetworkMixin, \
@@ -10,13 +11,18 @@ from ray.tune.util import merge_dicts
 
 logger = logging.getLogger(__name__)
 
+DISABLE = "disable"
+DISABLE_AND_EXPAND = "disable_and_expand"
+REPLAY_VALUES = "replay_values"
+NO_REPLAY_VALUES = "no_replay_values"
+OPTIONAL_MODES = [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES]
+
 ceppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         learn_with_peers=True,
-        use_myself_vf_preds=True,
         use_joint_dataset=False,
-        disable=False
+        mode=REPLAY_VALUES
     )
 )
 
@@ -49,9 +55,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                        convert_to_tensor(prev_action),
+                            convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                        convert_to_tensor(prev_reward),
+                            convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )
@@ -70,6 +76,29 @@ def setup_mixins_modified(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
 
 
+def validate_and_rewrite_config(config):
+    validate_config(config)
+
+    mode = config['mode']
+    assert mode in OPTIONAL_MODES
+    if mode == REPLAY_VALUES:
+        config['use_myself_vf_preds'] = True
+    else:
+        config['use_myself_vf_preds'] = False
+
+    if mode in [DISABLE, DISABLE_AND_EXPAND]:
+        config['disable'] = True
+    else:
+        config['disable'] = False
+
+    if mode == DISABLE_AND_EXPAND:
+        num_agents = len(config['multiagent']['policies'])
+        config['train_batch_size'] = \
+            ceppo_default_config['train_batch_size'] * num_agents
+        config['num_workers'] = \
+            ceppo_default_config['num_workers'] * num_agents
+
+
 CEPPOTFPolicy = PPOTFPolicy.with_updates(
     name="CEPPOTFPolicy",
     get_default_config=lambda: ceppo_default_config,
@@ -84,5 +113,6 @@ CEPPOTFPolicy = PPOTFPolicy.with_updates(
 CEPPOTrainer = PPOTrainer.with_updates(
     name="CEPPO",
     default_config=ceppo_default_config,
-    default_policy=CEPPOTFPolicy
+    default_policy=CEPPOTFPolicy,
+    validate_config=validate_and_rewrite_config
 )
