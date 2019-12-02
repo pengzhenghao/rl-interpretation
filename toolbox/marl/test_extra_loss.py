@@ -17,9 +17,10 @@ def _base(
         local_mode=False,
         extra_config=None,
         t=500,
-        env_name="BipedalWalker-v2"
+        env_name="BipedalWalker-v2",
+        num_agents=3
 ):
-    num_agents = 3
+    # num_agents = 3
     num_gpus = 0
 
     initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)

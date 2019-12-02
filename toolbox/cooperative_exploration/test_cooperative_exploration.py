@@ -1,12 +1,13 @@
 from ray import tune
 
+from toolbox import initialize_ray
 from toolbox.cooperative_exploration.cooperative_exploration_ppo import \
-    CEPPOTrainer, ceppo_default_config, OPTIONAL_MODES
+    CEPPOTrainer, ceppo_default_config, OPTIONAL_MODES, DISABLE
+from toolbox.marl import MultiAgentEnvWrapper
+from toolbox.marl.test_extra_loss import _base
 
 
 def debug_ceppo(local_mode):
-    from toolbox.marl.test_extra_loss import _base
-
     _base(
         CEPPOTrainer,
         local_mode,
@@ -15,11 +16,11 @@ def debug_ceppo(local_mode):
     )
 
 
-def validate_ceppo(disable, test_mode=False):
-    from ray import tune
-    from toolbox import initialize_ray
-    from toolbox.marl import MultiAgentEnvWrapper
+def test_single_agent():
+    _base(CEPPOTrainer, True, dict(mode=DISABLE), num_agents=1)
 
+
+def validate_ceppo(disable, test_mode=False):
     initialize_ray(test_mode=test_mode, local_mode=False)
 
     env_name = "CartPole-v0"
@@ -57,5 +58,6 @@ def validate_ceppo(disable, test_mode=False):
 
 
 if __name__ == '__main__':
-    debug_ceppo(local_mode=False)
+    # debug_ceppo(local_mode=False)
     # validate_ceppo(disable=False, test_mode=False)
+    test_single_agent()

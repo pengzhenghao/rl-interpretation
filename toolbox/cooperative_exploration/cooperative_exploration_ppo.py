@@ -2,12 +2,15 @@ import logging
 
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG, \
-    validate_config
+    validate_config, SyncSamplesOptimizer
 from ray.rllib.agents.ppo.ppo_policy import SampleBatch, \
     postprocess_ppo_gae, PPOTFPolicy, \
     setup_mixins, make_tf_callable, EntropyCoeffSchedule, ValueNetworkMixin, \
     LearningRateSchedule, KLCoeffMixin
 from ray.tune.util import merge_dicts
+
+from toolbox.modified_rllib.multi_gpu_optimizer import \
+    LocalMultiGPUOptimizerCorrectedNumberOfSampled
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +22,7 @@ OPTIONAL_MODES = [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES]
 
 ceppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
-    dict(
-        learn_with_peers=True,
-        use_joint_dataset=False,
-        mode=REPLAY_VALUES
-    )
+    dict(learn_with_peers=True, use_joint_dataset=False, mode=REPLAY_VALUES)
 )
 
 
@@ -99,6 +98,29 @@ def validate_and_rewrite_config(config):
             ceppo_default_config['num_envs_per_worker'] * num_agents
 
 
+def choose_policy_optimizer_modified(workers, config):
+    """The original optimizer has wrong number of trained samples stats.
+    So we make little modification and use the corrected optimizer."""
+    if config["simple_optimizer"]:
+        return SyncSamplesOptimizer(
+            workers,
+            num_sgd_iter=config["num_sgd_iter"],
+            train_batch_size=config["train_batch_size"],
+            sgd_minibatch_size=config["sgd_minibatch_size"],
+            standardize_fields=["advantages"])
+
+    return LocalMultiGPUOptimizerCorrectedNumberOfSampled(
+        workers,
+        sgd_batch_size=config["sgd_minibatch_size"],
+        num_sgd_iter=config["num_sgd_iter"],
+        num_gpus=config["num_gpus"],
+        sample_batch_size=config["sample_batch_size"],
+        num_envs_per_worker=config["num_envs_per_worker"],
+        train_batch_size=config["train_batch_size"],
+        standardize_fields=["advantages"],
+        shuffle_sequences=config["shuffle_sequences"])
+
+
 CEPPOTFPolicy = PPOTFPolicy.with_updates(
     name="CEPPOTFPolicy",
     get_default_config=lambda: ceppo_default_config,
@@ -114,5 +136,6 @@ CEPPOTrainer = PPOTrainer.with_updates(
     name="CEPPO",
     default_config=ceppo_default_config,
     default_policy=CEPPOTFPolicy,
-    validate_config=validate_and_rewrite_config
+    validate_config=validate_and_rewrite_config,
+    make_policy_optimizer=choose_policy_optimizer_modified
 )
