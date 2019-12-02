@@ -23,23 +23,16 @@ ceppo_default_config = merge_dicts(
 
 def postprocess_ceppo(policy, sample_batch, others_batches=None, epidose=None):
     if not policy.loss_initialized() or policy.config['disable']:
-        # Only for initialization. GAE postprocess done in the following func.
         return postprocess_ppo_gae(policy, sample_batch)
 
-    if not policy.config["use_myself_vf_preds"]:
-        batch = SampleBatch.concat_samples(
-            [sample_batch] + [b for (_, b) in others_batches.values()]
-        )
-        return postprocess_ppo_gae(policy, batch)
-
-    # use_myself_vf_preds
-    assert policy.config["use_myself_vf_preds"]
     batches = [postprocess_ppo_gae(policy, sample_batch)]
     for pid, (_, batch) in others_batches.items():
-        batch[SampleBatch.VF_PREDS] = policy._value_batch(
-            batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
-            batch[SampleBatch.PREV_REWARDS]
-        )
+        if policy.config["use_myself_vf_preds"]:
+            # use my policy to evaluate the values of other's samples.
+            batch[SampleBatch.VF_PREDS] = policy._value_batch(
+                batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
+                batch[SampleBatch.PREV_REWARDS]
+            )
         # use my policy to postprocess other's trajectory.
         batches.append(postprocess_ppo_gae(policy, batch))
     return SampleBatch.concat_samples(batches)

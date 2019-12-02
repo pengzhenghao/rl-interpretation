@@ -55,5 +55,5 @@ def validate_ceppo(disable, test_mode=False):
 
 
 if __name__ == '__main__':
-    # debug_ceppo(local_mode=False)
-    validate_ceppo(disable=False, test_mode=False)
+    debug_ceppo(local_mode=False)
+    # validate_ceppo(disable=False, test_mode=False)
