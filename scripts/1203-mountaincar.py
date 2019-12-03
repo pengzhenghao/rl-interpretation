@@ -18,7 +18,7 @@ def validate_ceppo(stop, env="CartPole-v0"):
             "num_cpus_per_worker": 2,
             "num_gpus": 0.4
         }, False, env,
-        CEPPOTrainer, stop
+        CEPPOTrainer, stop, num_gpus=4
     )
 
 
@@ -29,7 +29,7 @@ def validate_cetd3(stop, env="MountainCarContinuous-v0"):
             "num_gpus": 0.4,
             "num_cpus_for_driver": 2
         }, False,
-        env, CETD3Trainer, stop
+        env, CETD3Trainer, stop, num_gpus=4
     )
 
 
@@ -46,7 +46,9 @@ if __name__ == '__main__':
     else:
         raise ValueError()
 
-    with open("1203-mountaincar_{}_{}steps_result.pkl".format(
-            args.trainer, args.number), "wb") as f:
+    path = "1203-mountaincar_{}_{}steps_result.pkl".format(args.trainer,
+                                                           args.number)
+    with open(path, "wb") as f:
         d = ret.fetch_trial_dataframes()
         pickle.dump(d, f)
+        print("Result is saved at: <{}>".format(path))

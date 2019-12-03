@@ -16,9 +16,10 @@ def _validate_base(
         env_name,
         trainer,
         stop=50000,
-        name="DELETEME_TEST_CEPPO"
+        name="DELETEME_TEST_CEPPO",
+        num_gpus=0
 ):
-    initialize_ray(test_mode=test_mode, local_mode=False)
+    initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
     num_agents = 3
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
     env_config = {"env_name": env_name, "agent_ids": policy_names}
