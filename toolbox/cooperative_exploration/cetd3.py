@@ -11,24 +11,24 @@ DISABLE = "disable"
 SHARE_SAMPLE = "share_sample"
 
 cetd3_default_config = merge_dicts(
-    TD3_DEFAULT_CONFIG, dict(
-        mode=SHARE_SAMPLE
-    )
+    TD3_DEFAULT_CONFIG,
+    dict(mode=SHARE_SAMPLE)
     # dict(learn_with_peers=True, use_joint_dataset=False, mode=REPLAY_VALUES)
 )
 
 
 class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
-
     def _replay(self):
         samples = super()._replay()
 
         config = self.workers._local_config
         if config["mode"] == SHARE_SAMPLE:
-            share_sample = SampleBatch.concat_samples([
-                other_batch
-                for other, other_batch in samples.policy_batches.items()
-            ])
+            share_sample = SampleBatch.concat_samples(
+                [
+                    other_batch
+                    for other, other_batch in samples.policy_batches.items()
+                ]
+            )
             for pid in samples.policy_batches.keys():
                 samples.policy_batches[pid] = share_sample
             samples.count = share_sample.count
@@ -45,17 +45,20 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
         with self.sample_timer:
             if self.workers.remote_workers():
                 batch = SampleBatch.concat_samples(
-                    ray_get_and_free([
-                        e.sample.remote()
-                        for e in self.workers.remote_workers()
-                    ]))
+                    ray_get_and_free(
+                        [
+                            e.sample.remote()
+                            for e in self.workers.remote_workers()
+                        ]
+                    )
+                )
             else:
                 batch = self.workers.local_worker().sample()
             # Handle everything as if multiagent
             if isinstance(batch, SampleBatch):
-                batch = MultiAgentBatch({
-                    DEFAULT_POLICY_ID: batch
-                }, batch.count)
+                batch = MultiAgentBatch(
+                    {DEFAULT_POLICY_ID: batch}, batch.count
+                )
             for policy_id, s in batch.policy_batches.items():
                 for row in s.rows():
                     self.replay_buffers[policy_id].add(
@@ -64,14 +67,16 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
                         row["rewards"],
                         pack_if_needed(row["new_obs"]),
                         row["dones"],
-                        weight=None)
+                        weight=None
+                    )
         if self.num_steps_sampled >= self.replay_starts:
             self._optimize()
 
         # Here!
         # self.num_steps_sampled += batch.count
-        self.num_steps_sampled += np.mean([
-            b.count for b in batch.policy_batches.values()], dtype=np.int64)
+        self.num_steps_sampled += np.mean(
+            [b.count for b in batch.policy_batches.values()], dtype=np.int64
+        )
 
     def _optimize(self):
         """We correct the number of trained agents."""
@@ -82,7 +87,8 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
                 samples = self.before_learn_on_batch(
                     samples,
                     self.workers.local_worker().policy_map,
-                    self.train_batch_size)
+                    self.train_batch_size
+                )
             info_dict = self.workers.local_worker().learn_on_batch(samples)
             for policy_id, info in info_dict.items():
                 self.learner_stats[policy_id] = get_learner_stats(info)
@@ -90,16 +96,19 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
                 if isinstance(replay_buffer, PrioritizedReplayBuffer):
                     td_error = info["td_error"]
                     new_priorities = (
-                            np.abs(td_error) + self.prioritized_replay_eps)
+                        np.abs(td_error) + self.prioritized_replay_eps
+                    )
                     replay_buffer.update_priorities(
                         samples.policy_batches[policy_id]["batch_indexes"],
-                        new_priorities)
+                        new_priorities
+                    )
             self.grad_timer.push_units_processed(samples.count)
 
         # Here!
         # self.num_steps_trained += samples.count
-        self.num_steps_trained += np.mean([
-            b.count for b in samples.policy_batches.values()], dtype=np.int64)
+        self.num_steps_trained += np.mean(
+            [b.count for b in samples.policy_batches.values()], dtype=np.int64
+        )
 
 
 def make_optimizer(workers, config):
@@ -116,7 +125,8 @@ def make_optimizer(workers, config):
         prioritized_replay_eps=config["prioritized_replay_eps"],
         train_batch_size=config["train_batch_size"],
         sample_batch_size=config["sample_batch_size"],
-        **config["optimizer"])
+        **config["optimizer"]
+    )
 
 
 CETD3TFPolicy = DDPGTFPolicy

@@ -11,11 +11,13 @@ from toolbox.marl.extra_loss_ppo_trainer import NO_SPLIT_OBS, \
     PEER_ACTION, SampleBatch, mixin_list, AddLossMixin
 
 deceppo_default_config = merge_dicts(
-    adaptive_extra_loss_ppo_default_config, ceppo_default_config)
+    adaptive_extra_loss_ppo_default_config, ceppo_default_config
+)
 
 
-def postprocess_deceppo(policy, sample_batch, others_batches=None,
-                        episode=None):
+def postprocess_deceppo(
+        policy, sample_batch, others_batches=None, episode=None
+):
     # Replay to collect values, if applicable (mode!=disable)
     batch = postprocess_ceppo(policy, sample_batch, others_batches, episode)
 

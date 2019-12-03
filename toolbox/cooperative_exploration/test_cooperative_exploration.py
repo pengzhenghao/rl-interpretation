@@ -52,21 +52,28 @@ def test_single_agent():
 
 
 def test_deceppo(local_mode=False):
-    _base(DECEPPOTrainer, local_mode,
-          # {"mode": "replay_values"}, t=1000)
-          {"mode": tune.grid_search(OPTIONAL_MODES)}, t=1000)
+    _base(
+        DECEPPOTrainer,
+        local_mode,
+        # {"mode": "replay_values"}, t=1000)
+        {"mode": tune.grid_search(OPTIONAL_MODES)},
+        t=1000
+    )
 
 
 def validate_ceppo():
-    _validate_base({"mode": tune.grid_search(OPTIONAL_MODES)}, False,
-                   "CartPole-v0", CEPPOTrainer)
+    _validate_base(
+        {"mode": tune.grid_search(OPTIONAL_MODES)}, False, "CartPole-v0",
+        CEPPOTrainer
+    )
 
 
 def test_cetd3(local_mode=False):
     num_gpus = 0
     initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
     config = _get_default_test_config(
-        num_agents=3, env_name="BipedalWalker-v2", num_gpus=num_gpus)
+        num_agents=3, env_name="BipedalWalker-v2", num_gpus=num_gpus
+    )
     config.pop("sgd_minibatch_size")
     config['timesteps_per_iteration'] = 80
     config['pure_exploration_steps'] = 80
@@ -82,8 +89,10 @@ def test_cetd3(local_mode=False):
 
 def validate_cetd3():
     from toolbox.cooperative_exploration.cetd3 import SHARE_SAMPLE
-    _validate_base({"mode": tune.grid_search([SHARE_SAMPLE, None])}, False,
-                   "MountainCarContinuous-v0", CETD3Trainer)
+    _validate_base(
+        {"mode": tune.grid_search([SHARE_SAMPLE, None])}, False,
+        "MountainCarContinuous-v0", CETD3Trainer
+    )
 
 
 if __name__ == '__main__':

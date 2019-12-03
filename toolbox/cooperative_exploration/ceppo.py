@@ -54,9 +54,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                            convert_to_tensor(prev_action),
+                        convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                            convert_to_tensor(prev_reward),
+                        convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )
@@ -93,7 +93,8 @@ def validate_and_rewrite_config(config):
     if mode == DISABLE_AND_EXPAND:
         num_agents = len(config['multiagent']['policies'])
         config['train_batch_size'] = config['train_batch_size'] * num_agents
-        config['num_envs_per_worker'] = config['num_envs_per_worker'] * num_agents
+        config['num_envs_per_worker'
+               ] = config['num_envs_per_worker'] * num_agents
 
 
 def choose_policy_optimizer_modified(workers, config):
@@ -105,7 +106,8 @@ def choose_policy_optimizer_modified(workers, config):
             num_sgd_iter=config["num_sgd_iter"],
             train_batch_size=config["train_batch_size"],
             sgd_minibatch_size=config["sgd_minibatch_size"],
-            standardize_fields=["advantages"])
+            standardize_fields=["advantages"]
+        )
 
     return LocalMultiGPUOptimizerCorrectedNumberOfSampled(
         workers,
@@ -116,7 +118,8 @@ def choose_policy_optimizer_modified(workers, config):
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
         standardize_fields=["advantages"],
-        shuffle_sequences=config["shuffle_sequences"])
+        shuffle_sequences=config["shuffle_sequences"]
+    )
 
 
 CEPPOTFPolicy = PPOTFPolicy.with_updates(

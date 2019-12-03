@@ -92,7 +92,7 @@ class AddLossMixin(object):
         """When training, add the required data into the feed_dict."""
         feed_dict = {}
         if (self.config["use_joint_dataset"]) and (
-        not self.config.get('disable')):
+                not self.config.get('disable')):
             # parse the cross-policy info and put in feed_dict.
             replay_ph = self._loss_input_dict[PEER_ACTION]
             joint_obs_ph = self._loss_input_dict[JOINT_OBS]
@@ -118,9 +118,9 @@ class AddLossMixin(object):
         """The below codes are copied from rllib. """
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                    len(batch[SampleBatch.CUR_OBS]) %
-                    self._batch_divisibility_req == 0
-                    and max(batch[SampleBatch.AGENT_INDEX]) == 0
+                len(batch[SampleBatch.CUR_OBS]) %
+                self._batch_divisibility_req == 0
+                and max(batch[SampleBatch.AGENT_INDEX]) == 0
             )  # not multiagent
         else:
             meets_divisibility_reqs = True

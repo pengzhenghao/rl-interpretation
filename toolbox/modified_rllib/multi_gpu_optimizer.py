@@ -34,6 +34,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
         2. It allows to place some object on single GPU without splitting them.
         3. It corrects the computing of num_steps_sampled and num_steps_trained
     """
+
     def __init__(
             self,
             workers,
@@ -81,7 +82,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
 
         self.policies = dict(
             self.workers.local_worker().
-                foreach_trainable_policy(lambda p, i: (i, p))
+            foreach_trainable_policy(lambda p, i: (i, p))
         )
         logger.debug("Policies to train: {}".format(self.policies))
         for policy_id, policy in self.policies.items():
@@ -110,19 +111,16 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                                 policy._optimizer, self.devices, {
                                     (i, k): v
                                     for i,
-                                        (k, v) in
-                                    enumerate(policy._loss_inputs)
+                                    (k, v) in enumerate(policy._loss_inputs)
                                     if k not in no_split_list
                                 }, {
                                     (i, k): v
                                     for i,
-                                        (k, v) in
-                                    enumerate(policy._loss_inputs)
+                                    (k, v) in enumerate(policy._loss_inputs)
                                     if k in no_split_list
                                 }, [
                                     (i, k) for i,
-                                               (k, _) in
-                                    enumerate(policy._loss_inputs)
+                                    (k, _) in enumerate(policy._loss_inputs)
                                 ], rnn_inputs, self.per_device_batch_size,
                                 policy.copy
                             )
@@ -222,7 +220,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                     for batch_index in range(num_batches):
                         batch_fetches = optimizer.optimize(
                             self.sess, permutation[batch_index] *
-                                       self.per_device_batch_size
+                            self.per_device_batch_size
                         )
                         for k, v in batch_fetches[LEARNER_STATS_KEY].items():
                             iter_extra_fetches[k].append(v)
@@ -246,6 +244,7 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
     The main contribution this class provides is:
         1. It corrects the computing of num_steps_sampled and num_steps_trained
     """
+
     def step(self):
         with self.update_weights_timer:
             if self.workers.remote_workers():
@@ -327,7 +326,7 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                     for batch_index in range(num_batches):
                         batch_fetches = optimizer.optimize(
                             self.sess, permutation[batch_index] *
-                                       self.per_device_batch_size
+                            self.per_device_batch_size
                         )
                         for k, v in batch_fetches[LEARNER_STATS_KEY].items():
                             iter_extra_fetches[k].append(v)
