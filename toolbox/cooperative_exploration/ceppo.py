@@ -92,10 +92,8 @@ def validate_and_rewrite_config(config):
 
     if mode == DISABLE_AND_EXPAND:
         num_agents = len(config['multiagent']['policies'])
-        config['train_batch_size'] = \
-            ceppo_default_config['train_batch_size'] * num_agents
-        config['num_envs_per_worker'] = \
-            ceppo_default_config['num_envs_per_worker'] * num_agents
+        config['train_batch_size'] = config['train_batch_size'] * num_agents
+        config['num_envs_per_worker'] = config['num_envs_per_worker'] * num_agents
 
 
 def choose_policy_optimizer_modified(workers, config):

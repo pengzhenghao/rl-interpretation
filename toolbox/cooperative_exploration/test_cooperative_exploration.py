@@ -92,4 +92,10 @@ if __name__ == '__main__':
     # test_single_agent()
     # test_cetd3(local_mode=False)
     # validate_cetd3()
-    test_deceppo()
+    # test_deceppo()
+    _base(
+        CEPPOTrainer,
+        True,
+        extra_config={"mode": "disable_and_expand"},
+        env_name="CartPole-v0"
+    )
