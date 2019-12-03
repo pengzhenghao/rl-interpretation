@@ -51,7 +51,7 @@ def _base(
     if extra_config:
         config.update(extra_config)
 
-    tune.run(
+    return tune.run(
         trainer,
         local_dir=get_local_dir(),
         name="DELETEME_TEST_extra_loss_ppo_trainer",

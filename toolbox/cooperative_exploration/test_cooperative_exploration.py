@@ -37,7 +37,7 @@ def _validate_base(
     }
     if extra_config:
         config.update(extra_config)
-    tune.run(
+    return tune.run(
         trainer,
         name=name,
         stop={"info/num_steps_sampled": stop},
