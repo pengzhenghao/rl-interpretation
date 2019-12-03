@@ -10,7 +10,14 @@ from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.marl.test_extra_loss import _base, _get_default_test_config
 
 
-def _validate_base(extra_config, test_mode, env_name, trainer, stop=50000):
+def _validate_base(
+        extra_config,
+        test_mode,
+        env_name,
+        trainer,
+        stop=50000,
+        name="DELETEME_TEST_CEPPO"
+):
     initialize_ray(test_mode=test_mode, local_mode=False)
     num_agents = 3
     policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
@@ -32,8 +39,8 @@ def _validate_base(extra_config, test_mode, env_name, trainer, stop=50000):
         config.update(extra_config)
     tune.run(
         trainer,
-        name="DELETEME_TEST_CEPPO",
-        stop={"info/num_steps_trained": stop},
+        name=name,
+        stop={"info/num_steps_sampled": stop},
         config=config
     )
 
@@ -105,6 +112,6 @@ if __name__ == '__main__':
     _base(
         CEPPOTrainer,
         True,
-        extra_config={"mode": "disable_and_expand"},
+        extra_config={"mode": "disable"},
         env_name="CartPole-v0"
     )

@@ -243,7 +243,28 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
     """
     The main contribution this class provides is:
         1. It corrects the computing of num_steps_sampled and num_steps_trained
+        2. Introduced a new
     """
+
+    def __init__(
+            self,
+            workers,
+            compute_num_steps_sampled=None,
+            sgd_batch_size=128,
+            num_sgd_iter=10,
+            sample_batch_size=200,
+            num_envs_per_worker=1,
+            train_batch_size=1024,
+            num_gpus=0,
+            standardize_fields=[],
+            shuffle_sequences=True
+    ):
+        super().__init__(
+            workers, sgd_batch_size, num_sgd_iter, sample_batch_size,
+            num_envs_per_worker, train_batch_size, num_gpus,
+            standardize_fields, shuffle_sequences
+        )
+        self.compute_num_steps_sampled = compute_num_steps_sampled
 
     def step(self):
         with self.update_weights_timer:
@@ -334,9 +355,13 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                         "{} {}".format(i, _averaged(iter_extra_fetches))
                     )
                 fetches[policy_id] = _averaged(iter_extra_fetches)
-        self.num_steps_sampled += np.mean(
-            [b.count for b in samples.policy_batches.values()], dtype=np.int64
-        )
+        if self.compute_num_steps_sampled:
+            self.num_steps_sampled += self.compute_num_steps_sampled(samples)
+        else:
+            self.num_steps_sampled += np.mean(
+                [b.count for b in samples.policy_batches.values()],
+                dtype=np.int64
+            )
         self.num_steps_trained += np.mean(
             list(num_loaded_tuples.values()), dtype=np.int64
         ) * len(self.devices)

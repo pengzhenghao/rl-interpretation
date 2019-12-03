@@ -1,5 +1,6 @@
 import logging
 
+import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG, \
     validate_config, SyncSamplesOptimizer
@@ -109,8 +110,16 @@ def choose_policy_optimizer_modified(workers, config):
             standardize_fields=["advantages"]
         )
 
+    num_agents = len(config['multiagent']['policies'])
+
+    def compute_num_steps_sampled(batch):
+        counts = np.mean([b.count for b in batch.policy_batches.values()])
+        return int(counts / num_agents)
+
     return LocalMultiGPUOptimizerCorrectedNumberOfSampled(
         workers,
+        compute_num_steps_sampled=compute_num_steps_sampled
+        if not config['disable'] else None,
         sgd_batch_size=config["sgd_minibatch_size"],
         num_sgd_iter=config["num_sgd_iter"],
         num_gpus=config["num_gpus"],
