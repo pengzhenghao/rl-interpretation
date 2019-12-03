@@ -3,22 +3,11 @@ from ray import tune
 from toolbox import initialize_ray, get_local_dir
 from toolbox.cooperative_exploration.ceppo import \
     CEPPOTrainer, OPTIONAL_MODES, DISABLE
+from toolbox.cooperative_exploration.ceppo_encourage_diversity import \
+    DECEPPOTrainer
 from toolbox.cooperative_exploration.cetd3 import CETD3Trainer
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.marl.test_extra_loss import _base, _get_default_test_config
-
-
-def debug_ceppo(local_mode):
-    _base(
-        CEPPOTrainer,
-        local_mode,
-        extra_config={"mode": tune.grid_search(OPTIONAL_MODES)},
-        env_name="CartPole-v0"
-    )
-
-
-def test_single_agent():
-    _base(CEPPOTrainer, True, dict(mode=DISABLE), num_agents=1)
 
 
 def _validate_base(extra_config, test_mode, env_name, trainer, stop=50000):
@@ -49,6 +38,28 @@ def _validate_base(extra_config, test_mode, env_name, trainer, stop=50000):
     )
 
 
+def debug_ceppo(local_mode):
+    _base(
+        CEPPOTrainer,
+        local_mode,
+        extra_config={"mode": tune.grid_search(OPTIONAL_MODES)},
+        env_name="CartPole-v0"
+    )
+
+
+def test_single_agent():
+    _base(CEPPOTrainer, True, dict(mode=DISABLE), num_agents=1)
+
+
+def test_deceppo(local_mode=False):
+    _base(DECEPPOTrainer, local_mode)
+
+
+def validate_ceppo():
+    _validate_base({"mode": tune.grid_search(OPTIONAL_MODES)}, False,
+                   "CartPole-v0", CEPPOTrainer)
+
+
 def test_cetd3(local_mode=False):
     num_gpus = 0
     initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
@@ -67,11 +78,6 @@ def test_cetd3(local_mode=False):
     )
 
 
-def validate_ceppo():
-    _validate_base({"mode": tune.grid_search(OPTIONAL_MODES)}, False,
-                   "CartPole-v0", CEPPOTrainer)
-
-
 def validate_cetd3():
     from toolbox.cooperative_exploration.cetd3 import SHARE_SAMPLE
     _validate_base({"mode": tune.grid_search([SHARE_SAMPLE, None])}, False,
@@ -83,4 +89,5 @@ if __name__ == '__main__':
     # validate_ceppo(disable=False, test_mode=False)
     # test_single_agent()
     # test_cetd3(local_mode=False)
-    validate_cetd3()
+    # validate_cetd3()
+    test_deceppo()
