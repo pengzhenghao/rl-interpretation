@@ -28,6 +28,12 @@ logger = logging.getLogger(__name__)
 
 
 class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
+    """
+    The main contribution this class provides is:
+        1. It allows cross-policy object passing
+        2. It allows to place some object on single GPU without splitting them.
+        3. It corrects the computing of num_steps_sampled and num_steps_trained
+    """
     def __init__(
             self,
             workers,
@@ -225,13 +231,21 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                     )
                 fetches[policy_id] = _averaged(iter_extra_fetches)
 
-        self.num_steps_sampled += samples.count
-        self.num_steps_trained += tuples_per_device * len(self.devices)
+        self.num_steps_sampled += np.mean(
+            [b.count for b in samples.policy_batches.values()], dtype=np.int64
+        )
+        self.num_steps_trained += np.mean(
+            list(num_loaded_tuples.values()), dtype=np.int64
+        ) * len(self.devices)
         self.learner_stats = fetches
         return fetches
 
 
 class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
+    """
+    The main contribution this class provides is:
+        1. It corrects the computing of num_steps_sampled and num_steps_trained
+    """
     def step(self):
         with self.update_weights_timer:
             if self.workers.remote_workers():
