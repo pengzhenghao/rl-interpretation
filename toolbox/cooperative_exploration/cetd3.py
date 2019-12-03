@@ -21,13 +21,11 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
     def _replay(self):
         samples = super()._replay()
 
+        # Add other's batch here.
         config = self.workers._local_config
         if config["mode"] == SHARE_SAMPLE:
             share_sample = SampleBatch.concat_samples(
-                [
-                    other_batch
-                    for other, other_batch in samples.policy_batches.items()
-                ]
+                [batch for batch in samples.policy_batches.values()]
             )
             for pid in samples.policy_batches.keys():
                 samples.policy_batches[pid] = share_sample

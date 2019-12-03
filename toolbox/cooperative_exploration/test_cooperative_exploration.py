@@ -106,12 +106,12 @@ if __name__ == '__main__':
     # debug_ceppo(local_mode=False)
     # validate_ceppo(disable=False, test_mode=False)
     # test_single_agent()
-    # test_cetd3(local_mode=False)
+    test_cetd3(local_mode=True)
     # validate_cetd3()
     # test_deceppo()
-    _base(
-        CEPPOTrainer,
-        True,
-        extra_config={"mode": "disable"},
-        env_name="CartPole-v0"
-    )
+    # _base(
+    #     CEPPOTrainer,
+    #     True,
+    #     extra_config={"mode": "disable"},
+    #     env_name="CartPole-v0"
+    # )
