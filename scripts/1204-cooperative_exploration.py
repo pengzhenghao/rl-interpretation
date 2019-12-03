@@ -61,8 +61,7 @@ if __name__ == '__main__':
     else:
         raise ValueError()
 
-    path = "data/1204-bipedalwalker-{}-{}steps-result.pkl".format(args.trainer,
-                                                                  args.number)
+    path = "data/1204-bipedalwalker-{}-result.pkl".format(args.trainer)
     with open(path, "wb") as f:
         d = ret.fetch_trial_dataframes()
         pickle.dump(d, f)
