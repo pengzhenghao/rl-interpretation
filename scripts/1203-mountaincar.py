@@ -40,9 +40,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.trainer == "td3":
-        ret = validate_cetd3(args.number)
+        ret = validate_cetd3(args.number, "MountainCarContinuous-v0")
     elif args.trainer == "ppo":
-        ret = validate_ceppo(args.number)
+        ret = validate_ceppo(args.number, "MountainCarContinuous-v0")
     else:
         raise ValueError()
 
