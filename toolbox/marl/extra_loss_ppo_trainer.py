@@ -91,7 +91,8 @@ class AddLossMixin(object):
     ):
         """When training, add the required data into the feed_dict."""
         feed_dict = {}
-        if self.config["use_joint_dataset"]:
+        if (self.config["use_joint_dataset"]) and (
+        not self.config.get('disable')):
             # parse the cross-policy info and put in feed_dict.
             replay_ph = self._loss_input_dict[PEER_ACTION]
             joint_obs_ph = self._loss_input_dict[JOINT_OBS]
@@ -103,7 +104,7 @@ class AddLossMixin(object):
                 ]
             )  # exclude policy itself action
             feed_dict[replay_ph] = concat_replay_act
-        else:
+        elif (not self.config.get('disable')):
             replay_ph = self._loss_input_dict[PEER_ACTION]
             concat_replay_act = np.concatenate(
                 [
@@ -117,9 +118,9 @@ class AddLossMixin(object):
         """The below codes are copied from rllib. """
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                len(batch[SampleBatch.CUR_OBS]) %
-                self._batch_divisibility_req == 0
-                and max(batch[SampleBatch.AGENT_INDEX]) == 0
+                    len(batch[SampleBatch.CUR_OBS]) %
+                    self._batch_divisibility_req == 0
+                    and max(batch[SampleBatch.AGENT_INDEX]) == 0
             )  # not multiagent
         else:
             meets_divisibility_reqs = True
@@ -198,6 +199,10 @@ def novelty_loss(policy, model, dist_class, train_batch):
 def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
+    if policy.config.get('disable'):
+        policy.novelty_loss = tf.constant(0.0)
+        policy.total_loss = original_loss
+        return original_loss
     nov_loss = novelty_loss(policy, model, dist_class, train_batch)
     alpha = policy.novelty_loss_param
     total_loss = (1 - alpha) * original_loss + alpha * nov_loss

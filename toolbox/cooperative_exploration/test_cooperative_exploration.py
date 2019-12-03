@@ -52,7 +52,9 @@ def test_single_agent():
 
 
 def test_deceppo(local_mode=False):
-    _base(DECEPPOTrainer, local_mode)
+    _base(DECEPPOTrainer, local_mode,
+          # {"mode": "replay_values"}, t=1000)
+          {"mode": tune.grid_search(OPTIONAL_MODES)}, t=1000)
 
 
 def validate_ceppo():

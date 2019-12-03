@@ -19,7 +19,7 @@ def postprocess_deceppo(policy, sample_batch, others_batches=None,
     # Replay to collect values, if applicable (mode!=disable)
     batch = postprocess_ceppo(policy, sample_batch, others_batches, episode)
 
-    if not policy.loss_initialized():
+    if (not policy.loss_initialized()) and (not policy.config.get('disable')):
         # To create placeholders, we create some fake data when initializing.
         if policy.config["use_joint_dataset"]:
             raise NotImplementedError()
