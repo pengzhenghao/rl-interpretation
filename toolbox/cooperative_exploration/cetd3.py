@@ -21,8 +21,9 @@ cetd3_default_config = merge_dicts(
 class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
 
     def _replay(self):
-        config = self.workers._local_config
         samples = super()._replay()
+
+        config = self.workers._local_config
         if config["mode"] == SHARE_SAMPLE:
             share_sample = SampleBatch.concat_samples([
                 other_batch
@@ -35,6 +36,7 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
 
     def step(self):
         """We correct the number of sampled steps."""
+        # The below codes are copied from Ray's SyncReplayOptimizer
         with self.update_weights_timer:
             if self.workers.remote_workers():
                 weights = ray.put(self.workers.local_worker().get_weights())
@@ -69,10 +71,11 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
         # Here!
         # self.num_steps_sampled += batch.count
         self.num_steps_sampled += np.mean([
-            b.count for b in batch.policy_batches.values()])
+            b.count for b in batch.policy_batches.values()], dtype=np.int64)
 
     def _optimize(self):
         """We correct the number of trained agents."""
+        # The below codes are copied from Ray's SyncReplayOptimizer
         samples = self._replay()
         with self.grad_timer:
             if self.before_learn_on_batch:
@@ -96,7 +99,7 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
         # Here!
         # self.num_steps_trained += samples.count
         self.num_steps_trained += np.mean([
-            b.count for b in samples.policy_batches.values()])
+            b.count for b in samples.policy_batches.values()], dtype=np.int64)
 
 
 def make_optimizer(workers, config):
