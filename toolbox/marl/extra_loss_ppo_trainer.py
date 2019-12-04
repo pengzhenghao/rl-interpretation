@@ -85,36 +85,41 @@ class AddLossMixin(object):
                 " 'novelty_loss_param' in config, so we do not"
                 " define policy.novelty_loss_param"
             )
+        self._AddLossMixin_initialized = True
 
     def _get_loss_inputs_dict(
             self, batch, shuffle, cross_policy_obj, policy_id=None
     ):
         """When training, add the required data into the feed_dict."""
         feed_dict = {}
-        if (self.config["use_joint_dataset"]) and (
-                not self.config.get('disable')):
-            # parse the cross-policy info and put in feed_dict.
-            replay_ph = self._loss_input_dict[PEER_ACTION]
-            joint_obs_ph = self._loss_input_dict[JOINT_OBS]
-            feed_dict[joint_obs_ph] = cross_policy_obj[JOINT_OBS]
-            concat_replay_act = np.concatenate(
-                [
-                    act for pid, act in cross_policy_obj[PEER_ACTION].items()
-                    if pid != policy_id
-                ]
-            )  # exclude policy itself action
-            feed_dict[replay_ph] = concat_replay_act
-        elif (not self.config.get('disable')):
-            replay_ph = self._loss_input_dict[PEER_ACTION]
-            concat_replay_act = np.concatenate(
-                [
-                    act for pid, act in cross_policy_obj[policy_id].items()
-                    if pid != policy_id
-                ]
-            )  # exclude policy itself action
-            feed_dict[replay_ph] = concat_replay_act
-            feed_dict[self._loss_input_dict[NO_SPLIT_OBS]] = \
-                batch[SampleBatch.CUR_OBS]
+
+        if hasattr(self, "_AddLossMixin_initialized"):
+            assert self._AddLossMixin_initialized
+            if self.config["use_joint_dataset"]:
+                # parse the cross-policy info and put in feed_dict.
+                replay_ph = self._loss_input_dict[PEER_ACTION]
+                joint_obs_ph = self._loss_input_dict[JOINT_OBS]
+                feed_dict[joint_obs_ph] = cross_policy_obj[JOINT_OBS]
+                concat_replay_act = np.concatenate(
+                    [
+                        act for pid, act in
+                        cross_policy_obj[PEER_ACTION].items()
+                        if pid != policy_id
+                    ]
+                )  # exclude policy itself action
+                feed_dict[replay_ph] = concat_replay_act
+            else:
+                replay_ph = self._loss_input_dict[PEER_ACTION]
+                concat_replay_act = np.concatenate(
+                    [
+                        act for pid, act in cross_policy_obj[policy_id].items()
+                        if pid != policy_id
+                    ]
+                )  # exclude policy itself action
+                feed_dict[replay_ph] = concat_replay_act
+                feed_dict[self._loss_input_dict[NO_SPLIT_OBS]] = \
+                    batch[SampleBatch.CUR_OBS]
+
         """The below codes are copied from rllib. """
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
@@ -129,7 +134,7 @@ class AddLossMixin(object):
             if shuffle:
                 batch.shuffle()
             for k, ph in self._loss_inputs:
-                if k in batch:
+                if k in batch:  # Attention! We add a condition here.
                     feed_dict[ph] = batch[k]
             return feed_dict
         if self._state_inputs:
@@ -199,10 +204,6 @@ def novelty_loss(policy, model, dist_class, train_batch):
 def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
-    if policy.config.get('disable'):
-        policy.novelty_loss = tf.constant(0.0)
-        policy.total_loss = original_loss
-        return original_loss
     nov_loss = novelty_loss(policy, model, dist_class, train_batch)
     alpha = policy.novelty_loss_param
     total_loss = (1 - alpha) * original_loss + alpha * nov_loss
@@ -329,12 +330,12 @@ def choose_policy_optimizer(workers, config):
             standardize_fields=["advantages"]
         )
 
-    split_list = [JOINT_OBS, PEER_ACTION] \
+    no_split_list = [JOINT_OBS, PEER_ACTION] \
         if config['use_joint_dataset'] else [PEER_ACTION, NO_SPLIT_OBS]
 
     return LocalMultiGPUOptimizerModified(
         workers,
-        no_split_list=split_list,
+        no_split_list=no_split_list,
         process_multiagent_batch_fn=cross_policy_object_use_joint_dataset
         if config["use_joint_dataset"]
         else cross_policy_object_without_joint_dataset,

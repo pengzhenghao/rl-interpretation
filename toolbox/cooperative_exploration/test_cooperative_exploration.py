@@ -2,7 +2,7 @@ from ray import tune
 
 from toolbox import initialize_ray, get_local_dir
 from toolbox.cooperative_exploration.ceppo import \
-    CEPPOTrainer, OPTIONAL_MODES, DISABLE
+    CEPPOTrainer, OPTIONAL_MODES, DISABLE, DIVERSITY_ENCOURAGING
 from toolbox.cooperative_exploration.ceppo_encourage_diversity import \
     DECEPPOTrainer
 from toolbox.cooperative_exploration.cetd3 import CETD3Trainer
@@ -51,7 +51,8 @@ def debug_ceppo(local_mode):
         CEPPOTrainer,
         local_mode,
         extra_config={"mode": tune.grid_search(OPTIONAL_MODES)},
-        env_name="CartPole-v0"
+        # extra_config={"mode": DIVERSITY_ENCOURAGING},
+        env_name="Pendulum-v0"
     )
 
 
@@ -104,11 +105,11 @@ def validate_cetd3():
 
 
 if __name__ == '__main__':
-    # debug_ceppo(local_mode=False)
+    debug_ceppo(local_mode=False)
     # validate_ceppo(disable=False, test_mode=False)
     # test_single_agent()
     # test_cetd3(local_mode=False)
-    validate_cetd3()
+    # validate_cetd3()
     # test_deceppo()
     # _base(
     #     CEPPOTrainer,
