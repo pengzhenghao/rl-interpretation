@@ -1,6 +1,5 @@
 from toolbox.marl.adaptive_extra_loss import setup_mixins_modified, \
-    DEFAULT_CONFIG, merge_dicts, LearningRateSchedule, EntropyCoeffSchedule, \
-    KLCoeffMixin, ValueNetworkMixin, AddLossMixin, NoveltyParamMixin, \
+    DEFAULT_CONFIG, merge_dicts, AddLossMixin, NoveltyParamMixin, \
     wrap_after_train_result, validate_config_basic, mixin_list
 from toolbox.marl.extra_loss_ppo_trainer import \
     kl_and_loss_stats_without_total_loss

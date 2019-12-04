@@ -51,9 +51,11 @@ def on_train_result(info):
     sample_size = info['trainer'].config.get("joint_dataset_sample_batch_size")
 
     if sample_size is None:
-        logger.debug("You should specify the value of: "
-                     "joint_dataset_sample_batch_size in config! Since you "
-                     "don't set it, we set it to 200 for you.")
+        logger.debug(
+            "You should specify the value of: "
+            "joint_dataset_sample_batch_size in config! Since you "
+            "don't set it, we set it to 200 for you."
+        )
         sample_size = 200
 
     # replay_buffers is a dict map policy_id to ReplayBuffer object.

@@ -4,10 +4,10 @@ from collections import deque
 import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import update_kl
+from ray.rllib.agents.ppo.ppo_policy import setup_mixins
 
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTFPolicy, \
-    ExtraLossPPOTrainer, ValueNetworkMixin, KLCoeffMixin, AddLossMixin, \
-    LearningRateSchedule, EntropyCoeffSchedule, DEFAULT_CONFIG, merge_dicts, \
+    ExtraLossPPOTrainer, AddLossMixin, DEFAULT_CONFIG, merge_dicts, \
     validate_config_basic, kl_and_loss_stats_modified, mixin_list
 
 logger = logging.getLogger(__name__)
@@ -121,12 +121,7 @@ def wrap_after_train_result(trainer, fetches):
 
 
 def setup_mixins_modified(policy, obs_space, action_space, config):
-    ValueNetworkMixin.__init__(policy, obs_space, action_space, config)
-    KLCoeffMixin.__init__(policy, config)
-    EntropyCoeffSchedule.__init__(
-        policy, config["entropy_coeff"], config["entropy_coeff_schedule"]
-    )
-    LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
+    setup_mixins(policy, obs_space, action_space, config)
     NoveltyParamMixin.__init__(policy, config)
 
 

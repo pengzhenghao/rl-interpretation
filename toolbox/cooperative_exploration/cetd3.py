@@ -14,8 +14,7 @@ SHARE_SAMPLE = "share_sample"
 
 cetd3_default_config = merge_dicts(
     TD3_DEFAULT_CONFIG,
-    dict(mode=SHARE_SAMPLE,
-         callbacks={"on_train_result": on_train_result})
+    dict(mode=SHARE_SAMPLE, callbacks={"on_train_result": on_train_result})
     # dict(learn_with_peers=True, use_joint_dataset=False, mode=REPLAY_VALUES)
 )
 
@@ -97,7 +96,7 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
                 if isinstance(replay_buffer, PrioritizedReplayBuffer):
                     td_error = info["td_error"]
                     new_priorities = (
-                            np.abs(td_error) + self.prioritized_replay_eps
+                        np.abs(td_error) + self.prioritized_replay_eps
                     )
                     replay_buffer.update_priorities(
                         samples.policy_batches[policy_id]["batch_indexes"],

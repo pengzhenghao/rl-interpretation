@@ -35,9 +35,8 @@ ceppo_default_config = merge_dicts(
         learn_with_peers=True,
         use_joint_dataset=False,
         mode=REPLAY_VALUES,
-        callbacks={
-            "on_train_result": on_train_result
-        })
+        callbacks={"on_train_result": on_train_result}
+    )
     # you should add {"on_train_result": on_train_result} to callbacks.
 )
 
@@ -82,9 +81,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                            convert_to_tensor(prev_action),
+                        convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                            convert_to_tensor(prev_reward),
+                        convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )
@@ -137,8 +136,8 @@ def _rewrite_config(config):
     if mode == DISABLE_AND_EXPAND:
         num_agents = len(config['multiagent']['policies'])
         config['train_batch_size'] = config['train_batch_size'] * num_agents
-        config['num_envs_per_worker'] = config[
-                                            'num_envs_per_worker'] * num_agents
+        config['num_envs_per_worker'
+               ] = config['num_envs_per_worker'] * num_agents
 
 
 def validate_and_rewrite_config(config):
@@ -171,6 +170,7 @@ def choose_policy_optimizer_modified(workers, config):
     if config[DISABLE]:
         compute_num_steps_sampled = None
     else:
+
         def compute_num_steps_sampled(batch):
             counts = np.mean([b.count for b in batch.policy_batches.values()])
             return int(counts / num_agents)

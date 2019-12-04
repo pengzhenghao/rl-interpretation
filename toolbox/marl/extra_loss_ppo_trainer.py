@@ -102,8 +102,8 @@ class AddLossMixin(object):
                 feed_dict[joint_obs_ph] = cross_policy_obj[JOINT_OBS]
                 concat_replay_act = np.concatenate(
                     [
-                        act for pid, act in
-                        cross_policy_obj[PEER_ACTION].items()
+                        act
+                        for pid, act in cross_policy_obj[PEER_ACTION].items()
                         if pid != policy_id
                     ]
                 )  # exclude policy itself action
@@ -119,7 +119,6 @@ class AddLossMixin(object):
                 feed_dict[replay_ph] = concat_replay_act
                 feed_dict[self._loss_input_dict[NO_SPLIT_OBS]] = \
                     batch[SampleBatch.CUR_OBS]
-
         """The below codes are copied from rllib. """
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
@@ -337,8 +336,8 @@ def choose_policy_optimizer(workers, config):
         workers,
         no_split_list=no_split_list,
         process_multiagent_batch_fn=cross_policy_object_use_joint_dataset
-        if config["use_joint_dataset"]
-        else cross_policy_object_without_joint_dataset,
+        if config["use_joint_dataset"] else
+        cross_policy_object_without_joint_dataset,
         sgd_batch_size=config["sgd_minibatch_size"],
         num_sgd_iter=config["num_sgd_iter"],
         num_gpus=config["num_gpus"],
