@@ -21,7 +21,7 @@ def _validate_base(
 ):
     initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
     num_agents = 3
-    policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
+    policy_names = ["agent{}".format(i) for i in range(num_agents)]
     env_config = {"env_name": env_name, "agent_ids": policy_names}
     env = MultiAgentEnvWrapper(env_config)
     config = {

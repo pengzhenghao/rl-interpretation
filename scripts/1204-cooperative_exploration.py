@@ -9,7 +9,7 @@ from toolbox.cooperative_exploration.test_cooperative_exploration import \
     _validate_base
 
 
-def train_ceppo(test=False):
+def train_ceppo(test=False, surfix=""):
     return _validate_base(
         {
             "seed": tune.grid_search([100, 200, 300]),
@@ -26,7 +26,8 @@ def train_ceppo(test=False):
         env_name="BipedalWalker-v2",
         trainer=CEPPOTrainer,
         stop=int(10e6) if not test else 1000,
-        name="1204-ceppo-bipedalwalker" if not test else "DELETEME-1204-ceppo",
+        name="1204-ceppo-bipedalwalker" + surfix
+        if not test else "DELETEME-1204-ceppo" + surfix,
         num_gpus=8
     )
 
@@ -52,12 +53,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--trainer", required=True, type=str)
     parser.add_argument("--test", action="store_true")
+    parser.add_argument("--name", default="", type=str)
     args = parser.parse_args()
 
     if args.trainer == "td3":
-        ret = train_cetd3(args.test)
+        ret = train_cetd3(args.test, surfix=args.name)
     elif args.trainer == "ppo":
-        ret = train_ceppo(args.test)
+        ret = train_ceppo(args.test, surfix=args.name)
     else:
         raise ValueError()
 
