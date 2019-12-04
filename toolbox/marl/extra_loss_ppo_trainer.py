@@ -334,8 +334,9 @@ def choose_policy_optimizer(workers, config):
 
     return LocalMultiGPUOptimizerModified(
         workers,
-        split_list,
-        cross_policy_object_use_joint_dataset if config["use_joint_dataset"]
+        no_split_list=split_list,
+        process_multiagent_batch_fn=cross_policy_object_use_joint_dataset
+        if config["use_joint_dataset"]
         else cross_policy_object_without_joint_dataset,
         sgd_batch_size=config["sgd_minibatch_size"],
         num_sgd_iter=config["num_sgd_iter"],

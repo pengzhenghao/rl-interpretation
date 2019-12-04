@@ -38,7 +38,8 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
     def __init__(
             self,
             workers,
-            no_split_list,
+            compute_num_steps_sampled=None,
+            no_split_list=None,
             process_multiagent_batch_fn=None,
             sgd_batch_size=128,
             num_sgd_iter=10,
@@ -53,6 +54,9 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
         that is allow to parse the cross policy information and store then
         in an object, which will be passed to each policy."""
         self.process_multiagent_batch_fn = process_multiagent_batch_fn
+        self.compute_num_steps_sampled = compute_num_steps_sampled
+        if no_split_list is None:
+            no_split_list = []
         PolicyOptimizer.__init__(self, workers)
 
         self.batch_size = sgd_batch_size
@@ -229,12 +233,18 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                     )
                 fetches[policy_id] = _averaged(iter_extra_fetches)
 
-        self.num_steps_sampled += np.mean(
-            [b.count for b in samples.policy_batches.values()], dtype=np.int64
-        )
+        if self.compute_num_steps_sampled:
+            self.num_steps_sampled += self.compute_num_steps_sampled(samples)
+        else:
+            self.num_steps_sampled += np.mean(
+                [b.count for b in samples.policy_batches.values()],
+                dtype=np.int64
+            )
+
         self.num_steps_trained += np.mean(
             list(num_loaded_tuples.values()), dtype=np.int64
         ) * len(self.devices)
+
         self.learner_stats = fetches
         return fetches
 
@@ -355,6 +365,7 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                         "{} {}".format(i, _averaged(iter_extra_fetches))
                     )
                 fetches[policy_id] = _averaged(iter_extra_fetches)
+
         if self.compute_num_steps_sampled:
             self.num_steps_sampled += self.compute_num_steps_sampled(samples)
         else:
@@ -362,9 +373,11 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                 [b.count for b in samples.policy_batches.values()],
                 dtype=np.int64
             )
+
         self.num_steps_trained += np.mean(
             list(num_loaded_tuples.values()), dtype=np.int64
         ) * len(self.devices)
+
         self.learner_stats = fetches
         return fetches
 
