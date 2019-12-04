@@ -2,9 +2,7 @@ from ray import tune
 
 from toolbox import initialize_ray, get_local_dir
 from toolbox.cooperative_exploration.ceppo import \
-    CEPPOTrainer, OPTIONAL_MODES, DISABLE, DIVERSITY_ENCOURAGING
-from toolbox.cooperative_exploration.ceppo_encourage_diversity import \
-    DECEPPOTrainer
+    CEPPOTrainer, OPTIONAL_MODES, DISABLE
 from toolbox.cooperative_exploration.cetd3 import CETD3Trainer
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.marl.test_extra_loss import _base, _get_default_test_config
@@ -58,16 +56,6 @@ def debug_ceppo(local_mode):
 
 def test_single_agent():
     _base(CEPPOTrainer, True, dict(mode=DISABLE), num_agents=1)
-
-
-def test_deceppo(local_mode=False):
-    _base(
-        DECEPPOTrainer,
-        local_mode,
-        # {"mode": "replay_values"}, t=1000)
-        {"mode": tune.grid_search(OPTIONAL_MODES)},
-        t=1000
-    )
 
 
 def validate_ceppo():
