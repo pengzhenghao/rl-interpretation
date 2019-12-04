@@ -7,12 +7,15 @@ from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer, \
     DEFAULT_POLICY_ID, get_learner_stats, np
 from ray.tune.util import merge_dicts
 
+from toolbox.marl.utils import on_train_result
+
 DISABLE = "disable"
 SHARE_SAMPLE = "share_sample"
 
 cetd3_default_config = merge_dicts(
     TD3_DEFAULT_CONFIG,
-    dict(mode=SHARE_SAMPLE)
+    dict(mode=SHARE_SAMPLE,
+         callbacks={"on_train_result": on_train_result})
     # dict(learn_with_peers=True, use_joint_dataset=False, mode=REPLAY_VALUES)
 )
 
@@ -94,7 +97,7 @@ class SyncReplayOptimizerWithCooperativeExploration(SyncReplayOptimizer):
                 if isinstance(replay_buffer, PrioritizedReplayBuffer):
                     td_error = info["td_error"]
                     new_priorities = (
-                        np.abs(td_error) + self.prioritized_replay_eps
+                            np.abs(td_error) + self.prioritized_replay_eps
                     )
                     replay_buffer.update_priorities(
                         samples.policy_batches[policy_id]["batch_indexes"],
@@ -132,7 +135,6 @@ CETD3TFPolicy = DDPGTFPolicy
 CETD3Trainer = TD3Trainer.with_updates(
     name="CETD3",
     default_config=cetd3_default_config,
-    # default_policy=CETD3TFPolicy,
-    # validate_config=validate_and_rewrite_config,
+    default_policy=CETD3TFPolicy,
     make_policy_optimizer=make_optimizer
 )

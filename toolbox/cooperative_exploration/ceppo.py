@@ -10,6 +10,7 @@ from ray.rllib.agents.ppo.ppo_policy import SampleBatch, \
     LearningRateSchedule, KLCoeffMixin
 from ray.tune.util import merge_dicts
 
+from toolbox.marl.utils import on_train_result
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerCorrectedNumberOfSampled
 
@@ -23,7 +24,8 @@ OPTIONAL_MODES = [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES]
 
 ceppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
-    dict(learn_with_peers=True, use_joint_dataset=False, mode=REPLAY_VALUES)
+    dict(learn_with_peers=True, use_joint_dataset=False, mode=REPLAY_VALUES,
+         callbacks={"on_train_result": on_train_result})
 )
 
 
@@ -55,9 +57,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                        convert_to_tensor(prev_action),
+                            convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                        convert_to_tensor(prev_reward),
+                            convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )
@@ -76,9 +78,7 @@ def setup_mixins_modified(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
 
 
-def validate_and_rewrite_config(config):
-    validate_config(config)
-
+def _rewrite_config(config):
     mode = config['mode']
     assert mode in OPTIONAL_MODES
     if mode == REPLAY_VALUES:
@@ -94,8 +94,14 @@ def validate_and_rewrite_config(config):
     if mode == DISABLE_AND_EXPAND:
         num_agents = len(config['multiagent']['policies'])
         config['train_batch_size'] = config['train_batch_size'] * num_agents
-        config['num_envs_per_worker'
-               ] = config['num_envs_per_worker'] * num_agents
+        config['num_envs_per_worker'] = config['num_envs_per_worker'] * num_agents
+
+
+def validate_and_rewrite_config(config):
+    validate_config(config)
+    _rewrite_config(config)
+    assert "callbacks" in config
+    assert "on_train_result" in config['callbacks']
 
 
 def choose_policy_optimizer_modified(workers, config):

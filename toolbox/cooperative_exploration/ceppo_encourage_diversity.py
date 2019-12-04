@@ -1,8 +1,7 @@
 import numpy as np
 
 from toolbox.cooperative_exploration.ceppo import ValueNetworkMixin2, \
-    ceppo_default_config, postprocess_ceppo, OPTIONAL_MODES, DISABLE, \
-    DISABLE_AND_EXPAND, REPLAY_VALUES
+    ceppo_default_config, postprocess_ceppo, _rewrite_config
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
     AdaptiveExtraLossPPOTFPolicy, adaptive_extra_loss_ppo_default_config, \
     merge_dicts, setup_mixins_modified, NoveltyParamMixin, \
@@ -45,27 +44,10 @@ def setup_mixins_deceppo(policy, obs_space, action_space, config):
 
 def validate_and_rewrite_config(config):
     validate_config_basic(config)
-
-    assert not config['use_joint_dataset']
-
-    mode = config['mode']
-    assert mode in OPTIONAL_MODES
-    if mode == REPLAY_VALUES:
-        config['use_myself_vf_preds'] = True
-    else:
-        config['use_myself_vf_preds'] = False
-
-    if mode in [DISABLE, DISABLE_AND_EXPAND]:
-        config['disable'] = True
-    else:
-        config['disable'] = False
-
-    if mode == DISABLE_AND_EXPAND:
-        num_agents = len(config['multiagent']['policies'])
-        config['train_batch_size'] = \
-            ceppo_default_config['train_batch_size'] * num_agents
-        config['num_envs_per_worker'] = \
-            ceppo_default_config['num_envs_per_worker'] * num_agents
+    _rewrite_config(config)
+    assert not config["use_joint_dataset"]  # disable this function in DECEPPO
+    assert 'callbacks' in config
+    assert 'on_train_result' in config['callbacks']
 
 
 DECEPPOTFPolicy = AdaptiveExtraLossPPOTFPolicy.with_updates(
