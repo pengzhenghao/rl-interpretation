@@ -2,8 +2,8 @@ import logging
 
 import numpy as np
 import tensorflow as tf
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, \
-    validate_config, SyncSamplesOptimizer, update_kl
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
+    SyncSamplesOptimizer, update_kl
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
     make_tf_callable, setup_mixins, kl_and_loss_stats, ppo_surrogate_loss
 
@@ -24,9 +24,13 @@ REPLAY_VALUES = "replay_values"
 NO_REPLAY_VALUES = "no_replay_values"
 DIVERSITY_ENCOURAGING = "diversity_encouraging"
 DIVERSITY_ENCOURAGING_NO_RV = "diversity_encouraging_without_replay_values"
+DIVERSITY_ENCOURAGING_DISABLE = "diversity_encouraging_disable"
+DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND = \
+    "diversity_encouraging_disable_and_expand"
 OPTIONAL_MODES = [
     DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES,
-    DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV
+    DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV,
+    DIVERSITY_ENCOURAGING_DISABLE, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
 ]
 
 ceppo_default_config = merge_dicts(
@@ -43,9 +47,7 @@ ceppo_default_config = merge_dicts(
 
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized() or policy.config[DISABLE]:
-
         batch = postprocess_ppo_gae(policy, sample_batch)
-
         if policy.config[DIVERSITY_ENCOURAGING]:
             assert not policy.config["use_joint_dataset"]
             batch[NO_SPLIT_OBS] = np.zeros_like(
@@ -54,7 +56,6 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             batch[PEER_ACTION] = np.zeros_like(
                 sample_batch[SampleBatch.ACTIONS], dtype=np.float32
             )
-
         return batch
 
     batches = [postprocess_ppo_gae(policy, sample_batch)]
@@ -73,7 +74,6 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 class ValueNetworkMixin2(object):
     def __init__(self, config):
         if config["use_gae"]:
-
             @make_tf_callable(self.get_session(), True)
             def value_batch(ob, prev_action, prev_reward):
                 # We do not support recurrent network now.
@@ -81,19 +81,17 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                        convert_to_tensor(prev_action),
+                            convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                        convert_to_tensor(prev_reward),
+                            convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )
                 return self.model.value_function()
         else:
-
             @make_tf_callable(self.get_session(), True)
             def value_batch(ob, prev_action, prev_reward):
                 return tf.zeros_like(prev_reward)
-
         self._value_batch = value_batch
 
 
@@ -106,16 +104,17 @@ def setup_mixins_ceppo(policy, obs_space, action_space, config):
             NoveltyParamMixin.__init__(policy, config)
 
 
-def _rewrite_config(config):
+def validate_and_rewrite_config(config):
     mode = config['mode']
     assert mode in OPTIONAL_MODES
 
-    if mode in [DISABLE, DISABLE_AND_EXPAND]:
-        config[DISABLE] = True
-    else:
-        config[DISABLE] = False
-
-    if mode in [DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV]:
+    # hyper-parameter: DIVERSITY_ENCOURAGING
+    if mode in [
+        DIVERSITY_ENCOURAGING,
+        DIVERSITY_ENCOURAGING_NO_RV,
+        DIVERSITY_ENCOURAGING_DISABLE,
+        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
+    ]:
         config[DIVERSITY_ENCOURAGING] = True
         config.update(
             novelty_loss_param_init=0.000001,
@@ -128,23 +127,38 @@ def _rewrite_config(config):
     else:
         config[DIVERSITY_ENCOURAGING] = False
 
-    if mode in [REPLAY_VALUES, DIVERSITY_ENCOURAGING]:
+    # hyper-parameter: REPLAY_VALUES
+    if mode in [
+        REPLAY_VALUES,
+        DIVERSITY_ENCOURAGING
+    ]:
         config[REPLAY_VALUES] = True
     else:
         config[REPLAY_VALUES] = False
 
-    if mode == DISABLE_AND_EXPAND:
+    # hyper-parameter: DISABLE
+    if mode in [
+        DISABLE,
+        DISABLE_AND_EXPAND,
+        DIVERSITY_ENCOURAGING_DISABLE,
+        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
+    ]:
+        config[DISABLE] = True
+    else:
+        config[DISABLE] = False
+
+    # DISABLE_AND_EXPAND requires to modified the config.
+    if mode in [
+        DISABLE_AND_EXPAND,
+        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
+    ]:
         num_agents = len(config['multiagent']['policies'])
         config['train_batch_size'] = config['train_batch_size'] * num_agents
-        config['num_envs_per_worker'
-               ] = config['num_envs_per_worker'] * num_agents
+        config['num_envs_per_worker'] = \
+            config['num_envs_per_worker'] * num_agents
 
-
-def validate_and_rewrite_config(config):
+    # validate config
     validate_config(config)
-    _rewrite_config(config)
-
-    # disable this function in DECEPPO
     assert not config.get("use_joint_dataset")
     assert "callbacks" in config
     assert "on_train_result" in config['callbacks']
