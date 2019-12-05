@@ -10,27 +10,35 @@ from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
     AdaptiveExtraLossPPOTFPolicy, merge_dicts, NoveltyParamMixin, mixin_list, \
     AddLossMixin, wrap_stats_fn, wrap_after_train_result
-from toolbox.marl.extra_loss_ppo_trainer import NO_SPLIT_OBS, PEER_ACTION, \
-    SampleBatch, extra_loss_ppo_loss, cross_policy_object_without_joint_dataset
+from toolbox.marl.extra_loss_ppo_trainer import JOINT_OBS, PEER_ACTION, \
+    SampleBatch, extra_loss_ppo_loss, get_cross_policy_object
 from toolbox.marl.utils import on_train_result
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
 
 logger = logging.getLogger(__name__)
 
-DISABLE = "disable"
+DISABLE = "disable"  # also serve as config's key
 DISABLE_AND_EXPAND = "disable_and_expand"
-REPLAY_VALUES = "replay_values"
+REPLAY_VALUES = "replay_values"  # also serve as config's key
 NO_REPLAY_VALUES = "no_replay_values"
-DIVERSITY_ENCOURAGING = "diversity_encouraging"
+
+DIVERSITY_ENCOURAGING = "diversity_encouraging"  # also serve as config's key
 DIVERSITY_ENCOURAGING_NO_RV = "diversity_encouraging_without_replay_values"
 DIVERSITY_ENCOURAGING_DISABLE = "diversity_encouraging_disable"
 DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND = \
     "diversity_encouraging_disable_and_expand"
+
+CURIOSITY = "curiosity"  # also serve as config's key
+CURIOSITY_NO_RV = "curiosity_without_replay_values"
+CURIOSITY_DISABLE = "curiosity_disable"
+CURIOSITY_DISABLE_AND_EXPAND = "curiosity_disable_and_expand"
+
 OPTIONAL_MODES = [
     DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES,
     DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV,
-    DIVERSITY_ENCOURAGING_DISABLE, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
+    DIVERSITY_ENCOURAGING_DISABLE, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
+    CURIOSITY, CURIOSITY_NO_RV, CURIOSITY_DISABLE, CURIOSITY_DISABLE_AND_EXPAND
 ]
 
 ceppo_default_config = merge_dicts(
@@ -45,12 +53,17 @@ ceppo_default_config = merge_dicts(
 )
 
 
+def _add_intrinsic_reward(my_batch, others_batches):
+    raise NotImplementedError()
+    # return my_batch
+
+
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
-    if not policy.loss_initialized() or policy.config[DISABLE]:
+    if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
         if policy.config[DIVERSITY_ENCOURAGING]:
             assert not policy.config["use_joint_dataset"]
-            batch[NO_SPLIT_OBS] = np.zeros_like(
+            batch[JOINT_OBS] = np.zeros_like(
                 sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
             )
             batch[PEER_ACTION] = np.zeros_like(
@@ -58,7 +71,16 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             )
         return batch
 
-    batches = [postprocess_ppo_gae(policy, sample_batch)]
+    if policy.config[CURIOSITY]:
+        batch = _add_intrinsic_reward(sample_batch, others_batches)
+    else:
+        batch = sample_batch
+
+    if policy.config[DISABLE]:
+        # Disable for not adding other's info in my batch.
+        return postprocess_ppo_gae(policy, batch)
+
+    batches = [postprocess_ppo_gae(policy, batch)]
     for pid, (_, batch) in others_batches.items():
         if policy.config[REPLAY_VALUES]:
             # use my policy to evaluate the values of other's samples.
@@ -99,9 +121,9 @@ def setup_mixins_ceppo(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
     if not config['disable']:
         ValueNetworkMixin2.__init__(policy, config)
-        if config[DIVERSITY_ENCOURAGING]:
-            AddLossMixin.__init__(policy, config)
-            NoveltyParamMixin.__init__(policy, config)
+    if config[DIVERSITY_ENCOURAGING]:
+        AddLossMixin.__init__(policy, config)
+        NoveltyParamMixin.__init__(policy, config)
 
 
 def validate_and_rewrite_config(config):
@@ -136,6 +158,17 @@ def validate_and_rewrite_config(config):
     else:
         config[REPLAY_VALUES] = False
 
+    # hyper-parameter: CURIOSITY
+    if mode in [
+        CURIOSITY,
+        CURIOSITY_NO_RV,
+        CURIOSITY_DISABLE,
+        CURIOSITY_DISABLE_AND_EXPAND
+    ]:
+        config[CURIOSITY] = True
+    else:
+        config[CURIOSITY] = False
+
     # hyper-parameter: DISABLE
     if mode in [
         DISABLE,
@@ -167,6 +200,42 @@ def validate_and_rewrite_config(config):
     assert REPLAY_VALUES in config
 
 
+def cross_policy_object_without_joint_dataset(
+        multi_agent_batch, self_optimizer
+):
+    """Modification: when not using DISABLE, the data of each agents is
+    identical, since we need Cooperative Exploration. So when computing the
+    joint dataset here for the following diversity-encouraging, we need to
+    carefully choose the things we use for replay.
+    """
+    config = self_optimizer.workers._remote_config
+    if config[DISABLE]:
+        return get_cross_policy_object(multi_agent_batch, self_optimizer)
+
+    # In that cases, the batch for all agents are the same: all of them
+    # are a combination of all of them. So we do not need to replay
+    # for each agent's batch (since they are identical).
+    return_dict = {}
+    local_worker = self_optimizer.workers.local_worker()
+    if len(set(b.count for b in multi_agent_batch.policy_batches.values()
+               )) != 1:
+        msg = "We detected the multi_agent_batch has different length of " \
+              "batches in its policy_batches: length {}.".format(
+            {k: b.count for k, b in multi_agent_batch.policy_batches.items()}
+        )
+        print(msg)
+        logger.warning(msg)
+    joint_obs = next(iter(multi_agent_batch.policy_batches.values()))['obs']
+
+    def _replay(policy, replay_pid):
+        act, _, infos = policy.compute_actions(joint_obs)
+        return replay_pid, act
+
+    for pid, act in local_worker.foreach_policy(_replay):
+        return_dict[pid] = act
+    return {JOINT_OBS: joint_obs, PEER_ACTION: return_dict}
+
+
 def choose_policy_optimizer_modified(workers, config):
     """The original optimizer has wrong number of trained samples stats.
     So we make little modification and use the corrected optimizer."""
@@ -191,7 +260,7 @@ def choose_policy_optimizer_modified(workers, config):
 
     if config[DIVERSITY_ENCOURAGING]:
         process_multiagent_batch_fn = cross_policy_object_without_joint_dataset
-        no_split_list = [PEER_ACTION, NO_SPLIT_OBS]
+        no_split_list = [PEER_ACTION, JOINT_OBS]
     else:
         process_multiagent_batch_fn = None
         no_split_list = None
@@ -229,8 +298,7 @@ def wrap_after_train_result_ceppo(trainer, fetches):
 def loss_ceppo(policy, model, dist_class, train_batch):
     if policy.config[DIVERSITY_ENCOURAGING]:
         return extra_loss_ppo_loss(policy, model, dist_class, train_batch)
-    else:
-        return ppo_surrogate_loss(policy, model, dist_class, train_batch)
+    return ppo_surrogate_loss(policy, model, dist_class, train_batch)
 
 
 CEPPOTFPolicy = AdaptiveExtraLossPPOTFPolicy.with_updates(

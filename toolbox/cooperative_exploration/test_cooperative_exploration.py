@@ -1,8 +1,7 @@
 from ray import tune
 
 from toolbox import initialize_ray, get_local_dir
-from toolbox.cooperative_exploration.ceppo import \
-    CEPPOTrainer, OPTIONAL_MODES, DISABLE
+from toolbox.cooperative_exploration.ceppo import *
 from toolbox.cooperative_exploration.cetd3 import CETD3Trainer
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.marl.test_extra_loss import _base, _get_default_test_config
@@ -44,18 +43,27 @@ def _validate_base(
     )
 
 
-def debug_ceppo(local_mode):
+def test_ceppo(local_mode=False):
     _base(
         CEPPOTrainer,
         local_mode,
-        extra_config={"mode": tune.grid_search(OPTIONAL_MODES)},
+        extra_config={"mode": tune.grid_search([
+            # DISABLE,
+            # DISABLE_AND_EXPAND,
+            # REPLAY_VALUES,
+            # NO_REPLAY_VALUES,
+            # DIVERSITY_ENCOURAGING,
+            # DIVERSITY_ENCOURAGING_NO_RV,
+            DIVERSITY_ENCOURAGING_DISABLE,
+            DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND]
+        ), "num_cpus_per_worker": 0.2},
         # extra_config={"mode": DIVERSITY_ENCOURAGING},
         env_name="Pendulum-v0"
     )
 
 
-def test_single_agent():
-    _base(CEPPOTrainer, True, dict(mode=DISABLE), num_agents=1)
+def test_single_agent(local_mode=False):
+    _base(CEPPOTrainer, local_mode, dict(mode=DISABLE), num_agents=1)
 
 
 def validate_ceppo():
@@ -93,7 +101,7 @@ def validate_cetd3():
 
 
 if __name__ == '__main__':
-    debug_ceppo(local_mode=False)
+    test_ceppo(local_mode=False)
     # validate_ceppo(disable=False, test_mode=False)
     # test_single_agent()
     # test_cetd3(local_mode=False)
