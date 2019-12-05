@@ -96,6 +96,7 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 class ValueNetworkMixin2(object):
     def __init__(self, config):
         if config["use_gae"]:
+
             @make_tf_callable(self.get_session(), True)
             def value_batch(ob, prev_action, prev_reward):
                 # We do not support recurrent network now.
@@ -103,17 +104,19 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                            convert_to_tensor(prev_action),
+                        convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                            convert_to_tensor(prev_reward),
+                        convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )
                 return self.model.value_function()
         else:
+
             @make_tf_callable(self.get_session(), True)
             def value_batch(ob, prev_action, prev_reward):
                 return tf.zeros_like(prev_reward)
+
         self._value_batch = value_batch
 
 
@@ -131,12 +134,9 @@ def validate_and_rewrite_config(config):
     assert mode in OPTIONAL_MODES
 
     # hyper-parameter: DIVERSITY_ENCOURAGING
-    if mode in [
-        DIVERSITY_ENCOURAGING,
-        DIVERSITY_ENCOURAGING_NO_RV,
-        DIVERSITY_ENCOURAGING_DISABLE,
-        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
-    ]:
+    if mode in [DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV,
+                DIVERSITY_ENCOURAGING_DISABLE,
+                DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND]:
         config[DIVERSITY_ENCOURAGING] = True
         config.update(
             novelty_loss_param_init=0.000001,
@@ -150,41 +150,27 @@ def validate_and_rewrite_config(config):
         config[DIVERSITY_ENCOURAGING] = False
 
     # hyper-parameter: REPLAY_VALUES
-    if mode in [
-        REPLAY_VALUES,
-        DIVERSITY_ENCOURAGING
-    ]:
+    if mode in [REPLAY_VALUES, DIVERSITY_ENCOURAGING]:
         config[REPLAY_VALUES] = True
     else:
         config[REPLAY_VALUES] = False
 
     # hyper-parameter: CURIOSITY
-    if mode in [
-        CURIOSITY,
-        CURIOSITY_NO_RV,
-        CURIOSITY_DISABLE,
-        CURIOSITY_DISABLE_AND_EXPAND
-    ]:
+    if mode in [CURIOSITY, CURIOSITY_NO_RV, CURIOSITY_DISABLE,
+                CURIOSITY_DISABLE_AND_EXPAND]:
         config[CURIOSITY] = True
     else:
         config[CURIOSITY] = False
 
     # hyper-parameter: DISABLE
-    if mode in [
-        DISABLE,
-        DISABLE_AND_EXPAND,
-        DIVERSITY_ENCOURAGING_DISABLE,
-        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
-    ]:
+    if mode in [DISABLE, DISABLE_AND_EXPAND, DIVERSITY_ENCOURAGING_DISABLE,
+                DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND]:
         config[DISABLE] = True
     else:
         config[DISABLE] = False
 
     # DISABLE_AND_EXPAND requires to modified the config.
-    if mode in [
-        DISABLE_AND_EXPAND,
-        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
-    ]:
+    if mode in [DISABLE_AND_EXPAND, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND]:
         num_agents = len(config['multiagent']['policies'])
         config['train_batch_size'] = config['train_batch_size'] * num_agents
         config['num_envs_per_worker'] = \
@@ -217,8 +203,8 @@ def cross_policy_object_without_joint_dataset(
     # for each agent's batch (since they are identical).
     return_dict = {}
     local_worker = self_optimizer.workers.local_worker()
-    if len(set(b.count for b in multi_agent_batch.policy_batches.values()
-               )) != 1:
+    if len(set(b.count
+               for b in multi_agent_batch.policy_batches.values())) != 1:
         msg = "We detected the multi_agent_batch has different length of " \
               "batches in its policy_batches: length {}.".format(
             {k: b.count for k, b in multi_agent_batch.policy_batches.items()}

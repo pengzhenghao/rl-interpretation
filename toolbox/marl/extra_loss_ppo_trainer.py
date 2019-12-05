@@ -95,17 +95,18 @@ class AddLossMixin(object):
             feed_dict[joint_obs_ph] = cross_policy_obj[JOINT_OBS]
 
             replay_ph = self._loss_input_dict[PEER_ACTION]
-            feed_dict[replay_ph] = np.concatenate([
-                act for pid, act in cross_policy_obj[PEER_ACTION].items()
-                if pid != policy_id
-            ])  # exclude policy itself action
-
+            feed_dict[replay_ph] = np.concatenate(
+                [
+                    act for pid, act in cross_policy_obj[PEER_ACTION].items()
+                    if pid != policy_id
+                ]
+            )  # exclude policy itself action
         """The below codes are copied from rllib. """
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                    len(batch[SampleBatch.CUR_OBS]) %
-                    self._batch_divisibility_req == 0
-                    and max(batch[SampleBatch.AGENT_INDEX]) == 0
+                len(batch[SampleBatch.CUR_OBS]) %
+                self._batch_divisibility_req == 0
+                and max(batch[SampleBatch.AGENT_INDEX]) == 0
             )  # not multiagent
         else:
             meets_divisibility_reqs = True
@@ -216,8 +217,9 @@ def get_cross_policy_object(multi_agent_batch, self_optimizer):
     config = self_optimizer.workers._remote_config
 
     if not config["use_joint_dataset"]:
-        joint_obs = SampleBatch.concat_samples(list(
-            multi_agent_batch.policy_batches.values()))[SampleBatch.CUR_OBS]
+        joint_obs = SampleBatch.concat_samples(
+            list(multi_agent_batch.policy_batches.values())
+        )[SampleBatch.CUR_OBS]
     else:
         sample_size = config.get("joint_dataset_sample_batch_size")
         assert sample_size is not None, "You should specify the value of: " \
@@ -225,7 +227,8 @@ def get_cross_policy_object(multi_agent_batch, self_optimizer):
                                         "in config!"
         samples = [multi_agent_batch]
         count_dict = {
-            k: v.count for k, v in multi_agent_batch.policy_batches.items()
+            k: v.count
+            for k, v in multi_agent_batch.policy_batches.items()
         }
         for k in self_optimizer.workers.local_worker().policy_map.keys():
             if k not in count_dict:
