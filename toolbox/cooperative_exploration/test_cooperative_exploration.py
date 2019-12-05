@@ -50,17 +50,26 @@ def test_ceppo(local_mode=False):
         extra_config={
             "mode": tune.grid_search(
                 [
-                    # DISABLE,
-                    # DISABLE_AND_EXPAND,
-                    # REPLAY_VALUES,
-                    # NO_REPLAY_VALUES,
-                    # DIVERSITY_ENCOURAGING,
-                    # DIVERSITY_ENCOURAGING_NO_RV,
+                    DISABLE,
+                    DISABLE_AND_EXPAND,
+                    REPLAY_VALUES,
+                    NO_REPLAY_VALUES,
+                    DIVERSITY_ENCOURAGING,
+                    DIVERSITY_ENCOURAGING_NO_RV,
                     DIVERSITY_ENCOURAGING_DISABLE,
-                    DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
+                    DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
+                    CURIOSITY,
+                    CURIOSITY_NO_RV,
+                    CURIOSITY_DISABLE,
+                    CURIOSITY_DISABLE_AND_EXPAND,
+                    CURIOSITY_KL,
+                    CURIOSITY_KL_NO_RV,
+                    CURIOSITY_KL_DISABLE,
+                    CURIOSITY_KL_DISABLE_AND_EXPAND
                 ]
             ),
-            "num_cpus_per_worker": 0.2
+            "num_cpus_per_worker": 0.5,
+            "num_workers": 1,
         },
         # extra_config={"mode": DIVERSITY_ENCOURAGING},
         env_name="Pendulum-v0"

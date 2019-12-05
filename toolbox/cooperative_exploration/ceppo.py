@@ -5,8 +5,10 @@ import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
     SyncSamplesOptimizer, update_kl
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
-    make_tf_callable, setup_mixins, kl_and_loss_stats, ppo_surrogate_loss
+    make_tf_callable, setup_mixins, kl_and_loss_stats, ppo_surrogate_loss, \
+    BEHAVIOUR_LOGITS
 
+from toolbox.distance import get_kl_divergence
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
     AdaptiveExtraLossPPOTFPolicy, merge_dicts, NoveltyParamMixin, mixin_list, \
     AddLossMixin, wrap_stats_fn, wrap_after_train_result
@@ -34,11 +36,18 @@ CURIOSITY_NO_RV = "curiosity_without_replay_values"
 CURIOSITY_DISABLE = "curiosity_disable"
 CURIOSITY_DISABLE_AND_EXPAND = "curiosity_disable_and_expand"
 
+CURIOSITY_KL = "curiosity_KL"  # also serve as config's key
+CURIOSITY_KL_NO_RV = "curiosity_KL_without_replay_values"
+CURIOSITY_KL_DISABLE = "curiosity_KL_disable"
+CURIOSITY_KL_DISABLE_AND_EXPAND = "curiosity_KL_disable_and_expand"
+
 OPTIONAL_MODES = [
     DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES,
     DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV,
     DIVERSITY_ENCOURAGING_DISABLE, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
-    CURIOSITY, CURIOSITY_NO_RV, CURIOSITY_DISABLE, CURIOSITY_DISABLE_AND_EXPAND
+    CURIOSITY, CURIOSITY_NO_RV, CURIOSITY_DISABLE,
+    CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL, CURIOSITY_KL_NO_RV,
+    CURIOSITY_KL_DISABLE, CURIOSITY_KL_DISABLE_AND_EXPAND
 ]
 
 ceppo_default_config = merge_dicts(
@@ -53,9 +62,173 @@ ceppo_default_config = merge_dicts(
 )
 
 
-def _add_intrinsic_reward(my_batch, others_batches):
-    raise NotImplementedError()
-    # return my_batch
+def validate_and_rewrite_config(config):
+    mode = config['mode']
+    assert mode in OPTIONAL_MODES
+
+    # hyper-parameter: DIVERSITY_ENCOURAGING
+    if mode in [
+        DIVERSITY_ENCOURAGING,
+        DIVERSITY_ENCOURAGING_NO_RV,
+        DIVERSITY_ENCOURAGING_DISABLE,
+        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
+    ]:
+        config[DIVERSITY_ENCOURAGING] = True
+        config.update(
+            # we set increment to zero, to make the novelty_target fix to the
+            # initial value.
+            novelty_loss_increment=0,
+            # novelty_loss_increment=10.0,
+
+            novelty_loss_param_init=0.000001,
+            novelty_loss_running_length=10,
+            joint_dataset_sample_batch_size=200,
+            novelty_mode="mean",
+            use_joint_dataset=False
+        )
+    else:
+        config[DIVERSITY_ENCOURAGING] = False
+
+    # hyper-parameter: REPLAY_VALUES
+    if mode in [
+        REPLAY_VALUES,
+        DIVERSITY_ENCOURAGING,
+        CURIOSITY,
+        CURIOSITY_KL
+    ]:
+        config[REPLAY_VALUES] = True
+    else:
+        config[REPLAY_VALUES] = False
+
+    # hyper-parameter: CURIOSITY
+    if mode in [
+        CURIOSITY,
+        CURIOSITY_NO_RV,
+        CURIOSITY_DISABLE,
+        CURIOSITY_DISABLE_AND_EXPAND,
+        CURIOSITY_KL,
+        CURIOSITY_KL_NO_RV,
+        CURIOSITY_KL_DISABLE,
+        CURIOSITY_KL_DISABLE_AND_EXPAND
+    ]:
+        config[CURIOSITY] = True
+        if "curiosity_tensity" not in config:
+            config["curiosity_tensity"] = 0.1  # can be tuned, if you wish.
+        if mode in [
+            CURIOSITY,
+            CURIOSITY_NO_RV,
+            CURIOSITY_DISABLE,
+            CURIOSITY_DISABLE_AND_EXPAND
+        ]:
+            config['curiosity_type'] = 'mse'
+        elif mode in [
+            CURIOSITY_KL,
+            CURIOSITY_KL_NO_RV,
+            CURIOSITY_KL_DISABLE,
+            CURIOSITY_KL_DISABLE_AND_EXPAND
+        ]:
+            config['curiosity_type'] = 'kl'
+    else:
+        config[CURIOSITY] = False
+
+    # hyper-parameter: DISABLE
+    if mode in [
+        DISABLE,
+        DISABLE_AND_EXPAND,
+        DIVERSITY_ENCOURAGING_DISABLE,
+        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
+        CURIOSITY_DISABLE,
+        CURIOSITY_DISABLE_AND_EXPAND,
+        CURIOSITY_KL_DISABLE,
+        CURIOSITY_KL_DISABLE_AND_EXPAND
+    ]:
+        config[DISABLE] = True
+    else:
+        config[DISABLE] = False
+
+    # DISABLE_AND_EXPAND requires to modified the config.
+    if mode in [
+        DISABLE_AND_EXPAND,
+        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
+        CURIOSITY_DISABLE_AND_EXPAND,
+        CURIOSITY_KL_DISABLE_AND_EXPAND
+    ]:
+        num_agents = len(config['multiagent']['policies'])
+        config['train_batch_size'] = config['train_batch_size'] * num_agents
+        config['num_envs_per_worker'] = \
+            config['num_envs_per_worker'] * num_agents
+
+    # validate config
+    validate_config(config)
+    assert not config.get("use_joint_dataset")
+    assert "callbacks" in config
+    assert "on_train_result" in config['callbacks']
+    assert DISABLE in config
+    assert DIVERSITY_ENCOURAGING in config
+    assert REPLAY_VALUES in config
+    assert CURIOSITY in config
+    if config[CURIOSITY]:
+        assert "curiosity_type" in config
+        assert "curiosity_tensity" in config
+        assert config["curiosity_type"] in ["kl", "mse"]
+    else:
+        assert "curiosity_type" not in config
+        assert "curiosity_tensity" not in config
+
+
+def _add_intrinsic_reward(my_batch, others_batches, config):
+    # if using mse
+    OBS = SampleBatch.CUR_OBS
+    my_rew = my_batch[SampleBatch.REWARDS]
+
+    # TEST ONLY
+    old1 = my_batch['rewards'].copy()
+    old2 = my_batch['prev_rewards'].copy()
+
+    replays = []
+    for (other_policy, _) in others_batches.values():
+        _, _, info = other_policy.compute_actions(my_batch[OBS])
+        replays.append(info[BEHAVIOUR_LOGITS])
+
+    if not replays:
+        return my_batch
+
+    if config["curiosity_type"] == "kl":
+        intrinsic_reward = np.mean([
+            get_kl_divergence(my_batch[BEHAVIOUR_LOGITS], logit, mean=False)
+            for logit in replays
+        ], axis=0)
+
+    elif config["curiosity_type"] == "mse":
+        replays = [np.split(logit, 2, axis=1)[0] for logit in replays]
+
+        my_act = np.split(my_batch[BEHAVIOUR_LOGITS], 2, axis=1)[0]
+        mse = np.mean([
+            (np.square(my_act - other_act)).mean(1) for other_act in replays
+        ], axis=0)
+
+        # normalize
+        intrinsic_reward = (mse - mse.min()) / (
+                    mse.max() - mse.min() + 1e-12) * (
+                                   my_rew.max() - my_rew.min())
+    else:
+        raise NotImplementedError(
+            "Wrong curiosity type! {} not in ['kl', 'mse']".format(
+                config['curiosity_type']))
+
+    new_rew = my_rew + intrinsic_reward * config["curiosity_tensity"]
+    assert new_rew.ndim == 1
+    my_batch[SampleBatch.REWARDS] = new_rew
+
+    # we omit the intrinsic reward of the first "prev_state", this will
+    # harm a little bit precision but, ..., never mind.
+    new_prev_rew = my_batch[SampleBatch.PREV_REWARDS]
+    new_prev_rew[1:] = new_rew[:-1]
+    my_batch[SampleBatch.PREV_REWARDS] = new_prev_rew
+
+    assert np.any(old1 != my_batch['rewards'])
+    assert np.any(old2 != my_batch['prev_rewards'])
+    return my_batch
 
 
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
@@ -72,7 +245,9 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
         return batch
 
     if policy.config[CURIOSITY]:
-        batch = _add_intrinsic_reward(sample_batch, others_batches)
+        batch = _add_intrinsic_reward(
+            sample_batch, others_batches, policy.config
+        )
     else:
         batch = sample_batch
 
@@ -104,9 +279,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                        convert_to_tensor(prev_action),
+                            convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                        convert_to_tensor(prev_reward),
+                            convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )
@@ -127,63 +302,6 @@ def setup_mixins_ceppo(policy, obs_space, action_space, config):
     if config[DIVERSITY_ENCOURAGING]:
         AddLossMixin.__init__(policy, config)
         NoveltyParamMixin.__init__(policy, config)
-
-
-def validate_and_rewrite_config(config):
-    mode = config['mode']
-    assert mode in OPTIONAL_MODES
-
-    # hyper-parameter: DIVERSITY_ENCOURAGING
-    if mode in [DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV,
-                DIVERSITY_ENCOURAGING_DISABLE,
-                DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND]:
-        config[DIVERSITY_ENCOURAGING] = True
-        config.update(
-            novelty_loss_param_init=0.000001,
-            novelty_loss_increment=10.0,
-            novelty_loss_running_length=10,
-            joint_dataset_sample_batch_size=200,
-            novelty_mode="mean",
-            use_joint_dataset=False
-        )
-    else:
-        config[DIVERSITY_ENCOURAGING] = False
-
-    # hyper-parameter: REPLAY_VALUES
-    if mode in [REPLAY_VALUES, DIVERSITY_ENCOURAGING]:
-        config[REPLAY_VALUES] = True
-    else:
-        config[REPLAY_VALUES] = False
-
-    # hyper-parameter: CURIOSITY
-    if mode in [CURIOSITY, CURIOSITY_NO_RV, CURIOSITY_DISABLE,
-                CURIOSITY_DISABLE_AND_EXPAND]:
-        config[CURIOSITY] = True
-    else:
-        config[CURIOSITY] = False
-
-    # hyper-parameter: DISABLE
-    if mode in [DISABLE, DISABLE_AND_EXPAND, DIVERSITY_ENCOURAGING_DISABLE,
-                DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND]:
-        config[DISABLE] = True
-    else:
-        config[DISABLE] = False
-
-    # DISABLE_AND_EXPAND requires to modified the config.
-    if mode in [DISABLE_AND_EXPAND, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND]:
-        num_agents = len(config['multiagent']['policies'])
-        config['train_batch_size'] = config['train_batch_size'] * num_agents
-        config['num_envs_per_worker'] = \
-            config['num_envs_per_worker'] * num_agents
-
-    # validate config
-    validate_config(config)
-    assert not config.get("use_joint_dataset")
-    assert "callbacks" in config
-    assert "on_train_result" in config['callbacks']
-    assert DISABLE in config
-    assert DIVERSITY_ENCOURAGING in config
-    assert REPLAY_VALUES in config
 
 
 def cross_policy_object_without_joint_dataset(
