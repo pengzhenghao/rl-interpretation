@@ -29,7 +29,7 @@ def _is_centos():
         assert linux_distribution(True)[0] == 'CentOS Linux'
         import pwd
         import os
-        assert pwd.getpwuid(os.getuid())[0] == 'b146466'
+        return str(pwd.getpwuid(os.getuid())[0])
     return flag
 
 
@@ -40,7 +40,7 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False, **kwargs):
             log_to_driver=test_mode,
             local_mode=local_mode,
             num_gpus=num_gpus,
-            temp_dir="/data1/pengzh/tmp" if _is_centos() else None,
+            temp_dir="/data1/pengzh/tmp" if _is_centos() == "b146466" else None,
             **kwargs
         )
         print("Successfully initialize Ray!")
