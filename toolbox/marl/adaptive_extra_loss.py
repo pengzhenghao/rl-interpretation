@@ -122,6 +122,7 @@ def wrap_after_train_result(trainer, fetches):
 
 def setup_mixins_modified(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
+    AddLossMixin.__init__(policy, config)
     NoveltyParamMixin.__init__(policy, config)
 
 

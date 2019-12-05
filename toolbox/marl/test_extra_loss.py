@@ -23,6 +23,7 @@ def _get_default_test_config(num_agents, env_name, num_gpus):
         "sample_batch_size": 20,
         "train_batch_size": 40,
         "sgd_minibatch_size": 16,
+        "num_sgd_iter": 3,
         "multiagent": {
             "policies": {
                 i: (None, env.observation_space, env.action_space, {})
@@ -148,7 +149,7 @@ def test_smart_adaptive_extra_loss_trainer4(local_mode=False):
     _base_marl(
         SmartAdaptiveExtraLossPPOTrainer,
         local_mode=local_mode,
-        env="HumanoidBulletEnv-v0"
+        env_name="HumanoidBulletEnv-v0"
     )
 
 
@@ -156,7 +157,7 @@ def test_smart_adaptive_extra_loss_trainer5(local_mode=False):
     _base_marl(
         SmartAdaptiveExtraLossPPOTrainer,
         local_mode=local_mode,
-        env="CartPole-v0"
+        env_name="CartPole-v0"
     )
 
 
@@ -190,5 +191,7 @@ def test_restore():
 
 if __name__ == '__main__':
     # test_restore()
-    test_smart_adaptive_extra_loss_trainer4(True)
+    # test_smart_adaptive_extra_loss_trainer4(True)
     # test_smart_adaptive_extra_loss_trainer5(True)
+    test_extra_loss_ppo_trainer1(False)
+    test_extra_loss_ppo_trainer2()
