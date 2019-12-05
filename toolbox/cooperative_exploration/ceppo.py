@@ -13,7 +13,7 @@ from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
     AdaptiveExtraLossPPOTFPolicy, merge_dicts, NoveltyParamMixin, mixin_list, \
     AddLossMixin, wrap_stats_fn, wrap_after_train_result
 from toolbox.marl.extra_loss_ppo_trainer import JOINT_OBS, PEER_ACTION, \
-    SampleBatch, extra_loss_ppo_loss, get_cross_policy_object
+    SampleBatch, extra_loss_ppo_loss, get_cross_policy_object, novelty_loss_mse
 from toolbox.marl.utils import on_train_result
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
@@ -96,8 +96,17 @@ def validate_and_rewrite_config(config):
                 CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL, CURIOSITY_KL_NO_RV,
                 CURIOSITY_KL_DISABLE, CURIOSITY_KL_DISABLE_AND_EXPAND]:
         config[CURIOSITY] = True
-        if "curiosity_tensity" not in config:
-            config["curiosity_tensity"] = 0.1  # can be tuned, if you wish.
+
+        config.update(
+            novelty_loss_increment=0,
+            novelty_loss_param_init=0.000001,
+            novelty_loss_running_length=10,
+            joint_dataset_sample_batch_size=200,
+            novelty_mode="mean",
+            use_joint_dataset=False
+        )
+        # if "curiosity_tensity" not in config:
+        # config["curiosity_tensity"] = 0.1  # can be tuned, if you wish.
         if mode in [CURIOSITY, CURIOSITY_NO_RV, CURIOSITY_DISABLE,
                     CURIOSITY_DISABLE_AND_EXPAND]:
             config['curiosity_type'] = 'mse'
@@ -135,14 +144,14 @@ def validate_and_rewrite_config(config):
     assert CURIOSITY in config
     if config[CURIOSITY]:
         assert "curiosity_type" in config
-        assert "curiosity_tensity" in config
+        # assert "curiosity_tensity" in config
         assert config["curiosity_type"] in ["kl", "mse"]
     else:
         assert "curiosity_type" not in config
-        assert "curiosity_tensity" not in config
+        # assert "curiosity_tensity" not in config
 
 
-def _add_intrinsic_reward(my_batch, others_batches, config):
+def _add_intrinsic_reward(policy, my_batch, others_batches, config):
     # if using mse
     OBS = SampleBatch.CUR_OBS
     my_rew = my_batch[SampleBatch.REWARDS]
@@ -185,7 +194,7 @@ def _add_intrinsic_reward(my_batch, others_batches, config):
     intrinsic_reward = (intrinsic_reward - intrinsic_reward.min()) / (
             intrinsic_reward.max() - intrinsic_reward.min() + 1e-12)
     intrinsic_reward = intrinsic_reward * (my_rew.max() - my_rew.min())
-    intrinsic_reward = intrinsic_reward * config['curiosity_tensity']
+    intrinsic_reward = intrinsic_reward * policy.novelty_loss_param_val
 
     new_rew = my_rew + intrinsic_reward
     assert new_rew.ndim == 1
@@ -203,7 +212,7 @@ def _add_intrinsic_reward(my_batch, others_batches, config):
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
-        if policy.config[DIVERSITY_ENCOURAGING]:
+        if policy.config[DIVERSITY_ENCOURAGING] or policy.config[CURIOSITY]:
             assert not policy.config["use_joint_dataset"]
             batch[JOINT_OBS] = np.zeros_like(
                 sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
@@ -215,7 +224,7 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
     if policy.config[CURIOSITY]:
         batch = _add_intrinsic_reward(
-            sample_batch, others_batches, policy.config
+            policy, sample_batch, others_batches, policy.config
         )
     else:
         batch = sample_batch
@@ -268,7 +277,7 @@ def setup_mixins_ceppo(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
     if not config['disable']:
         ValueNetworkMixin2.__init__(policy, config)
-    if config[DIVERSITY_ENCOURAGING]:
+    if config[DIVERSITY_ENCOURAGING] or config[CURIOSITY]:
         AddLossMixin.__init__(policy, config)
         NoveltyParamMixin.__init__(policy, config)
 
@@ -331,7 +340,7 @@ def choose_policy_optimizer_modified(workers, config):
             counts = np.mean([b.count for b in batch.policy_batches.values()])
             return int(counts / num_agents)
 
-    if config[DIVERSITY_ENCOURAGING]:
+    if config[DIVERSITY_ENCOURAGING] or config[CURIOSITY]:
         process_multiagent_batch_fn = cross_policy_object_without_joint_dataset
         no_split_list = [PEER_ACTION, JOINT_OBS]
     else:
@@ -357,12 +366,18 @@ def choose_policy_optimizer_modified(workers, config):
 def wrap_stats_ceppo(policy, train_batch):
     if policy.config[DIVERSITY_ENCOURAGING]:
         return wrap_stats_fn(policy, train_batch)
-    else:
-        return kl_and_loss_stats(policy, train_batch)
+    ret = kl_and_loss_stats(policy, train_batch)
+    if policy.config[CURIOSITY]:
+        ret.update(
+            novelty_loss_param=policy.novelty_loss_param,
+            novelty_target=policy.novelty_target_tensor,
+            novelty_loss=policy.novelty_loss
+        )
+    return ret
 
 
 def wrap_after_train_result_ceppo(trainer, fetches):
-    if trainer.config[DIVERSITY_ENCOURAGING]:
+    if trainer.config[DIVERSITY_ENCOURAGING] or trainer.config[CURIOSITY]:
         wrap_after_train_result(trainer, fetches)
     else:
         update_kl(trainer, fetches)
@@ -371,6 +386,9 @@ def wrap_after_train_result_ceppo(trainer, fetches):
 def loss_ceppo(policy, model, dist_class, train_batch):
     if policy.config[DIVERSITY_ENCOURAGING]:
         return extra_loss_ppo_loss(policy, model, dist_class, train_batch)
+    if policy.config[CURIOSITY]:
+        # create policy.novelty_loss for adaptively adjust curiosity.
+        novelty_loss_mse(policy, model, dist_class, train_batch)
     return ppo_surrogate_loss(policy, model, dist_class, train_batch)
 
 

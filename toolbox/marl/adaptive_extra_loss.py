@@ -86,16 +86,18 @@ class NoveltyParamMixin(object):
                 sampled_novelty)
             logger.info(msg)
             self.novelty_target += self.increment
-            self.novelty_target_tensor.load(
-                self.novelty_target, session=self.get_session()
-            )
 
         if sampled_novelty > self.novelty_target:
             self.novelty_loss_param_val *= 0.9
         elif sampled_novelty < self.novelty_target:
-            self.novelty_loss_param_val *= 1.1
+            self.novelty_loss_param_val = min(
+                self.novelty_loss_param_val * 1.1, 1.0
+            )
         self.novelty_loss_param.load(
             self.novelty_loss_param_val, session=self.get_session()
+        )
+        self.novelty_target_tensor.load(
+            self.novelty_target, session=self.get_session()
         )
         return self.novelty_loss_param_val
 

@@ -196,8 +196,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
 
 
 def kl_and_loss_stats_without_total_loss(policy, train_batch):
-    return {
-        "novelty_loss": policy.novelty_loss,
+    ret = {
         "cur_kl_coeff": tf.cast(policy.kl_coeff, tf.float64),
         "cur_lr": tf.cast(policy.cur_lr, tf.float64),
         "policy_loss": policy.loss_obj.mean_policy_loss,
@@ -210,6 +209,9 @@ def kl_and_loss_stats_without_total_loss(policy, train_batch):
         "entropy": policy.loss_obj.mean_entropy,
         "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
     }
+    if hasattr(policy, "novelty_loss"):
+        ret["novelty_loss"] = policy.novelty_loss
+    return ret
 
 
 def get_cross_policy_object(multi_agent_batch, self_optimizer):
