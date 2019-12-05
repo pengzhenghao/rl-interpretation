@@ -67,19 +67,15 @@ def validate_and_rewrite_config(config):
     assert mode in OPTIONAL_MODES
 
     # hyper-parameter: DIVERSITY_ENCOURAGING
-    if mode in [
-        DIVERSITY_ENCOURAGING,
-        DIVERSITY_ENCOURAGING_NO_RV,
-        DIVERSITY_ENCOURAGING_DISABLE,
-        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND
-    ]:
+    if mode in [DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV,
+                DIVERSITY_ENCOURAGING_DISABLE,
+                DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND]:
         config[DIVERSITY_ENCOURAGING] = True
         config.update(
             # we set increment to zero, to make the novelty_target fix to the
             # initial value.
             novelty_loss_increment=0,
             # novelty_loss_increment=10.0,
-
             novelty_loss_param_init=0.000001,
             novelty_loss_running_length=10,
             joint_dataset_sample_batch_size=200,
@@ -90,69 +86,39 @@ def validate_and_rewrite_config(config):
         config[DIVERSITY_ENCOURAGING] = False
 
     # hyper-parameter: REPLAY_VALUES
-    if mode in [
-        REPLAY_VALUES,
-        DIVERSITY_ENCOURAGING,
-        CURIOSITY,
-        CURIOSITY_KL
-    ]:
+    if mode in [REPLAY_VALUES, DIVERSITY_ENCOURAGING, CURIOSITY, CURIOSITY_KL]:
         config[REPLAY_VALUES] = True
     else:
         config[REPLAY_VALUES] = False
 
     # hyper-parameter: CURIOSITY
-    if mode in [
-        CURIOSITY,
-        CURIOSITY_NO_RV,
-        CURIOSITY_DISABLE,
-        CURIOSITY_DISABLE_AND_EXPAND,
-        CURIOSITY_KL,
-        CURIOSITY_KL_NO_RV,
-        CURIOSITY_KL_DISABLE,
-        CURIOSITY_KL_DISABLE_AND_EXPAND
-    ]:
+    if mode in [CURIOSITY, CURIOSITY_NO_RV, CURIOSITY_DISABLE,
+                CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL, CURIOSITY_KL_NO_RV,
+                CURIOSITY_KL_DISABLE, CURIOSITY_KL_DISABLE_AND_EXPAND]:
         config[CURIOSITY] = True
         if "curiosity_tensity" not in config:
             config["curiosity_tensity"] = 0.1  # can be tuned, if you wish.
-        if mode in [
-            CURIOSITY,
-            CURIOSITY_NO_RV,
-            CURIOSITY_DISABLE,
-            CURIOSITY_DISABLE_AND_EXPAND
-        ]:
+        if mode in [CURIOSITY, CURIOSITY_NO_RV, CURIOSITY_DISABLE,
+                    CURIOSITY_DISABLE_AND_EXPAND]:
             config['curiosity_type'] = 'mse'
-        elif mode in [
-            CURIOSITY_KL,
-            CURIOSITY_KL_NO_RV,
-            CURIOSITY_KL_DISABLE,
-            CURIOSITY_KL_DISABLE_AND_EXPAND
-        ]:
+        elif mode in [CURIOSITY_KL, CURIOSITY_KL_NO_RV, CURIOSITY_KL_DISABLE,
+                      CURIOSITY_KL_DISABLE_AND_EXPAND]:
             config['curiosity_type'] = 'kl'
     else:
         config[CURIOSITY] = False
 
     # hyper-parameter: DISABLE
-    if mode in [
-        DISABLE,
-        DISABLE_AND_EXPAND,
-        DIVERSITY_ENCOURAGING_DISABLE,
-        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
-        CURIOSITY_DISABLE,
-        CURIOSITY_DISABLE_AND_EXPAND,
-        CURIOSITY_KL_DISABLE,
-        CURIOSITY_KL_DISABLE_AND_EXPAND
-    ]:
+    if mode in [DISABLE, DISABLE_AND_EXPAND, DIVERSITY_ENCOURAGING_DISABLE,
+                DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND, CURIOSITY_DISABLE,
+                CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL_DISABLE,
+                CURIOSITY_KL_DISABLE_AND_EXPAND]:
         config[DISABLE] = True
     else:
         config[DISABLE] = False
 
     # DISABLE_AND_EXPAND requires to modified the config.
-    if mode in [
-        DISABLE_AND_EXPAND,
-        DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
-        CURIOSITY_DISABLE_AND_EXPAND,
-        CURIOSITY_KL_DISABLE_AND_EXPAND
-    ]:
+    if mode in [DISABLE_AND_EXPAND, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
+                CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL_DISABLE_AND_EXPAND]:
         num_agents = len(config['multiagent']['policies'])
         config['train_batch_size'] = config['train_batch_size'] * num_agents
         config['num_envs_per_worker'] = \
@@ -194,27 +160,34 @@ def _add_intrinsic_reward(my_batch, others_batches, config):
         return my_batch
 
     if config["curiosity_type"] == "kl":
-        intrinsic_reward = np.mean([
-            get_kl_divergence(my_batch[BEHAVIOUR_LOGITS], logit, mean=False)
-            for logit in replays
-        ], axis=0)
+        intrinsic_reward = np.mean(
+            [
+                get_kl_divergence(
+                    my_batch[BEHAVIOUR_LOGITS], logit, mean=False
+                ) for logit in replays
+            ],
+            axis=0
+        )
 
     elif config["curiosity_type"] == "mse":
         replays = [np.split(logit, 2, axis=1)[0] for logit in replays]
 
         my_act = np.split(my_batch[BEHAVIOUR_LOGITS], 2, axis=1)[0]
-        mse = np.mean([
-            (np.square(my_act - other_act)).mean(1) for other_act in replays
-        ], axis=0)
+        mse = np.mean(
+            [(np.square(my_act - other_act)).mean(1) for other_act in replays],
+            axis=0
+        )
 
         # normalize
-        intrinsic_reward = (mse - mse.min()) / (
-                    mse.max() - mse.min() + 1e-12) * (
-                                   my_rew.max() - my_rew.min())
+        intrinsic_reward = (mse -
+                            mse.min()) / (mse.max() - mse.min() + 1e-12
+                                          ) * (my_rew.max() - my_rew.min())
     else:
         raise NotImplementedError(
             "Wrong curiosity type! {} not in ['kl', 'mse']".format(
-                config['curiosity_type']))
+                config['curiosity_type']
+            )
+        )
 
     new_rew = my_rew + intrinsic_reward * config["curiosity_tensity"]
     assert new_rew.ndim == 1
@@ -279,9 +252,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                            convert_to_tensor(prev_action),
+                        convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                            convert_to_tensor(prev_reward),
+                        convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )

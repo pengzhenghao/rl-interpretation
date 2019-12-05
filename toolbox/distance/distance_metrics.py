@@ -9,9 +9,10 @@ def _get_kl_divergence(dist1, dist2, mean=True):
     target_mean, target_log_std = np.split(dist2, 2, axis=1)
 
     kl_divergence = np.sum(
-        target_log_std - source_log_std +
-        (np.square(np.exp(source_log_std)) + np.square(source_mean - target_mean)) /
-        (2.0 * np.square(np.exp(target_log_std)) + 1e-10) - 0.5,
+        target_log_std - source_log_std + (
+            np.square(np.exp(source_log_std)) +
+            np.square(source_mean - target_mean)
+        ) / (2.0 * np.square(np.exp(target_log_std)) + 1e-10) - 0.5,
         axis=1
     )
     kl_divergence = np.clip(kl_divergence, 1e-12, 1e38)  # to avoid inf

@@ -146,16 +146,16 @@ class AddLossMixin(object):
         return feed_dict
 
 
-def novelty_loss(policy, model, dist_class, train_batch):
+def novelty_loss_mse(policy, model, dist_class, train_batch):
     mode = policy.config['novelty_mode']
     obs_ph = train_batch[JOINT_OBS]
     if dist_class == DiagGaussian:
         discrete = False
-    elif dist_class == Categorical:
-        discrete = True
+    # elif dist_class == Categorical:
+    #     discrete = True
     else:
         raise NotImplementedError(
-            "Only support DiagGaussian, Categorical distribution."
+            "Only support DiagGaussian, --Categorical(WIP)-- distribution."
         )
 
     # The ret_act is the 'behaviour_logits'
@@ -172,9 +172,9 @@ def novelty_loss(policy, model, dist_class, train_batch):
         if mode == "mean":
             nov_loss = -tf.reduce_mean(normalized)
         elif mode == "min":
-            nov_loss = tf.reduce_min(normalized)
+            nov_loss = -tf.reduce_min(normalized)
         else:
-            nov_loss = tf.reduce_max(normalized)
+            nov_loss = -tf.reduce_max(normalized)
     policy.novelty_loss = nov_loss
     return nov_loss
 
@@ -182,7 +182,7 @@ def novelty_loss(policy, model, dist_class, train_batch):
 def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
-    nov_loss = novelty_loss(policy, model, dist_class, train_batch)
+    nov_loss = novelty_loss_mse(policy, model, dist_class, train_batch)
     alpha = policy.novelty_loss_param
     total_loss = (1 - alpha) * original_loss + alpha * nov_loss
     policy.total_loss = total_loss
