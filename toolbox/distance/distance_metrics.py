@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def _get_kl_divergence(dist1, dist2):
+def _get_kl_divergence(dist1, dist2, mean=True):
     assert dist1.ndim == 2
     assert dist2.ndim == 2
 
@@ -10,13 +10,16 @@ def _get_kl_divergence(dist1, dist2):
 
     kl_divergence = np.sum(
         target_log_std - source_log_std +
-        (np.square(source_log_std) + np.square(source_mean - target_mean)) /
-        (2.0 * np.square(target_log_std) + 1e-9) - 0.5,
+        (np.square(np.exp(source_log_std)) + np.square(source_mean - target_mean)) /
+        (2.0 * np.square(np.exp(target_log_std)) + 1e-10) - 0.5,
         axis=1
     )
-    kl_divergence = np.clip(kl_divergence, 0.0, 1e38)  # to avoid inf
-    averaged_kl_divergence = np.mean(kl_divergence)
-    return averaged_kl_divergence
+    kl_divergence = np.clip(kl_divergence, 1e-12, 1e38)  # to avoid inf
+    if mean:
+        averaged_kl_divergence = np.mean(kl_divergence)
+        return averaged_kl_divergence
+    else:
+        return kl_divergence
 
 
 def _build_matrix(iterable, apply_function, default_value=0):
