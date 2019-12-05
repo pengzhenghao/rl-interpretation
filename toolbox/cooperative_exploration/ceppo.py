@@ -147,10 +147,6 @@ def _add_intrinsic_reward(my_batch, others_batches, config):
     OBS = SampleBatch.CUR_OBS
     my_rew = my_batch[SampleBatch.REWARDS]
 
-    # TEST ONLY
-    old1 = my_batch['rewards'].copy()
-    old2 = my_batch['prev_rewards'].copy()
-
     replays = []
     for (other_policy, _) in others_batches.values():
         _, _, info = other_policy.compute_actions(my_batch[OBS])
@@ -201,12 +197,6 @@ def _add_intrinsic_reward(my_batch, others_batches, config):
     new_prev_rew[1:] = new_rew[:-1]
     my_batch[SampleBatch.PREV_REWARDS] = new_prev_rew
 
-    if not np.any(old1 != my_batch['rewards']):
-        print('she')
-    if not np.any(old2 != my_batch['prev_rewards']):
-        print('she')
-    # assert np.any(old1 != my_batch['rewards'])
-    # assert np.any(old2 != my_batch['prev_rewards'])
     return my_batch
 
 
