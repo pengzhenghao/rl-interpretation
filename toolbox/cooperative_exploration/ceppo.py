@@ -173,15 +173,11 @@ def _add_intrinsic_reward(my_batch, others_batches, config):
         replays = [np.split(logit, 2, axis=1)[0] for logit in replays]
 
         my_act = np.split(my_batch[BEHAVIOUR_LOGITS], 2, axis=1)[0]
-        mse = np.mean(
+        intrinsic_reward = np.mean(
             [(np.square(my_act - other_act)).mean(1) for other_act in replays],
             axis=0
         )
 
-        # normalize
-        intrinsic_reward = (mse -
-                            mse.min()) / (mse.max() - mse.min() + 1e-12
-                                          ) * (my_rew.max() - my_rew.min())
     else:
         raise NotImplementedError(
             "Wrong curiosity type! {} not in ['kl', 'mse']".format(
@@ -189,7 +185,13 @@ def _add_intrinsic_reward(my_batch, others_batches, config):
             )
         )
 
-    new_rew = my_rew + intrinsic_reward * config["curiosity_tensity"]
+    # normalize
+    intrinsic_reward = (intrinsic_reward - intrinsic_reward.min()) / (
+            intrinsic_reward.max() - intrinsic_reward.min() + 1e-12)
+    intrinsic_reward = intrinsic_reward * (my_rew.max() - my_rew.min())
+    intrinsic_reward = intrinsic_reward * config['curiosity_tensity']
+
+    new_rew = my_rew + intrinsic_reward
     assert new_rew.ndim == 1
     my_batch[SampleBatch.REWARDS] = new_rew
 
@@ -199,8 +201,12 @@ def _add_intrinsic_reward(my_batch, others_batches, config):
     new_prev_rew[1:] = new_rew[:-1]
     my_batch[SampleBatch.PREV_REWARDS] = new_prev_rew
 
-    assert np.any(old1 != my_batch['rewards'])
-    assert np.any(old2 != my_batch['prev_rewards'])
+    if not np.any(old1 != my_batch['rewards']):
+        print('she')
+    if not np.any(old2 != my_batch['prev_rewards']):
+        print('she')
+    # assert np.any(old1 != my_batch['rewards'])
+    # assert np.any(old2 != my_batch['prev_rewards'])
     return my_batch
 
 
@@ -252,9 +258,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                        convert_to_tensor(prev_action),
+                            convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                        convert_to_tensor(prev_reward),
+                            convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )

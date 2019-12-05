@@ -50,14 +50,14 @@ def test_ceppo(local_mode=False):
         extra_config={
             "mode": tune.grid_search(
                 [
-                    DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES,
-                    NO_REPLAY_VALUES, DIVERSITY_ENCOURAGING,
-                    DIVERSITY_ENCOURAGING_NO_RV, DIVERSITY_ENCOURAGING_DISABLE,
-                    DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND, CURIOSITY,
+                    # DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES,
+                    # NO_REPLAY_VALUES, DIVERSITY_ENCOURAGING,
+                    # DIVERSITY_ENCOURAGING_NO_RV, DIVERSITY_ENCOURAGING_DISABLE,
+                    # DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND, CURIOSITY,
                     CURIOSITY_NO_RV, CURIOSITY_DISABLE,
-                    CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL,
+                    # CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL,
                     CURIOSITY_KL_NO_RV, CURIOSITY_KL_DISABLE,
-                    CURIOSITY_KL_DISABLE_AND_EXPAND
+                    # CURIOSITY_KL_DISABLE_AND_EXPAND
                 ]
             ),
             "num_cpus_per_worker": 0.5,
@@ -107,7 +107,7 @@ def validate_cetd3():
 
 
 if __name__ == '__main__':
-    test_ceppo(local_mode=False)
+    test_ceppo(local_mode=True)
     # validate_ceppo(disable=False, test_mode=False)
     # test_single_agent()
     # test_cetd3(local_mode=False)

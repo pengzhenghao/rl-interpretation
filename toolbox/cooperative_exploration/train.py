@@ -84,6 +84,7 @@ if __name__ == '__main__':
         "lr": 2.5e-4,
         "mode": tune.grid_search(OPTIONAL_MODES),
         "num_gpus": 0.24,
+        "num_cpus_per_worker": 0.5,
     }
 
     train(
