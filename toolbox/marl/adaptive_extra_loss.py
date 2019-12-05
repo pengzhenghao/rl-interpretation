@@ -80,12 +80,10 @@ class NoveltyParamMixin(object):
             logger.info(msg)
             self.novelty_target += self.increment
 
-        if sampled_novelty > self.increment + self.novelty_target:
-            # if sampled_novelty > 2.0 * self.novelty_target:
-            self.novelty_loss_param_val *= 0.5
-        elif sampled_novelty < self.novelty_target - self.increment:
-            # elif sampled_novelty < 0.5 * self.novelty_target:
-            self.novelty_loss_param_val *= 1.5
+        if sampled_novelty > self.novelty_target:
+            self.novelty_loss_param_val *= 0.9
+        elif sampled_novelty < self.novelty_target:
+            self.novelty_loss_param_val *= 1.1
         self.novelty_loss_param.load(
             self.novelty_loss_param_val, session=self.get_session()
         )
