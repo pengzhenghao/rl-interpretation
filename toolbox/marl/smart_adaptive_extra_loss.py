@@ -41,7 +41,7 @@ class SmartNoveltyParamMixin(object):
             dtype=tf.float32
         )
         self.maxlen = config['waiting_iteration']
-        self.reward_stat = None
+        self.reward_stat = deque(maxlen=self.maxlen)
         self.step = config['novelty_loss_param_step']
         if config['performance_evaluation_metric'] == "max":
             self.metric = np.min
@@ -54,9 +54,6 @@ class SmartNoveltyParamMixin(object):
             )
 
     def update_novelty_loss_param(self, performance):
-        if self.reward_stat is None:
-            # lazy initialize
-            self.reward_stat = deque([performance], maxlen=self.maxlen)
         history_performance = self.metric(self.reward_stat)
         self.reward_stat.append(performance)
 

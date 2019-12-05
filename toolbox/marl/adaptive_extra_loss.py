@@ -48,21 +48,28 @@ class NoveltyParamMixin(object):
             dtype=tf.float32
         )
         self.maxlen = config['novelty_loss_running_length']
-        self.novelty_stat = None
+        self.novelty_stat = deque(maxlen=self.maxlen)
 
     def update_novelty(self, sampled_novelty):
         sampled_novelty = -sampled_novelty
-
-        if self.novelty_stat is None:
-            # lazy initialize
-            self.novelty_target = min(
-                sampled_novelty - self.increment, self.increment
-            )
-            self.novelty_stat = deque(
-                [self.novelty_target] * self.maxlen, maxlen=self.maxlen
-            )
+        assert sampled_novelty > 0
 
         self.novelty_stat.append(sampled_novelty)
+        if len(self.novelty_stat) < self.maxlen:
+            # start tuning after the queue is full.
+            logger.debug(
+                "Current stat length: {}".format(len(self.novelty_stat))
+            )
+            return self.novelty_loss_param_val
+        elif np.isnan(self.novelty_target):
+            self.novelty_target = max(
+                np.mean(self.novelty_stat) - self.increment, self.increment
+            )
+            assert self.novelty_target > 0
+            logger.debug(
+                "After {} iterations, we set novelty_target to {}"
+                "".format(len(self.novelty_stat), self.novelty_target))
+
         running_mean = np.mean(self.novelty_stat)
         logger.debug(
             "Current novelty {}, mean {}, target {}, param {}".format(
@@ -79,6 +86,9 @@ class NoveltyParamMixin(object):
                 sampled_novelty)
             logger.info(msg)
             self.novelty_target += self.increment
+            self.novelty_target_tensor.load(
+                self.novelty_target, session=self.get_session()
+            )
 
         if sampled_novelty > self.novelty_target:
             self.novelty_loss_param_val *= 0.9
@@ -86,9 +96,6 @@ class NoveltyParamMixin(object):
             self.novelty_loss_param_val *= 1.1
         self.novelty_loss_param.load(
             self.novelty_loss_param_val, session=self.get_session()
-        )
-        self.novelty_target_tensor.load(
-            self.novelty_target, session=self.get_session()
         )
         return self.novelty_loss_param_val
 
