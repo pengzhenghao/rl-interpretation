@@ -69,8 +69,11 @@ if __name__ == '__main__':
     parser.add_argument("--num-seeds", type=int, default=5)
     parser.add_argument("--num-agents", type=int, default=3)
     parser.add_argument("--env", type=str, default="BipedalWalker-v2")
-    parser.add_argument("--exp-name", type=str, required=True)
+    parser.add_argument("--exp-name", type=str, default="")
     args = parser.parse_args()
+
+    if not args.test:
+        assert args.exp_name
 
     ceppo_config = {
         "num_sgd_iter": 10,
