@@ -83,7 +83,7 @@ if __name__ == '__main__':
         "lambda": 0.95,
         "lr": 2.5e-4,
         "mode": tune.grid_search(OPTIONAL_MODES),
-        "num_gpus": 0.24,
+        "num_gpus": 0.2,
         "num_cpus_per_worker": 0.5,
     }
 
