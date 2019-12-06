@@ -4,7 +4,7 @@ import pickle
 from ray import tune
 
 from toolbox import initialize_ray, get_local_dir
-from toolbox.cooperative_exploration.ceppo import OPTIONAL_MODES, CEPPOTrainer
+from toolbox.cooperative_exploration.ceppo import *
 from toolbox.marl import MultiAgentEnvWrapper
 
 
@@ -21,21 +21,11 @@ def train(
 ):
     assert isinstance(stop, int)
     initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
-
-    policy_names = ["agent{}".format(i) for i in range(num_agents)]
-    env_config = {"env_name": env_name, "agent_ids": policy_names}
-    env = MultiAgentEnvWrapper(env_config)
+    env_config = {"env_name": env_name, "num_agents": num_agents}
     config = {
         "seed": tune.grid_search([i * 100 for i in range(num_seeds)]),
         "env": MultiAgentEnvWrapper,
         "env_config": env_config,
-        "multiagent": {
-            "policies": {
-                i: (None, env.observation_space, env.action_space, {})
-                for i in policy_names
-            },
-            "policy_mapping_fn": lambda x: x,
-        },
     }
     if extra_config:
         config.update(extra_config)
@@ -70,10 +60,22 @@ if __name__ == '__main__':
     parser.add_argument("--num-agents", type=int, default=3)
     parser.add_argument("--env", type=str, default="BipedalWalker-v2")
     parser.add_argument("--exp-name", type=str, default="")
+    parser.add_argument("--mode", type=str, default="all")
     args = parser.parse_args()
 
     if not args.test:
         assert args.exp_name
+
+    assert args.mode in ["all", "change_num_agents"]
+
+    if args.mode == "all":
+        mode = tune.grid_search(OPTIONAL_MODES)
+        num_agents = args.num_agents
+    elif args.mode == "change_num_agents":
+        mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES])
+        num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
+    else:
+        raise NotImplementedError()
 
     ceppo_config = {
         "num_sgd_iter": 10,
@@ -82,7 +84,7 @@ if __name__ == '__main__':
         "entropy_coeff": 0.001,
         "lambda": 0.95,
         "lr": 2.5e-4,
-        "mode": tune.grid_search(OPTIONAL_MODES),
+        "mode": mode,
         "num_gpus": 0.2,
         "num_cpus_per_worker": 0.5,
     }
@@ -93,7 +95,7 @@ if __name__ == '__main__':
         env_name=args.env,
         stop=int(5e6) if not args.test else 1000,
         exp_name="DELETEME-TEST" if args.test else args.exp_name,
-        num_agents=args.num_agents,
+        num_agents=num_agents,
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
         test_mode=args.test

@@ -7,9 +7,11 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
     """This is a brief wrapper to create a mock multi-agent environment"""
 
     def __init__(self, env_config):
-        assert "agent_ids" in env_config
+        assert "num_agents" in env_config
         assert "env_name" in env_config
-        agent_ids = env_config['agent_ids']
+        num_agents = env_config['num_agents']
+        agent_ids = ["agent{}".format(i) for i in range(num_agents)]
+        self.num_agents = num_agents
         self.agent_ids = agent_ids
         self.env_name = env_config['env_name']
         self.env_maker = get_env_maker(env_config['env_name'])

@@ -53,7 +53,8 @@ def test_ceppo(local_mode=False):
                     # DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES,
                     # NO_REPLAY_VALUES,
                     # DIVERSITY_ENCOURAGING,
-                    # DIVERSITY_ENCOURAGING_NO_RV, DIVERSITY_ENCOURAGING_DISABLE,
+                    # DIVERSITY_ENCOURAGING_NO_RV,
+                    # DIVERSITY_ENCOURAGING_DISABLE,
                     # DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND, CURIOSITY,
                     CURIOSITY_NO_RV,
                     # CURIOSITY_DISABLE,
@@ -68,6 +69,20 @@ def test_ceppo(local_mode=False):
         },
         # extra_config={"mode": DIVERSITY_ENCOURAGING},
         env_name="Pendulum-v0"
+    )
+
+
+def test_multiple_num_agents(local_mode=False):
+    num_gpus = 0
+    initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
+    config = _get_default_test_config(
+        tune.grid_search([2, 3, 4]), "BipedalWalker-v2", num_gpus)
+    return tune.run(
+        CEPPOTrainer,
+        local_dir=get_local_dir(),
+        name="DELETEME_TEST_extra_loss_ppo_trainer",
+        stop={"timesteps_total": 5000},
+        config=config
     )
 
 
@@ -110,7 +125,8 @@ def validate_cetd3():
 
 
 if __name__ == '__main__':
-    test_ceppo(local_mode=False)
+    test_multiple_num_agents(local_mode=False)
+    # test_ceppo(local_mode=False)
     # validate_ceppo(disable=False, test_mode=False)
     # test_single_agent()
     # test_cetd3(local_mode=False)

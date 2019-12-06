@@ -7,6 +7,7 @@ from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
     make_tf_callable, setup_mixins, kl_and_loss_stats, ppo_surrogate_loss, \
     BEHAVIOUR_LOGITS
+from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.distance import get_kl_divergence
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
@@ -65,6 +66,16 @@ ceppo_default_config = merge_dicts(
 def validate_and_rewrite_config(config):
     mode = config['mode']
     assert mode in OPTIONAL_MODES
+
+    # fill multiagent automatically in config
+    assert _global_registry.contains(ENV_CREATOR, config["env"])
+    env_creator = _global_registry.get(ENV_CREATOR, config["env"])
+    tmp_env = env_creator(config["env_config"])
+    config["multiagent"]["policies"] = {
+        i: (None, tmp_env.observation_space, tmp_env.action_space, {})
+        for i in tmp_env.agent_ids
+    }
+    config["multiagent"]["policy_mapping_fn"] = lambda x: x
 
     # hyper-parameter: DIVERSITY_ENCOURAGING
     if mode in [DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV,

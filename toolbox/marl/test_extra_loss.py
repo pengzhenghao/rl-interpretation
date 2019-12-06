@@ -12,9 +12,7 @@ from toolbox.marl.task_novelty_bisector import TNBPPOTrainer
 
 # test_default_config = {}
 def _get_default_test_config(num_agents, env_name, num_gpus):
-    policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
-    env_config = {"env_name": env_name, "agent_ids": policy_names}
-    env = MultiAgentEnvWrapper(env_config)
+    env_config = {"env_name": env_name, "num_agents": num_agents}
     config = {
         "env": MultiAgentEnvWrapper,
         "env_config": env_config,
@@ -24,13 +22,6 @@ def _get_default_test_config(num_agents, env_name, num_gpus):
         "train_batch_size": 40,
         "sgd_minibatch_size": 16,
         "num_sgd_iter": 3,
-        "multiagent": {
-            "policies": {
-                i: (None, env.observation_space, env.action_space, {})
-                for i in policy_names
-            },
-            "policy_mapping_fn": lambda x: x,
-        },
     }
     return config
 
