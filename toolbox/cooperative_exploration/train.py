@@ -30,7 +30,7 @@ def train(
     if extra_config:
         config.update(extra_config)
 
-    analyasis = tune.run(
+    analysis = tune.run(
         trainer,
         local_dir=get_local_dir(),
         name=exp_name,
@@ -38,6 +38,7 @@ def train(
         checkpoint_freq=10,
         stop={"info/num_steps_sampled": stop},
         config=config,
+        max_failures=20,
         reuse_actors=True
     )
 
@@ -45,11 +46,11 @@ def train(
         exp_name, env_name, stop, num_agents
     )
     with open(path, "wb") as f:
-        data = analyasis.fetch_trial_dataframes()
+        data = analysis.fetch_trial_dataframes()
         pickle.dump(data, f)
         print("Result is saved at: <{}>".format(path))
 
-    return analyasis
+    return analysis
 
 
 if __name__ == '__main__':
@@ -85,7 +86,7 @@ if __name__ == '__main__':
         "lambda": 0.95,
         "lr": 2.5e-4,
         "mode": mode,
-        "num_gpus": 0.2,
+        "num_gpus": 0.25,  # 0.2 cause rare OMM error, so we increase a little
         "num_cpus_per_worker": 0.5,
     }
 
