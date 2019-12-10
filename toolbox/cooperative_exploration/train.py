@@ -67,8 +67,6 @@ if __name__ == '__main__':
     if not args.test:
         assert args.exp_name
 
-    assert args.mode in ["all", "change_num_agents"]
-
     num_gpus = 0.25
     if args.mode == "all":
         mode = tune.grid_search(OPTIONAL_MODES)
@@ -91,7 +89,8 @@ if __name__ == '__main__':
         "lambda": 0.95,
         "lr": 2.5e-4,
         "mode": mode,
-        "num_gpus": num_gpus,  # 0.2 cause rare OMM error, so we increase a little
+        "num_gpus": num_gpus,
+        # 0.2 cause rare OMM error, so we increase a little
         "num_cpus_per_worker": 0.5,
     }
 
