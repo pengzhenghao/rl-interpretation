@@ -67,7 +67,7 @@ if __name__ == '__main__':
     if not args.test:
         assert args.exp_name
 
-    num_gpus = 0.25
+    num_gpus = 0.2
     if args.mode == "all":
         mode = tune.grid_search(OPTIONAL_MODES)
         num_agents = args.num_agents
@@ -78,9 +78,9 @@ if __name__ == '__main__':
         mode = DISABLE_AND_EXPAND
         num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
         num_gpus = 0.5
-    elif args.mode == "four_baselines":
+    elif args.mode == "three_baselines":
         mode = tune.grid_search(
-            [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES])
+            [DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES])
         num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
     else:
         raise NotImplementedError()
@@ -94,8 +94,7 @@ if __name__ == '__main__':
         "lr": 2.5e-4,
         "mode": mode,
         "num_gpus": num_gpus,
-        # 0.2 cause rare OMM error, so we increase a little
-        "num_cpus_per_worker": 0.5,
+        "num_cpus_per_worker": 0.4,
     }
 
     train(
