@@ -57,7 +57,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", action="store_true")
     parser.add_argument("--num-gpus", type=int, default=8)
-    parser.add_argument("--num-seeds", type=int, default=5)
+    parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--num-agents", type=int, default=3)
     parser.add_argument("--env", type=str, default="BipedalWalker-v2")
     parser.add_argument("--exp-name", type=str, default="")
@@ -81,7 +81,9 @@ if __name__ == '__main__':
     elif args.mode == "three_baselines":
         mode = tune.grid_search(
             [DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES])
-        num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
+        print("In three_baselines baselines, we choose num_agents from:"
+              " [2, 3, 4, 5, 8, 10]")
+        num_agents = tune.grid_search([2, 3, 4, 5, 8, 10])
     else:
         raise NotImplementedError()
 
