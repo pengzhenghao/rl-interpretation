@@ -26,11 +26,11 @@ def _validate_base(
         "env": MultiAgentEnvWrapper,
         "env_config": env_config,
         # "multiagent": {
-            # "policies": {
-            #     i: (None, env.observation_space, env.action_space, {})
-            #     for i in policy_names
-            # },
-            # "policy_mapping_fn": lambda x: x,
+        # "policies": {
+        #     i: (None, env.observation_space, env.action_space, {})
+        #     for i in policy_names
+        # },
+        # "policy_mapping_fn": lambda x: x,
         # },
     }
     if extra_config:
@@ -79,7 +79,8 @@ def test_multiple_num_agents(local_mode=False):
     num_gpus = 0
     initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
     config = _get_default_test_config(
-        tune.grid_search([2, 3, 4]), "BipedalWalker-v2", num_gpus)
+        tune.grid_search([2, 3, 4]), "BipedalWalker-v2", num_gpus
+    )
     return tune.run(
         CEPPOTrainer,
         local_dir=get_local_dir(),

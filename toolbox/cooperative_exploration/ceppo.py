@@ -138,21 +138,26 @@ def validate_and_rewrite_config(config):
 
     # Update 20191211: Instead of expand train batch for all modes, we want to
     #  shrink train batch for all modes except DISABLE.
-    if mode not in [DISABLE, DIVERSITY_ENCOURAGING_DISABLE,
-                    CURIOSITY_DISABLE, CURIOSITY_KL_DISABLE]:
+    if mode not in [DISABLE, DIVERSITY_ENCOURAGING_DISABLE, CURIOSITY_DISABLE,
+                    CURIOSITY_KL_DISABLE]:
         num_agents = len(config['multiagent']['policies'])
         config['train_batch_size'] = int(
-            config['train_batch_size'] // num_agents)
+            config['train_batch_size'] // num_agents
+        )
 
-        config['num_envs_per_worker'] = max(1, int(
-            config['num_envs_per_worker'] // num_agents))
+        config['num_envs_per_worker'] = max(
+            1, int(config['num_envs_per_worker'] // num_agents)
+        )
 
         if config['train_batch_size'] < config["sgd_minibatch_size"]:
-            raise ValueError("You are using too many agents here! Current"
-                             " train_batch_size {}, sgd_minibatch_size {},"
-                             " num_agents {}.".format(
-                config['train_batch_size'], config["sgd_minibatch_size"],
-                num_agents))
+            raise ValueError(
+                "You are using too many agents here! Current"
+                " train_batch_size {}, sgd_minibatch_size {},"
+                " num_agents {}.".format(
+                    config['train_batch_size'], config["sgd_minibatch_size"],
+                    num_agents
+                )
+            )
 
         # config['num_envs_per_worker'] = \
         #     config['num_envs_per_worker'] * num_agents
@@ -225,8 +230,8 @@ def _add_intrinsic_reward(policy, my_batch, others_batches, config):
         )
 
     # normalize
-    intrinsic_reward = (intrinsic_reward - intrinsic_reward.min()) / (
-            intrinsic_reward.max() - intrinsic_reward.min() + 1e-12)
+    intrinsic_reward = (intrinsic_reward - intrinsic_reward.min(
+    )) / (intrinsic_reward.max() - intrinsic_reward.min() + 1e-12)
     intrinsic_reward = intrinsic_reward * (my_rew.max() - my_rew.min())
     intrinsic_reward = intrinsic_reward * policy.novelty_loss_param_val
 
@@ -291,9 +296,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                            convert_to_tensor(prev_action),
+                        convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                            convert_to_tensor(prev_reward),
+                        convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )

@@ -68,7 +68,8 @@ class NoveltyParamMixin(object):
             assert self.novelty_target > 0
             logger.debug(
                 "After {} iterations, we set novelty_target to {}"
-                "".format(len(self.novelty_stat), self.novelty_target))
+                "".format(len(self.novelty_stat), self.novelty_target)
+            )
 
         running_mean = np.mean(self.novelty_stat)
         logger.debug(
