@@ -78,6 +78,10 @@ if __name__ == '__main__':
         mode = DISABLE_AND_EXPAND
         num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
         num_gpus = 0.5
+    elif args.mode == "four_baselines":
+        mode = tune.grid_search(
+            [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES])
+        num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
     else:
         raise NotImplementedError()
 
