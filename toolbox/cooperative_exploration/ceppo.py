@@ -136,13 +136,36 @@ def validate_and_rewrite_config(config):
     else:
         config[DISABLE] = False
 
-    # DISABLE_AND_EXPAND requires to modified the config.
-    if mode in [DISABLE_AND_EXPAND, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
-                CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL_DISABLE_AND_EXPAND]:
+    # Update 20191211: Instead of expand train batch for all modes, we want to
+    #  shrink train batch for all modes except DISABLE.
+    if mode not in [DISABLE, DIVERSITY_ENCOURAGING_DISABLE,
+                    CURIOSITY_DISABLE, CURIOSITY_KL_DISABLE]:
         num_agents = len(config['multiagent']['policies'])
-        config['train_batch_size'] = config['train_batch_size'] * num_agents
-        config['num_envs_per_worker'] = \
-            config['num_envs_per_worker'] * num_agents
+        config['train_batch_size'] = int(
+            config['train_batch_size'] // num_agents)
+
+        config['num_envs_per_worker'] = max(1, int(
+            config['num_envs_per_worker'] // num_agents))
+
+        if config['train_batch_size'] < config["sgd_minibatch_size"]:
+            raise ValueError("You are using too many agents here! Current"
+                             " train_batch_size {}, sgd_minibatch_size {},"
+                             " num_agents {}.".format(
+                config['train_batch_size'], config["sgd_minibatch_size"],
+                num_agents))
+
+        # config['num_envs_per_worker'] = \
+        #     config['num_envs_per_worker'] * num_agents
+
+    # The below codes is used before Update 20191211.
+    # DISABLE_AND_EXPAND requires to modified the config.
+    # if mode in [DISABLE_AND_EXPAND, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
+    #             CURIOSITY_DISABLE_AND_EXPAND,
+    #             CURIOSITY_KL_DISABLE_AND_EXPAND]:
+    #     num_agents = len(config['multiagent']['policies'])
+    #     config['train_batch_size'] = config['train_batch_size'] * num_agents
+    #     config['num_envs_per_worker'] = \
+    #         config['num_envs_per_worker'] * num_agents
 
     # validate config
     validate_config(config)
@@ -333,13 +356,14 @@ def choose_policy_optimizer_modified(workers, config):
     """The original optimizer has wrong number of trained samples stats.
     So we make little modification and use the corrected optimizer."""
     if config["simple_optimizer"]:
-        return SyncSamplesOptimizer(
-            workers,
-            num_sgd_iter=config["num_sgd_iter"],
-            train_batch_size=config["train_batch_size"],
-            sgd_minibatch_size=config["sgd_minibatch_size"],
-            standardize_fields=["advantages"]
-        )
+        raise NotImplementedError()
+        # return SyncSamplesOptimizer(
+        #     workers,
+        #     num_sgd_iter=config["num_sgd_iter"],
+        #     train_batch_size=config["train_batch_size"],
+        #     sgd_minibatch_size=config["sgd_minibatch_size"],
+        #     standardize_fields=["advantages"]
+        # )
 
     num_agents = len(config['multiagent']['policies'])
 

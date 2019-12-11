@@ -18,20 +18,20 @@ def _validate_base(
 ):
     initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
     num_agents = 3
-    policy_names = ["agent{}".format(i) for i in range(num_agents)]
-    env_config = {"env_name": env_name, "agent_ids": policy_names}
-    env = MultiAgentEnvWrapper(env_config)
+    # policy_names = ["agent{}".format(i) for i in range(num_agents)]
+    env_config = {"env_name": env_name, "num_agents": num_agents}
+    # env = MultiAgentEnvWrapper(env_config)
     config = {
         "seed": 0,
         "env": MultiAgentEnvWrapper,
         "env_config": env_config,
-        "multiagent": {
-            "policies": {
-                i: (None, env.observation_space, env.action_space, {})
-                for i in policy_names
-            },
-            "policy_mapping_fn": lambda x: x,
-        },
+        # "multiagent": {
+            # "policies": {
+            #     i: (None, env.observation_space, env.action_space, {})
+            #     for i in policy_names
+            # },
+            # "policy_mapping_fn": lambda x: x,
+        # },
     }
     if extra_config:
         config.update(extra_config)
@@ -50,17 +50,20 @@ def test_ceppo(local_mode=False):
         extra_config={
             "mode": tune.grid_search(
                 [
-                    # DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES,
-                    # NO_REPLAY_VALUES,
-                    # DIVERSITY_ENCOURAGING,
+                    DISABLE,
+                    DISABLE_AND_EXPAND,
+                    REPLAY_VALUES,
+                    NO_REPLAY_VALUES,
+                    DIVERSITY_ENCOURAGING,
                     # DIVERSITY_ENCOURAGING_NO_RV,
-                    # DIVERSITY_ENCOURAGING_DISABLE,
+                    DIVERSITY_ENCOURAGING_DISABLE,
                     # DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND, CURIOSITY,
-                    CURIOSITY_NO_RV,
-                    # CURIOSITY_DISABLE,
-                    # CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL,
+                    # CURIOSITY_NO_RV,
+                    CURIOSITY_DISABLE,
+                    # CURIOSITY_DISABLE_AND_EXPAND,
+                    CURIOSITY_KL,
                     # CURIOSITY_KL_NO_RV,
-                    CURIOSITY_KL_DISABLE,
+                    # CURIOSITY_KL_DISABLE,
                     # CURIOSITY_KL_DISABLE_AND_EXPAND
                 ]
             ),
@@ -125,8 +128,8 @@ def validate_cetd3():
 
 
 if __name__ == '__main__':
-    test_multiple_num_agents(local_mode=False)
-    # test_ceppo(local_mode=False)
+    # test_multiple_num_agents(local_mode=False)
+    test_ceppo(local_mode=True)
     # validate_ceppo(disable=False, test_mode=False)
     # test_single_agent()
     # test_cetd3(local_mode=False)
