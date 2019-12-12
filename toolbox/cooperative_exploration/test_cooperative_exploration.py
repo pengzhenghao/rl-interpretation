@@ -16,7 +16,7 @@ def _validate_base(
         name="DELETEME_TEST",
         num_gpus=0
 ):
-    initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
+    initialize_ray(test_mode=test_mode, local_mode=True, num_gpus=num_gpus)
     num_agents = 3
     # policy_names = ["agent{}".format(i) for i in range(num_agents)]
     env_config = {"env_name": env_name, "num_agents": num_agents}
@@ -98,7 +98,8 @@ def validate_ceppo():
     _validate_base(
         # {"mode": tune.grid_search(OPTIONAL_MODES)}, False, "CartPole-v0",
         {"mode": tune.grid_search(
-            [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES]
+            # [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES]
+            [REPLAY_VALUES]
         )},
         True,
         "CartPole-v0",

@@ -250,11 +250,12 @@ def _add_intrinsic_reward(policy, my_batch, others_batches, config):
 
 def _compute_logp(logit, x):
     # Only for DiagGaussian distribution. Copied from tf_action_dist.py
-    action_dim = x.shape[1] if x.ndim == 2 else 1
+    x = np.expand_dims(x, 1) if x.ndim == 1 else x
+    assert x.ndim == 2, x.shape
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (-0.5 * np.sum(
         np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * action_dim -
+            0.5 * np.log(2.0 * np.pi) * x.shape[1] -
             np.sum(log_std, axis=1))
     p = np.exp(logp)
     return logp, p
