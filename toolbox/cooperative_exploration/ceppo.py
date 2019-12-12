@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
-    SyncSamplesOptimizer, update_kl
+    update_kl
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
     make_tf_callable, setup_mixins, kl_and_loss_stats, ppo_surrogate_loss, \
     BEHAVIOUR_LOGITS
@@ -250,10 +250,11 @@ def _add_intrinsic_reward(policy, my_batch, others_batches, config):
 
 def _compute_logp(logit, x):
     # Only for DiagGaussian distribution. Copied from tf_action_dist.py
+    action_dim = x.shape[1] if x.ndim == 2 else 1
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (-0.5 * np.sum(
         np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * x.shape[1] -
+            0.5 * np.log(2.0 * np.pi) * action_dim -
             np.sum(log_std, axis=1))
     p = np.exp(logp)
     return logp, p
@@ -314,9 +315,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                        convert_to_tensor(prev_action),
+                            convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                        convert_to_tensor(prev_reward),
+                            convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )
