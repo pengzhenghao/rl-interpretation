@@ -13,7 +13,7 @@ def _validate_base(
         env_name,
         trainer,
         stop=50000,
-        name="DELETEME_TEST_CEPPO",
+        name="DELETEME_TEST",
         num_gpus=0
 ):
     initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
@@ -50,18 +50,18 @@ def test_ceppo(local_mode=False):
         extra_config={
             "mode": tune.grid_search(
                 [
-                    DISABLE,
-                    DISABLE_AND_EXPAND,
+                    # DISABLE,
+                    # DISABLE_AND_EXPAND,
                     REPLAY_VALUES,
-                    NO_REPLAY_VALUES,
-                    DIVERSITY_ENCOURAGING,
+                    # NO_REPLAY_VALUES,
+                    # DIVERSITY_ENCOURAGING,
                     # DIVERSITY_ENCOURAGING_NO_RV,
-                    DIVERSITY_ENCOURAGING_DISABLE,
+                    # DIVERSITY_ENCOURAGING_DISABLE,
                     # DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND, CURIOSITY,
                     # CURIOSITY_NO_RV,
-                    CURIOSITY_DISABLE,
+                    # CURIOSITY_DISABLE,
                     # CURIOSITY_DISABLE_AND_EXPAND,
-                    CURIOSITY_KL,
+                    # CURIOSITY_KL,
                     # CURIOSITY_KL_NO_RV,
                     # CURIOSITY_KL_DISABLE,
                     # CURIOSITY_KL_DISABLE_AND_EXPAND
@@ -107,6 +107,8 @@ def test_cetd3(local_mode=False):
     config = _get_default_test_config(
         num_agents=3, env_name="BipedalWalker-v2", num_gpus=num_gpus
     )
+    if "num_sgd_iter"in config:
+        config.pop("num_sgd_iter")
     config.pop("sgd_minibatch_size")
     config['timesteps_per_iteration'] = 80
     config['pure_exploration_steps'] = 80
@@ -120,20 +122,28 @@ def test_cetd3(local_mode=False):
     )
 
 
-def validate_cetd3():
-    from toolbox.cooperative_exploration.cetd3 import SHARE_SAMPLE
+def validate_cetd3(num_gpus=0):
+    from toolbox.cooperative_exploration.cetd3 import SHARE_SAMPLE, DISABLE
     _validate_base(
-        {"mode": tune.grid_search([SHARE_SAMPLE, None])}, False,
-        "MountainCarContinuous-v0", CETD3Trainer
+        {
+            "mode": tune.grid_search([SHARE_SAMPLE, DISABLE]),
+            "swap_prob": tune.grid_search([0.1, 0.25, 0.5]),
+            "actor_hiddens": [32, 64],
+            "critic_hiddens": [64, 64],
+        },
+        False,
+        "MountainCarContinuous-v0",
+        CETD3Trainer,
+        num_gpus=num_gpus
     )
 
 
 if __name__ == '__main__':
     # test_multiple_num_agents(local_mode=False)
-    test_ceppo(local_mode=True)
+    test_ceppo(local_mode=False)
     # validate_ceppo(disable=False, test_mode=False)
     # test_single_agent()
-    # test_cetd3(local_mode=False)
+    # test_cetd3(local_mode=True)
     # validate_cetd3()
     # test_deceppo()
     # _base(

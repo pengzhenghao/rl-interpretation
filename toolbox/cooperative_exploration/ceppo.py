@@ -248,6 +248,17 @@ def _add_intrinsic_reward(policy, my_batch, others_batches, config):
     return my_batch
 
 
+def _compute_logp(logit, x):
+    # Only for DiagGaussian distribution. Copied from tf_action_dist.py
+    mean, log_std = np.split(logit, 2, axis=1)
+    logp = (-0.5 * np.sum(
+        np.square((x - mean) / np.exp(log_std)), axis=1) -
+            0.5 * np.log(2.0 * np.pi) * x.shape[1] -
+            np.sum(log_std, axis=1))
+    p = np.exp(logp)
+    return logp, p
+
+
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
@@ -279,7 +290,14 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             batch[SampleBatch.VF_PREDS] = policy._value_batch(
                 batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
                 batch[SampleBatch.PREV_REWARDS]
-            )
+            )  # changing VF_PREDS will change VALUE_TARGET and ADVANTAGE
+
+            # Except values, we also need to replay the following data.
+            replay_result = policy.compute_actions(batch[SampleBatch.CUR_OBS])
+            batch[SampleBatch.VF_PREDS] = replay_result[2]['vf_preds']
+            batch[BEHAVIOUR_LOGITS] = replay_result[2]['behaviour_logits']
+            batch["action_logp"], batch["action_prob"] = _compute_logp(
+                batch[BEHAVIOUR_LOGITS], batch[SampleBatch.ACTIONS])
         # use my policy to postprocess other's trajectory.
         batches.append(postprocess_ppo_gae(policy, batch))
     return SampleBatch.concat_samples(batches)
