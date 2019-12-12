@@ -258,6 +258,9 @@ def _compute_logp(logit, x):
             0.5 * np.log(2.0 * np.pi) * x.shape[1] -
             np.sum(log_std, axis=1))
     p = np.exp(logp)
+    logp = np.nan_to_num(logp)
+    p = np.nan_to_num(p)
+    assert logp.ndim == 2, logp.shape
     return logp, p
 
 
@@ -296,10 +299,16 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
             # Except values, we also need to replay the following data.
             replay_result = policy.compute_actions(batch[SampleBatch.CUR_OBS])
-            batch[SampleBatch.VF_PREDS] = replay_result[2]['vf_preds']
-            batch[BEHAVIOUR_LOGITS] = replay_result[2]['behaviour_logits']
+            batch[SampleBatch.VF_PREDS] = np.nan_to_num(
+                replay_result[2]['vf_preds'], copy=False
+            )
+            batch[BEHAVIOUR_LOGITS] = np.nan_to_num(
+                replay_result[2]['behaviour_logits'], copy=False
+            )
             batch["action_logp"], batch["action_prob"] = _compute_logp(
-                batch[BEHAVIOUR_LOGITS], batch[SampleBatch.ACTIONS])
+                np.nan_to_num(batch[BEHAVIOUR_LOGITS], copy=False),
+                np.nan_to_num(batch[SampleBatch.ACTIONS], copy=False)
+            )
         # use my policy to postprocess other's trajectory.
         batches.append(postprocess_ppo_gae(policy, batch))
     return SampleBatch.concat_samples(batches)
