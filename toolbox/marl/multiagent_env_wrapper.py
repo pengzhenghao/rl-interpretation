@@ -33,6 +33,7 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
     def step(self, action_dict):
         obs, rewards, dones, infos = {}, {}, {}, {}
         for aid, act in action_dict.items():
+            act = np.nan_to_num(act, copy=False)
             o, r, d, i = self.envs[aid].step(act)
             if d:
                 self.dones.add(aid)

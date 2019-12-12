@@ -61,7 +61,12 @@ def on_train_result(info):
     # replay_buffers is a dict map policy_id to ReplayBuffer object.
     trainer = info['trainer']
     worker = trainer.workers.local_worker()
-    joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
+
+    try:
+        joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
+    except Exception as e:
+        logger.info("Encounter error <{}> in on_train_result. Return.".format(e))
+        return
 
     def _replay(policy, pid):
         act, _, infos = policy.compute_actions(joint_obs)
