@@ -51,7 +51,7 @@ def initialize_ray(local_mode=False, num_gpus=0, test_mode=False, **kwargs):
 
 def get_local_dir():
     """This function should be called before all tune.run!!!"""
-    return "/data1/pengzh/ray_results" if _is_centos() else None
+    return "/data1/pengzh/ray_results" if _is_centos() == "b146466" else None
 
 
 def get_random_string():

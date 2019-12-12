@@ -287,10 +287,10 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     for pid, (_, batch) in others_batches.items():
         if policy.config[REPLAY_VALUES]:
             # use my policy to evaluate the values of other's samples.
-            batch[SampleBatch.VF_PREDS] = policy._value_batch(
-                batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
-                batch[SampleBatch.PREV_REWARDS]
-            )  # changing VF_PREDS will change VALUE_TARGET and ADVANTAGE
+            # batch[SampleBatch.VF_PREDS] = policy._value_batch(
+            #     batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
+            #     batch[SampleBatch.PREV_REWARDS]
+            # )  # changing VF_PREDS will change VALUE_TARGET and ADVANTAGE
 
             # Except values, we also need to replay the following data.
             replay_result = policy.compute_actions(batch[SampleBatch.CUR_OBS])
