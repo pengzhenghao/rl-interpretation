@@ -262,7 +262,7 @@ def _compute_logp(logit, x):
     logp = np.nan_to_num(logp)
     p = np.exp(logp)
     p = np.nan_to_num(p)
-    assert logp.ndim == 2, logp.shape
+    assert logp.ndim == 1, logp.shape
     return logp, p
 
 
