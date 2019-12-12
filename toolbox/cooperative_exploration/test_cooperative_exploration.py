@@ -96,7 +96,12 @@ def test_single_agent(local_mode=False):
 
 def validate_ceppo():
     _validate_base(
-        {"mode": tune.grid_search(OPTIONAL_MODES)}, False, "CartPole-v0",
+        # {"mode": tune.grid_search(OPTIONAL_MODES)}, False, "CartPole-v0",
+        {"mode": tune.grid_search(
+            [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES]
+        )},
+        True,
+        "CartPole-v0",
         CEPPOTrainer
     )
 
@@ -140,8 +145,8 @@ def validate_cetd3(num_gpus=0):
 
 if __name__ == '__main__':
     # test_multiple_num_agents(local_mode=False)
-    test_ceppo(local_mode=False)
-    # validate_ceppo(disable=False, test_mode=False)
+    # test_ceppo(local_mode=False)
+    validate_ceppo()
     # test_single_agent()
     # test_cetd3(local_mode=True)
     # validate_cetd3()
