@@ -250,6 +250,8 @@ def _add_intrinsic_reward(policy, my_batch, others_batches, config):
 
 def _compute_logp(logit, x):
     # Only for DiagGaussian distribution. Copied from tf_action_dist.py
+    logit = logit.astype(np.float64)
+    x = x.astype(np.float64)
     x = np.expand_dims(x, 1) if x.ndim == 1 else x
     assert x.ndim == 2, x.shape
     mean, log_std = np.split(logit, 2, axis=1)
@@ -257,8 +259,8 @@ def _compute_logp(logit, x):
         np.square((x - mean) / np.exp(log_std)), axis=1) -
             0.5 * np.log(2.0 * np.pi) * x.shape[1] -
             np.sum(log_std, axis=1))
-    p = np.exp(logp)
     logp = np.nan_to_num(logp)
+    p = np.exp(logp)
     p = np.nan_to_num(p)
     assert logp.ndim == 2, logp.shape
     return logp, p
@@ -289,7 +291,7 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
         return postprocess_ppo_gae(policy, batch)
 
     batches = [postprocess_ppo_gae(policy, batch)]
-    for pid, (_, batch) in others_batches.items():
+    for pid, (_, other_batch) in others_batches.items():
         if policy.config[REPLAY_VALUES]:
             # use my policy to evaluate the values of other's samples.
             # batch[SampleBatch.VF_PREDS] = policy._value_batch(
@@ -298,19 +300,21 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             # )  # changing VF_PREDS will change VALUE_TARGET and ADVANTAGE
 
             # Except values, we also need to replay the following data.
-            replay_result = policy.compute_actions(batch[SampleBatch.CUR_OBS])
-            batch[SampleBatch.VF_PREDS] = np.nan_to_num(
+            replay_result = policy.compute_actions(
+                other_batch[SampleBatch.CUR_OBS])
+            other_batch[SampleBatch.VF_PREDS] = np.nan_to_num(
                 replay_result[2]['vf_preds'], copy=False
             )
-            batch[BEHAVIOUR_LOGITS] = np.nan_to_num(
+            other_batch[BEHAVIOUR_LOGITS] = np.nan_to_num(
                 replay_result[2]['behaviour_logits'], copy=False
             )
-            batch["action_logp"], batch["action_prob"] = _compute_logp(
-                np.nan_to_num(batch[BEHAVIOUR_LOGITS], copy=False),
-                np.nan_to_num(batch[SampleBatch.ACTIONS], copy=False)
-            )
+            other_batch["action_logp"], other_batch["action_prob"] = \
+                _compute_logp(
+                    np.nan_to_num(other_batch[BEHAVIOUR_LOGITS], copy=False),
+                    np.nan_to_num(other_batch[SampleBatch.ACTIONS], copy=False)
+                )
         # use my policy to postprocess other's trajectory.
-        batches.append(postprocess_ppo_gae(policy, batch))
+        batches.append(postprocess_ppo_gae(policy, other_batch))
     return SampleBatch.concat_samples(batches)
 
 
