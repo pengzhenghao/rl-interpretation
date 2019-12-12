@@ -4,5 +4,5 @@
 
 nohup python toolbox/cooperative_exploration/train.py \
 --exp-name 1213-pure_replay \
---mode three_baselines \
+--mode two \
 > 1213-pure_replay.log 2>&1 &

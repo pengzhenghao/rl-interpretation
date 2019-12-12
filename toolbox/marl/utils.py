@@ -1,7 +1,7 @@
 import logging
 
 import numpy as np
-from ray.rllib.policy.sample_batch import MultiAgentBatch
+from ray.rllib.optimizers.rollout import collect_samples
 
 from toolbox.distance import joint_dataset_distance, js_distance
 
@@ -22,19 +22,50 @@ def _collect_joint_dataset(trainer, worker, sample_size):
         # so it seems we have to rollout here to collect the observations
 
         # Force to collect enough data for us to use.
-        tmp_batch = worker.sample()
-        count_dict = {k: v.count for k, v in tmp_batch.policy_batches.items()}
-        for k in worker.policy_map.keys():
-            if k not in count_dict:
-                count_dict[k] = 0
-        samples = [tmp_batch]
-        while any(c < sample_size for c in count_dict.values()):
-            tmp_batch = worker.sample()
-            for k, v in tmp_batch.policy_batches.items():
-                assert k in count_dict, count_dict
-                count_dict[k] += v.count
-            samples.append(tmp_batch)
-        multi_agent_batch = MultiAgentBatch.concat_samples(samples)
+
+        multi_agent_batch = collect_samples(
+            trainer.workers.remote_workers(),
+            trainer.config['sample_batch_size'],
+            trainer.config["num_envs_per_worker"], sample_size
+        )
+
+        # tmp_batch = worker.sample()
+        # count_dict = {k: v.count for k, v in
+        # tmp_batch.policy_batches.items()}
+        # for k in worker.policy_map.keys():
+        #     if k not in count_dict:
+        #         count_dict[k] = 0
+        # samples = [tmp_batch]
+        # while any(c < sample_size for c in count_dict.values()):
+        #     tmp_batch = worker.sample()
+        #     for k, v in tmp_batch.policy_batches.items():
+        #         assert k in count_dict, count_dict
+        #         count_dict[k] += v.count
+        #     samples.append(tmp_batch)
+        # multi_agent_batch = MultiAgentBatch.concat_samples(samples)
+
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+        print("***************************")
+
         for pid, batch in multi_agent_batch.policy_batches.items():
             batch.shuffle()
             assert batch.count >= sample_size, (
