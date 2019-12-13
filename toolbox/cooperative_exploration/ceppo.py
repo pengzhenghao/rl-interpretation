@@ -479,16 +479,16 @@ class PPOLoss(object):
                  use_gae=True,
                  model_config=None):
         print("Enter PPOLoss Class")
-        tf.check_numerics(value_targets)
-        tf.check_numerics(advantages)
-        tf.check_numerics(actions)
-        tf.check_numerics(prev_logits)
-        tf.check_numerics(prev_actions_logp)
-        tf.check_numerics(vf_preds)
-        tf.check_numerics(curr_action_dist.entropy())
-        tf.check_numerics(curr_action_dist.log_std)
-        tf.check_numerics(curr_action_dist.std)
-        tf.check_numerics(value_fn)
+        tf.check_numerics(value_targets, "value_targets")
+        tf.check_numerics(advantages, "advantages")
+        tf.check_numerics(actions, "actions")
+        tf.check_numerics(prev_logits, "prev_logits")
+        tf.check_numerics(prev_actions_logp, "prev_actions_logp")
+        tf.check_numerics(vf_preds, "vf_preds")
+        tf.check_numerics(curr_action_dist.entropy(), "curr_action_dist.entropy()")
+        tf.check_numerics(curr_action_dist.log_std, "curr_action_dist.log_std")
+        tf.check_numerics(curr_action_dist.std, "curr_action_dist.std")
+        tf.check_numerics(value_fn, "value_fn")
 
         """Constructs the loss for Proximal Policy Objective.
 
@@ -527,9 +527,9 @@ class PPOLoss(object):
 
         prev_dist = dist_class(prev_logits, model)
 
-        tf.check_numerics(prev_dist.entropy())
-        tf.check_numerics(prev_dist.log_std)
-        tf.check_numerics(prev_dist.std)
+        tf.check_numerics(prev_dist.entropy(), "prev_dist.entropy()")
+        tf.check_numerics(prev_dist.log_std, "prev_dist.log_std")
+        tf.check_numerics(prev_dist.std, "prev_dist.std")
 
         # Make loss functions.
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
