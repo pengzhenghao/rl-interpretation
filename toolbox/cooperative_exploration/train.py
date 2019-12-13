@@ -83,7 +83,8 @@ if __name__ == '__main__':
             [REPLAY_VALUES, NO_REPLAY_VALUES])
         print("In three_baselines baselines, we choose num_agents from:"
               " [2, 3, 4, 5, 8, 10]")
-        num_agents = tune.grid_search([2, 3, 4, 5, 8, 10])
+        # num_agents = tune.grid_search([2, 3, 4, 5, 8, 10])
+        num_agents = tune.grid_search([2, 3])
     else:
         raise NotImplementedError()
 
