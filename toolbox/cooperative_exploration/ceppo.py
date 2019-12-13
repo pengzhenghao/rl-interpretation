@@ -449,6 +449,11 @@ def wrap_stats_ceppo(policy, train_batch):
     if policy.config[DIVERSITY_ENCOURAGING]:
         return wrap_stats_fn(policy, train_batch)
     ret = kl_and_loss_stats(policy, train_batch)
+    ret.update(
+        logp_diff=policy.loss_obj.logp_diff,
+        logp_ratio=policy.loss_obj.logp_ratio,
+        prev_actions_logp=policy.loss_obj.prev_actions_logp
+    )
     if policy.config[CURIOSITY]:
         ret.update(
             novelty_loss_param=policy.novelty_loss_param,
@@ -553,6 +558,10 @@ class PPOLoss(object):
         prev_dist.std = tf.check_numerics(prev_dist.std, "prev_dist.std")
 
         # Make loss functions.
+        self.logp_diff = curr_action_dist.logp(actions) - prev_actions_logp
+        self.logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
+        self.prev_actions_logp = prev_actions_logp
+
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
         logp_ratio = tf.check_numerics(logp_ratio, "logp_ratio")
 

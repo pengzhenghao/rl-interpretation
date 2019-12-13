@@ -104,7 +104,7 @@ if __name__ == '__main__':
         extra_config=ceppo_config,
         trainer=CEPPOTrainer,
         env_name=args.env,
-        stop=int(5e6) if not args.test else 1000,
+        stop=int(5e6),
         exp_name="DELETEME-TEST" if args.test else args.exp_name,
         num_agents=num_agents,
         num_seeds=args.num_seeds,
