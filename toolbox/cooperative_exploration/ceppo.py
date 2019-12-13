@@ -4,10 +4,10 @@ import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
     update_kl
-from ray.rllib.policy.tf_policy import ACTION_LOGP, ACTION_PROB
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
-    make_tf_callable, setup_mixins, kl_and_loss_stats, \
+    setup_mixins, kl_and_loss_stats, \
     BEHAVIOUR_LOGITS
+from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.distance import get_kl_divergence
@@ -306,7 +306,8 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             replay_result = policy.compute_actions(
                 other_batch[SampleBatch.CUR_OBS])[2]
 
-            other_batch[SampleBatch.VF_PREDS] = replay_result[SampleBatch.VF_PREDS]
+            other_batch[SampleBatch.VF_PREDS] = replay_result[
+                SampleBatch.VF_PREDS]
             other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
 
             assert other_batch[BEHAVIOUR_LOGITS].ndim == 2
@@ -455,7 +456,10 @@ def wrap_stats_ceppo(policy, train_batch):
         prev_actions_logp=policy.loss_obj.prev_actions_logp,
         curr_actions_logp=policy.loss_obj.curr_actions_logp,
         curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
-        curr_actions_mean=policy.loss_obj.curr_actions_mean
+        curr_actions_mean=policy.loss_obj.curr_actions_mean,
+        vf_preds=policy.loss_obj.vf_preds,
+        value_targets=policy.loss_obj.value_targets,
+        advantages=policy.loss_obj.advantages,
     )
     if policy.config[CURIOSITY]:
         ret.update(
@@ -511,6 +515,9 @@ class PPOLoss(object):
         prev_actions_logp = tf.check_numerics(prev_actions_logp,
                                               "prev_actions_logp")
         vf_preds = tf.check_numerics(vf_preds, "vf_preds")
+        self.vf_preds = vf_preds
+        self.value_targets = value_targets
+        self.advantages = advantages
 
         curr_action_dist.log_std = tf.check_numerics(curr_action_dist.log_std,
                                                      "curr_action_dist.log_std")
@@ -566,7 +573,7 @@ class PPOLoss(object):
         tf.Print(curr_action_logp, [curr_action_logp], "curr_action_logp")
 
         # Make loss functions.
-        self.logp_diff =curr_action_logp- prev_actions_logp
+        self.logp_diff = curr_action_logp - prev_actions_logp
         self.logp_ratio = tf.exp(curr_action_logp - prev_actions_logp)
         self.prev_actions_logp = prev_actions_logp
         self.curr_actions_logp = curr_action_logp
@@ -579,8 +586,8 @@ class PPOLoss(object):
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
         curr_entropy = tf.check_numerics(curr_action_dist.entropy(),
-                          "curr_action_dist.entropy()")
-         # = curr_action_dist.entropy()
+                                         "curr_action_dist.entropy()")
+        # = curr_action_dist.entropy()
         self.mean_entropy = reduce_mean_valid(curr_entropy)
 
         surrogate_loss = tf.minimum(
@@ -624,7 +631,8 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
     logits = tf.check_numerics(logits, "action_dist logits")
     action_dist = dist_class(logits, model)
 
-    action_dist.log_std = tf.check_numerics(action_dist.log_std, "action_dist.log_std")
+    action_dist.log_std = tf.check_numerics(action_dist.log_std,
+                                            "action_dist.log_std")
     action_dist.std = tf.check_numerics(action_dist.std, "action_dist.std")
     action_dist.mean = tf.check_numerics(action_dist.mean, "action_dist.mean")
 
@@ -668,7 +676,7 @@ CEPPOTFPolicy = AdaptiveExtraLossPPOTFPolicy.with_updates(
     before_loss_init=setup_mixins_ceppo,
     stats_fn=wrap_stats_ceppo,
     mixins=mixin_list + [AddLossMixin, NoveltyParamMixin]
-        # , ValueNetworkMixin2]
+    # , ValueNetworkMixin2]
 )
 
 CEPPOTrainer = AdaptiveExtraLossPPOTrainer.with_updates(
