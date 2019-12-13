@@ -531,7 +531,6 @@ class PPOLoss(object):
         prev_dist.log_std = tf.check_numerics(prev_dist.log_std, "prev_dist.log_std")
         prev_dist.std = tf.check_numerics(prev_dist.std, "prev_dist.std")
 
-        tf.add_check_numerics_ops()
         # Make loss functions.
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
         action_kl = prev_dist.kl(curr_action_dist)
@@ -544,6 +543,9 @@ class PPOLoss(object):
             advantages * logp_ratio,
             advantages * tf.clip_by_value(logp_ratio, 1 - clip_param,
                                           1 + clip_param))
+
+        surrogate_loss = tf.check_numerics(surrogate_loss, "surrogate_loss")
+
         self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
 
         if use_gae:
@@ -561,15 +563,21 @@ class PPOLoss(object):
             loss = reduce_mean_valid(-surrogate_loss +
                                      cur_kl_coeff * action_kl -
                                      entropy_coeff * curr_entropy)
+
+        loss = tf.check_numerics(loss, "self.loss")
         self.loss = loss
-        tf.add_check_numerics_ops()
 
 
 from ray.rllib.agents.ppo.ppo_policy import Postprocessing, ACTION_LOGP
 
 
 def ppo_surrogate_loss(policy, model, dist_class, train_batch):
+    train_batch[SampleBatch.CUR_OBS] = tf.check_numerics(
+        train_batch[SampleBatch.CUR_OBS], "CUR_OBS"
+    )
+
     logits, state = model.from_batch(train_batch)
+    logits = tf.check_numerics(logits, "logits")
     action_dist = dist_class(logits, model)
 
     if state:
