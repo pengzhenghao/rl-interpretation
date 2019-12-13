@@ -503,8 +503,7 @@ class PPOLoss(object):
         prev_actions_logp = tf.check_numerics(prev_actions_logp,
                                               "prev_actions_logp")
         vf_preds = tf.check_numerics(vf_preds, "vf_preds")
-        tf.check_numerics(curr_action_dist.entropy(),
-                          "curr_action_dist.entropy()")
+
         curr_action_dist.log_std = tf.check_numerics(curr_action_dist.log_std,
                                                      "curr_action_dist.log_std")
         curr_action_dist.std = tf.check_numerics(curr_action_dist.std,
@@ -555,10 +554,13 @@ class PPOLoss(object):
 
         # Make loss functions.
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
+        logp_ratio = tf.check_numerics(logp_ratio, "logp_ratio")
+
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
-
-        curr_entropy = curr_action_dist.entropy()
+        curr_entropy = tf.check_numerics(curr_action_dist.entropy(),
+                          "curr_action_dist.entropy()")
+         # = curr_action_dist.entropy()
         self.mean_entropy = reduce_mean_valid(curr_entropy)
 
         surrogate_loss = tf.minimum(
@@ -599,8 +601,12 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
     )
 
     logits, state = model.from_batch(train_batch)
-    logits = tf.check_numerics(logits, "logits")
+    logits = tf.check_numerics(logits, "action_dist logits")
     action_dist = dist_class(logits, model)
+
+    action_dist.log_std = tf.check_numerics(action_dist.log_std, "action_dist.log_std")
+    action_dist.std = tf.check_numerics(action_dist.std, "action_dist.std")
+    action_dist.mean = tf.check_numerics(action_dist.mean, "action_dist.mean")
 
     if state:
         max_seq_len = tf.reduce_max(train_batch["seq_lens"])
