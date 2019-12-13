@@ -6,4 +6,5 @@ nohup python toolbox/cooperative_exploration/train.py \
 --exp-name 1213-pure_replay \
 --mode two \
 --num-seeds 1 \
+--test \
 > 1213-pure_replay.log 2>&1 &

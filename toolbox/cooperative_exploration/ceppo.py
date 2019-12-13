@@ -558,13 +558,18 @@ class PPOLoss(object):
                                               "prev_dist.log_std")
         prev_dist.std = tf.check_numerics(prev_dist.std, "prev_dist.std")
 
-        # Make loss functions.
-        self.logp_diff = curr_action_dist.logp(actions) - prev_actions_logp
-        self.logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
-        self.prev_actions_logp = prev_actions_logp
-        self.curr_actions_logp = curr_action_dist.logp(actions)
+        curr_action_logp = curr_action_dist.logp(actions)
 
-        logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
+        tf.Print(prev_actions_logp, [prev_actions_logp], "prev_actions_logp")
+        tf.Print(curr_action_logp, [curr_action_logp], "curr_action_logp")
+
+        # Make loss functions.
+        self.logp_diff =curr_action_logp- prev_actions_logp
+        self.logp_ratio = tf.exp(curr_action_logp - prev_actions_logp)
+        self.prev_actions_logp = prev_actions_logp
+        self.curr_actions_logp = curr_action_logp
+
+        logp_ratio = tf.exp(curr_action_logp - prev_actions_logp)
         logp_ratio = tf.check_numerics(logp_ratio, "logp_ratio")
 
         action_kl = prev_dist.kl(curr_action_dist)
