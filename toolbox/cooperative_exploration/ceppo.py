@@ -261,12 +261,8 @@ def _compute_logp(logit, x):
             np.sum(log_std, axis=1))
     logp = np.nan_to_num(logp)
     p = np.exp(logp)
-    p = np.nan_to_num(p)
-    assert logp.ndim == 1, logp.shape
     return logp, p
 
-def _assert_nan(arr):
-    assert not np.any(np.isnan(arr)), arr
 
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized():
@@ -294,39 +290,20 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
     batches = [postprocess_ppo_gae(policy, batch)]
     for pid, (_, other_batch) in others_batches.items():
+        other_batch = other_batch.copy()
         if policy.config[REPLAY_VALUES]:
-            # use my policy to evaluate the values of other's samples.
-            # batch[SampleBatch.VF_PREDS] = policy._value_batch(
-            #     batch[SampleBatch.CUR_OBS], batch[SampleBatch.PREV_ACTIONS],
-            #     batch[SampleBatch.PREV_REWARDS]
-            # )  # changing VF_PREDS will change VALUE_TARGET and ADVANTAGE
-
-            # Except values, we also need to replay the following data.
-            _assert_nan(other_batch[SampleBatch.CUR_OBS])
+            # use my policy to evaluate the values and other relative data
+            # of other's samples.
             replay_result = policy.compute_actions(
-                other_batch[SampleBatch.CUR_OBS])
+                other_batch[SampleBatch.CUR_OBS])[2]
 
-            _assert_nan(replay_result[2]['vf_preds'])
-            other_batch[SampleBatch.VF_PREDS] = np.nan_to_num(
-                replay_result[2]['vf_preds'], copy=False
-            )
-
-            _assert_nan(replay_result[2]['behaviour_logits'])
-            other_batch[BEHAVIOUR_LOGITS] = np.nan_to_num(
-                replay_result[2]['behaviour_logits'], copy=False
-            )
-
-            _assert_nan(other_batch[BEHAVIOUR_LOGITS])
-            _assert_nan(other_batch[SampleBatch.ACTIONS])
-
+            other_batch[SampleBatch.VF_PREDS] = replay_result['vf_preds']
+            other_batch[BEHAVIOUR_LOGITS] = replay_result['behaviour_logits']
             other_batch["action_logp"], other_batch["action_prob"] = \
                 _compute_logp(
-                    np.nan_to_num(other_batch[BEHAVIOUR_LOGITS], copy=False),
-                    np.nan_to_num(other_batch[SampleBatch.ACTIONS], copy=False)
+                    other_batch[BEHAVIOUR_LOGITS],
+                    other_batch[SampleBatch.ACTIONS]
                 )
-
-            _assert_nan(other_batch["action_logp"])
-            _assert_nan(other_batch["action_prob"])
 
         # use my policy to postprocess other's trajectory.
         batches.append(postprocess_ppo_gae(policy, other_batch))

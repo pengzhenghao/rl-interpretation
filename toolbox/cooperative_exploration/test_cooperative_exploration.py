@@ -146,7 +146,7 @@ def validate_cetd3(num_gpus=0):
 
 if __name__ == '__main__':
     # test_multiple_num_agents(local_mode=False)
-    test_ceppo(local_mode=False)
+    test_ceppo(local_mode=True)
     # validate_ceppo()
     # test_single_agent()
     # test_cetd3(local_mode=True)
