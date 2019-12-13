@@ -452,7 +452,8 @@ def wrap_stats_ceppo(policy, train_batch):
     ret.update(
         logp_diff=policy.loss_obj.logp_diff,
         logp_ratio=policy.loss_obj.logp_ratio,
-        prev_actions_logp=policy.loss_obj.prev_actions_logp
+        prev_actions_logp=policy.loss_obj.prev_actions_logp,
+        curr_actions_logp=policy.loss_obj.curr_actions_logp
     )
     if policy.config[CURIOSITY]:
         ret.update(
@@ -561,6 +562,7 @@ class PPOLoss(object):
         self.logp_diff = curr_action_dist.logp(actions) - prev_actions_logp
         self.logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
         self.prev_actions_logp = prev_actions_logp
+        self.curr_actions_logp = curr_action_dist.logp(actions)
 
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
         logp_ratio = tf.check_numerics(logp_ratio, "logp_ratio")
