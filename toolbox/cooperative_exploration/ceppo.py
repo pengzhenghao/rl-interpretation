@@ -479,16 +479,16 @@ class PPOLoss(object):
                  use_gae=True,
                  model_config=None):
         print("Enter PPOLoss Class")
-        tf.check_numerics(value_targets, "value_targets")
-        tf.check_numerics(advantages, "advantages")
-        tf.check_numerics(actions, "actions")
-        tf.check_numerics(prev_logits, "prev_logits")
-        tf.check_numerics(prev_actions_logp, "prev_actions_logp")
-        tf.check_numerics(vf_preds, "vf_preds")
+        value_targets = tf.check_numerics(value_targets, "value_targets")
+        advantages = tf.check_numerics(advantages, "advantages")
+        actions = tf.check_numerics(actions, "actions")
+        prev_logits = tf.check_numerics(prev_logits, "prev_logits")
+        prev_actions_logp = tf.check_numerics(prev_actions_logp, "prev_actions_logp")
+        vf_preds = tf.check_numerics(vf_preds, "vf_preds")
         tf.check_numerics(curr_action_dist.entropy(), "curr_action_dist.entropy()")
-        tf.check_numerics(curr_action_dist.log_std, "curr_action_dist.log_std")
-        tf.check_numerics(curr_action_dist.std, "curr_action_dist.std")
-        tf.check_numerics(value_fn, "value_fn")
+        curr_action_dist.log_std = tf.check_numerics(curr_action_dist.log_std, "curr_action_dist.log_std")
+        curr_action_dist.std = tf.check_numerics(curr_action_dist.std, "curr_action_dist.std")
+        value_fn = tf.check_numerics(value_fn, "value_fn")
 
         """Constructs the loss for Proximal Policy Objective.
 
@@ -528,9 +528,10 @@ class PPOLoss(object):
         prev_dist = dist_class(prev_logits, model)
 
         tf.check_numerics(prev_dist.entropy(), "prev_dist.entropy()")
-        tf.check_numerics(prev_dist.log_std, "prev_dist.log_std")
-        tf.check_numerics(prev_dist.std, "prev_dist.std")
+        prev_dist.log_std = tf.check_numerics(prev_dist.log_std, "prev_dist.log_std")
+        prev_dist.std = tf.check_numerics(prev_dist.std, "prev_dist.std")
 
+        tf.add_check_numerics_ops()
         # Make loss functions.
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
         action_kl = prev_dist.kl(curr_action_dist)
@@ -561,6 +562,7 @@ class PPOLoss(object):
                                      cur_kl_coeff * action_kl -
                                      entropy_coeff * curr_entropy)
         self.loss = loss
+        tf.add_check_numerics_ops()
 
 
 from ray.rllib.agents.ppo.ppo_policy import Postprocessing, ACTION_LOGP
