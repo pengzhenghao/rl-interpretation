@@ -79,10 +79,11 @@ if __name__ == '__main__':
         num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
         num_gpus = 0.5
     elif args.mode == "two":
-        mode = tune.grid_search(
-            [REPLAY_VALUES, NO_REPLAY_VALUES])
-        print("In three_baselines baselines, we choose num_agents from:"
-              " [2, 3, 4, 5, 8, 10]")
+        mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES])
+        print(
+            "In three_baselines baselines, we choose num_agents from:"
+            " [2, 3, 4, 5, 8, 10]"
+        )
         # num_agents = tune.grid_search([2, 3, 4, 5, 8, 10])
         num_agents = tune.grid_search([3])
     else:

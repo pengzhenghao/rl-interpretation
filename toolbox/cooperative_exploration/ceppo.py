@@ -6,7 +6,7 @@ from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
     update_kl
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
     setup_mixins, kl_and_loss_stats, \
-    BEHAVIOUR_LOGITS
+    BEHAVIOUR_LOGITS, make_tf_callable
 from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
@@ -256,10 +256,10 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x, 1) if x.ndim == 1 else x
     assert x.ndim == 2, x.shape
     mean, log_std = np.split(logit, 2, axis=1)
-    logp = (-0.5 * np.sum(
-        np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * x.shape[1] -
-            np.sum(log_std, axis=1))
+    logp = (
+        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+    )
     logp = np.nan_to_num(logp)
     p = np.exp(logp)
     return logp, p
@@ -294,8 +294,8 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
         return postprocess_ppo_gae(policy, batch)
 
     batches = [postprocess_ppo_gae(policy, batch)]
-    for pid, (_, other_batch) in others_batches.items():
-        other_batch = other_batch.copy()
+    for pid, (_, other_batch_raw) in others_batches.items():
+        other_batch = other_batch_raw.copy()
         if policy.config[REPLAY_VALUES]:
             # use my policy to evaluate the values and other relative data
             # of other's samples.
@@ -304,10 +304,11 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             assert other_batch[SampleBatch.CUR_OBS].ndim == 2
 
             replay_result = policy.compute_actions(
-                other_batch[SampleBatch.CUR_OBS])[2]
+                other_batch[SampleBatch.CUR_OBS]
+            )[2]
 
-            other_batch[SampleBatch.VF_PREDS] = replay_result[
-                SampleBatch.VF_PREDS]
+            other_batch[SampleBatch.VF_PREDS] = \
+                replay_result[SampleBatch.VF_PREDS]
             other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
 
             assert other_batch[BEHAVIOUR_LOGITS].ndim == 2
@@ -328,37 +329,37 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     return SampleBatch.concat_samples(batches)
 
 
-# class ValueNetworkMixin2(object):
-#     def __init__(self, config):
-#         if config["use_gae"]:
-#
-#             @make_tf_callable(self.get_session(), True)
-#             def value_batch(ob, prev_action, prev_reward):
-#                 # We do not support recurrent network now.
-#                 model_out, _ = self.model(
-#                     {
-#                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
-#                         SampleBatch.PREV_ACTIONS: tf.
-#                             convert_to_tensor(prev_action),
-#                         SampleBatch.PREV_REWARDS: tf.
-#                             convert_to_tensor(prev_reward),
-#                         "is_training": tf.convert_to_tensor(False),
-#                     }
-#                 )
-#                 return self.model.value_function()
-#         else:
-#
-#             @make_tf_callable(self.get_session(), True)
-#             def value_batch(ob, prev_action, prev_reward):
-#                 return tf.zeros_like(prev_reward)
-#
-#         self._value_batch = value_batch
+class ValueNetworkMixin2(object):
+    def __init__(self, config):
+        if config["use_gae"]:
+
+            @make_tf_callable(self.get_session(), True)
+            def value_batch(ob, prev_action, prev_reward):
+                # We do not support recurrent network now.
+                model_out, _ = self.model(
+                    {
+                        SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
+                        SampleBatch.PREV_ACTIONS: tf.
+                        convert_to_tensor(prev_action),
+                        SampleBatch.PREV_REWARDS: tf.
+                        convert_to_tensor(prev_reward),
+                        "is_training": tf.convert_to_tensor(False),
+                    }
+                )
+                return self.model.value_function()
+        else:
+
+            @make_tf_callable(self.get_session(), True)
+            def value_batch(ob, prev_action, prev_reward):
+                return tf.zeros_like(prev_reward)
+
+        self._value_batch = value_batch
 
 
 def setup_mixins_ceppo(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
-    # if not config['disable']:
-    #     ValueNetworkMixin2.__init__(policy, config)
+    if not config['disable']:
+        ValueNetworkMixin2.__init__(policy, config)
     if config[DIVERSITY_ENCOURAGING] or config[CURIOSITY]:
         AddLossMixin.__init__(policy, config)
         NoveltyParamMixin.__init__(policy, config)
@@ -487,44 +488,48 @@ def loss_ceppo(policy, model, dist_class, train_batch):
 
 
 class PPOLoss(object):
-    def __init__(self,
-                 action_space,
-                 dist_class,
-                 model,
-                 value_targets,
-                 advantages,
-                 actions,
-                 prev_logits,
-                 prev_actions_logp,
-                 vf_preds,
-                 curr_action_dist,
-                 value_fn,
-                 cur_kl_coeff,
-                 valid_mask,
-                 entropy_coeff=0,
-                 clip_param=0.1,
-                 vf_clip_param=0.1,
-                 vf_loss_coeff=1.0,
-                 use_gae=True,
-                 model_config=None):
+    def __init__(
+            self,
+            action_space,
+            dist_class,
+            model,
+            value_targets,
+            advantages,
+            actions,
+            prev_logits,
+            prev_actions_logp,
+            vf_preds,
+            curr_action_dist,
+            value_fn,
+            cur_kl_coeff,
+            valid_mask,
+            entropy_coeff=0,
+            clip_param=0.1,
+            vf_clip_param=0.1,
+            vf_loss_coeff=1.0,
+            use_gae=True,
+            model_config=None
+    ):
         print("Enter PPOLoss Class")
         value_targets = tf.check_numerics(value_targets, "value_targets")
         advantages = tf.check_numerics(advantages, "advantages")
         actions = tf.check_numerics(actions, "actions")
         prev_logits = tf.check_numerics(prev_logits, "prev_logits")
-        prev_actions_logp = tf.check_numerics(prev_actions_logp,
-                                              "prev_actions_logp")
+        prev_actions_logp = tf.check_numerics(
+            prev_actions_logp, "prev_actions_logp"
+        )
         vf_preds = tf.check_numerics(vf_preds, "vf_preds")
         self.vf_preds = vf_preds
         self.value_targets = value_targets
         self.advantages = advantages
 
-        curr_action_dist.log_std = tf.check_numerics(curr_action_dist.log_std,
-                                                     "curr_action_dist.log_std")
-        curr_action_dist.std = tf.check_numerics(curr_action_dist.std,
-                                                 "curr_action_dist.std")
+        curr_action_dist.log_std = tf.check_numerics(
+            curr_action_dist.log_std, "curr_action_dist.log_std"
+        )
+        curr_action_dist.std = tf.check_numerics(
+            curr_action_dist.std, "curr_action_dist.std"
+        )
         value_fn = tf.check_numerics(value_fn, "value_fn")
-
         """Constructs the loss for Proximal Policy Objective.
 
         Arguments:
@@ -563,8 +568,9 @@ class PPOLoss(object):
         prev_dist = dist_class(prev_logits, model)
 
         tf.check_numerics(prev_dist.entropy(), "prev_dist.entropy()")
-        prev_dist.log_std = tf.check_numerics(prev_dist.log_std,
-                                              "prev_dist.log_std")
+        prev_dist.log_std = tf.check_numerics(
+            prev_dist.log_std, "prev_dist.log_std"
+        )
         prev_dist.std = tf.check_numerics(prev_dist.std, "prev_dist.std")
 
         curr_action_logp = curr_action_dist.logp(actions)
@@ -585,15 +591,17 @@ class PPOLoss(object):
 
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
-        curr_entropy = tf.check_numerics(curr_action_dist.entropy(),
-                                         "curr_action_dist.entropy()")
+        curr_entropy = tf.check_numerics(
+            curr_action_dist.entropy(), "curr_action_dist.entropy()"
+        )
         # = curr_action_dist.entropy()
         self.mean_entropy = reduce_mean_valid(curr_entropy)
 
         surrogate_loss = tf.minimum(
             advantages * logp_ratio,
-            advantages * tf.clip_by_value(logp_ratio, 1 - clip_param,
-                                          1 + clip_param))
+            advantages *
+            tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
+        )
 
         surrogate_loss = tf.check_numerics(surrogate_loss, "surrogate_loss")
 
@@ -602,18 +610,21 @@ class PPOLoss(object):
         if use_gae:
             vf_loss1 = tf.square(value_fn - value_targets)
             vf_clipped = vf_preds + tf.clip_by_value(
-                value_fn - vf_preds, -vf_clip_param, vf_clip_param)
+                value_fn - vf_preds, -vf_clip_param, vf_clip_param
+            )
             vf_loss2 = tf.square(vf_clipped - value_targets)
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
             self.mean_vf_loss = reduce_mean_valid(vf_loss)
             loss = reduce_mean_valid(
                 -surrogate_loss + cur_kl_coeff * action_kl +
-                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy)
+                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
+            )
         else:
             self.mean_vf_loss = tf.constant(0.0)
-            loss = reduce_mean_valid(-surrogate_loss +
-                                     cur_kl_coeff * action_kl -
-                                     entropy_coeff * curr_entropy)
+            loss = reduce_mean_valid(
+                -surrogate_loss + cur_kl_coeff * action_kl -
+                entropy_coeff * curr_entropy
+            )
 
         loss = tf.check_numerics(loss, "self.loss")
         self.loss = loss
@@ -623,16 +634,17 @@ from ray.rllib.agents.ppo.ppo_policy import Postprocessing, ACTION_LOGP
 
 
 def ppo_surrogate_loss(policy, model, dist_class, train_batch):
-    train_batch[SampleBatch.CUR_OBS] = tf.check_numerics(
-        train_batch[SampleBatch.CUR_OBS], "CUR_OBS"
-    )
+    train_batch[
+        SampleBatch.CUR_OBS
+    ] = tf.check_numerics(train_batch[SampleBatch.CUR_OBS], "CUR_OBS")
 
     logits, state = model.from_batch(train_batch)
     logits = tf.check_numerics(logits, "action_dist logits")
     action_dist = dist_class(logits, model)
 
-    action_dist.log_std = tf.check_numerics(action_dist.log_std,
-                                            "action_dist.log_std")
+    action_dist.log_std = tf.check_numerics(
+        action_dist.log_std, "action_dist.log_std"
+    )
     action_dist.std = tf.check_numerics(action_dist.std, "action_dist.std")
     action_dist.mean = tf.check_numerics(action_dist.mean, "action_dist.mean")
 
@@ -642,7 +654,8 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         mask = tf.reshape(mask, [-1])
     else:
         mask = tf.ones_like(
-            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool)
+            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
+        )
 
     policy.loss_obj = PPOLoss(
         policy.action_space,
@@ -663,7 +676,8 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"])
+        model_config=policy.config["model"]
+    )
 
     return policy.loss_obj.loss
 
@@ -675,8 +689,7 @@ CEPPOTFPolicy = AdaptiveExtraLossPPOTFPolicy.with_updates(
     loss_fn=loss_ceppo,
     before_loss_init=setup_mixins_ceppo,
     stats_fn=wrap_stats_ceppo,
-    mixins=mixin_list + [AddLossMixin, NoveltyParamMixin]
-    # , ValueNetworkMixin2]
+    mixins=mixin_list + [AddLossMixin, NoveltyParamMixin, ValueNetworkMixin2]
 )
 
 CEPPOTrainer = AdaptiveExtraLossPPOTrainer.with_updates(

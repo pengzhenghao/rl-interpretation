@@ -97,10 +97,12 @@ def test_single_agent(local_mode=False):
 def validate_ceppo():
     _validate_base(
         # {"mode": tune.grid_search(OPTIONAL_MODES)}, False, "CartPole-v0",
-        {"mode": tune.grid_search(
-            # [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES]
-            [REPLAY_VALUES]
-        )},
+        {
+            "mode": tune.grid_search(
+                # [DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES]
+                [REPLAY_VALUES]
+            )
+        },
         True,
         "CartPole-v0",
         CEPPOTrainer
@@ -113,7 +115,7 @@ def test_cetd3(local_mode=False):
     config = _get_default_test_config(
         num_agents=3, env_name="BipedalWalker-v2", num_gpus=num_gpus
     )
-    if "num_sgd_iter"in config:
+    if "num_sgd_iter" in config:
         config.pop("num_sgd_iter")
     config.pop("sgd_minibatch_size")
     config['timesteps_per_iteration'] = 80
@@ -146,7 +148,7 @@ def validate_cetd3(num_gpus=0):
 
 if __name__ == '__main__':
     # test_multiple_num_agents(local_mode=False)
-    test_ceppo(local_mode=False)
+    test_ceppo(local_mode=True)
     # validate_ceppo()
     # test_single_agent()
     # test_cetd3(local_mode=True)

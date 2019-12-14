@@ -65,7 +65,9 @@ def on_train_result(info):
     try:
         joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
     except Exception as e:
-        logger.info("Encounter error <{}> in on_train_result. Return.".format(e))
+        logger.info(
+            "Encounter error <{}> in on_train_result. Return.".format(e)
+        )
         return
 
     def _replay(policy, pid):
