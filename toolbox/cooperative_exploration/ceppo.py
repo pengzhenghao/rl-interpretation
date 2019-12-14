@@ -20,6 +20,8 @@ from toolbox.marl.utils import on_train_result
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
 
+from toolbox.cooperative_exploration.postprocess import postprocess_ppo_gae_replay
+
 logger = logging.getLogger(__name__)
 
 DISABLE = "disable"  # also serve as config's key
@@ -315,6 +317,9 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
             assert_nan(other_batch[BEHAVIOUR_LOGITS])
 
+            other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
+            other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
+
             other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
                 _compute_logp(
                     other_batch[BEHAVIOUR_LOGITS],
@@ -324,8 +329,10 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             assert_nan(other_batch[ACTION_LOGP])
             assert_nan(other_batch[ACTION_PROB])
 
-        # use my policy to postprocess other's trajectory.
-        batches.append(postprocess_ppo_gae(policy, other_batch))
+            batches.append(postprocess_ppo_gae_replay(policy, other_batch))
+        else:
+            batches.append(postprocess_ppo_gae(policy, other_batch))
+
     return SampleBatch.concat_samples(batches)
 
 
