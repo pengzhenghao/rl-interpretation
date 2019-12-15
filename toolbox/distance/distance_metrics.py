@@ -1,12 +1,12 @@
 import numpy as np
 
 
-def _get_kl_divergence(dist1, dist2, mean=True):
-    assert dist1.ndim == 2
-    assert dist2.ndim == 2
+def _get_kl_divergence(source, target, mean=True):
+    assert source.ndim == 2
+    assert target.ndim == 2
 
-    source_mean, source_log_std = np.split(dist1, 2, axis=1)
-    target_mean, target_log_std = np.split(dist2, 2, axis=1)
+    source_mean, source_log_std = np.split(source, 2, axis=1)
+    target_mean, target_log_std = np.split(target, 2, axis=1)
 
     kl_divergence = np.sum(
         target_log_std - source_log_std + (

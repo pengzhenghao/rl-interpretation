@@ -20,9 +20,7 @@ def assert_nan(arr):
     assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
 
 
-def postprocess_ppo_gae_replay(policy,
-                               sample_batch,
-                               ratio):
+def postprocess_ppo_gae_replay(policy, sample_batch):
     """Adds the policy logits, VF preds, and advantages to the trajectory."""
 
     assert Postprocessing.OTHER_ACTION_PROB in sample_batch
@@ -42,14 +40,13 @@ def postprocess_ppo_gae_replay(policy,
     batch = compute_advantages_replay(
         sample_batch,
         last_r,
-        ratio,
         policy.config["gamma"],
         policy.config["lambda"],
         use_gae=policy.config["use_gae"])
     return batch
 
 
-def compute_advantages_replay(rollout, last_r, ratio, gamma=0.9, lambda_=1.0,
+def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
                               use_gae=True):
     """Given a rollout, compute its value targets and the advantage.
 
@@ -83,7 +80,7 @@ def compute_advantages_replay(rollout, last_r, ratio, gamma=0.9, lambda_=1.0,
         # traj[Postprocessing.ADVANTAGES] = discount(delta_t, gamma * lambda_)
 
         # ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
-
+        ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
         assert_nan(ratio)
 
         advantage = calculate_gae_advantage(delta_t, ratio, lambda_, gamma)

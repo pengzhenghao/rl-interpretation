@@ -5,8 +5,9 @@ import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
     update_kl
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
-    setup_mixins, kl_and_loss_stats, \
-    BEHAVIOUR_LOGITS, make_tf_callable
+    setup_mixins, \
+    kl_and_loss_stats, BEHAVIOUR_LOGITS, make_tf_callable, Postprocessing, \
+    ACTION_LOGP
 from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
@@ -60,7 +61,7 @@ ceppo_default_config = merge_dicts(
         learn_with_peers=True,
         use_joint_dataset=False,
         mode=REPLAY_VALUES,
-        clip_action_prob_ratio=0.5,
+        clip_action_prob_kl=1,
         callbacks={"on_train_result": on_train_result}
     )
     # you should add {"on_train_result": on_train_result} to callbacks.
@@ -272,6 +273,31 @@ def assert_nan(arr):
     assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
 
 
+def _clip_batch(other_batch, clip_action_prob_kl):
+    kl = get_kl_divergence(
+        source=other_batch[BEHAVIOUR_LOGITS],
+        target=other_batch["other_logits"],
+        mean=False
+    )
+
+    mask = kl < clip_action_prob_kl
+
+    if not np.all(mask):
+        assert len(mask) == len(other_batch['action_logp'])
+        length = mask.argmin()
+        if length == 0:
+            return other_batch
+        assert length < len(other_batch['action_logp'])
+        msg = "We found strange value in ratio {}, mask {}, " \
+              "so we clip the total length {} to {}".format(
+            kl, mask, len(other_batch['action_logp']), length
+        )
+        print(msg)
+        logger.info(msg)
+        other_batch = other_batch.slice(0, length)
+    return other_batch
+
+
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
@@ -310,6 +336,10 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
                 other_batch[SampleBatch.CUR_OBS]
             )[2]
 
+            other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
+            other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
+            other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
+
             other_batch[SampleBatch.VF_PREDS] = \
                 replay_result[SampleBatch.VF_PREDS]
             other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
@@ -318,8 +348,6 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
             assert_nan(other_batch[BEHAVIOUR_LOGITS])
 
-            other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
-            other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
             # TODO(pengzh) it's ok to delete these two data in batch.
             other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
                 _compute_logp(
@@ -329,28 +357,10 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
             assert_nan(other_batch[ACTION_LOGP])
             assert_nan(other_batch[ACTION_PROB])
+            other_batch = _clip_batch(other_batch,
+                                      policy.config["clip_action_prob_kl"])
 
-            ratio = np.exp(
-                other_batch['action_logp'] - other_batch["other_action_logp"])
-            mask = np.logical_and(
-                ratio > 1 - policy.config['clip_action_prob_ratio'],
-                ratio < 1 + policy.config['clip_action_prob_ratio']
-            )
-            if not np.all(mask):
-                assert len(mask) == len(other_batch['action_logp'])
-                length = mask.argmin()
-                if length == 0:
-                    continue
-                assert length < len(other_batch['action_logp'])
-                msg = "We found strange value in ratio {}, mask {}, " \
-                      "so we clip the total length {} to {}".format(
-                    ratio, mask, len(other_batch['action_logp']), length
-                )
-                print(msg)
-                logger.info(msg)
-                other_batch = other_batch.slice(0, length)
-            batches.append(
-                postprocess_ppo_gae_replay(policy, other_batch, ratio))
+            batches.append(postprocess_ppo_gae_replay(policy, other_batch))
         else:
             batches.append(postprocess_ppo_gae(policy, other_batch))
 
@@ -656,9 +666,6 @@ class PPOLoss(object):
 
         loss = tf.check_numerics(loss, "self.loss")
         self.loss = loss
-
-
-from ray.rllib.agents.ppo.ppo_policy import Postprocessing, ACTION_LOGP
 
 
 def ppo_surrogate_loss(policy, model, dist_class, train_batch):
