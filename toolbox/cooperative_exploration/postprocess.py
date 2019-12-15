@@ -17,7 +17,7 @@ class Postprocessing(object):
 
 
 def assert_nan(arr):
-    assert not np.any(np.isnan(arr)), arr
+    assert not np.any(np.isnan(arr.astype(np.float32))), arr
 
 
 def postprocess_ppo_gae_replay(policy,
