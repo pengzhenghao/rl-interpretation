@@ -269,7 +269,7 @@ def _compute_logp(logit, x):
 
 
 def assert_nan(arr):
-    assert not np.any(np.isnan(arr.astype(np.float32))), arr
+    assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
 
 
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
