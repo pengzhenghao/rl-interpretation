@@ -339,6 +339,8 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             if not np.all(mask):
                 assert len(mask) == len(other_batch['action_logp'])
                 length = mask.argmin()
+                if length == 0:
+                    continue
                 assert length < len(other_batch['action_logp'])
                 msg = "We found strange value in ratio {}, mask {}, " \
                       "so we clip the total length {} to {}".format(
