@@ -337,13 +337,13 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
                 ratio < 1 + policy.config['clip_action_prob_ratio']
             )
             if not np.all(mask):
+                assert len(mask) == len(other_batch['action_logp'])
                 length = mask.argmin()
                 assert length < len(other_batch['action_logp'])
-                msg = (
-                    "We found strange value in ratio {}, mask {}, so we clip "
-                    "the total length {} to {}".format(
-                        ratio, mask, len(other_batch['action_logp'], length)
-                    ))
+                msg = "We found strange value in ratio {}, mask {}, " \
+                      "so we clip the total length {} to {}".format(
+                    ratio, mask, len(other_batch['action_logp']), length
+                )
                 print(msg)
                 logger.info(msg)
                 other_batch = other_batch.slice(0, length)
