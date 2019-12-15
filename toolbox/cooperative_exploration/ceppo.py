@@ -292,8 +292,8 @@ def _clip_batch(other_batch, clip_action_prob_kl):
               "so we clip the total length {} to {}".format(
             kl, mask, len(other_batch['action_logp']), length
         )
-        print(msg)
-        logger.info(msg)
+        # print(msg)
+        # logger.debug(msg)
         other_batch = other_batch.slice(0, length)
     return other_batch
 
