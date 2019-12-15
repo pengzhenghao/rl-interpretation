@@ -86,6 +86,9 @@ if __name__ == '__main__':
         )
         num_agents = tune.grid_search([2, 3, 4, 5, 8, 10])
         # num_agents = tune.grid_search([3])
+    elif args.mode == "test":
+        mode = tune.grid_search([REPLAY_VALUES])
+        num_agents = tune.grid_search([2, 3])
     else:
         raise NotImplementedError()
 

@@ -60,6 +60,7 @@ ceppo_default_config = merge_dicts(
         learn_with_peers=True,
         use_joint_dataset=False,
         mode=REPLAY_VALUES,
+        clip_action_prob_ratio=0.5,
         callbacks={"on_train_result": on_train_result}
     )
     # you should add {"on_train_result": on_train_result} to callbacks.

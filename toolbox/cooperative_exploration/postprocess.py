@@ -16,10 +16,12 @@ class Postprocessing(object):
     OTHER_ACTION_PROB = "other_action_prob"
 
 
+def assert_nan(arr):
+    assert not np.any(np.isnan(arr)), arr
+
+
 def postprocess_ppo_gae_replay(policy,
-                               sample_batch,
-                               other_agent_batches=None,
-                               episode=None):
+                               sample_batch):
     """Adds the policy logits, VF preds, and advantages to the trajectory."""
 
     assert Postprocessing.OTHER_ACTION_PROB in sample_batch
@@ -45,7 +47,8 @@ def postprocess_ppo_gae_replay(policy,
     return batch
 
 
-def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0, use_gae=True):
+def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
+                              use_gae=True):
     """Given a rollout, compute its value targets and the advantage.
 
     Args:
@@ -79,18 +82,26 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0, use_gae=T
 
         ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
 
-        traj[Postprocessing.ADVANTAGES] = \
-            calculate_gae_advantage(delta_t, ratio, lambda_, gamma)
+        assert_nan(ratio)
 
-        traj[Postprocessing.VALUE_TARGETS] = (
+        advantage = calculate_gae_advantage(delta_t, ratio, lambda_, gamma)
+
+        assert_nan(advantage)
+
+        traj[Postprocessing.ADVANTAGES] = advantage
+
+        value_target = (
                 traj[Postprocessing.ADVANTAGES] +
                 traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
+
+        traj[Postprocessing.VALUE_TARGETS] = value_target
     else:
         raise NotImplementedError()
         # rewards_plus_v = np.concatenate(
         #     [rollout[SampleBatch.REWARDS],
         #      np.array([last_r])])
-        # traj[Postprocessing.ADVANTAGES] = discount(rewards_plus_v, gamma)[:-1]
+        # traj[Postprocessing.ADVANTAGES] = discount(rewards_plus_v, gamma)[
+        # :-1]
         # traj[Postprocessing.VALUE_TARGETS] = np.zeros_like(
         #     traj[Postprocessing.ADVANTAGES])
 
