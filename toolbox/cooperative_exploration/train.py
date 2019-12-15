@@ -68,6 +68,7 @@ if __name__ == '__main__':
         assert args.exp_name
 
     num_gpus = 0.2
+    clip_action_prob_kl = 1
     if args.mode == "all":
         mode = tune.grid_search(OPTIONAL_MODES)
         num_agents = args.num_agents
@@ -88,7 +89,8 @@ if __name__ == '__main__':
         # num_agents = tune.grid_search([3])
     elif args.mode == "test":
         mode = tune.grid_search([REPLAY_VALUES])
-        num_agents = tune.grid_search([2, 3])
+        num_agents = tune.grid_search([2, 3, 5, 10])
+        clip_action_prob_kl = tune.grid_search([0.1, 1, 2, 3, 10])
     else:
         raise NotImplementedError()
 
@@ -102,6 +104,7 @@ if __name__ == '__main__':
         "mode": mode,
         "num_gpus": num_gpus,
         "num_cpus_per_worker": 0.4,
+        "clip_action_prob_kl": clip_action_prob_kl
     }
 
     train(
