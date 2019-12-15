@@ -20,6 +20,15 @@ def assert_nan(arr):
     assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
 
 
+def stat(arr, msg=""):
+    print(
+        "{}: min {:.5f}, mean {:.5f}, max {:.5f}, std {:.5f}, shape {}, "
+        "sum {}.".format(
+            msg if msg else "[STAT]", arr.min(), arr.mean(), arr.max(),
+            arr.std(), arr.shape, arr.sum()
+        ))
+
+
 def postprocess_ppo_gae_replay(policy, sample_batch):
     """Adds the policy logits, VF preds, and advantages to the trajectory."""
 
@@ -86,12 +95,13 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
         advantage = calculate_gae_advantage(delta_t, ratio, lambda_, gamma)
 
         assert_nan(advantage)
-
+        stat(advantage, "[Advantage]")
         traj[Postprocessing.ADVANTAGES] = advantage
 
         value_target = (
                 traj[Postprocessing.ADVANTAGES] +
                 traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
+        stat(value_target, "[Value Target]")
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
     else:
