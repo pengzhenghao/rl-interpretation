@@ -10,6 +10,8 @@ from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
 from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
+from toolbox.cooperative_exploration.postprocess import \
+    postprocess_ppo_gae_replay
 from toolbox.distance import get_kl_divergence
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
     AdaptiveExtraLossPPOTFPolicy, merge_dicts, NoveltyParamMixin, mixin_list, \
@@ -19,8 +21,6 @@ from toolbox.marl.extra_loss_ppo_trainer import JOINT_OBS, PEER_ACTION, \
 from toolbox.marl.utils import on_train_result
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
-
-from toolbox.cooperative_exploration.postprocess import postprocess_ppo_gae_replay
 
 logger = logging.getLogger(__name__)
 
@@ -260,8 +260,8 @@ def _compute_logp(logit, x):
     assert x.ndim == 2, x.shape
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     logp = np.nan_to_num(logp)
     p = np.exp(logp)
@@ -320,7 +320,7 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
             other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
             other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
-
+            # TODO(pengzh) it's ok to delete these two data in batch.
             other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
                 _compute_logp(
                     other_batch[BEHAVIOUR_LOGITS],
@@ -330,7 +330,25 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             assert_nan(other_batch[ACTION_LOGP])
             assert_nan(other_batch[ACTION_PROB])
 
-            batches.append(postprocess_ppo_gae_replay(policy, other_batch))
+            ratio = np.exp(
+                other_batch['action_logp'] - other_batch["other_action_logp"])
+            mask = np.logical_and(
+                ratio > 1 - policy.config['clip_action_prob_ratio'],
+                ratio < 1 + policy.config['clip_action_prob_ratio']
+            )
+            if not np.all(mask):
+                length = mask.argmin()
+                assert length < len(other_batch['action_logp'])
+                msg = (
+                    "We found strange value in ratio {}, mask {}, so we clip "
+                    "the total length {} to {}".format(
+                        ratio, mask, len(other_batch['action_logp'], length)
+                    ))
+                print(msg)
+                logger.info(msg)
+                other_batch = other_batch.slice(0, length)
+            batches.append(
+                postprocess_ppo_gae_replay(policy, other_batch, ratio))
         else:
             batches.append(postprocess_ppo_gae(policy, other_batch))
 
@@ -348,9 +366,9 @@ class ValueNetworkMixin2(object):
                     {
                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                         SampleBatch.PREV_ACTIONS: tf.
-                        convert_to_tensor(prev_action),
+                            convert_to_tensor(prev_action),
                         SampleBatch.PREV_REWARDS: tf.
-                        convert_to_tensor(prev_reward),
+                            convert_to_tensor(prev_reward),
                         "is_training": tf.convert_to_tensor(False),
                     }
                 )
