@@ -503,6 +503,7 @@ def wrap_stats_ceppo(policy, train_batch):
     ret.update(
         logp_diff=policy.loss_obj.logp_diff,
         logp_ratio=policy.loss_obj.logp_ratio,
+        logp_ratio_exp=policy.loss_obj.logp_ratio_exp,
         prev_actions_logp=policy.loss_obj.prev_actions_logp,
         curr_actions_logp=policy.loss_obj.curr_actions_logp,
         curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
@@ -633,6 +634,7 @@ class PPOLoss(object):
 
         logp_ratio = tf.exp(curr_action_logp - prev_actions_logp)
         logp_ratio = tf.check_numerics(logp_ratio, "logp_ratio")
+        self.logp_ratio_exp = logp_ratio
 
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
