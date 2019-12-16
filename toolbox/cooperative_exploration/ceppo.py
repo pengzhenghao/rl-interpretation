@@ -338,6 +338,7 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     for pid, (_, other_batch_raw) in others_batches.items():
         other_batch = other_batch_raw.copy()
         if policy.config[REPLAY_VALUES]:
+
             # use my policy to evaluate the values and other relative data
             # of other's samples.
             assert_nan(other_batch[SampleBatch.CUR_OBS])
@@ -376,6 +377,10 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             batches.append(postprocess_ppo_gae_replay(policy, other_batch))
         else:
             batches.append(postprocess_ppo_gae(policy, other_batch))
+
+    for batch in batches:
+        batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
+            Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     return SampleBatch.concat_samples(batches)
 
@@ -735,6 +740,9 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         use_gae=policy.config["use_gae"],
         model_config=policy.config["model"]
     )
+
+    policy.loss_obj.loss += 0 * train_batch[
+        Postprocessing.ADVANTAGES + "_unnormalized"]
 
     return policy.loss_obj.loss
 
