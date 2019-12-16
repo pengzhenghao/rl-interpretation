@@ -98,6 +98,7 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
         assert_nan(advantage)
         stat(advantage, "[Advantage]")
         traj[Postprocessing.ADVANTAGES] = advantage
+        traj[Postprocessing.ADVANTAGES+"_unnormalized"] = advantage
 
         value_target = (
                 traj[Postprocessing.ADVANTAGES] +
