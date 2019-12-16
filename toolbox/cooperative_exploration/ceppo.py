@@ -566,6 +566,7 @@ class PPOLoss(object):
         vf_preds = tf.check_numerics(vf_preds, "vf_preds")
         self.vf_preds = vf_preds
         self.value_targets = value_targets
+        self.value_targets_square = tf.square(value_targets)
         self.advantages = advantages
 
         curr_action_dist.log_std = tf.check_numerics(
