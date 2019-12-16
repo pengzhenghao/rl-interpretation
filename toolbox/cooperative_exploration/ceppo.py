@@ -620,6 +620,8 @@ class PPOLoss(object):
         prev_dist.std = tf.check_numerics(prev_dist.std, "prev_dist.std")
 
         curr_action_logp = curr_action_dist.logp(actions)
+        curr_action_logp = tf.check_numerics(curr_action_logp, "curr_action_logp")
+        prev_actions_logp = tf.check_numerics(prev_actions_logp, "prev_actions_logp")
 
         tf.Print(prev_actions_logp, [prev_actions_logp], "prev_actions_logp")
         tf.Print(curr_action_logp, [curr_action_logp], "curr_action_logp")

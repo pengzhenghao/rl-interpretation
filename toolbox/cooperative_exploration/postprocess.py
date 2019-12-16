@@ -101,7 +101,10 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
 
         value_target = (
                 traj[Postprocessing.ADVANTAGES] +
-                traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
+                ratio * traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
+                # traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
+        assert_nan(value_target)
+        assert_nan(np.square(value_target))
         stat(value_target, "[Value Target]")
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
@@ -124,7 +127,7 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
 
 
 def calculate_gae_advantage(delta, ratio, lambda_, gamma):
-    y_n = np.empty_like(delta)
+    y_n = np.zeros_like(delta)
     y_n[-1] = ratio[-1] * delta[-1]
     length = len(delta)
     for ind in range(length - 2, -1, -1):
