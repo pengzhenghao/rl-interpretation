@@ -67,8 +67,20 @@ if __name__ == '__main__':
     if not args.test:
         assert args.exp_name
 
-    num_gpus = 0.2
-    clip_action_prob_kl = 1
+    ceppo_config = {
+        "num_sgd_iter": 10,
+        "num_envs_per_worker": 16,
+        "gamma": 0.99,
+        "entropy_coeff": 0.001,
+        "lambda": 0.95,
+        "lr": 2.5e-4,
+        # "mode": mode,
+        "num_gpus": 0.2,
+        "num_cpus_per_worker": 0.4,
+        "clip_action_prob_kl": 1
+    }
+
+    clip_action_prob_kl = None
     if args.mode == "all":
         mode = tune.grid_search(OPTIONAL_MODES)
         num_agents = args.num_agents
@@ -92,21 +104,20 @@ if __name__ == '__main__':
         # num_agents = tune.grid_search([2, 3, 5, 10])
         num_agents = 2
         clip_action_prob_kl = tune.grid_search([0.1, 1, 2, 3, 10])
+    elif args.mode == "test_no_gae":
+        mode = tune.grid_search([REPLAY_VALUES])
+        # num_agents = tune.grid_search([2, 3, 5, 10])
+        num_agents = 2
+        clip_action_prob_kl = tune.grid_search([0.1, 1, 2, 3, 10])
+        ceppo_config['use_gae'] = False
+        ceppo_config['batch_mode'] = "complete_episodes"
     else:
         raise NotImplementedError()
 
-    ceppo_config = {
-        "num_sgd_iter": 10,
-        "num_envs_per_worker": 16,
-        "gamma": 0.99,
-        "entropy_coeff": 0.001,
-        "lambda": 0.95,
-        "lr": 2.5e-4,
-        "mode": mode,
-        "num_gpus": num_gpus,
-        "num_cpus_per_worker": 0.4,
-        "clip_action_prob_kl": clip_action_prob_kl
-    }
+    ceppo_config["num_agents"] = num_agents
+    ceppo_config["mode"] = mode
+    if clip_action_prob_kl:
+        ceppo_config["clip_action_prob_kl"] = clip_action_prob_kl
 
     train(
         extra_config=ceppo_config,

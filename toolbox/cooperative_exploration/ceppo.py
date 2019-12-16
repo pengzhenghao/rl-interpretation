@@ -507,27 +507,50 @@ def wrap_stats_ceppo(policy, train_batch):
     if policy.config[DIVERSITY_ENCOURAGING]:
         return wrap_stats_fn(policy, train_batch)
     ret = kl_and_loss_stats(policy, train_batch)
-    ret.update(
-        logp_diff=policy.loss_obj.logp_diff,
-        logp_ratio=policy.loss_obj.logp_ratio,
-        logp_ratio_exp=policy.loss_obj.logp_ratio_exp,
-        prev_actions_logp=policy.loss_obj.prev_actions_logp,
-        curr_actions_logp=policy.loss_obj.curr_actions_logp,
-        curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
-        curr_actions_mean=policy.loss_obj.curr_actions_mean,
-        vf_preds=policy.loss_obj.vf_preds,
-        vf_loss1=policy.loss_obj.vf_loss1,
-        vf_loss2=policy.loss_obj.vf_loss2,
-        vf_loss2_clipped=policy.loss_obj.vf_loss2_clipped,
-        value_targets=policy.loss_obj.value_targets,
-        advantages=policy.loss_obj.advantages,
-        advantages_square=policy.loss_obj.advantages_square,
-        vf_preds_square=policy.loss_obj.vf_preds_square,
-        value_fn_square=policy.loss_obj.value_fn_square,
-        value_targets_square=policy.loss_obj.value_targets_square,
-        adv_unnorm_square=policy.adv_unnorm_square,
-        adv_unnorm=policy.adv_unnorm
-    )
+    if policy.config['use_gae']:
+        ret.update(
+            logp_diff=policy.loss_obj.logp_diff,
+            logp_ratio=policy.loss_obj.logp_ratio,
+            logp_ratio_exp=policy.loss_obj.logp_ratio_exp,
+            prev_actions_logp=policy.loss_obj.prev_actions_logp,
+            curr_actions_logp=policy.loss_obj.curr_actions_logp,
+            curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
+            curr_actions_mean=policy.loss_obj.curr_actions_mean,
+            vf_preds=policy.loss_obj.vf_preds,
+            vf_loss1=policy.loss_obj.vf_loss1,
+            vf_loss2=policy.loss_obj.vf_loss2,
+            vf_loss2_clipped=policy.loss_obj.vf_loss2_clipped,
+            value_targets=policy.loss_obj.value_targets,
+            advantages=policy.loss_obj.advantages,
+            advantages_square=policy.loss_obj.advantages_square,
+            vf_preds_square=policy.loss_obj.vf_preds_square,
+            value_fn_square=policy.loss_obj.value_fn_square,
+            value_targets_square=policy.loss_obj.value_targets_square,
+            adv_unnorm_square=policy.adv_unnorm_square,
+            adv_unnorm=policy.adv_unnorm
+        )
+    else:
+        ret.update(
+            logp_diff=policy.loss_obj.logp_diff,
+            logp_ratio=policy.loss_obj.logp_ratio,
+            logp_ratio_exp=policy.loss_obj.logp_ratio_exp,
+            prev_actions_logp=policy.loss_obj.prev_actions_logp,
+            curr_actions_logp=policy.loss_obj.curr_actions_logp,
+            curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
+            curr_actions_mean=policy.loss_obj.curr_actions_mean,
+            # vf_preds=policy.loss_obj.vf_preds,
+            # vf_loss1=policy.loss_obj.vf_loss1,
+            # vf_loss2=policy.loss_obj.vf_loss2,
+            # vf_loss2_clipped=policy.loss_obj.vf_loss2_clipped,
+            # value_targets=policy.loss_obj.value_targets,
+            advantages=policy.loss_obj.advantages,
+            advantages_square=policy.loss_obj.advantages_square,
+            # vf_preds_square=policy.loss_obj.vf_preds_square,
+            # value_fn_square=policy.loss_obj.value_fn_square,
+            # value_targets_square=policy.loss_obj.value_targets_square,
+            adv_unnorm_square=policy.adv_unnorm_square,
+            adv_unnorm=policy.adv_unnorm
+        )
     if policy.config[CURIOSITY]:
         ret.update(
             novelty_loss_param=policy.novelty_loss_param,
@@ -664,20 +687,21 @@ class PPOLoss(object):
         self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
 
         if use_gae:
-            vf_loss1 = tf.square(value_fn - value_targets)
-            vf_clipped = vf_preds + tf.clip_by_value(
-                value_fn - vf_preds, -vf_clip_param, vf_clip_param
-            )
-            vf_loss2 = tf.square(vf_clipped - value_targets)
-            vf_loss = tf.maximum(vf_loss1, vf_loss2)
-            self.mean_vf_loss = reduce_mean_valid(vf_loss)
-            self.vf_loss1 = vf_loss1
-            self.vf_loss2 = vf_loss2
-            self.vf_loss2_clipped = vf_clipped
-            loss = reduce_mean_valid(
-                -surrogate_loss + cur_kl_coeff * action_kl +
-                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
-            )
+            raise NotImplementedError()
+            # vf_loss1 = tf.square(value_fn - value_targets)
+            # vf_clipped = vf_preds + tf.clip_by_value(
+            #     value_fn - vf_preds, -vf_clip_param, vf_clip_param
+            # )
+            # vf_loss2 = tf.square(vf_clipped - value_targets)
+            # vf_loss = tf.maximum(vf_loss1, vf_loss2)
+            # self.mean_vf_loss = reduce_mean_valid(vf_loss)
+            # self.vf_loss1 = vf_loss1
+            # self.vf_loss2 = vf_loss2
+            # self.vf_loss2_clipped = vf_clipped
+            # loss = reduce_mean_valid(
+            #     -surrogate_loss + cur_kl_coeff * action_kl +
+            #     vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
+            # )
         else:
             self.mean_vf_loss = tf.constant(0.0)
             loss = reduce_mean_valid(

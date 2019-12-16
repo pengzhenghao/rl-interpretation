@@ -78,6 +78,7 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
         traj[key] = np.stack(rollout[key])
 
     if use_gae:
+        raise NotImplementedError()
         assert SampleBatch.VF_PREDS in rollout, "Values not found!"
         vpred_t = np.concatenate(
             [rollout[SampleBatch.VF_PREDS],
@@ -109,14 +110,20 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
     else:
-        raise NotImplementedError()
-        # rewards_plus_v = np.concatenate(
-        #     [rollout[SampleBatch.REWARDS],
-        #      np.array([last_r])])
-        # traj[Postprocessing.ADVANTAGES] = discount(rewards_plus_v, gamma)[
-        # :-1]
-        # traj[Postprocessing.VALUE_TARGETS] = np.zeros_like(
-        #     traj[Postprocessing.ADVANTAGES])
+        # raise NotImplementedError()
+        rewards_plus_v = np.concatenate(
+            [rollout[SampleBatch.REWARDS],
+             np.array([last_r])])
+
+        ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
+        assert_nan(ratio)
+        delta = discount(rewards_plus_v, gamma)[:-1]
+
+        assert delta.shape == ratio.shape
+
+        traj[Postprocessing.ADVANTAGES] = ratio * delta
+        traj[Postprocessing.VALUE_TARGETS] = np.zeros_like(
+            traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES] = traj[
         Postprocessing.ADVANTAGES].copy().astype(np.float32)
