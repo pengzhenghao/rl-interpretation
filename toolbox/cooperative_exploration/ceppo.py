@@ -313,6 +313,10 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
         batch = postprocess_ppo_gae(policy, sample_batch)
         batch["advantages_unnormalized"] = np.zeros_like(batch["advantages"],
                                                          dtype=np.float32)
+        batch['debug_ratio'] = np.zeros_like(batch["advantages"],
+                                             dtype=np.float32)
+        batch['debug_fake_adv'] = np.zeros_like(batch["advantages"],
+                                                dtype=np.float32)
         if policy.config[DIVERSITY_ENCOURAGING] or policy.config[CURIOSITY]:
             assert not policy.config["use_joint_dataset"]
             batch[JOINT_OBS] = np.zeros_like(
@@ -381,6 +385,12 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     for batch in batches:
         batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
             Postprocessing.ADVANTAGES].copy().astype(np.float32)
+        if "debug_ratio" not in batch:
+            batch['debug_ratio'] = np.ones_like(batch['advantages'],
+                                                dtype=np.float32)
+        if "debug_fake_adv" not in batch:
+            batch['debug_fake_adv'] = np.ones_like(batch['advantages'],
+                                                   dtype=np.float32)
 
     return SampleBatch.concat_samples(batches)
 
@@ -687,21 +697,20 @@ class PPOLoss(object):
         self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
 
         if use_gae:
-            raise NotImplementedError()
-            # vf_loss1 = tf.square(value_fn - value_targets)
-            # vf_clipped = vf_preds + tf.clip_by_value(
-            #     value_fn - vf_preds, -vf_clip_param, vf_clip_param
-            # )
-            # vf_loss2 = tf.square(vf_clipped - value_targets)
-            # vf_loss = tf.maximum(vf_loss1, vf_loss2)
-            # self.mean_vf_loss = reduce_mean_valid(vf_loss)
-            # self.vf_loss1 = vf_loss1
-            # self.vf_loss2 = vf_loss2
-            # self.vf_loss2_clipped = vf_clipped
-            # loss = reduce_mean_valid(
-            #     -surrogate_loss + cur_kl_coeff * action_kl +
-            #     vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
-            # )
+            vf_loss1 = tf.square(value_fn - value_targets)
+            vf_clipped = vf_preds + tf.clip_by_value(
+                value_fn - vf_preds, -vf_clip_param, vf_clip_param
+            )
+            vf_loss2 = tf.square(vf_clipped - value_targets)
+            vf_loss = tf.maximum(vf_loss1, vf_loss2)
+            self.mean_vf_loss = reduce_mean_valid(vf_loss)
+            self.vf_loss1 = vf_loss1
+            self.vf_loss2 = vf_loss2
+            self.vf_loss2_clipped = vf_clipped
+            loss = reduce_mean_valid(
+                -surrogate_loss + cur_kl_coeff * action_kl +
+                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
+            )
         else:
             self.mean_vf_loss = tf.constant(0.0)
             loss = reduce_mean_valid(
@@ -765,8 +774,13 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         model_config=policy.config["model"]
     )
 
-    policy.loss_obj.loss += 0 * train_batch[
-        Postprocessing.ADVANTAGES + "_unnormalized"]
+    l = [
+        Postprocessing.ADVANTAGES + "_unnormalized",
+        "debug_ratio",
+        "debug_fake_adv"
+    ]
+    for ll in l:
+        policy.loss_obj.loss += 0 * train_batch[ll]
 
     return policy.loss_obj.loss
 

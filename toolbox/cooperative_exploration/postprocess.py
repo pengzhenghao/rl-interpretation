@@ -78,7 +78,6 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
         traj[key] = np.stack(rollout[key])
 
     if use_gae:
-        raise NotImplementedError()
         assert SampleBatch.VF_PREDS in rollout, "Values not found!"
         vpred_t = np.concatenate(
             [rollout[SampleBatch.VF_PREDS],
@@ -99,6 +98,12 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
         assert_nan(advantage)
         stat(advantage, "[Advantage]")
         traj[Postprocessing.ADVANTAGES] = advantage
+        traj["debug_ratio"] = ratio
+
+        fake_delta = np.zeros_like(delta_t)
+        fake_delta[-1] = 1
+        traj["debug_fake_adv"] = calculate_gae_advantage(
+            fake_delta, ratio, lambda_, gamma)
 
         value_target = (
                 traj[Postprocessing.ADVANTAGES] +
