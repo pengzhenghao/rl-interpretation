@@ -515,7 +515,8 @@ def wrap_stats_ceppo(policy, train_batch):
         advantages=policy.loss_obj.advantages,
         advantages_square=policy.loss_obj.advantages_square,
         vf_preds_square=policy.loss_obj.vf_preds_square,
-        value_fn_square=policy.loss_obj.value_fn_square
+        value_fn_square=policy.loss_obj.value_fn_square,
+        value_targets_square=policy.loss_obj.value_targets_square
     )
     if policy.config[CURIOSITY]:
         ret.update(
@@ -597,6 +598,9 @@ class PPOLoss(object):
 
         self.value_fn_square = tf.check_numerics(
             tf.square(value_fn), "value_fn_square"
+        )
+        self.value_targets_square = tf.check_numerics(
+            tf.square(self.value_targets), "value_targets_square"
         )
 
         def reduce_mean_valid(t):
