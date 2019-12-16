@@ -114,7 +114,7 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError()
 
-    ceppo_config["num_agents"] = num_agents
+    # ceppo_config["num_agents"] = num_agents
     ceppo_config["mode"] = mode
     if clip_action_prob_kl:
         ceppo_config["clip_action_prob_kl"] = clip_action_prob_kl
