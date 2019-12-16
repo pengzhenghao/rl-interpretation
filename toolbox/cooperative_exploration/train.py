@@ -89,7 +89,8 @@ if __name__ == '__main__':
         # num_agents = tune.grid_search([3])
     elif args.mode == "test":
         mode = tune.grid_search([REPLAY_VALUES])
-        num_agents = tune.grid_search([2, 3, 5, 10])
+        # num_agents = tune.grid_search([2, 3, 5, 10])
+        num_agents = 2
         clip_action_prob_kl = tune.grid_search([0.1, 1, 2, 3, 10])
     else:
         raise NotImplementedError()
