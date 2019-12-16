@@ -311,6 +311,8 @@ def _clip_batch(other_batch, clip_action_prob):
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
+        batch["advantages_unnormalized"] = np.zeros_like(batch["advantages"],
+                                                         dtype=np.float32)
         if policy.config[DIVERSITY_ENCOURAGING] or policy.config[CURIOSITY]:
             assert not policy.config["use_joint_dataset"]
             batch[JOINT_OBS] = np.zeros_like(
@@ -706,9 +708,10 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
             train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
         )
 
-    policy.adv_unnorm = train_batch[Postprocessing.ADVANTAGES+"_unnormalized"]
+    policy.adv_unnorm = train_batch[
+        Postprocessing.ADVANTAGES + "_unnormalized"]
     policy.adv_unnorm_square = tf.square(
-        train_batch[Postprocessing.ADVANTAGES+"_unnormalized"]
+        train_batch[Postprocessing.ADVANTAGES + "_unnormalized"]
     )
 
     policy.loss_obj = PPOLoss(
