@@ -11,8 +11,7 @@ from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
 from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
-from toolbox.cooperative_exploration.debug import on_episode_end, \
-    on_postprocess_traj
+from toolbox.cooperative_exploration.debug import on_postprocess_traj
 from toolbox.cooperative_exploration.postprocess import \
     postprocess_ppo_gae_replay
 from toolbox.distance import get_kl_divergence
@@ -287,9 +286,11 @@ def _clip_batch(other_batch, clip_action_prob):
     #
     # mask = kl < clip_action_prob_kl
 
-    ratio = np.exp(other_batch['action_logp'] - other_batch["other_action_logp"])
+    ratio = np.exp(
+        other_batch['action_logp'] - other_batch["other_action_logp"])
 
-    mask = np.logical_and(ratio < 1 + clip_action_prob, ratio > 1 - clip_action_prob)
+    mask = np.logical_and(ratio < 1 + clip_action_prob,
+                          ratio > 1 - clip_action_prob)
 
     if not np.all(mask):
         assert len(mask) == len(other_batch['action_logp'])
@@ -368,7 +369,7 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             assert_nan(other_batch[ACTION_PROB])
             other_batch = _clip_batch(other_batch,
                                       policy.config["clip_action_prob"])
-                                      # policy.config["clip_action_prob_kl"])
+            # policy.config["clip_action_prob_kl"])
 
             batches.append(postprocess_ppo_gae_replay(policy, other_batch))
         else:
@@ -512,6 +513,9 @@ def wrap_stats_ceppo(policy, train_batch):
         vf_loss2_clipped=policy.loss_obj.vf_loss2_clipped,
         value_targets=policy.loss_obj.value_targets,
         advantages=policy.loss_obj.advantages,
+        advantages_square=policy.loss_obj.advantages_square,
+        vf_preds_square=policy.loss_obj.vf_preds_square,
+        value_fn_square=policy.loss_obj.value_fn_square
     )
     if policy.config[CURIOSITY]:
         ret.update(
@@ -582,37 +586,18 @@ class PPOLoss(object):
             curr_action_dist.std, "curr_action_dist.std"
         )
         value_fn = tf.check_numerics(value_fn, "value_fn")
-        """Constructs the loss for Proximal Policy Objective.
 
-        Arguments:
-            action_space: Environment observation space specification.
-            dist_class: action distribution class for logits.
-            value_targets (Placeholder): Placeholder for target values; used
-                for GAE.
-            actions (Placeholder): Placeholder for actions taken
-                from previous model evaluation.
-            advantages (Placeholder): Placeholder for calculated advantages
-                from previous model evaluation.
-            prev_logits (Placeholder): Placeholder for logits output from
-                previous model evaluation.
-            prev_actions_logp (Placeholder): Placeholder for prob output from
-                previous model evaluation.
-            vf_preds (Placeholder): Placeholder for value function output
-                from previous model evaluation.
-            curr_action_dist (ActionDistribution): ActionDistribution
-                of the current model.
-            value_fn (Tensor): Current value function output Tensor.
-            cur_kl_coeff (Variable): Variable holding the current PPO KL
-                coefficient.
-            valid_mask (Tensor): A bool mask of valid input elements (#2992).
-            entropy_coeff (float): Coefficient of the entropy regularizer.
-            clip_param (float): Clip parameter
-            vf_clip_param (float): Clip parameter for the value function
-            vf_loss_coeff (float): Coefficient of the value function loss
-            use_gae (bool): If true, use the Generalized Advantage Estimator.
-            model_config (dict): (Optional) model config for use in specifying
-                action distributions.
-        """
+        self.advantages_square = tf.check_numerics(
+            tf.square(self.advantages), "advantages_square"
+        )
+
+        self.vf_preds_square = tf.check_numerics(
+            tf.square(self.vf_preds), "vf_preds_square"
+        )
+
+        self.value_fn_square = tf.check_numerics(
+            tf.square(value_fn), "value_fn_square"
+        )
 
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
@@ -626,8 +611,10 @@ class PPOLoss(object):
         prev_dist.std = tf.check_numerics(prev_dist.std, "prev_dist.std")
 
         curr_action_logp = curr_action_dist.logp(actions)
-        curr_action_logp = tf.check_numerics(curr_action_logp, "curr_action_logp")
-        prev_actions_logp = tf.check_numerics(prev_actions_logp, "prev_actions_logp")
+        curr_action_logp = tf.check_numerics(curr_action_logp,
+                                             "curr_action_logp")
+        prev_actions_logp = tf.check_numerics(prev_actions_logp,
+                                              "prev_actions_logp")
 
         tf.Print(prev_actions_logp, [prev_actions_logp], "prev_actions_logp")
         tf.Print(curr_action_logp, [curr_action_logp], "curr_action_logp")
