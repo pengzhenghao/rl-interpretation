@@ -537,7 +537,9 @@ def wrap_stats_ceppo(policy, train_batch):
             value_fn_square=policy.loss_obj.value_fn_square,
             value_targets_square=policy.loss_obj.value_targets_square,
             adv_unnorm_square=policy.adv_unnorm_square,
-            adv_unnorm=policy.adv_unnorm
+            adv_unnorm=policy.adv_unnorm,
+            debug_fake_adv=policy.debug_fake_adv,
+            debug_ratio=policy.debug_ratio,
         )
     else:
         ret.update(
@@ -751,6 +753,8 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
     policy.adv_unnorm_square = tf.square(
         train_batch[Postprocessing.ADVANTAGES + "_unnormalized"]
     )
+    policy.debug_fake_adv = train_batch['debug_fake_adv']
+    policy.debug_ratio = train_batch['debug_ratio']
 
     policy.loss_obj = PPOLoss(
         policy.action_space,
