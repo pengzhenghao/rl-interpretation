@@ -11,6 +11,8 @@ from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
 from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
+from toolbox.cooperative_exploration.debug import on_episode_end, \
+    on_postprocess_traj
 from toolbox.cooperative_exploration.postprocess import \
     postprocess_ppo_gae_replay
 from toolbox.distance import get_kl_divergence
@@ -62,7 +64,9 @@ ceppo_default_config = merge_dicts(
         use_joint_dataset=False,
         mode=REPLAY_VALUES,
         clip_action_prob_kl=1,
-        callbacks={"on_train_result": on_train_result}
+        callbacks={"on_train_result": on_train_result,
+                   # "on_episode_end": on_episode_end,
+                   "on_postprocess_traj": on_postprocess_traj}
     )
     # you should add {"on_train_result": on_train_result} to callbacks.
 )
