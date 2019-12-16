@@ -501,6 +501,9 @@ def wrap_stats_ceppo(policy, train_batch):
         curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
         curr_actions_mean=policy.loss_obj.curr_actions_mean,
         vf_preds=policy.loss_obj.vf_preds,
+        vf_loss1=policy.loss_obj.vf_loss1,
+        vf_loss2=policy.loss_obj.vf_loss2,
+        vf_loss2_clipped=policy.loss_obj.vf_loss2_clipped,
         value_targets=policy.loss_obj.value_targets,
         advantages=policy.loss_obj.advantages,
     )
@@ -657,6 +660,9 @@ class PPOLoss(object):
             vf_loss2 = tf.square(vf_clipped - value_targets)
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
             self.mean_vf_loss = reduce_mean_valid(vf_loss)
+            self.vf_loss1 = vf_loss1
+            self.vf_loss2 = vf_loss2
+            self.vf_loss2_clipped = vf_clipped
             loss = reduce_mean_valid(
                 -surrogate_loss + cur_kl_coeff * action_kl +
                 vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy

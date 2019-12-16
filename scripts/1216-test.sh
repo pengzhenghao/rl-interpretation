@@ -1,4 +1,5 @@
 nohup python toolbox/cooperative_exploration/train.py \
---exp-name 1215-kl \
+--exp-name 1216-test \
 --mode test \
-> 1215-kl.log 2>&1 &
+--test \
+> 1216-test.log 2>&1 &
