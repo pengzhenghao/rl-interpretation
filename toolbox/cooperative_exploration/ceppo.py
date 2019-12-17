@@ -62,8 +62,8 @@ ceppo_default_config = merge_dicts(
         learn_with_peers=True,
         use_joint_dataset=False,
         mode=REPLAY_VALUES,
-        clip_action_prob_kl=1,  # deprecated
-        clip_action_prob=0.5,  # +- 150% is allowed
+        clip_action_prob_kl=1,
+        # clip_action_prob=0.5,  # DEPRECATED, +- 150% is allowed
         callbacks={"on_train_result": on_train_result,
                    # "on_episode_end": on_episode_end,
                    "on_postprocess_traj": on_postprocess_traj}
@@ -277,33 +277,37 @@ def assert_nan(arr):
     assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
 
 
-def _clip_batch(other_batch, clip_action_prob):
-    # kl = get_kl_divergence(
-    #     source=other_batch[BEHAVIOUR_LOGITS],
-    #     target=other_batch["other_logits"],
-    #     mean=False
-    # )
-    #
-    # mask = kl < clip_action_prob_kl
+def _clip_batch(other_batch, clip_action_prob_kl):
+    kl = get_kl_divergence(
+        source=other_batch[BEHAVIOUR_LOGITS],
+        target=other_batch["other_logits"],
+        mean=False
+    )
 
-    ratio = np.exp(
-        other_batch['action_logp'] - other_batch["other_action_logp"])
+    mask = kl < clip_action_prob_kl
 
-    mask = np.logical_and(ratio < 1 + clip_action_prob,
-                          ratio > 1 - clip_action_prob)
+    # ratio = np.exp(
+    #     other_batch['action_logp'] - other_batch["other_action_logp"])
+
+    # mask = np.logical_and(ratio < 1 + clip_action_prob,
+    #                       ratio > q1 - clip_action_prob)
 
     if not np.all(mask):
         assert len(mask) == len(other_batch['action_logp'])
         length = mask.argmin()
         if length == 0:
-            return other_batch
+            msg = "Strange value happen at the first place. The mask {}, " \
+                  "KL {}.".format(mask, kl)
+            print(msg)
+            logger.warning(msg)
+            return None
         assert length < len(other_batch['action_logp'])
-        # msg = "We found strange value in ratio {}, mask {}, " \
-        #       "so we clip the total length {} to {}".format(
-        #     kl, mask, len(other_batch['action_logp']), length
-        # )
-        # print(msg)
-        # logger.debug(msg)
+        msg = "We found strange value in ratio {}, mask {}, " \
+              "so we clip the total length {} to {}".format(
+            kl, mask, len(other_batch['action_logp']), length
+        )
+        print(msg)
+        logger.debug(msg)
         other_batch = other_batch.slice(0, length)
     return other_batch
 
@@ -375,10 +379,13 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             assert_nan(other_batch[ACTION_LOGP])
             assert_nan(other_batch[ACTION_PROB])
             other_batch = _clip_batch(other_batch,
-                                      policy.config["clip_action_prob"])
+                                      policy.config["clip_action_prob_kl"])
             # policy.config["clip_action_prob_kl"])
 
-            batches.append(postprocess_ppo_gae_replay(policy, other_batch))
+            if other_batch is None:
+                continue
+            else:
+                batches.append(postprocess_ppo_gae_replay(policy, other_batch))
         else:
             batches.append(postprocess_ppo_gae(policy, other_batch))
 

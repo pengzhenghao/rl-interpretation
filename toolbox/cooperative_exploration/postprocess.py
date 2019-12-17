@@ -93,9 +93,9 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
         ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
         assert_nan(ratio)
 
-        advantage = ratio * delta_t
+        # advantage = ratio * delta_t
 
-        # advantage = calculate_gae_advantage(delta_t, ratio, lambda_, gamma)
+        advantage = calculate_gae_advantage(delta_t, ratio, lambda_, gamma)
 
         assert_nan(advantage)
         stat(advantage, "[Advantage]")
