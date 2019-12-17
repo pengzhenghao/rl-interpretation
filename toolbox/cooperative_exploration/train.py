@@ -97,8 +97,8 @@ if __name__ == '__main__':
             "In three_baselines baselines, we choose num_agents from:"
             " [2, 3, 4, 5, 8, 10]"
         )
-        num_agents = tune.grid_search([2, 3, 4, 5, 8, 10])
-        # num_agents = tune.grid_search([3])
+        clip_action_prob_kl = tune.grid_search([0.01, 0.1, 1])
+        num_agents = tune.grid_search([3, 5, 7])
     elif args.mode == "test":
         mode = tune.grid_search([REPLAY_VALUES])
         # num_agents = tune.grid_search([2, 3, 5, 10])
