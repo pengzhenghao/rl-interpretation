@@ -20,13 +20,14 @@ def assert_nan(arr):
     assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
 
 
-def stat(arr, msg=""):
-    print(
-        "{}: min {:.5f}, mean {:.5f}, max {:.5f}, std {:.5f}, shape {}, "
-        "sum {}, norm {}, mse {}".format(
-            msg if msg else "[STAT]", arr.min(), arr.mean(), arr.max(),
-            arr.std(), arr.shape, arr.sum(), np.linalg.norm(arr),
-            np.mean(np.square(arr))
+def stat(arr, msg="", enable=False):
+    if enable:
+        print(
+            "{}: min {:.5f}, mean {:.5f}, max {:.5f}, std {:.5f}, shape {}, "
+            "sum {}, norm {}, mse {}".format(
+                msg if msg else "[STAT]", arr.min(), arr.mean(), arr.max(),
+                arr.std(), arr.shape, arr.sum(), np.linalg.norm(arr),
+                np.mean(np.square(arr))
         ))
 
 

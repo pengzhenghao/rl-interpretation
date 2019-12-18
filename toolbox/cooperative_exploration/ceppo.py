@@ -5,13 +5,13 @@ import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
     update_kl
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
-    setup_mixins, \
-    kl_and_loss_stats, BEHAVIOUR_LOGITS, make_tf_callable, Postprocessing, \
-    ACTION_LOGP
+    setup_mixins, kl_and_loss_stats, BEHAVIOUR_LOGITS, make_tf_callable, \
+    Postprocessing, ACTION_LOGP
 from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
-from toolbox.cooperative_exploration.debug import on_postprocess_traj, validate_tensor
+from toolbox.cooperative_exploration.debug import on_postprocess_traj, \
+    validate_tensor, on_episode_start, on_episode_end, on_train_result
 from toolbox.cooperative_exploration.postprocess import \
     postprocess_ppo_gae_replay
 from toolbox.distance import get_kl_divergence
@@ -20,7 +20,7 @@ from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
     AddLossMixin, wrap_stats_fn, wrap_after_train_result
 from toolbox.marl.extra_loss_ppo_trainer import JOINT_OBS, PEER_ACTION, \
     SampleBatch, extra_loss_ppo_loss, get_cross_policy_object, novelty_loss_mse
-from toolbox.marl.utils import on_train_result
+# from toolbox.marl.utils import on_train_result
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
 
@@ -65,8 +65,9 @@ ceppo_default_config = merge_dicts(
         clip_action_prob_kl=1,
         # clip_action_prob=0.5,  # DEPRECATED, +- 150% is allowed
         callbacks={"on_train_result": on_train_result,
-                   # "on_episode_end": on_episode_end,
-                   "on_postprocess_traj": on_postprocess_traj}
+                   "on_episode_start": on_episode_start,
+                   "on_postprocess_traj": on_postprocess_traj,
+                   "on_episode_end": on_episode_end}
     )
     # you should add {"on_train_result": on_train_result} to callbacks.
 )
@@ -296,15 +297,21 @@ def _clip_batch(other_batch, clip_action_prob_kl):
     # mask = np.logical_and(ratio < 1 + clip_action_prob,
     #                       ratio > q1 - clip_action_prob)
 
+    # length means the length of the unclipped trajectory
+
+    length = len(mask)
+    info = {"kl": kl, "unclip_length": length, "length": len(mask)}
+
     if not np.all(mask):
         assert len(mask) == len(other_batch['action_logp'])
         length = mask.argmin()
+        info['unclip_length'] = length
         if length == 0:
             msg = "Strange value happen at the first place. The mask {}, " \
                   "KL {}.".format(mask, kl)
             print(msg)
             logger.warning(msg)
-            return None
+            return None, info
         assert length < len(other_batch['action_logp'])
         msg = "We found strange value in ratio {}, mask {}, " \
               "so we clip the total length {} to {}".format(
@@ -313,7 +320,8 @@ def _clip_batch(other_batch, clip_action_prob_kl):
         print(msg)
         logger.debug(msg)
         other_batch = other_batch.slice(0, length)
-    return other_batch
+
+    return other_batch, info
 
 
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
@@ -345,6 +353,8 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     if policy.config[DISABLE]:
         # Disable for not adding other's info in my batch.
         return postprocess_ppo_gae(policy, batch)
+
+    my_id = "agent{}".format(sample_batch['agent_index'][0])
 
     batches = [postprocess_ppo_gae(policy, batch)]
     for pid, (_, other_batch_raw) in others_batches.items():
@@ -382,9 +392,14 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
             assert_nan(other_batch[ACTION_LOGP])
             assert_nan(other_batch[ACTION_PROB])
-            other_batch = _clip_batch(other_batch,
+            other_batch, info = _clip_batch(other_batch,
                                       policy.config["clip_action_prob_kl"])
             # policy.config["clip_action_prob_kl"])
+
+            episode.user_data['relative_kl'][my_id][pid] = info['kl']
+            episode.user_data['unclip_length'][my_id][pid] = (
+                info['unclip_length'], info['length']
+            )
 
             if other_batch is None:
                 continue
