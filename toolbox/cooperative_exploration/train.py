@@ -97,8 +97,7 @@ if __name__ == '__main__':
         num_agents = tune.grid_search([3, 5, 7])
     elif args.mode == "baseline":
         mode = tune.grid_search([DISABLE, NO_REPLAY_VALUES])
-        # num_agents = tune.grid_search([3, 5, 7])
-        num_agents = 2
+        num_agents = tune.grid_search([3, 5, 7])
     else:
         raise NotImplementedError()
 

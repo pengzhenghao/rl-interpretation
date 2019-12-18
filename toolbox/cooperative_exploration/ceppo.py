@@ -303,18 +303,8 @@ def _clip_batch(other_batch, clip_action_prob_kl):
         length = mask.argmin()
         info['unclip_length'] = length
         if length == 0:
-            # msg = "Strange value happen at the first place. The mask {}, " \
-            #       "KL {}.".format(mask, kl)
-            # print(msg)
-            # logger.warning(msg)
             return None, info
         assert length < len(other_batch['action_logp'])
-        # msg = "We found strange value in ratio {}, mask {}, " \
-        #       "so we clip the total length {} to {}".format(
-        #     kl, mask, len(other_batch['action_logp']), length
-        # )
-        # print(msg)
-        # logger.debug(msg)
         other_batch = other_batch.slice(0, length)
 
     return other_batch, info
