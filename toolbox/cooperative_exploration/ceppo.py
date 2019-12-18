@@ -690,8 +690,8 @@ class PPOLoss(object):
         prev_actions_logp = validate_tensor(prev_actions_logp,
                                             "prev_actions_logp")
 
-        tf.Print(prev_actions_logp, [prev_actions_logp], "prev_actions_logp")
-        tf.Print(curr_action_logp, [curr_action_logp], "curr_action_logp")
+        # tf.Print(prev_actions_logp, [prev_actions_logp], "prev_actions_logp")
+        # tf.Print(curr_action_logp, [curr_action_logp], "curr_action_logp")
 
         # Make loss functions.
         self.logp_diff = curr_action_logp - prev_actions_logp

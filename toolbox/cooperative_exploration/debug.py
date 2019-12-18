@@ -63,7 +63,7 @@ def on_episode_end(info):
     tmp = "{}-action_kl"
     for pid, oth in episode.user_data['relative_kl'].items():
         episode.custom_metrics[tmp.format(pid)] = np.mean(
-            [kl for kl in oth.values()]
+            np.concatenate([kl for kl in oth.values()])
         )
 
     tmp = "{}-unclipped_ratio"
