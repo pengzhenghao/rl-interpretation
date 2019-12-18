@@ -21,6 +21,8 @@ def train(
         address=None
 ):
     assert isinstance(stop, int)
+    if address is not None:
+        num_gpus = None
     initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus,
                    address=address)
     env_config = {"env_name": env_name, "num_agents": num_agents}

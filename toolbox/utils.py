@@ -33,7 +33,7 @@ def _is_centos():
     return flag
 
 
-def initialize_ray(local_mode=False, num_gpus=0, test_mode=False, **kwargs):
+def initialize_ray(local_mode=False, num_gpus=None, test_mode=False, **kwargs):
     if not ray.is_initialized():
         ray.init(
             logging_level=logging.ERROR if not test_mode else logging.DEBUG,
