@@ -76,7 +76,7 @@ def on_episode_end(info):
             unclipped_length / total_length
 
 
-def validate_tensor(x, msg=None, enable=False):
+def validate_tensor(x, msg=None, enable=True):
     """Validate whether the tensor contain NaN or Inf. Default unable."""
     if enable:
         assert msg is not None

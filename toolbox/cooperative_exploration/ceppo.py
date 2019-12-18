@@ -274,7 +274,7 @@ def _compute_logp(logit, x):
     return logp, p
 
 
-def assert_nan(arr, enable=False):
+def assert_nan(arr, enable=True):
     if enable:
         assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
 
