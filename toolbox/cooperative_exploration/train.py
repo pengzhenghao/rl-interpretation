@@ -17,10 +17,12 @@ def train(
         num_agents,
         num_seeds,
         num_gpus,
-        test_mode=False
+        test_mode=False,
+        address=None
 ):
     assert isinstance(stop, int)
-    initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
+    initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus,
+                   address=address)
     env_config = {"env_name": env_name, "num_agents": num_agents}
     config = {
         "seed": tune.grid_search([i * 100 for i in range(num_seeds)]),
@@ -62,6 +64,7 @@ if __name__ == '__main__':
     parser.add_argument("--env", type=str, default="BipedalWalker-v2")
     parser.add_argument("--exp-name", type=str, default="")
     parser.add_argument("--mode", type=str, default="all")
+    parser.add_argument("--address", type=str, default="")
     args = parser.parse_args()
 
     if not args.test:
@@ -115,5 +118,6 @@ if __name__ == '__main__':
         num_agents=num_agents,
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
-        test_mode=args.test
+        test_mode=args.test,
+        address=args.address if args.address else None
     )
