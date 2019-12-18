@@ -99,6 +99,10 @@ if __name__ == '__main__':
         mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES, DISABLE])
         clip_action_prob_kl = tune.grid_search([0.01, 0.1, 1])
         num_agents = tune.grid_search([3, 5, 7])
+    elif args.mode == "baseline_shrink":
+        mode = DISABLE_AND_EXPAND
+        clip_action_prob_kl = tune.grid_search([0.01, 0.1, 1])
+        num_agents = tune.grid_search([3, 5, 7])
     else:
         raise NotImplementedError()
 
