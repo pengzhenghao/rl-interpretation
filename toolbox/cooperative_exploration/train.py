@@ -75,8 +75,8 @@ if __name__ == '__main__':
         "lambda": 0.95,
         "lr": 2.5e-4,
         "num_gpus": 0.15,
-        "num_cpus_per_worker": 0.4,
-        "num_cpus_for_driver": 0.8,
+        "num_cpus_per_worker": 0.5,
+        # "num_cpus_for_driver": 0.8,
         "clip_action_prob_kl": 1
     }
 

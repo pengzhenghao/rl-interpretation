@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=0,2,3,3 \
+CUDA_VISIBLE_DEVICES=0,1,2,3 \
 nohup python toolbox/cooperative_exploration/train.py \
 --exp-name 1218-baseline_and_replay_values \
 --mode baseline \
