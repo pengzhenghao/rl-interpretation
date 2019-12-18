@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 
 def on_sample_end(info):
@@ -27,3 +28,11 @@ def on_episode_end(info):
     print("episode {} ended with length {} and pole angles {}".format(
         episode.episode_id, episode.length, pole_angle))
     episode.custom_metrics["pole_angle"] = pole_angle
+
+
+def validate_tensor(x, enable=False):
+    """Validate whether the tensor contain NaN or Inf. Default unable."""
+    if enable:
+        return tf.check_numerics(x)
+    else:
+        return x

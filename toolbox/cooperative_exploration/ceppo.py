@@ -11,7 +11,7 @@ from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
 from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
-from toolbox.cooperative_exploration.debug import on_postprocess_traj
+from toolbox.cooperative_exploration.debug import on_postprocess_traj, validate_tensor
 from toolbox.cooperative_exploration.postprocess import \
     postprocess_ppo_gae_replay
 from toolbox.distance import get_kl_divergence
@@ -70,6 +70,9 @@ ceppo_default_config = merge_dicts(
     )
     # you should add {"on_train_result": on_train_result} to callbacks.
 )
+
+
+
 
 
 def validate_and_rewrite_config(config):
@@ -273,8 +276,9 @@ def _compute_logp(logit, x):
     return logp, p
 
 
-def assert_nan(arr):
-    assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
+def assert_nan(arr, enable=False):
+    if enable:
+        assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
 
 
 def _clip_batch(other_batch, clip_action_prob_kl):
@@ -619,39 +623,39 @@ class PPOLoss(object):
             model_config=None
     ):
         print("Enter PPOLoss Class")
-        value_targets = tf.check_numerics(value_targets, "value_targets")
-        advantages = tf.check_numerics(advantages, "advantages")
-        actions = tf.check_numerics(actions, "actions")
-        prev_logits = tf.check_numerics(prev_logits, "prev_logits")
-        prev_actions_logp = tf.check_numerics(
+        value_targets = validate_tensor(value_targets, "value_targets")
+        advantages = validate_tensor(advantages, "advantages")
+        actions = validate_tensor(actions, "actions")
+        prev_logits = validate_tensor(prev_logits, "prev_logits")
+        prev_actions_logp = validate_tensor(
             prev_actions_logp, "prev_actions_logp"
         )
-        vf_preds = tf.check_numerics(vf_preds, "vf_preds")
+        vf_preds = validate_tensor(vf_preds, "vf_preds")
         self.vf_preds = vf_preds
         self.value_targets = value_targets
         self.value_targets_square = tf.square(value_targets)
         self.advantages = advantages
 
-        curr_action_dist.log_std = tf.check_numerics(
+        curr_action_dist.log_std = validate_tensor(
             curr_action_dist.log_std, "curr_action_dist.log_std"
         )
-        curr_action_dist.std = tf.check_numerics(
+        curr_action_dist.std = validate_tensor(
             curr_action_dist.std, "curr_action_dist.std"
         )
-        value_fn = tf.check_numerics(value_fn, "value_fn")
+        value_fn = validate_tensor(value_fn, "value_fn")
 
-        self.advantages_square = tf.check_numerics(
+        self.advantages_square = validate_tensor(
             tf.square(self.advantages), "advantages_square"
         )
 
-        self.vf_preds_square = tf.check_numerics(
+        self.vf_preds_square = validate_tensor(
             tf.square(self.vf_preds), "vf_preds_square"
         )
 
-        self.value_fn_square = tf.check_numerics(
+        self.value_fn_square = validate_tensor(
             tf.square(value_fn), "value_fn_square"
         )
-        self.value_targets_square = tf.check_numerics(
+        self.value_targets_square = validate_tensor(
             tf.square(self.value_targets), "value_targets_square"
         )
 
@@ -660,16 +664,16 @@ class PPOLoss(object):
 
         prev_dist = dist_class(prev_logits, model)
 
-        tf.check_numerics(prev_dist.entropy(), "prev_dist.entropy()")
-        prev_dist.log_std = tf.check_numerics(
+        validate_tensor(prev_dist.entropy(), "prev_dist.entropy()")
+        prev_dist.log_std = validate_tensor(
             prev_dist.log_std, "prev_dist.log_std"
         )
-        prev_dist.std = tf.check_numerics(prev_dist.std, "prev_dist.std")
+        prev_dist.std = validate_tensor(prev_dist.std, "prev_dist.std")
 
         curr_action_logp = curr_action_dist.logp(actions)
-        curr_action_logp = tf.check_numerics(curr_action_logp,
+        curr_action_logp = validate_tensor(curr_action_logp,
                                              "curr_action_logp")
-        prev_actions_logp = tf.check_numerics(prev_actions_logp,
+        prev_actions_logp = validate_tensor(prev_actions_logp,
                                               "prev_actions_logp")
 
         tf.Print(prev_actions_logp, [prev_actions_logp], "prev_actions_logp")
@@ -684,12 +688,12 @@ class PPOLoss(object):
         self.curr_actions_mean = curr_action_dist.mean
 
         logp_ratio = tf.exp(curr_action_logp - prev_actions_logp)
-        logp_ratio = tf.check_numerics(logp_ratio, "logp_ratio")
+        logp_ratio = validate_tensor(logp_ratio, "logp_ratio")
         self.logp_ratio_exp = logp_ratio
 
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
-        curr_entropy = tf.check_numerics(
+        curr_entropy = validate_tensor(
             curr_action_dist.entropy(), "curr_action_dist.entropy()"
         )
         # = curr_action_dist.entropy()
@@ -701,7 +705,7 @@ class PPOLoss(object):
             tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
         )
 
-        surrogate_loss = tf.check_numerics(surrogate_loss, "surrogate_loss")
+        surrogate_loss = validate_tensor(surrogate_loss, "surrogate_loss")
 
         self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
 
@@ -727,24 +731,24 @@ class PPOLoss(object):
                 entropy_coeff * curr_entropy
             )
 
-        loss = tf.check_numerics(loss, "self.loss")
+        loss = validate_tensor(loss, "self.loss")
         self.loss = loss
 
 
 def ppo_surrogate_loss(policy, model, dist_class, train_batch):
     train_batch[
         SampleBatch.CUR_OBS
-    ] = tf.check_numerics(train_batch[SampleBatch.CUR_OBS], "CUR_OBS")
+    ] = validate_tensor(train_batch[SampleBatch.CUR_OBS], "CUR_OBS")
 
     logits, state = model.from_batch(train_batch)
-    logits = tf.check_numerics(logits, "action_dist logits")
+    logits = validate_tensor(logits, "action_dist logits")
     action_dist = dist_class(logits, model)
 
-    action_dist.log_std = tf.check_numerics(
+    action_dist.log_std = validate_tensor(
         action_dist.log_std, "action_dist.log_std"
     )
-    action_dist.std = tf.check_numerics(action_dist.std, "action_dist.std")
-    action_dist.mean = tf.check_numerics(action_dist.mean, "action_dist.mean")
+    action_dist.std = validate_tensor(action_dist.std, "action_dist.std")
+    action_dist.mean = validate_tensor(action_dist.mean, "action_dist.mean")
 
     if state:
         max_seq_len = tf.reduce_max(train_batch["seq_lens"])
