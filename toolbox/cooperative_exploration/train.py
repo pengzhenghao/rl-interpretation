@@ -39,7 +39,6 @@ def train(
         local_dir=get_local_dir(),
         name=exp_name,
         checkpoint_at_end=True,
-        checkpoint_freq=10,
         stop={"info/num_steps_sampled": stop},
         config=config,
         max_failures=20,
