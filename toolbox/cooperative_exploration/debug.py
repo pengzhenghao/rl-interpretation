@@ -68,10 +68,12 @@ def on_episode_end(info):
 
     tmp = "{}-unclipped_ratio"
     for pid, oth in episode.user_data['unclip_length'].items():
+        if not oth:
+            continue
         total_length = sum(l for (_, l) in oth.values())
         unclipped_length = sum(l for (l, _) in oth.values())
-        episode.custom_metrics[tmp.format(
-            pid)] = unclipped_length / total_length
+        episode.custom_metrics[tmp.format(pid)] = \
+            unclipped_length / total_length
 
 
 def validate_tensor(x, msg=None, enable=False):

@@ -73,9 +73,6 @@ ceppo_default_config = merge_dicts(
 )
 
 
-
-
-
 def validate_and_rewrite_config(config):
     mode = config['mode']
     assert mode in OPTIONAL_MODES
@@ -303,22 +300,21 @@ def _clip_batch(other_batch, clip_action_prob_kl):
     info = {"kl": kl, "unclip_length": length, "length": len(mask)}
 
     if not np.all(mask):
-        assert len(mask) == len(other_batch['action_logp'])
         length = mask.argmin()
         info['unclip_length'] = length
         if length == 0:
-            msg = "Strange value happen at the first place. The mask {}, " \
-                  "KL {}.".format(mask, kl)
-            print(msg)
-            logger.warning(msg)
+            # msg = "Strange value happen at the first place. The mask {}, " \
+            #       "KL {}.".format(mask, kl)
+            # print(msg)
+            # logger.warning(msg)
             return None, info
         assert length < len(other_batch['action_logp'])
-        msg = "We found strange value in ratio {}, mask {}, " \
-              "so we clip the total length {} to {}".format(
-            kl, mask, len(other_batch['action_logp']), length
-        )
-        print(msg)
-        logger.debug(msg)
+        # msg = "We found strange value in ratio {}, mask {}, " \
+        #       "so we clip the total length {} to {}".format(
+        #     kl, mask, len(other_batch['action_logp']), length
+        # )
+        # print(msg)
+        # logger.debug(msg)
         other_batch = other_batch.slice(0, length)
 
     return other_batch, info
@@ -350,75 +346,88 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     else:
         batch = sample_batch
 
-    if policy.config[DISABLE]:
-        # Disable for not adding other's info in my batch.
-        return postprocess_ppo_gae(policy, batch)
+    # if policy.config[DISABLE]:
+    #     # Disable for not adding other's info in my batch.
+    #     batch = postprocess_ppo_gae(policy, batch)
+    #     batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
+    #         Postprocessing.ADVANTAGES].copy().astype(np.float32)
+    #     if "debug_ratio" not in batch:
+    #         batch['debug_ratio'] = np.ones_like(batch['advantages'],
+    #                                             dtype=np.float32)
+    #     if "debug_fake_adv" not in batch:
+    #         batch['debug_fake_adv'] = np.ones_like(batch['advantages'],
+    #                                                dtype=np.float32)
+    #     return batch
 
     my_id = "agent{}".format(sample_batch['agent_index'][0])
 
     batches = [postprocess_ppo_gae(policy, batch)]
     for pid, (_, other_batch_raw) in others_batches.items():
         other_batch = other_batch_raw.copy()
-        if policy.config[REPLAY_VALUES]:
+        # if policy.config[REPLAY_VALUES]:
 
-            # use my policy to evaluate the values and other relative data
-            # of other's samples.
-            assert_nan(other_batch[SampleBatch.CUR_OBS])
+        # use my policy to evaluate the values and other relative data
+        # of other's samples.
+        assert_nan(other_batch[SampleBatch.CUR_OBS])
 
-            assert other_batch[SampleBatch.CUR_OBS].ndim == 2
+        assert other_batch[SampleBatch.CUR_OBS].ndim == 2
 
-            replay_result = policy.compute_actions(
-                other_batch[SampleBatch.CUR_OBS]
-            )[2]
+        replay_result = policy.compute_actions(
+            other_batch[SampleBatch.CUR_OBS]
+        )[2]
 
-            other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
-            other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
-            other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
+        other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
+        other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
+        other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
 
-            other_batch[SampleBatch.VF_PREDS] = \
-                replay_result[SampleBatch.VF_PREDS]
-            other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
+        other_batch[SampleBatch.VF_PREDS] = \
+            replay_result[SampleBatch.VF_PREDS]
+        other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
 
-            assert other_batch[BEHAVIOUR_LOGITS].ndim == 2
+        assert other_batch[BEHAVIOUR_LOGITS].ndim == 2
 
-            assert_nan(other_batch[BEHAVIOUR_LOGITS])
+        assert_nan(other_batch[BEHAVIOUR_LOGITS])
 
-            # TODO(pengzh) it's ok to delete these two data in batch.
-            other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
-                _compute_logp(
-                    other_batch[BEHAVIOUR_LOGITS],
-                    other_batch[SampleBatch.ACTIONS]
-                )
-
-            assert_nan(other_batch[ACTION_LOGP])
-            assert_nan(other_batch[ACTION_PROB])
-            other_batch, info = _clip_batch(other_batch,
-                                      policy.config["clip_action_prob_kl"])
-            # policy.config["clip_action_prob_kl"])
-
-            episode.user_data['relative_kl'][my_id][pid] = info['kl']
-            episode.user_data['unclip_length'][my_id][pid] = (
-                info['unclip_length'], info['length']
+        # TODO(pengzh) it's ok to delete these two data in batch.
+        other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
+            _compute_logp(
+                other_batch[BEHAVIOUR_LOGITS],
+                other_batch[SampleBatch.ACTIONS]
             )
 
-            if other_batch is None:
-                continue
-            else:
-                batches.append(postprocess_ppo_gae_replay(policy, other_batch))
+        assert_nan(other_batch[ACTION_LOGP])
+        assert_nan(other_batch[ACTION_PROB])
+        other_batch, info = _clip_batch(
+            other_batch, policy.config["clip_action_prob_kl"]
+        )
+        episode.user_data['relative_kl'][my_id][pid] = info['kl']
+        episode.user_data['unclip_length'][my_id][pid] = (
+            info['unclip_length'], info['length']
+        )
+
+        # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
+        # but we still want to take a look of those statics.
+        # Maybe in the future we can add knob to remove all such slowly stats.
+        if other_batch is None:
+            continue
+        elif policy.config[DISABLE]:
+            continue
+        elif not policy.config[REPLAY_VALUES]:
+            batches.append(postprocess_ppo_gae(policy, other_batch_raw))
         else:
-            batches.append(postprocess_ppo_gae(policy, other_batch))
+            batches.append(postprocess_ppo_gae_replay(policy, other_batch))
 
     for batch in batches:
         batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
             Postprocessing.ADVANTAGES].copy().astype(np.float32)
         if "debug_ratio" not in batch:
-            batch['debug_ratio'] = np.ones_like(batch['advantages'],
-                                                dtype=np.float32)
-        if "debug_fake_adv" not in batch:
-            batch['debug_fake_adv'] = np.ones_like(batch['advantages'],
-                                                   dtype=np.float32)
+            assert "debug_fake_adv" not in batch
+            batch['debug_ratio'] = np.ones_like(
+                batch['advantages'], dtype=np.float32) * -1
+            batch['debug_fake_adv'] = batch['debug_ratio']
 
-    return SampleBatch.concat_samples(batches)
+    return SampleBatch.concat_samples(batches) if len(batches) != 1 \
+        else batches[0]
 
 
 class ValueNetworkMixin2(object):
@@ -687,9 +696,9 @@ class PPOLoss(object):
 
         curr_action_logp = curr_action_dist.logp(actions)
         curr_action_logp = validate_tensor(curr_action_logp,
-                                             "curr_action_logp")
+                                           "curr_action_logp")
         prev_actions_logp = validate_tensor(prev_actions_logp,
-                                              "prev_actions_logp")
+                                            "prev_actions_logp")
 
         tf.Print(prev_actions_logp, [prev_actions_logp], "prev_actions_logp")
         tf.Print(curr_action_logp, [curr_action_logp], "curr_action_logp")

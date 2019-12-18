@@ -74,9 +74,9 @@ if __name__ == '__main__':
         "entropy_coeff": 0.001,
         "lambda": 0.95,
         "lr": 2.5e-4,
-        # "mode": mode,
-        "num_gpus": 0.2,
+        "num_gpus": 0.15,
         "num_cpus_per_worker": 0.4,
+        "num_cpus_for_driver": 0.8,
         "clip_action_prob_kl": 1
     }
 
@@ -91,26 +91,14 @@ if __name__ == '__main__':
         mode = DISABLE_AND_EXPAND
         num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
         num_gpus = 0.5
-    elif args.mode == "two":
-        mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES])
-        print(
-            "In three_baselines baselines, we choose num_agents from:"
-            " [2, 3, 4, 5, 8, 10]"
-        )
+    elif args.mode == "replay_values":
+        mode = REPLAY_VALUES
         clip_action_prob_kl = tune.grid_search([0.01, 0.1, 1])
         num_agents = tune.grid_search([3, 5, 7])
-    elif args.mode == "test":
-        mode = tune.grid_search([REPLAY_VALUES])
-        # num_agents = tune.grid_search([2, 3, 5, 10])
+    elif args.mode == "baseline":
+        mode = tune.grid_search([DISABLE, NO_REPLAY_VALUES])
+        # num_agents = tune.grid_search([3, 5, 7])
         num_agents = 2
-        clip_action_prob_kl = tune.grid_search([0.1, 1, 2, 3, 10])
-    elif args.mode == "test_no_gae":
-        mode = tune.grid_search([REPLAY_VALUES])
-        # num_agents = tune.grid_search([2, 3, 5, 10])
-        num_agents = 2
-        clip_action_prob_kl = tune.grid_search([0.1, 1, 2, 3, 10])
-        ceppo_config['use_gae'] = False
-        ceppo_config['batch_mode'] = "complete_episodes"
     else:
         raise NotImplementedError()
 
