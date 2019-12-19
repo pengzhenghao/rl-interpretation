@@ -3,8 +3,6 @@
 # value.
 
 nohup python toolbox/cooperative_exploration/train.py \
---exp-name 1213-pure_replay \
+--exp-name 1215-new_adv \
 --mode two \
---num-seeds 1 \
---test \
-> 1213-pure_replay.log 2>&1 &
+> 1215-new_adv.log 2>&1 &

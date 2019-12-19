@@ -4,19 +4,23 @@ import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
     update_kl
-from ray.rllib.policy.tf_policy import ACTION_LOGP, ACTION_PROB
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
-    make_tf_callable, setup_mixins, kl_and_loss_stats, \
-    BEHAVIOUR_LOGITS
+    setup_mixins, kl_and_loss_stats, BEHAVIOUR_LOGITS, make_tf_callable, \
+    Postprocessing, ACTION_LOGP
+from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
+from toolbox.cooperative_exploration.debug import on_postprocess_traj, \
+    validate_tensor, on_episode_start, on_episode_end, on_train_result
+from toolbox.cooperative_exploration.postprocess import \
+    postprocess_ppo_gae_replay
 from toolbox.distance import get_kl_divergence
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
     AdaptiveExtraLossPPOTFPolicy, merge_dicts, NoveltyParamMixin, mixin_list, \
     AddLossMixin, wrap_stats_fn, wrap_after_train_result
 from toolbox.marl.extra_loss_ppo_trainer import JOINT_OBS, PEER_ACTION, \
     SampleBatch, extra_loss_ppo_loss, get_cross_policy_object, novelty_loss_mse
-from toolbox.marl.utils import on_train_result
+# from toolbox.marl.utils import on_train_result
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
 
@@ -58,7 +62,12 @@ ceppo_default_config = merge_dicts(
         learn_with_peers=True,
         use_joint_dataset=False,
         mode=REPLAY_VALUES,
-        callbacks={"on_train_result": on_train_result}
+        clip_action_prob_kl=1,
+        # clip_action_prob=0.5,  # DEPRECATED, +- 150% is allowed
+        callbacks={"on_train_result": on_train_result,
+                   "on_episode_start": on_episode_start,
+                   "on_postprocess_traj": on_postprocess_traj,
+                   "on_episode_end": on_episode_end}
     )
     # you should add {"on_train_result": on_train_result} to callbacks.
 )
@@ -256,22 +265,60 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x, 1) if x.ndim == 1 else x
     assert x.ndim == 2, x.shape
     mean, log_std = np.split(logit, 2, axis=1)
-    logp = (-0.5 * np.sum(
-        np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * x.shape[1] -
-            np.sum(log_std, axis=1))
+    logp = (
+            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+    )
     logp = np.nan_to_num(logp)
     p = np.exp(logp)
     return logp, p
 
 
-def assert_nan(arr):
-    assert not np.any(np.isnan(arr)), arr
+def assert_nan(arr, enable=True):
+    if enable:
+        assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
+
+
+def _clip_batch(other_batch, clip_action_prob_kl):
+    kl = get_kl_divergence(
+        source=other_batch[BEHAVIOUR_LOGITS],
+        target=other_batch["other_logits"],
+        mean=False
+    )
+
+    mask = kl < clip_action_prob_kl
+
+    # ratio = np.exp(
+    #     other_batch['action_logp'] - other_batch["other_action_logp"])
+
+    # mask = np.logical_and(ratio < 1 + clip_action_prob,
+    #                       ratio > q1 - clip_action_prob)
+
+    # length means the length of the unclipped trajectory
+
+    length = len(mask)
+    info = {"kl": kl, "unclip_length": length, "length": len(mask)}
+
+    if not np.all(mask):
+        length = mask.argmin()
+        info['unclip_length'] = length
+        if length == 0:
+            return None, info
+        assert length < len(other_batch['action_logp'])
+        other_batch = other_batch.slice(0, length)
+
+    return other_batch, info
 
 
 def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
+        batch["advantages_unnormalized"] = np.zeros_like(batch["advantages"],
+                                                         dtype=np.float32)
+        batch['debug_ratio'] = np.zeros_like(batch["advantages"],
+                                             dtype=np.float32)
+        batch['debug_fake_adv'] = np.zeros_like(batch["advantages"],
+                                                dtype=np.float32)
         if policy.config[DIVERSITY_ENCOURAGING] or policy.config[CURIOSITY]:
             assert not policy.config["use_joint_dataset"]
             batch[JOINT_OBS] = np.zeros_like(
@@ -289,75 +336,121 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
     else:
         batch = sample_batch
 
-    if policy.config[DISABLE]:
-        # Disable for not adding other's info in my batch.
-        return postprocess_ppo_gae(policy, batch)
+    # if policy.config[DISABLE]:
+    #     # Disable for not adding other's info in my batch.
+    #     batch = postprocess_ppo_gae(policy, batch)
+    #     batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
+    #         Postprocessing.ADVANTAGES].copy().astype(np.float32)
+    #     if "debug_ratio" not in batch:
+    #         batch['debug_ratio'] = np.ones_like(batch['advantages'],
+    #                                             dtype=np.float32)
+    #     if "debug_fake_adv" not in batch:
+    #         batch['debug_fake_adv'] = np.ones_like(batch['advantages'],
+    #                                                dtype=np.float32)
+    #     return batch
+
+    my_id = "agent{}".format(sample_batch['agent_index'][0])
 
     batches = [postprocess_ppo_gae(policy, batch)]
-    for pid, (_, other_batch) in others_batches.items():
-        other_batch = other_batch.copy()
-        if policy.config[REPLAY_VALUES]:
-            # use my policy to evaluate the values and other relative data
-            # of other's samples.
-            assert_nan(other_batch[SampleBatch.CUR_OBS])
+    for pid, (_, other_batch_raw) in others_batches.items():
+        other_batch = other_batch_raw.copy()
+        # if policy.config[REPLAY_VALUES]:
 
-            assert other_batch[SampleBatch.CUR_OBS].ndim == 2
+        # use my policy to evaluate the values and other relative data
+        # of other's samples.
+        assert_nan(other_batch[SampleBatch.CUR_OBS])
 
-            replay_result = policy.compute_actions(
-                other_batch[SampleBatch.CUR_OBS])[2]
+        assert other_batch[SampleBatch.CUR_OBS].ndim == 2
 
-            other_batch[SampleBatch.VF_PREDS] = replay_result[SampleBatch.VF_PREDS]
-            other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
+        replay_result = policy.compute_actions(
+            other_batch[SampleBatch.CUR_OBS]
+        )[2]
 
-            assert other_batch[BEHAVIOUR_LOGITS].ndim == 2
+        other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
+        other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
+        other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
 
-            assert_nan(other_batch[BEHAVIOUR_LOGITS])
+        other_batch[SampleBatch.VF_PREDS] = \
+            replay_result[SampleBatch.VF_PREDS]
+        other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
 
-            other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
-                _compute_logp(
-                    other_batch[BEHAVIOUR_LOGITS],
-                    other_batch[SampleBatch.ACTIONS]
+        assert other_batch[BEHAVIOUR_LOGITS].ndim == 2
+
+        assert_nan(other_batch[BEHAVIOUR_LOGITS])
+
+        # TODO(pengzh) it's ok to delete these two data in batch.
+        other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
+            _compute_logp(
+                other_batch[BEHAVIOUR_LOGITS],
+                other_batch[SampleBatch.ACTIONS]
+            )
+
+        assert_nan(other_batch[ACTION_LOGP])
+        assert_nan(other_batch[ACTION_PROB])
+        other_batch, info = _clip_batch(
+            other_batch, policy.config["clip_action_prob_kl"]
+        )
+        episode.user_data['relative_kl'][my_id][pid] = info['kl']
+        episode.user_data['unclip_length'][my_id][pid] = (
+            info['unclip_length'], info['length']
+        )
+
+        # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
+        # but we still want to take a look of those statics.
+        # Maybe in the future we can add knob to remove all such slowly stats.
+        if other_batch is None:
+            continue
+        elif policy.config[DISABLE]:
+            continue
+        elif not policy.config[REPLAY_VALUES]:
+            batches.append(postprocess_ppo_gae(policy, other_batch_raw))
+        else:
+            batches.append(postprocess_ppo_gae_replay(policy, other_batch))
+
+    for batch in batches:
+        batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
+            Postprocessing.ADVANTAGES].copy().astype(np.float32)
+        if "debug_ratio" not in batch:
+            assert "debug_fake_adv" not in batch
+            batch['debug_ratio'] = np.ones_like(
+                batch['advantages'], dtype=np.float32) * -1
+            batch['debug_fake_adv'] = batch['debug_ratio']
+
+    return SampleBatch.concat_samples(batches) if len(batches) != 1 \
+        else batches[0]
+
+
+class ValueNetworkMixin2(object):
+    def __init__(self, config):
+        if config["use_gae"]:
+
+            @make_tf_callable(self.get_session(), True)
+            def value_batch(ob, prev_action, prev_reward):
+                # We do not support recurrent network now.
+                model_out, _ = self.model(
+                    {
+                        SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
+                        SampleBatch.PREV_ACTIONS: tf.
+                            convert_to_tensor(prev_action),
+                        SampleBatch.PREV_REWARDS: tf.
+                            convert_to_tensor(prev_reward),
+                        "is_training": tf.convert_to_tensor(False),
+                    }
                 )
+                return self.model.value_function()
+        else:
 
-            assert_nan(other_batch[ACTION_LOGP])
-            assert_nan(other_batch[ACTION_PROB])
+            @make_tf_callable(self.get_session(), True)
+            def value_batch(ob, prev_action, prev_reward):
+                return tf.zeros_like(prev_reward)
 
-        # use my policy to postprocess other's trajectory.
-        batches.append(postprocess_ppo_gae(policy, other_batch))
-    return SampleBatch.concat_samples(batches)
-
-
-# class ValueNetworkMixin2(object):
-#     def __init__(self, config):
-#         if config["use_gae"]:
-#
-#             @make_tf_callable(self.get_session(), True)
-#             def value_batch(ob, prev_action, prev_reward):
-#                 # We do not support recurrent network now.
-#                 model_out, _ = self.model(
-#                     {
-#                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
-#                         SampleBatch.PREV_ACTIONS: tf.
-#                             convert_to_tensor(prev_action),
-#                         SampleBatch.PREV_REWARDS: tf.
-#                             convert_to_tensor(prev_reward),
-#                         "is_training": tf.convert_to_tensor(False),
-#                     }
-#                 )
-#                 return self.model.value_function()
-#         else:
-#
-#             @make_tf_callable(self.get_session(), True)
-#             def value_batch(ob, prev_action, prev_reward):
-#                 return tf.zeros_like(prev_reward)
-#
-#         self._value_batch = value_batch
+        self._value_batch = value_batch
 
 
 def setup_mixins_ceppo(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
-    # if not config['disable']:
-    #     ValueNetworkMixin2.__init__(policy, config)
+    if not config['disable']:
+        ValueNetworkMixin2.__init__(policy, config)
     if config[DIVERSITY_ENCOURAGING] or config[CURIOSITY]:
         AddLossMixin.__init__(policy, config)
         NoveltyParamMixin.__init__(policy, config)
@@ -449,11 +542,52 @@ def wrap_stats_ceppo(policy, train_batch):
     if policy.config[DIVERSITY_ENCOURAGING]:
         return wrap_stats_fn(policy, train_batch)
     ret = kl_and_loss_stats(policy, train_batch)
-    ret.update(
-        logp_diff=policy.loss_obj.logp_diff,
-        logp_ratio=policy.loss_obj.logp_ratio,
-        prev_actions_logp=policy.loss_obj.prev_actions_logp
-    )
+    if policy.config['use_gae']:
+        ret.update(
+            logp_diff=policy.loss_obj.logp_diff,
+            logp_ratio=policy.loss_obj.logp_ratio,
+            logp_ratio_exp=policy.loss_obj.logp_ratio_exp,
+            prev_actions_logp=policy.loss_obj.prev_actions_logp,
+            curr_actions_logp=policy.loss_obj.curr_actions_logp,
+            curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
+            curr_actions_mean=policy.loss_obj.curr_actions_mean,
+            vf_preds=policy.loss_obj.vf_preds,
+            vf_loss1=policy.loss_obj.vf_loss1,
+            vf_loss2=policy.loss_obj.vf_loss2,
+            vf_loss2_clipped=policy.loss_obj.vf_loss2_clipped,
+            value_targets=policy.loss_obj.value_targets,
+            advantages=policy.loss_obj.advantages,
+            advantages_square=policy.loss_obj.advantages_square,
+            vf_preds_square=policy.loss_obj.vf_preds_square,
+            value_fn_square=policy.loss_obj.value_fn_square,
+            value_targets_square=policy.loss_obj.value_targets_square,
+            adv_unnorm_square=policy.adv_unnorm_square,
+            adv_unnorm=policy.adv_unnorm,
+            debug_fake_adv=policy.debug_fake_adv,
+            debug_ratio=policy.debug_ratio,
+        )
+    else:
+        ret.update(
+            logp_diff=policy.loss_obj.logp_diff,
+            logp_ratio=policy.loss_obj.logp_ratio,
+            logp_ratio_exp=policy.loss_obj.logp_ratio_exp,
+            prev_actions_logp=policy.loss_obj.prev_actions_logp,
+            curr_actions_logp=policy.loss_obj.curr_actions_logp,
+            curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
+            curr_actions_mean=policy.loss_obj.curr_actions_mean,
+            # vf_preds=policy.loss_obj.vf_preds,
+            # vf_loss1=policy.loss_obj.vf_loss1,
+            # vf_loss2=policy.loss_obj.vf_loss2,
+            # vf_loss2_clipped=policy.loss_obj.vf_loss2_clipped,
+            # value_targets=policy.loss_obj.value_targets,
+            advantages=policy.loss_obj.advantages,
+            advantages_square=policy.loss_obj.advantages_square,
+            # vf_preds_square=policy.loss_obj.vf_preds_square,
+            # value_fn_square=policy.loss_obj.value_fn_square,
+            # value_targets_square=policy.loss_obj.value_targets_square,
+            adv_unnorm_square=policy.adv_unnorm_square,
+            adv_unnorm=policy.adv_unnorm
+        )
     if policy.config[CURIOSITY]:
         ret.update(
             novelty_loss_param=policy.novelty_loss_param,
@@ -480,142 +614,155 @@ def loss_ceppo(policy, model, dist_class, train_batch):
 
 
 class PPOLoss(object):
-    def __init__(self,
-                 action_space,
-                 dist_class,
-                 model,
-                 value_targets,
-                 advantages,
-                 actions,
-                 prev_logits,
-                 prev_actions_logp,
-                 vf_preds,
-                 curr_action_dist,
-                 value_fn,
-                 cur_kl_coeff,
-                 valid_mask,
-                 entropy_coeff=0,
-                 clip_param=0.1,
-                 vf_clip_param=0.1,
-                 vf_loss_coeff=1.0,
-                 use_gae=True,
-                 model_config=None):
+    def __init__(
+            self,
+            action_space,
+            dist_class,
+            model,
+            value_targets,
+            advantages,
+            actions,
+            prev_logits,
+            prev_actions_logp,
+            vf_preds,
+            curr_action_dist,
+            value_fn,
+            cur_kl_coeff,
+            valid_mask,
+            entropy_coeff=0,
+            clip_param=0.1,
+            vf_clip_param=0.1,
+            vf_loss_coeff=1.0,
+            use_gae=True,
+            model_config=None
+    ):
         print("Enter PPOLoss Class")
-        value_targets = tf.check_numerics(value_targets, "value_targets")
-        advantages = tf.check_numerics(advantages, "advantages")
-        actions = tf.check_numerics(actions, "actions")
-        prev_logits = tf.check_numerics(prev_logits, "prev_logits")
-        prev_actions_logp = tf.check_numerics(prev_actions_logp,
-                                              "prev_actions_logp")
-        vf_preds = tf.check_numerics(vf_preds, "vf_preds")
+        value_targets = validate_tensor(value_targets, "value_targets")
+        advantages = validate_tensor(advantages, "advantages")
+        actions = validate_tensor(actions, "actions")
+        prev_logits = validate_tensor(prev_logits, "prev_logits")
+        prev_actions_logp = validate_tensor(
+            prev_actions_logp, "prev_actions_logp"
+        )
+        vf_preds = validate_tensor(vf_preds, "vf_preds")
+        self.vf_preds = vf_preds
+        self.value_targets = value_targets
+        self.value_targets_square = tf.square(value_targets)
+        self.advantages = advantages
 
-        curr_action_dist.log_std = tf.check_numerics(curr_action_dist.log_std,
-                                                     "curr_action_dist.log_std")
-        curr_action_dist.std = tf.check_numerics(curr_action_dist.std,
-                                                 "curr_action_dist.std")
-        value_fn = tf.check_numerics(value_fn, "value_fn")
+        curr_action_dist.log_std = validate_tensor(
+            curr_action_dist.log_std, "curr_action_dist.log_std"
+        )
+        curr_action_dist.std = validate_tensor(
+            curr_action_dist.std, "curr_action_dist.std"
+        )
+        value_fn = validate_tensor(value_fn, "value_fn")
 
-        """Constructs the loss for Proximal Policy Objective.
+        self.advantages_square = validate_tensor(
+            tf.square(self.advantages), "advantages_square"
+        )
 
-        Arguments:
-            action_space: Environment observation space specification.
-            dist_class: action distribution class for logits.
-            value_targets (Placeholder): Placeholder for target values; used
-                for GAE.
-            actions (Placeholder): Placeholder for actions taken
-                from previous model evaluation.
-            advantages (Placeholder): Placeholder for calculated advantages
-                from previous model evaluation.
-            prev_logits (Placeholder): Placeholder for logits output from
-                previous model evaluation.
-            prev_actions_logp (Placeholder): Placeholder for prob output from
-                previous model evaluation.
-            vf_preds (Placeholder): Placeholder for value function output
-                from previous model evaluation.
-            curr_action_dist (ActionDistribution): ActionDistribution
-                of the current model.
-            value_fn (Tensor): Current value function output Tensor.
-            cur_kl_coeff (Variable): Variable holding the current PPO KL
-                coefficient.
-            valid_mask (Tensor): A bool mask of valid input elements (#2992).
-            entropy_coeff (float): Coefficient of the entropy regularizer.
-            clip_param (float): Clip parameter
-            vf_clip_param (float): Clip parameter for the value function
-            vf_loss_coeff (float): Coefficient of the value function loss
-            use_gae (bool): If true, use the Generalized Advantage Estimator.
-            model_config (dict): (Optional) model config for use in specifying
-                action distributions.
-        """
+        self.vf_preds_square = validate_tensor(
+            tf.square(self.vf_preds), "vf_preds_square"
+        )
+
+        self.value_fn_square = validate_tensor(
+            tf.square(value_fn), "value_fn_square"
+        )
+        self.value_targets_square = validate_tensor(
+            tf.square(self.value_targets), "value_targets_square"
+        )
 
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
         prev_dist = dist_class(prev_logits, model)
 
-        tf.check_numerics(prev_dist.entropy(), "prev_dist.entropy()")
-        prev_dist.log_std = tf.check_numerics(prev_dist.log_std,
-                                              "prev_dist.log_std")
-        prev_dist.std = tf.check_numerics(prev_dist.std, "prev_dist.std")
+        validate_tensor(prev_dist.entropy(), "prev_dist.entropy()")
+        prev_dist.log_std = validate_tensor(
+            prev_dist.log_std, "prev_dist.log_std"
+        )
+        prev_dist.std = validate_tensor(prev_dist.std, "prev_dist.std")
+
+        curr_action_logp = curr_action_dist.logp(actions)
+        curr_action_logp = validate_tensor(curr_action_logp,
+                                           "curr_action_logp")
+        prev_actions_logp = validate_tensor(prev_actions_logp,
+                                            "prev_actions_logp")
+
+        # tf.Print(prev_actions_logp, [prev_actions_logp], "prev_actions_logp")
+        # tf.Print(curr_action_logp, [curr_action_logp], "curr_action_logp")
 
         # Make loss functions.
-        self.logp_diff = curr_action_dist.logp(actions) - prev_actions_logp
-        self.logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
+        self.logp_diff = curr_action_logp - prev_actions_logp
+        self.logp_ratio = tf.exp(curr_action_logp - prev_actions_logp)
         self.prev_actions_logp = prev_actions_logp
+        self.curr_actions_logp = curr_action_logp
+        self.curr_actions_log_std = curr_action_dist.log_std
+        self.curr_actions_mean = curr_action_dist.mean
 
-        logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
-        logp_ratio = tf.check_numerics(logp_ratio, "logp_ratio")
+        logp_ratio = tf.exp(curr_action_logp - prev_actions_logp)
+        logp_ratio = validate_tensor(logp_ratio, "logp_ratio")
+        self.logp_ratio_exp = logp_ratio
 
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
-        curr_entropy = tf.check_numerics(curr_action_dist.entropy(),
-                          "curr_action_dist.entropy()")
-         # = curr_action_dist.entropy()
+        curr_entropy = validate_tensor(
+            curr_action_dist.entropy(), "curr_action_dist.entropy()"
+        )
+        # = curr_action_dist.entropy()
         self.mean_entropy = reduce_mean_valid(curr_entropy)
 
         surrogate_loss = tf.minimum(
             advantages * logp_ratio,
-            advantages * tf.clip_by_value(logp_ratio, 1 - clip_param,
-                                          1 + clip_param))
+            advantages *
+            tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
+        )
 
-        surrogate_loss = tf.check_numerics(surrogate_loss, "surrogate_loss")
+        surrogate_loss = validate_tensor(surrogate_loss, "surrogate_loss")
 
         self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
 
         if use_gae:
             vf_loss1 = tf.square(value_fn - value_targets)
             vf_clipped = vf_preds + tf.clip_by_value(
-                value_fn - vf_preds, -vf_clip_param, vf_clip_param)
+                value_fn - vf_preds, -vf_clip_param, vf_clip_param
+            )
             vf_loss2 = tf.square(vf_clipped - value_targets)
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
             self.mean_vf_loss = reduce_mean_valid(vf_loss)
+            self.vf_loss1 = vf_loss1
+            self.vf_loss2 = vf_loss2
+            self.vf_loss2_clipped = vf_clipped
             loss = reduce_mean_valid(
                 -surrogate_loss + cur_kl_coeff * action_kl +
-                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy)
+                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
+            )
         else:
             self.mean_vf_loss = tf.constant(0.0)
-            loss = reduce_mean_valid(-surrogate_loss +
-                                     cur_kl_coeff * action_kl -
-                                     entropy_coeff * curr_entropy)
+            loss = reduce_mean_valid(
+                -surrogate_loss + cur_kl_coeff * action_kl -
+                entropy_coeff * curr_entropy
+            )
 
-        loss = tf.check_numerics(loss, "self.loss")
+        loss = validate_tensor(loss, "self.loss")
         self.loss = loss
 
 
-from ray.rllib.agents.ppo.ppo_policy import Postprocessing, ACTION_LOGP
-
-
 def ppo_surrogate_loss(policy, model, dist_class, train_batch):
-    train_batch[SampleBatch.CUR_OBS] = tf.check_numerics(
-        train_batch[SampleBatch.CUR_OBS], "CUR_OBS"
-    )
+    train_batch[
+        SampleBatch.CUR_OBS
+    ] = validate_tensor(train_batch[SampleBatch.CUR_OBS], "CUR_OBS")
 
     logits, state = model.from_batch(train_batch)
-    logits = tf.check_numerics(logits, "action_dist logits")
+    logits = validate_tensor(logits, "action_dist logits")
     action_dist = dist_class(logits, model)
 
-    action_dist.log_std = tf.check_numerics(action_dist.log_std, "action_dist.log_std")
-    action_dist.std = tf.check_numerics(action_dist.std, "action_dist.std")
-    action_dist.mean = tf.check_numerics(action_dist.mean, "action_dist.mean")
+    action_dist.log_std = validate_tensor(
+        action_dist.log_std, "action_dist.log_std"
+    )
+    action_dist.std = validate_tensor(action_dist.std, "action_dist.std")
+    action_dist.mean = validate_tensor(action_dist.mean, "action_dist.mean")
 
     if state:
         max_seq_len = tf.reduce_max(train_batch["seq_lens"])
@@ -623,7 +770,16 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         mask = tf.reshape(mask, [-1])
     else:
         mask = tf.ones_like(
-            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool)
+            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
+        )
+
+    policy.adv_unnorm = train_batch[
+        Postprocessing.ADVANTAGES + "_unnormalized"]
+    policy.adv_unnorm_square = tf.square(
+        train_batch[Postprocessing.ADVANTAGES + "_unnormalized"]
+    )
+    policy.debug_fake_adv = train_batch['debug_fake_adv']
+    policy.debug_ratio = train_batch['debug_ratio']
 
     policy.loss_obj = PPOLoss(
         policy.action_space,
@@ -644,7 +800,16 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"])
+        model_config=policy.config["model"]
+    )
+
+    l = [
+        Postprocessing.ADVANTAGES + "_unnormalized",
+        "debug_ratio",
+        "debug_fake_adv"
+    ]
+    for ll in l:
+        policy.loss_obj.loss += 0 * train_batch[ll]
 
     return policy.loss_obj.loss
 
@@ -656,8 +821,7 @@ CEPPOTFPolicy = AdaptiveExtraLossPPOTFPolicy.with_updates(
     loss_fn=loss_ceppo,
     before_loss_init=setup_mixins_ceppo,
     stats_fn=wrap_stats_ceppo,
-    mixins=mixin_list + [AddLossMixin, NoveltyParamMixin]
-        # , ValueNetworkMixin2]
+    mixins=mixin_list + [AddLossMixin, NoveltyParamMixin, ValueNetworkMixin2]
 )
 
 CEPPOTrainer = AdaptiveExtraLossPPOTrainer.with_updates(
