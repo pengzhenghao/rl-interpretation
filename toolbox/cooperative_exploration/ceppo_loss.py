@@ -170,7 +170,8 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"]
+        model_config=policy.config["model"],
+        validate_nan=policy.config["check_nan"]
     )
 
     l = [

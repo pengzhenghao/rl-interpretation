@@ -10,12 +10,12 @@ from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.cooperative_exploration.ceppo_loss import loss_ceppo
-from toolbox.cooperative_exploration.utils import *
 from toolbox.cooperative_exploration.debug import on_postprocess_traj, \
     on_episode_start, on_episode_end, on_train_result, \
     assert_nan
 from toolbox.cooperative_exploration.postprocess import \
     postprocess_ppo_gae_replay
+from toolbox.cooperative_exploration.utils import *
 from toolbox.distance import get_kl_divergence
 from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
     AdaptiveExtraLossPPOTFPolicy, merge_dicts, NoveltyParamMixin, mixin_list, \
@@ -42,7 +42,6 @@ ceppo_default_config = merge_dicts(
             "on_episode_end": on_episode_end
         }
     )
-    # you should add {"on_train_result": on_train_result} to callbacks.
 )
 
 
@@ -172,6 +171,8 @@ def validate_and_rewrite_config(config):
         assert "curiosity_type" not in config
         # assert "curiosity_tensity" not in config
 
+    config['check_nan'] = False
+
 
 def _add_intrinsic_reward(policy, my_batch, others_batches, config):
     # if using mse
@@ -234,15 +235,12 @@ def _add_intrinsic_reward(policy, my_batch, others_batches, config):
 def _compute_logp(logit, x):
     # Only for DiagGaussian distribution. Copied from tf_action_dist.py
     logit = logit.astype(np.float64)
-    x = x.astype(np.float64)
-    x = np.expand_dims(x, 1) if x.ndim == 1 else x
-    assert x.ndim == 2, x.shape
+    x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
         -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
         0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
-    logp = np.nan_to_num(logp)
     p = np.exp(logp)
     return logp, p
 
@@ -324,25 +322,26 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
     batches = [postprocess_ppo_gae(policy, batch)]
     for pid, (_, other_batch_raw) in others_batches.items():
-        other_batch = other_batch_raw.copy()
-        if other_batch is None:
+        # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
+        # but we still want to take a look of those statics.
+        # Maybe in the future we can add knob to remove all such slowly stats.
+
+        if other_batch_raw is None:
             continue
 
-        # use my policy to evaluate the values and other relative data
-        # of other's samples.
-
-        replay_result = policy.compute_actions(
-            other_batch[SampleBatch.CUR_OBS]
-        )[2]
-
+        other_batch = other_batch_raw.copy()
         other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
 
+        # use my policy to evaluate the values and other relative data
+        # of other's samples.
+        replay_result = policy.compute_actions(
+            other_batch[SampleBatch.CUR_OBS]
+        )[2]
+
         other_batch[SampleBatch.VF_PREDS] = replay_result[SampleBatch.VF_PREDS]
         other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
-
-        assert other_batch[BEHAVIOUR_LOGITS].ndim == 2
 
         # TODO(pengzh) it's ok to delete these two data in batch.
         other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
@@ -350,12 +349,6 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
                 other_batch[BEHAVIOUR_LOGITS],
                 other_batch[SampleBatch.ACTIONS]
             )
-
-        assert_nan(other_batch[SampleBatch.CUR_OBS])
-        assert other_batch[SampleBatch.CUR_OBS].ndim == 2
-        assert_nan(other_batch[BEHAVIOUR_LOGITS])
-        assert_nan(other_batch[ACTION_LOGP])
-        assert_nan(other_batch[ACTION_PROB])
 
         other_batch, info = _clip_batch(
             other_batch, policy.config["clip_action_prob_kl"]
@@ -365,9 +358,14 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             info['unclip_length'], info['length']
         )
 
-        # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
-        # but we still want to take a look of those statics.
-        # Maybe in the future we can add knob to remove all such slowly stats.
+        if policy.config['check_nan']:
+            assert other_batch[SampleBatch.CUR_OBS].ndim == 2
+            assert other_batch[BEHAVIOUR_LOGITS].ndim == 2
+            assert_nan(other_batch[SampleBatch.CUR_OBS])
+            assert_nan(other_batch[BEHAVIOUR_LOGITS])
+            assert_nan(other_batch[ACTION_LOGP])
+            assert_nan(other_batch[ACTION_PROB])
+
         if policy.config[DISABLE]:
             continue
         elif not policy.config[REPLAY_VALUES]:
@@ -380,46 +378,16 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             Postprocessing.ADVANTAGES].copy().astype(np.float32)
         if "debug_ratio" not in batch:
             assert "debug_fake_adv" not in batch
-            batch['debug_ratio'] = np.ones_like(
+            batch['debug_fake_adv'] = batch['debug_ratio'] = np.ones_like(
                 batch['advantages'], dtype=np.float32
             ) * -1
-            batch['debug_fake_adv'] = batch['debug_ratio'] * -1
 
     return SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
 
 
-# class ValueNetworkMixin2(object):
-#     def __init__(self, config):
-#         if config["use_gae"]:
-#
-#             @make_tf_callable(self.get_session(), True)
-#             def value_batch(ob, prev_action, prev_reward):
-#                 # We do not support recurrent network now.
-#                 model_out, _ = self.model(
-#                     {
-#                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
-#                         SampleBatch.PREV_ACTIONS: tf.
-#                         convert_to_tensor(prev_action),
-#                         SampleBatch.PREV_REWARDS: tf.
-#                         convert_to_tensor(prev_reward),
-#                         "is_training": tf.convert_to_tensor(False),
-#                     }
-#                 )
-#                 return self.model.value_function()
-#         else:
-#
-#             @make_tf_callable(self.get_session(), True)
-#             def value_batch(ob, prev_action, prev_reward):
-#                 return tf.zeros_like(prev_reward)
-#
-#         self._value_batch = value_batch
-
-
 def setup_mixins_ceppo(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
-    # if not config['disable']:
-    # ValueNetworkMixin2.__init__(policy, config)
     if config[DIVERSITY_ENCOURAGING] or config[CURIOSITY]:
         AddLossMixin.__init__(policy, config)
         NoveltyParamMixin.__init__(policy, config)
@@ -538,7 +506,6 @@ CEPPOTFPolicy = AdaptiveExtraLossPPOTFPolicy.with_updates(
     before_loss_init=setup_mixins_ceppo,
     stats_fn=wrap_stats_ceppo,
     mixins=mixin_list + [AddLossMixin, NoveltyParamMixin]
-    # mixins=mixin_list + [AddLossMixin, NoveltyParamMixin, ValueNetworkMixin2]
 )
 
 CEPPOTrainer = AdaptiveExtraLossPPOTrainer.with_updates(
