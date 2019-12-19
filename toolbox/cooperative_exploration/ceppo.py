@@ -1,17 +1,18 @@
 import logging
 
 import numpy as np
-import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
     update_kl
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
-    setup_mixins, kl_and_loss_stats, BEHAVIOUR_LOGITS, make_tf_callable, \
-    Postprocessing, ACTION_LOGP
+    setup_mixins, kl_and_loss_stats, BEHAVIOUR_LOGITS, Postprocessing, \
+    ACTION_LOGP
 from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
+from toolbox.cooperative_exploration.ceppo_loss import loss_ceppo
+from toolbox.cooperative_exploration.utils import *
 from toolbox.cooperative_exploration.debug import on_postprocess_traj, \
-    validate_tensor, on_episode_start, on_episode_end, on_train_result, \
+    on_episode_start, on_episode_end, on_train_result, \
     assert_nan
 from toolbox.cooperative_exploration.postprocess import \
     postprocess_ppo_gae_replay
@@ -20,42 +21,11 @@ from toolbox.marl.adaptive_extra_loss import AdaptiveExtraLossPPOTrainer, \
     AdaptiveExtraLossPPOTFPolicy, merge_dicts, NoveltyParamMixin, mixin_list, \
     AddLossMixin, wrap_stats_fn, wrap_after_train_result
 from toolbox.marl.extra_loss_ppo_trainer import JOINT_OBS, PEER_ACTION, \
-    SampleBatch, extra_loss_ppo_loss, get_cross_policy_object, novelty_loss_mse
-# from toolbox.marl.utils import on_train_result
+    SampleBatch, get_cross_policy_object
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
 
 logger = logging.getLogger(__name__)
-
-DISABLE = "disable"  # also serve as config's key
-DISABLE_AND_EXPAND = "disable_and_expand"
-REPLAY_VALUES = "replay_values"  # also serve as config's key
-NO_REPLAY_VALUES = "no_replay_values"
-
-DIVERSITY_ENCOURAGING = "diversity_encouraging"  # also serve as config's key
-DIVERSITY_ENCOURAGING_NO_RV = "diversity_encouraging_without_replay_values"
-DIVERSITY_ENCOURAGING_DISABLE = "diversity_encouraging_disable"
-DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND = \
-    "diversity_encouraging_disable_and_expand"
-
-CURIOSITY = "curiosity"  # also serve as config's key
-CURIOSITY_NO_RV = "curiosity_without_replay_values"
-CURIOSITY_DISABLE = "curiosity_disable"
-CURIOSITY_DISABLE_AND_EXPAND = "curiosity_disable_and_expand"
-
-CURIOSITY_KL = "curiosity_KL"  # also serve as config's key
-CURIOSITY_KL_NO_RV = "curiosity_KL_without_replay_values"
-CURIOSITY_KL_DISABLE = "curiosity_KL_disable"
-CURIOSITY_KL_DISABLE_AND_EXPAND = "curiosity_KL_disable_and_expand"
-
-OPTIONAL_MODES = [
-    DISABLE, DISABLE_AND_EXPAND, REPLAY_VALUES, NO_REPLAY_VALUES,
-    DIVERSITY_ENCOURAGING, DIVERSITY_ENCOURAGING_NO_RV,
-    DIVERSITY_ENCOURAGING_DISABLE, DIVERSITY_ENCOURAGING_DISABLE_AND_EXPAND,
-    CURIOSITY, CURIOSITY_NO_RV, CURIOSITY_DISABLE,
-    CURIOSITY_DISABLE_AND_EXPAND, CURIOSITY_KL, CURIOSITY_KL_NO_RV,
-    CURIOSITY_KL_DISABLE, CURIOSITY_KL_DISABLE_AND_EXPAND
-]
 
 ceppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
@@ -449,7 +419,7 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 def setup_mixins_ceppo(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
     # if not config['disable']:
-        # ValueNetworkMixin2.__init__(policy, config)
+    # ValueNetworkMixin2.__init__(policy, config)
     if config[DIVERSITY_ENCOURAGING] or config[CURIOSITY]:
         AddLossMixin.__init__(policy, config)
         NoveltyParamMixin.__init__(policy, config)
@@ -541,52 +511,9 @@ def wrap_stats_ceppo(policy, train_batch):
     if policy.config[DIVERSITY_ENCOURAGING]:
         return wrap_stats_fn(policy, train_batch)
     ret = kl_and_loss_stats(policy, train_batch)
-    if policy.config['use_gae']:
-        ret.update(
-            logp_diff=policy.loss_obj.logp_diff,
-            logp_ratio=policy.loss_obj.logp_ratio,
-            logp_ratio_exp=policy.loss_obj.logp_ratio_exp,
-            prev_actions_logp=policy.loss_obj.prev_actions_logp,
-            curr_actions_logp=policy.loss_obj.curr_actions_logp,
-            curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
-            curr_actions_mean=policy.loss_obj.curr_actions_mean,
-            vf_preds=policy.loss_obj.vf_preds,
-            vf_loss1=policy.loss_obj.vf_loss1,
-            vf_loss2=policy.loss_obj.vf_loss2,
-            vf_loss2_clipped=policy.loss_obj.vf_loss2_clipped,
-            value_targets=policy.loss_obj.value_targets,
-            advantages=policy.loss_obj.advantages,
-            advantages_square=policy.loss_obj.advantages_square,
-            vf_preds_square=policy.loss_obj.vf_preds_square,
-            value_fn_square=policy.loss_obj.value_fn_square,
-            value_targets_square=policy.loss_obj.value_targets_square,
-            adv_unnorm_square=policy.adv_unnorm_square,
-            adv_unnorm=policy.adv_unnorm,
-            debug_fake_adv=policy.debug_fake_adv,
-            debug_ratio=policy.debug_ratio,
-        )
-    else:
-        ret.update(
-            logp_diff=policy.loss_obj.logp_diff,
-            logp_ratio=policy.loss_obj.logp_ratio,
-            logp_ratio_exp=policy.loss_obj.logp_ratio_exp,
-            prev_actions_logp=policy.loss_obj.prev_actions_logp,
-            curr_actions_logp=policy.loss_obj.curr_actions_logp,
-            curr_actions_log_std=policy.loss_obj.curr_actions_log_std,
-            curr_actions_mean=policy.loss_obj.curr_actions_mean,
-            # vf_preds=policy.loss_obj.vf_preds,
-            # vf_loss1=policy.loss_obj.vf_loss1,
-            # vf_loss2=policy.loss_obj.vf_loss2,
-            # vf_loss2_clipped=policy.loss_obj.vf_loss2_clipped,
-            # value_targets=policy.loss_obj.value_targets,
-            advantages=policy.loss_obj.advantages,
-            advantages_square=policy.loss_obj.advantages_square,
-            # vf_preds_square=policy.loss_obj.vf_preds_square,
-            # value_fn_square=policy.loss_obj.value_fn_square,
-            # value_targets_square=policy.loss_obj.value_targets_square,
-            adv_unnorm_square=policy.adv_unnorm_square,
-            adv_unnorm=policy.adv_unnorm
-        )
+    if hasattr(policy.loss_obj, "stats"):
+        assert isinstance(policy.loss_obj.stats, dict)
+        ret.update(policy.loss_obj.stats)
     if policy.config[CURIOSITY]:
         ret.update(
             novelty_loss_param=policy.novelty_loss_param,
@@ -601,218 +528,6 @@ def wrap_after_train_result_ceppo(trainer, fetches):
         wrap_after_train_result(trainer, fetches)
     else:
         update_kl(trainer, fetches)
-
-
-def loss_ceppo(policy, model, dist_class, train_batch):
-    if policy.config[DIVERSITY_ENCOURAGING]:
-        return extra_loss_ppo_loss(policy, model, dist_class, train_batch)
-    if policy.config[CURIOSITY]:
-        # create policy.novelty_loss for adaptively adjust curiosity.
-        novelty_loss_mse(policy, model, dist_class, train_batch)
-    return ppo_surrogate_loss(policy, model, dist_class, train_batch)
-
-
-class PPOLoss(object):
-    def __init__(
-            self,
-            action_space,
-            dist_class,
-            model,
-            value_targets,
-            advantages,
-            actions,
-            prev_logits,
-            prev_actions_logp,
-            vf_preds,
-            curr_action_dist,
-            value_fn,
-            cur_kl_coeff,
-            valid_mask,
-            entropy_coeff=0,
-            clip_param=0.1,
-            vf_clip_param=0.1,
-            vf_loss_coeff=1.0,
-            use_gae=True,
-            model_config=None
-    ):
-
-        print("Enter PPOLoss Class")
-        value_targets = validate_tensor(value_targets, "value_targets")
-        advantages = validate_tensor(advantages, "advantages")
-        actions = validate_tensor(actions, "actions")
-        prev_logits = validate_tensor(prev_logits, "prev_logits")
-        prev_actions_logp = validate_tensor(
-            prev_actions_logp, "prev_actions_logp"
-        )
-        vf_preds = validate_tensor(vf_preds, "vf_preds")
-        self.vf_preds = vf_preds
-        self.value_targets = value_targets
-        self.value_targets_square = tf.square(value_targets)
-        self.advantages = advantages
-
-        curr_action_dist.log_std = validate_tensor(
-            curr_action_dist.log_std, "curr_action_dist.log_std"
-        )
-        curr_action_dist.std = validate_tensor(
-            curr_action_dist.std, "curr_action_dist.std"
-        )
-        value_fn = validate_tensor(value_fn, "value_fn")
-
-        self.advantages_square = validate_tensor(
-            tf.square(self.advantages), "advantages_square"
-        )
-
-        self.vf_preds_square = validate_tensor(
-            tf.square(self.vf_preds), "vf_preds_square"
-        )
-
-        self.value_fn_square = validate_tensor(
-            tf.square(value_fn), "value_fn_square"
-        )
-        self.value_targets_square = validate_tensor(
-            tf.square(self.value_targets), "value_targets_square"
-        )
-
-        def reduce_mean_valid(t):
-            return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
-
-        prev_dist = dist_class(prev_logits, model)
-
-        validate_tensor(prev_dist.entropy(), "prev_dist.entropy()")
-        prev_dist.log_std = validate_tensor(
-            prev_dist.log_std, "prev_dist.log_std"
-        )
-        prev_dist.std = validate_tensor(prev_dist.std, "prev_dist.std")
-
-        curr_action_logp = curr_action_dist.logp(actions)
-        curr_action_logp = validate_tensor(
-            curr_action_logp, "curr_action_logp"
-        )
-        prev_actions_logp = validate_tensor(
-            prev_actions_logp, "prev_actions_logp"
-        )
-
-        # tf.Print(prev_actions_logp, [prev_actions_logp], "prev_actions_logp")
-        # tf.Print(curr_action_logp, [curr_action_logp], "curr_action_logp")
-
-        # Make loss functions.
-        self.logp_diff = curr_action_logp - prev_actions_logp
-        self.logp_ratio = tf.exp(curr_action_logp - prev_actions_logp)
-        self.prev_actions_logp = prev_actions_logp
-        self.curr_actions_logp = curr_action_logp
-        self.curr_actions_log_std = curr_action_dist.log_std
-        self.curr_actions_mean = curr_action_dist.mean
-
-        logp_ratio = tf.exp(curr_action_logp - prev_actions_logp)
-        logp_ratio = validate_tensor(logp_ratio, "logp_ratio")
-        self.logp_ratio_exp = logp_ratio
-
-        action_kl = prev_dist.kl(curr_action_dist)
-        self.mean_kl = reduce_mean_valid(action_kl)
-        curr_entropy = validate_tensor(
-            curr_action_dist.entropy(), "curr_action_dist.entropy()"
-        )
-        # = curr_action_dist.entropy()
-        self.mean_entropy = reduce_mean_valid(curr_entropy)
-
-        surrogate_loss = tf.minimum(
-            advantages * logp_ratio,
-            advantages *
-            tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
-        )
-
-        surrogate_loss = validate_tensor(surrogate_loss, "surrogate_loss")
-
-        self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
-
-        if use_gae:
-            vf_loss1 = tf.square(value_fn - value_targets)
-            vf_clipped = vf_preds + tf.clip_by_value(
-                value_fn - vf_preds, -vf_clip_param, vf_clip_param
-            )
-            vf_loss2 = tf.square(vf_clipped - value_targets)
-            vf_loss = tf.maximum(vf_loss1, vf_loss2)
-            self.mean_vf_loss = reduce_mean_valid(vf_loss)
-            self.vf_loss1 = vf_loss1
-            self.vf_loss2 = vf_loss2
-            self.vf_loss2_clipped = vf_clipped
-            loss = reduce_mean_valid(
-                -surrogate_loss + cur_kl_coeff * action_kl +
-                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
-            )
-        else:
-            self.mean_vf_loss = tf.constant(0.0)
-            loss = reduce_mean_valid(
-                -surrogate_loss + cur_kl_coeff * action_kl -
-                entropy_coeff * curr_entropy
-            )
-
-        loss = validate_tensor(loss, "self.loss")
-        self.loss = loss
-
-
-def ppo_surrogate_loss(policy, model, dist_class, train_batch):
-    train_batch[
-        SampleBatch.CUR_OBS
-    ] = validate_tensor(train_batch[SampleBatch.CUR_OBS], "CUR_OBS")
-
-    logits, state = model.from_batch(train_batch)
-    logits = validate_tensor(logits, "action_dist logits")
-    action_dist = dist_class(logits, model)
-
-    action_dist.log_std = validate_tensor(
-        action_dist.log_std, "action_dist.log_std"
-    )
-    action_dist.std = validate_tensor(action_dist.std, "action_dist.std")
-    action_dist.mean = validate_tensor(action_dist.mean, "action_dist.mean")
-
-    if state:
-        max_seq_len = tf.reduce_max(train_batch["seq_lens"])
-        mask = tf.sequence_mask(train_batch["seq_lens"], max_seq_len)
-        mask = tf.reshape(mask, [-1])
-    else:
-        mask = tf.ones_like(
-            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
-        )
-
-    policy.adv_unnorm = train_batch[Postprocessing.ADVANTAGES +
-                                    "_unnormalized"]
-    policy.adv_unnorm_square = tf.square(
-        train_batch[Postprocessing.ADVANTAGES + "_unnormalized"]
-    )
-    policy.debug_fake_adv = train_batch['debug_fake_adv']
-    policy.debug_ratio = train_batch['debug_ratio']
-
-    policy.loss_obj = PPOLoss(
-        policy.action_space,
-        dist_class,
-        model,
-        train_batch[Postprocessing.VALUE_TARGETS],
-        train_batch[Postprocessing.ADVANTAGES],
-        train_batch[SampleBatch.ACTIONS],
-        train_batch[BEHAVIOUR_LOGITS],
-        train_batch[ACTION_LOGP],
-        train_batch[SampleBatch.VF_PREDS],
-        action_dist,
-        model.value_function(),
-        policy.kl_coeff,
-        mask,
-        entropy_coeff=policy.entropy_coeff,
-        clip_param=policy.config["clip_param"],
-        vf_clip_param=policy.config["vf_clip_param"],
-        vf_loss_coeff=policy.config["vf_loss_coeff"],
-        use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"]
-    )
-
-    l = [
-        Postprocessing.ADVANTAGES + "_unnormalized", "debug_ratio",
-        "debug_fake_adv"
-    ]
-    for ll in l:
-        policy.loss_obj.loss += 0 * train_batch[ll]
-
-    return policy.loss_obj.loss
 
 
 CEPPOTFPolicy = AdaptiveExtraLossPPOTFPolicy.with_updates(
