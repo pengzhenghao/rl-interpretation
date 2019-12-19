@@ -1,42 +1,17 @@
 import numpy as np
-import scipy.signal
 from ray.rllib.policy.sample_batch import SampleBatch
-
-
-def discount(x, gamma):
-    return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
 
 
 class Postprocessing(object):
     """Constant definitions for postprocessing."""
-
     ADVANTAGES = "advantages"
     VALUE_TARGETS = "value_targets"
     OTHER_ACTION_LOGP = "other_action_logp"
     OTHER_ACTION_PROB = "other_action_prob"
 
 
-def assert_nan(arr):
-    assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
-
-
-def stat(arr, msg="", enable=False):
-    if enable:
-        print(
-            "{}: min {:.5f}, mean {:.5f}, max {:.5f}, std {:.5f}, shape {}, "
-            "sum {}, norm {}, mse {}".format(
-                msg if msg else "[STAT]", arr.min(), arr.mean(), arr.max(),
-                arr.std(), arr.shape, arr.sum(), np.linalg.norm(arr),
-                np.mean(np.square(arr))
-        ))
-
-
 def postprocess_ppo_gae_replay(policy, sample_batch):
     """Adds the policy logits, VF preds, and advantages to the trajectory."""
-
-    assert Postprocessing.OTHER_ACTION_PROB in sample_batch
-    assert Postprocessing.OTHER_ACTION_LOGP in sample_batch
-
     completed = sample_batch["dones"][-1]
     if completed:
         last_r = 0.0
@@ -44,21 +19,24 @@ def postprocess_ppo_gae_replay(policy, sample_batch):
         next_state = []
         for i in range(policy.num_state_tensors()):
             next_state.append([sample_batch["state_out_{}".format(i)][-1]])
-        last_r = policy._value(sample_batch[SampleBatch.NEXT_OBS][-1],
-                               sample_batch[SampleBatch.ACTIONS][-1],
-                               sample_batch[SampleBatch.REWARDS][-1],
-                               *next_state)
+        last_r = policy._value(
+            sample_batch[SampleBatch.NEXT_OBS][-1],
+            sample_batch[SampleBatch.ACTIONS][-1],
+            sample_batch[SampleBatch.REWARDS][-1], *next_state
+        )
     batch = compute_advantages_replay(
         sample_batch,
         last_r,
         policy.config["gamma"],
         policy.config["lambda"],
-        use_gae=policy.config["use_gae"])
+        use_gae=policy.config["use_gae"]
+    )
     return batch
 
 
-def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
-                              use_gae=True):
+def compute_advantages_replay(
+        rollout, last_r, gamma=0.9, lambda_=1.0, use_gae=True
+):
     """Given a rollout, compute its value targets and the advantage.
 
     Args:
@@ -72,7 +50,6 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
         SampleBatch (SampleBatch): Object with experience from rollout and
             processed rewards.
     """
-
     traj = {}
     trajsize = len(rollout[SampleBatch.ACTIONS])
     for key in rollout:
@@ -82,59 +59,51 @@ def compute_advantages_replay(rollout, last_r, gamma=0.9, lambda_=1.0,
         assert SampleBatch.VF_PREDS in rollout, "Values not found!"
         vpred_t = np.concatenate(
             [rollout[SampleBatch.VF_PREDS],
-             np.array([last_r])])
-        delta_t = (
-                traj[SampleBatch.REWARDS] + gamma * vpred_t[1:] - vpred_t[:-1])
+             np.array([last_r])]
+        )
+        delta_t = \
+            traj[SampleBatch.REWARDS] + gamma * vpred_t[1:] - vpred_t[:-1]
+
+        ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
+
         # This formula for the advantage comes
         # "Generalized Advantage Estimation": https://arxiv.org/abs/1506.02438
-
         # traj[Postprocessing.ADVANTAGES] = discount(delta_t, gamma * lambda_)
-
-        # ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
-        ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
-        assert_nan(ratio)
-
         # advantage = ratio * delta_t
-
         advantage = calculate_gae_advantage(delta_t, ratio, lambda_, gamma)
-
-        assert_nan(advantage)
-        stat(advantage, "[Advantage]")
         traj[Postprocessing.ADVANTAGES] = advantage
         traj["debug_ratio"] = ratio
 
         fake_delta = np.zeros_like(delta_t)
         fake_delta[-1] = 1
         traj["debug_fake_adv"] = calculate_gae_advantage(
-            fake_delta, ratio, lambda_, gamma)
+            fake_delta, ratio, lambda_, gamma
+        )
 
         value_target = (
-                traj[Postprocessing.ADVANTAGES] +
-                ratio * traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
-                # traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
-        assert_nan(value_target)
-        assert_nan(np.square(value_target))
-        stat(value_target, "[Value Target]")
-
+            traj[Postprocessing.ADVANTAGES] +
+            ratio * traj[SampleBatch.VF_PREDS]
+        ).copy().astype(np.float32)
+        # traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
         traj[Postprocessing.VALUE_TARGETS] = value_target
     else:
-        # raise NotImplementedError()
-        rewards_plus_v = np.concatenate(
-            [rollout[SampleBatch.REWARDS],
-             np.array([last_r])])
+        raise NotImplementedError()
+        # rewards_plus_v = np.concatenate(
+        #     [rollout[SampleBatch.REWARDS],
+        #      np.array([last_r])])
+        #
+        # ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
+        # assert_nan(ratio)
+        # delta = discount(rewards_plus_v, gamma)[:-1]
+        #
+        # assert delta.shape == ratio.shape
+        #
+        # traj[Postprocessing.ADVANTAGES] = ratio * delta
+        # traj[Postprocessing.VALUE_TARGETS] = np.zeros_like(
+        #     traj[Postprocessing.ADVANTAGES])
 
-        ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
-        assert_nan(ratio)
-        delta = discount(rewards_plus_v, gamma)[:-1]
-
-        assert delta.shape == ratio.shape
-
-        traj[Postprocessing.ADVANTAGES] = ratio * delta
-        traj[Postprocessing.VALUE_TARGETS] = np.zeros_like(
-            traj[Postprocessing.ADVANTAGES])
-
-    traj[Postprocessing.ADVANTAGES] = traj[
-        Postprocessing.ADVANTAGES].copy().astype(np.float32)
+    traj[Postprocessing.ADVANTAGES
+         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
@@ -154,8 +123,8 @@ def calculate_gae_advantage(delta, ratio, lambda_, gamma):
 def test_calculate_gae_advantage(n=1000):
     length = 100
     for i in range(n):
-        delta = np.random.random((length,))  # suppose it's old advantage
-        ratio = np.random.random((length,))  # suppose it's the ratio of prob
+        delta = np.random.random((length, ))  # suppose it's old advantage
+        ratio = np.random.random((length, ))  # suppose it's the ratio of prob
         lambda_ = np.random.random()
         gamma = np.random.random()
         adv = calculate_gae_advantage(delta, ratio, lambda_, gamma)

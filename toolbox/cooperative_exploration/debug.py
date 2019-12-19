@@ -27,18 +27,24 @@ def on_train_result(info):
             result[item_name][policy_id][item_full_name] = val
 
         for item_name in item_list:
-            result[item_name]['over_all_mean'] = np.mean([
-                a[item_name + "_mean"] for a in result[item_name].values()
-                if isinstance(a, dict)
-            ])
-            result[item_name]['over_all_min'] = np.min([
-                a[item_name + "_min"] for a in result[item_name].values()
-                if isinstance(a, dict)
-            ])
-            result[item_name]['over_all_max'] = np.max([
-                a[item_name + "_max"] for a in result[item_name].values()
-                if isinstance(a, dict)
-            ])
+            result[item_name]['over_all_mean'] = np.mean(
+                [
+                    a[item_name + "_mean"] for a in result[item_name].values()
+                    if isinstance(a, dict)
+                ]
+            )
+            result[item_name]['over_all_min'] = np.min(
+                [
+                    a[item_name + "_min"] for a in result[item_name].values()
+                    if isinstance(a, dict)
+                ]
+            )
+            result[item_name]['over_all_max'] = np.max(
+                [
+                    a[item_name + "_max"] for a in result[item_name].values()
+                    if isinstance(a, dict)
+                ]
+            )
 
         result['custom_metrics'].clear()
 
@@ -46,10 +52,12 @@ def on_train_result(info):
 def on_episode_start(info):
     episode = info["episode"]
     episode.user_data["relative_kl"] = {
-        pid: {} for pid in episode._policies.keys()
+        pid: {}
+        for pid in episode._policies.keys()
     }
     episode.user_data["unclip_length"] = {
-        pid: {} for pid in episode._policies.keys()
+        pid: {}
+        for pid in episode._policies.keys()
     }
 
 
@@ -83,3 +91,20 @@ def validate_tensor(x, msg=None, enable=True):
         return tf.check_numerics(x, msg)
     else:
         return x
+
+
+def assert_nan(arr, enable=True):
+    if enable:
+        assert np.all(np.isfinite(np.asarray(arr, dtype=np.float32))), arr
+
+
+def stat(arr, msg="", enable=False):
+    if enable:
+        print(
+            "{}: min {:.5f}, mean {:.5f}, max {:.5f}, std {:.5f}, shape {}, "
+            "sum {}, norm {}, mse {}".format(
+                msg if msg else "[STAT]", arr.min(), arr.mean(), arr.max(),
+                arr.std(), arr.shape, arr.sum(), np.linalg.norm(arr),
+                np.mean(np.square(arr))
+            )
+        )
