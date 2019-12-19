@@ -50,14 +50,25 @@ def on_train_result(info):
     """info only contains trainer and result."""
     sample_size = info['trainer'].config.get("joint_dataset_sample_batch_size")
 
-    assert sample_size is not None, "You should specify the value of: " \
-                                    "joint_dataset_sample_batch_size " \
-                                    "in config!"
+    if sample_size is None:
+        logger.debug(
+            "You should specify the value of: "
+            "joint_dataset_sample_batch_size in config! Since you "
+            "don't set it, we set it to 200 for you."
+        )
+        sample_size = 200
 
     # replay_buffers is a dict map policy_id to ReplayBuffer object.
     trainer = info['trainer']
     worker = trainer.workers.local_worker()
-    joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
+
+    try:
+        joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
+    except Exception as e:
+        logger.info(
+            "Encounter error <{}> in on_train_result. Return.".format(e)
+        )
+        return
 
     def _replay(policy, pid):
         act, _, infos = policy.compute_actions(joint_obs)
@@ -84,7 +95,14 @@ def on_train_result(info):
         row_without_self = dist_matrix[i][mask[i]]
         info['result']['distance'][pid + "_mean"] = row_without_self.mean()
 
-    js_matrix = js_distance(flatten)
+    tmp_info = ret[pid][1]
+    if "behaviour_logits" not in tmp_info:
+        # Maybe this is DDPG-like algorithm and the output is not a
+        # distribution.
+        return
+
+    js_flatten = [infos['behaviour_logits'] for act, infos in ret.values()]
+    js_matrix = js_distance(js_flatten)
     flatten_js_dist = js_matrix[mask]
     info['result']['distance_js'] = {}
     info['result']['distance_js']['overall_mean'] = flatten_js_dist.mean()

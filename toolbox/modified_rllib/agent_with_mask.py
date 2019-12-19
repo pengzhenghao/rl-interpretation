@@ -13,8 +13,8 @@ import numpy as np
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
-    EntropyCoeffSchedule, \
-    KLCoeffMixin, LearningRateSchedule, BEHAVIOUR_LOGITS, ValueNetworkMixin
+    EntropyCoeffSchedule, KLCoeffMixin, LearningRateSchedule, \
+    BEHAVIOUR_LOGITS, ValueNetworkMixin
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.misc import normc_initializer, get_activation_fn
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
@@ -265,7 +265,7 @@ def register_fc_with_mask():
     )
 
 
-register_fc_with_mask()
+# register_fc_with_mask()
 
 
 class AddMaskInfoMixinForPolicy(object):
@@ -304,14 +304,16 @@ def setup_mixins(policy, obs_space, action_space, config):
     AddMaskInfoMixinForPolicy.__init__(policy)
 
 
-model_config = {
+fc_with_mask_model_config = {
     "model": {
         "custom_model": "fc_with_mask",
         "custom_options": {}
     }
 }
 
-ppo_agent_default_config_with_mask = merge_dicts(DEFAULT_CONFIG, model_config)
+ppo_agent_default_config_with_mask = merge_dicts(
+    DEFAULT_CONFIG, fc_with_mask_model_config
+)
 
 PPOTFPolicyWithMask = PPOTFPolicy.with_updates(
     name="PPOTFPolicyWithMask",

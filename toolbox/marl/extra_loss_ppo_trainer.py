@@ -2,14 +2,13 @@ import logging
 
 import numpy as np
 import tensorflow as tf
-from ray.rllib.agents.ppo import PPOTrainer
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
+    PPOTrainer
 from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
-    LearningRateSchedule, \
-    EntropyCoeffSchedule, KLCoeffMixin, \
-    ValueNetworkMixin, ppo_surrogate_loss
-from ray.rllib.evaluation.postprocessing import compute_advantages, \
-    Postprocessing
+    LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, \
+    ValueNetworkMixin, ppo_surrogate_loss, postprocess_ppo_gae, setup_mixins
+from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.models.tf.tf_action_dist import DiagGaussian, Categorical
 from ray.rllib.optimizers import SyncSamplesOptimizer
 from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch
@@ -27,8 +26,12 @@ OPPONENT_OBS = "opponent_obs"
 OPPONENT_ACTION = "opponent_action"
 
 PEER_ACTION = "other_replay"
-JOINT_OBS = "joint_dataset"
-NO_SPLIT_OBS = "no_split_obs"
+JOINT_OBS = "joint_obs"
+# NO_SPLIT_OBS = "no_split_obs"
+
+mixin_list = [
+    LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, ValueNetworkMixin
+]
 
 extra_loss_ppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
@@ -41,38 +44,19 @@ extra_loss_ppo_default_config = merge_dicts(
 )
 
 
-def postprocess_ppo_gae(
+def postprocess_ppo_gae_modified(
         policy, sample_batch, other_agent_batches=None, episode=None
 ):
-    completed = sample_batch["dones"][-1]
-    if completed:
-        last_r = 0.0
-    else:
-        next_state = []
-        for i in range(policy.num_state_tensors()):
-            next_state.append([sample_batch["state_out_{}".format(i)][-1]])
-        last_r = policy._value(
-            sample_batch[SampleBatch.NEXT_OBS][-1],
-            sample_batch[SampleBatch.ACTIONS][-1],
-            sample_batch[SampleBatch.REWARDS][-1], *next_state
-        )
-    batch = compute_advantages(
-        sample_batch,
-        last_r,
-        policy.config["gamma"],
-        policy.config["lambda"],
-        use_gae=policy.config["use_gae"]
+    """This function add extra placeholder, by creating new entries in batch
+    which the following RLLib procedure would detect and create placeholder
+    based on the shape of them."""
+    batch = postprocess_ppo_gae(
+        policy, sample_batch, other_agent_batches, episode
     )
-
     if not policy.loss_initialized():
-        if policy.config["use_joint_dataset"]:
-            batch[JOINT_OBS] = np.zeros_like(
-                sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
-            )
-        else:
-            batch[NO_SPLIT_OBS] = np.zeros_like(
-                sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
-            )
+        batch[JOINT_OBS] = np.zeros_like(
+            sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
+        )
         batch[PEER_ACTION] = np.zeros_like(
             sample_batch[SampleBatch.ACTIONS], dtype=np.float32
         )  # peer_action is needed no matter use joint_dataset or not.
@@ -80,53 +64,44 @@ def postprocess_ppo_gae(
 
 
 class AddLossMixin(object):
-    """Copied from tf_policy.py"""
+    """When training, this Mixin add the sharing data into feed_dict.
 
-    def __init__(self, alpha):
-        self.novelty_loss_param = alpha
+    Originally, it's a function of tf_policy, so we copied some codes from
+    tf_policy.py"""
+
+    def __init__(self, config):
+        if "novelty_loss_param_init" in config:
+            self.novelty_loss_param = config["novelty_loss_param_init"]
+        elif "novelty_loss_param" in config:
+            self.novelty_loss_param = config["novelty_loss_param"]
+        else:
+            logger.warning(
+                "You Do Not Specify 'novelty_loss_param_init' or"
+                " 'novelty_loss_param' in config, so we do not"
+                " define policy.novelty_loss_param"
+            )
+        self._AddLossMixin_initialized = True
 
     def _get_loss_inputs_dict(
             self, batch, shuffle, cross_policy_obj, policy_id=None
     ):
-        """Return a feed dict from a batch.
-
-        Arguments:
-            batch (SampleBatch): batch of data to derive inputs from
-            shuffle (bool): whether to shuffle batch sequences. Shuffle may
-                be done in-place. This only makes sense if you're further
-                applying minibatch SGD after getting the outputs.
-
-        Returns:
-            feed dict of data
-        """
+        """When training, add the required data into the feed_dict."""
         feed_dict = {}
 
-        # What we modified
-        if self.config["use_joint_dataset"]:
+        if hasattr(self, "_AddLossMixin_initialized"):
+            assert self._AddLossMixin_initialized
             # parse the cross-policy info and put in feed_dict.
-            replay_ph = self._loss_input_dict[PEER_ACTION]
             joint_obs_ph = self._loss_input_dict[JOINT_OBS]
             feed_dict[joint_obs_ph] = cross_policy_obj[JOINT_OBS]
-            concat_replay_act = np.concatenate(
+
+            replay_ph = self._loss_input_dict[PEER_ACTION]
+            feed_dict[replay_ph] = np.concatenate(
                 [
                     act for pid, act in cross_policy_obj[PEER_ACTION].items()
                     if pid != policy_id
                 ]
             )  # exclude policy itself action
-            feed_dict[replay_ph] = concat_replay_act
-        else:
-            replay_ph = self._loss_input_dict[PEER_ACTION]
-            concat_replay_act = np.concatenate(
-                [
-                    act for pid, act in cross_policy_obj[policy_id].items()
-                    if pid != policy_id
-                ]
-            )  # exclude policy itself action
-            feed_dict[replay_ph] = concat_replay_act
-            feed_dict[self._loss_input_dict[NO_SPLIT_OBS]] = \
-                batch[SampleBatch.CUR_OBS]
-
-        # The below codes are copied from rllib.
+        """The below codes are copied from rllib. """
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
                 len(batch[SampleBatch.CUR_OBS]) %
@@ -140,7 +115,7 @@ class AddLossMixin(object):
             if shuffle:
                 batch.shuffle()
             for k, ph in self._loss_inputs:
-                if k in batch:
+                if k in batch:  # Attention! We add a condition here.
                     feed_dict[ph] = batch[k]
             return feed_dict
         if self._state_inputs:
@@ -171,30 +146,35 @@ class AddLossMixin(object):
         return feed_dict
 
 
-def norm(my_act, other_act, mode="mean"):
-    # the other_act should exclude itself.
-    subtract = tf.subtract(my_act, other_act)
-    normalized = tf.norm(subtract, axis=1)  # normalized for each policies.
-    if mode == "mean":
-        return tf.reduce_mean(normalized)
-    elif mode == "min":
-        return tf.reduce_min(normalized)
-    else:
-        return tf.reduce_max(normalized)
-
-
-def novelty_loss(policy, model, dist_class, train_batch):
+def novelty_loss_mse(policy, model, dist_class, train_batch):
     mode = policy.config['novelty_mode']
-    if policy.config.get("use_joint_dataset"):
-        obs_ph = train_batch[JOINT_OBS]
+    obs_ph = train_batch[JOINT_OBS]
+    if dist_class == DiagGaussian:
+        discrete = False
+    # elif dist_class == Categorical:
+    #     discrete = True
     else:
-        obs_ph = train_batch[NO_SPLIT_OBS]
+        raise NotImplementedError(
+            "Only support DiagGaussian, --Categorical(WIP)-- distribution."
+        )
+
+    # The ret_act is the 'behaviour_logits'
     ret_act, _ = model.base_model(obs_ph)
-    my_act = tf.split(ret_act, 2, axis=1)[0]
-    peer_act_ph = train_batch[PEER_ACTION]
-    flatten = tf.reshape(my_act, [-1])
-    other_act = tf.reshape(peer_act_ph, [-1, tf.shape(flatten)[0]])
-    nov_loss = -norm(flatten, other_act, mode)
+    if discrete:
+        raise NotImplementedError("We do not implement discrete action space.")
+    else:
+        my_act = tf.split(ret_act, 2, axis=1)[0]
+        peer_act_ph = train_batch[PEER_ACTION]
+        flatten = tf.reshape(my_act, [-1])
+        other_act = tf.reshape(peer_act_ph, [-1, tf.shape(flatten)[0]])
+        subtract = tf.subtract(flatten, other_act)
+        normalized = tf.norm(subtract, axis=1)  # normalized for each policies.
+        if mode == "mean":
+            nov_loss = -tf.reduce_mean(normalized)
+        elif mode == "min":
+            nov_loss = -tf.reduce_min(normalized)
+        else:
+            nov_loss = -tf.reduce_max(normalized)
     policy.novelty_loss = nov_loss
     return nov_loss
 
@@ -202,7 +182,7 @@ def novelty_loss(policy, model, dist_class, train_batch):
 def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
-    nov_loss = novelty_loss(policy, model, dist_class, train_batch)
+    nov_loss = novelty_loss_mse(policy, model, dist_class, train_batch)
     alpha = policy.novelty_loss_param
     total_loss = (1 - alpha) * original_loss + alpha * nov_loss
     policy.total_loss = total_loss
@@ -216,8 +196,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
 
 
 def kl_and_loss_stats_without_total_loss(policy, train_batch):
-    return {
-        "novelty_loss": policy.novelty_loss,
+    ret = {
         "cur_kl_coeff": tf.cast(policy.kl_coeff, tf.float64),
         "cur_lr": tf.cast(policy.cur_lr, tf.float64),
         "policy_loss": policy.loss_obj.mean_policy_loss,
@@ -230,79 +209,61 @@ def kl_and_loss_stats_without_total_loss(policy, train_batch):
         "entropy": policy.loss_obj.mean_entropy,
         "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
     }
+    if hasattr(policy, "novelty_loss"):
+        ret["novelty_loss"] = policy.novelty_loss
+    return ret
 
 
-def cross_policy_object_use_joint_dataset(multi_agent_batch, self_optimizer):
+def get_cross_policy_object(multi_agent_batch, self_optimizer):
     """Add contents into cross_policy_object, which passed to each policy."""
     config = self_optimizer.workers._remote_config
-    assert config["use_joint_dataset"], "You should set use_joint_dataset " \
-                                        "to True"
-    sample_size = config.get("joint_dataset_sample_batch_size")
-    assert sample_size is not None, "You should specify the value of: " \
-                                    "joint_dataset_sample_batch_size " \
-                                    "in config!"
-    samples = [multi_agent_batch]
-    count_dict = {
-        k: v.count
-        for k, v in multi_agent_batch.policy_batches.items()
-    }
-    for k in self_optimizer.workers.local_worker().policy_map.keys():
-        if k not in count_dict:
-            count_dict[k] = 0
 
-    while any([v < sample_size for v in count_dict.values()]):
-        tmp_batch = self_optimizer.workers.local_worker().sample()
-        samples.append(tmp_batch)
-        for k, v in tmp_batch.policy_batches.items():
-            assert k in count_dict, count_dict
-            count_dict[k] += v.count
-    multi_agent_batch = MultiAgentBatch.concat_samples(samples)
+    if not config["use_joint_dataset"]:
+        joint_obs = SampleBatch.concat_samples(
+            list(multi_agent_batch.policy_batches.values())
+        )[SampleBatch.CUR_OBS]
+    else:
+        sample_size = config.get("joint_dataset_sample_batch_size")
+        assert sample_size is not None, "You should specify the value of: " \
+                                        "joint_dataset_sample_batch_size " \
+                                        "in config!"
+        samples = [multi_agent_batch]
+        count_dict = {
+            k: v.count
+            for k, v in multi_agent_batch.policy_batches.items()
+        }
+        for k in self_optimizer.workers.local_worker().policy_map.keys():
+            if k not in count_dict:
+                count_dict[k] = 0
 
-    joint_obs = []
-    pid_list = []
-    for pid, batch in multi_agent_batch.policy_batches.items():
-        batch.shuffle()
-        assert batch.count >= sample_size, batch
-        joint_obs.append(batch.slice(0, sample_size)['obs'])
-        pid_list.append(pid)
-    joint_obs = np.concatenate(joint_obs)
+        while any([v < sample_size for v in count_dict.values()]):
+            tmp_batch = self_optimizer.workers.local_worker().sample()
+            samples.append(tmp_batch)
+            for k, v in tmp_batch.policy_batches.items():
+                assert k in count_dict, count_dict
+                count_dict[k] += v.count
+        multi_agent_batch = MultiAgentBatch.concat_samples(samples)
+
+        joint_obs = []
+        pid_list = []
+        for pid, batch in multi_agent_batch.policy_batches.items():
+            batch.shuffle()
+            assert batch.count >= sample_size, batch
+            joint_obs.append(batch.slice(0, sample_size)['obs'])
+            pid_list.append(pid)
+        joint_obs = np.concatenate(joint_obs)
 
     def _replay(policy, pid):
         act, _, infos = policy.compute_actions(joint_obs)
         return pid, act, infos
 
+    # ATTENTION!!! Here is MYSELF replaying JOINT OBSERVATION
     ret = {
         pid: act
         for pid, act, infos in
         self_optimizer.workers.local_worker().foreach_policy(_replay)
     }
     return {JOINT_OBS: joint_obs, PEER_ACTION: ret}
-
-
-def cross_policy_object_without_joint_dataset(
-        multi_agent_batch, self_optimizer
-):
-    """Add contents into cross_policy_object, which passed to each policy."""
-    config = self_optimizer.workers._remote_config
-    assert not config["use_joint_dataset"]
-    return_dict = {}
-    # replay All possible observations for All agents
-    for pid, batch in multi_agent_batch.policy_batches.items():
-        ret = {}
-
-        def _replay(policy, replay_pid):
-            if replay_pid == pid:
-                return None, None
-            act, _, infos = policy.compute_actions(batch['obs'])
-            return replay_pid, act
-
-        for replay_pid, act in \
-                self_optimizer.workers.local_worker().foreach_policy(_replay):
-            if act is None:
-                continue
-            ret[replay_pid] = act
-        return_dict[pid] = ret
-    return return_dict
 
 
 def validate_config_basic(config):
@@ -328,14 +289,12 @@ def choose_policy_optimizer(workers, config):
             standardize_fields=["advantages"]
         )
 
-    split_list = [JOINT_OBS, PEER_ACTION] \
-        if config['use_joint_dataset'] else [PEER_ACTION, NO_SPLIT_OBS]
+    no_split_list = [JOINT_OBS, PEER_ACTION]
 
     return LocalMultiGPUOptimizerModified(
         workers,
-        split_list,
-        cross_policy_object_use_joint_dataset if config["use_joint_dataset"]
-        else cross_policy_object_without_joint_dataset,
+        no_split_list=no_split_list,
+        process_multiagent_batch_fn=get_cross_policy_object,
         sgd_batch_size=config["sgd_minibatch_size"],
         num_sgd_iter=config["num_sgd_iter"],
         num_gpus=config["num_gpus"],
@@ -347,27 +306,19 @@ def choose_policy_optimizer(workers, config):
     )
 
 
-def setup_mixins(policy, obs_space, action_space, config):
-    AddLossMixin.__init__(policy, config['novelty_loss_param'])
-    ValueNetworkMixin.__init__(policy, obs_space, action_space, config)
-    KLCoeffMixin.__init__(policy, config)
-    EntropyCoeffSchedule.__init__(
-        policy, config["entropy_coeff"], config["entropy_coeff_schedule"]
-    )
-    LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
+def setup_mixins_modified(policy, obs_space, action_space, config):
+    AddLossMixin.__init__(policy, config)
+    setup_mixins(policy, obs_space, action_space, config)
 
 
 ExtraLossPPOTFPolicy = PPOTFPolicy.with_updates(
     name="ExtraLossPPOTFPolicy",
     get_default_config=lambda: extra_loss_ppo_default_config,
-    postprocess_fn=postprocess_ppo_gae,
+    postprocess_fn=postprocess_ppo_gae_modified,
     stats_fn=kl_and_loss_stats_modified,
     loss_fn=extra_loss_ppo_loss,
-    before_loss_init=setup_mixins,
-    mixins=[
-        LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin, AddLossMixin
-    ]
+    before_loss_init=setup_mixins_modified,
+    mixins=mixin_list + [AddLossMixin]
 )
 
 ExtraLossPPOTrainer = PPOTrainer.with_updates(
@@ -377,3 +328,8 @@ ExtraLossPPOTrainer = PPOTrainer.with_updates(
     default_policy=ExtraLossPPOTFPolicy,
     make_policy_optimizer=choose_policy_optimizer
 )
+
+if __name__ == '__main__':
+    from toolbox.marl.test_extra_loss import test_extra_loss_ppo_trainer1
+
+    test_extra_loss_ppo_trainer1(True)

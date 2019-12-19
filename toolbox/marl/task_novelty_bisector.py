@@ -1,21 +1,19 @@
 """This file implement the modified version of TNB."""
 import tensorflow as tf
-from ray import tune
 
-from toolbox import initialize_ray
-from toolbox.marl import on_train_result, MultiAgentEnvWrapper
-from toolbox.marl.extra_loss_ppo_trainer import novelty_loss, \
+from toolbox.marl.extra_loss_ppo_trainer import novelty_loss_mse, \
     ppo_surrogate_loss, DEFAULT_CONFIG, merge_dicts, ExtraLossPPOTrainer, \
     ExtraLossPPOTFPolicy, kl_and_loss_stats_without_total_loss, \
     validate_config_basic
-from toolbox.utils import get_local_dir
 
 tnb_ppo_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         joint_dataset_sample_batch_size=200,
         use_joint_dataset=True,
-        novelty_mode="mean"
+        novelty_mode="mean",
+        use_second_component=True,  # whether to apply the >90deg operation
+        clip_novelty_gradient=False  # whether to constraint length of g_novel
     )
 )
 
@@ -23,7 +21,7 @@ tnb_ppo_default_config = merge_dicts(
 def tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
-    nov_loss = novelty_loss(policy, model, dist_class, train_batch)
+    nov_loss = novelty_loss_mse(policy, model, dist_class, train_batch)
     # In rllib convention, loss_fn should return one single tensor
     # however, there is no explicit bugs happen returning a list.
     return [original_loss, nov_loss]
@@ -83,26 +81,33 @@ def tnb_gradients(policy, optimizer, loss):
     )
 
     def less_90_deg():
-        tg = policy_grad_norm + novelty_grad_norm
-        tg = tf.linalg.l2_normalize(tg)
-        mag = (
-            tf.norm(tf.multiply(policy_grad_flatten, tg)) +
-            tf.norm(tf.multiply(novelty_grad_flatten, tg))
-        ) / 2
-        tg = tg * mag
+        tg = tf.linalg.l2_normalize(policy_grad_norm + novelty_grad_norm)
+        pg_length = tf.norm(tf.multiply(policy_grad_flatten, tg))
+        ng_length = tf.norm(tf.multiply(novelty_grad_flatten, tg))
+        if hasattr(policy, "novelty_loss_param"):
+            # we are not at the original TNB, at this time
+            # policy.novelty_loss_param exists, we multiplied it with g_novel.
+            ng_length = policy.novelty_loss_param * ng_length
+        if policy.config["clip_novelty_gradient"]:
+            ng_length = tf.minimum(pg_length, ng_length)
+        tg_lenth = (pg_length + ng_length) / 2
+        tg = tg * tg_lenth
         return tg
 
     def greater_90_deg():
         tg = -cos_similarity * novelty_grad_norm + policy_grad_norm
         tg = tf.linalg.l2_normalize(tg)
         tg = tg * tf.norm(tf.multiply(policy_grad_norm, tg))
-        # Here is a modification to the origianl TNB, we add 1/2 here.
-        tg = tg / 2
         return tg
 
     policy.gradient_cosine_similarity = cos_similarity
+    policy.policy_grad_norm = tf.norm(policy_grad_flatten)
+    policy.novelty_grad_norm = tf.norm(novelty_grad_norm)
 
-    total_grad = tf.cond(cos_similarity > 0, less_90_deg, greater_90_deg)
+    if policy.config["use_second_component"]:
+        total_grad = tf.cond(cos_similarity > 0, less_90_deg, greater_90_deg)
+    else:
+        total_grad = less_90_deg()
 
     # reshape back the gradients
     return_gradients = []
@@ -122,8 +127,8 @@ def tnb_gradients(policy, optimizer, loss):
 def grad_stats_fn(policy, batch, grads):
     ret = {
         "cos_similarity": policy.gradient_cosine_similarity,
-        # "policy_grad_norm": policy.policy_grad_norm,
-        # "novelty_grad_norm": policy.novelty_grad_norm
+        "policy_grad_norm": policy.policy_grad_norm,
+        "novelty_grad_norm": policy.novelty_grad_norm
     }
     return ret
 
@@ -143,46 +148,3 @@ TNBPPOTrainer = ExtraLossPPOTrainer.with_updates(
     validate_config=validate_config_basic,
     default_policy=TNBPPOTFPolicy
 )
-
-
-def test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=True):
-    num_agents = 3
-    num_gpus = 0
-
-    # This is only test code.
-    initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
-
-    policy_names = ["ppo_agent{}".format(i) for i in range(num_agents)]
-
-    env_config = {"env_name": "BipedalWalker-v2", "agent_ids": policy_names}
-    env = MultiAgentEnvWrapper(env_config)
-    config = {
-        "env": MultiAgentEnvWrapper,
-        "env_config": env_config,
-        "num_gpus": num_gpus,
-        "log_level": "DEBUG",
-        "use_joint_dataset": use_joint_dataset,
-        "joint_dataset_sample_batch_size": 200,
-        "multiagent": {
-            "policies": {
-                i: (None, env.observation_space, env.action_space, {})
-                for i in policy_names
-            },
-            "policy_mapping_fn": lambda x: x,
-        },
-        "callbacks": {
-            "on_train_result": on_train_result
-        },
-    }
-
-    tune.run(
-        TNBPPOTrainer,
-        local_dir=get_local_dir(),
-        name="DELETEME_TEST_extra_loss_ppo_trainer",
-        stop={"timesteps_total": 50000},
-        config=config,
-    )
-
-
-if __name__ == '__main__':
-    test_tnb_ppo_trainer(use_joint_dataset=True, local_mode=True)

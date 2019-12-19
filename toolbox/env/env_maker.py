@@ -12,6 +12,11 @@ except Exception:
         "This may because you didn't install mujoco_py."
     )
 
+try:
+    import pybullet_envs
+except Exception:
+    print("Failed to import pybullet_envs!")
+
 DEFAULT_SEED = 0
 
 
@@ -68,8 +73,13 @@ def get_env_maker(name, require_render=False):
         return build_opencv_bipedal_walker
     if require_render:
         return make_build_gym_env(name)
-    else:
+    if name in ENV_MAKER_LOOKUP:
         return ENV_MAKER_LOOKUP[name]
+    else:
+        assert name in [s.id for s in gym.envs.registry.all()], \
+            "name of env not in {}".format(
+                [s.id for s in gym.envs.registry.all()])
+        return lambda: gym.make(name)
 
 
 ENV_MAKER_LOOKUP = {

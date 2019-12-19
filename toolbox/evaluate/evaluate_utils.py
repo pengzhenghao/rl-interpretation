@@ -12,7 +12,8 @@ from tensorflow import Graph
 
 from toolbox.env.env_maker import get_env_maker
 from toolbox.modified_rllib.agent_with_activation import (
-    PPOAgentWithActivation, model_config, register_fc_with_activation
+    PPOAgentWithActivation, fc_with_activation_model_config,
+    register_fc_with_activation
 )
 from toolbox.modified_rllib.agent_with_mask import (
     PPOAgentWithMask, register_fc_with_mask, PPOTFPolicyWithMask,
@@ -49,7 +50,7 @@ def build_config(
     if is_es_agent or (not use_activation_model):
         args_config = {}
     else:
-        args_config = {"model": model_config}
+        args_config = {"model": fc_with_activation_model_config}
     if has_gpu():
         args_config.update({"num_gpus_per_worker": 0.1})
     config = merge_dicts(config, args_config)
