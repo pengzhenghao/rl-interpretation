@@ -16,7 +16,6 @@ from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTrainer, \
 from toolbox.marl.smart_adaptive_extra_loss import SmartAdaptiveExtraLossPPOTrainer, SmartAdaptiveExtraLossPPOTFPolicy
 from toolbox.marl.adaptive_extra_loss import wrap_stats_fn
 
-
 logger = logging.getLogger(__name__)
 
 pappo_default_config = merge_dicts(
@@ -125,7 +124,6 @@ class SmartNoveltyParamMixin(object):
 
             self.novelty_target += self.increment
 
-
             # should decrease alpha
 
             # old_value = self.novelty_loss_param_val
@@ -143,7 +141,6 @@ class SmartNoveltyParamMixin(object):
         elif performance < history_performance * 0.9:
             pass
 
-
             # old_value = self.novelty_loss_param_val
             # self.novelty_loss_param_val = min(
             #     0.5, self.novelty_loss_param_val + self.step
@@ -155,8 +152,6 @@ class SmartNoveltyParamMixin(object):
             #         history_performance
             #     )
             # )
-
-
 
         # AEL
         if running_mean > self.novelty_target + self.increment:
@@ -180,8 +175,6 @@ class SmartNoveltyParamMixin(object):
         self.novelty_target_tensor.load(
             self.novelty_target, session=self.get_session()
         )
-
-
 
         self.novelty_loss_param.load(
             self.novelty_loss_param_val, session=self.get_session()
@@ -217,7 +210,6 @@ def setup_mixins_modified(policy, obs_space, action_space, config):
     )
     LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
     SmartNoveltyParamMixin.__init__(policy, config)
-
 
 
 PAPPOTFPolicy = SmartAdaptiveExtraLossPPOTFPolicy.with_updates(

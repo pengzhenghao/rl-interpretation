@@ -1,22 +1,26 @@
 import numpy as np
 
 
-def _get_kl_divergence(dist1, dist2):
-    assert dist1.ndim == 2
-    assert dist2.ndim == 2
+def _get_kl_divergence(source, target, mean=True):
+    assert source.ndim == 2
+    assert target.ndim == 2
 
-    source_mean, source_log_std = np.split(dist1, 2, axis=1)
-    target_mean, target_log_std = np.split(dist2, 2, axis=1)
+    source_mean, source_log_std = np.split(source, 2, axis=1)
+    target_mean, target_log_std = np.split(target, 2, axis=1)
 
     kl_divergence = np.sum(
-        target_log_std - source_log_std +
-        (np.square(source_log_std) + np.square(source_mean - target_mean)) /
-        (2.0 * np.square(target_log_std) + 1e-9) - 0.5,
+        target_log_std - source_log_std + (
+            np.square(np.exp(source_log_std)) +
+            np.square(source_mean - target_mean)
+        ) / (2.0 * np.square(np.exp(target_log_std)) + 1e-10) - 0.5,
         axis=1
     )
-    kl_divergence = np.clip(kl_divergence, 0.0, 1e38)  # to avoid inf
-    averaged_kl_divergence = np.mean(kl_divergence)
-    return averaged_kl_divergence
+    kl_divergence = np.clip(kl_divergence, 1e-12, 1e38)  # to avoid inf
+    if mean:
+        averaged_kl_divergence = np.mean(kl_divergence)
+        return averaged_kl_divergence
+    else:
+        return kl_divergence
 
 
 def _build_matrix(iterable, apply_function, default_value=0):
@@ -42,8 +46,9 @@ def js_distance(action_list):
     num_samples = action_list[0].shape[0] / num_agents
     # num_samples should be integer
     assert action_list[0].shape[0] % num_agents == 0, (
-        action_list, [i.shape for i in action_list], action_list[0].shape,
-        num_agents)
+        action_list, [i.shape
+                      for i in action_list], action_list[0].shape, num_agents
+    )
     num_samples = int(num_samples)
 
     js_matrix = np.zeros((num_agents, num_agents))

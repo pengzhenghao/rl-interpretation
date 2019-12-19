@@ -1,7 +1,7 @@
 """This file implement the modified version of TNB."""
 import tensorflow as tf
 
-from toolbox.marl.extra_loss_ppo_trainer import novelty_loss, \
+from toolbox.marl.extra_loss_ppo_trainer import novelty_loss_mse, \
     ppo_surrogate_loss, DEFAULT_CONFIG, merge_dicts, ExtraLossPPOTrainer, \
     ExtraLossPPOTFPolicy, kl_and_loss_stats_without_total_loss, \
     validate_config_basic
@@ -21,7 +21,7 @@ tnb_ppo_default_config = merge_dicts(
 def tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""
     original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
-    nov_loss = novelty_loss(policy, model, dist_class, train_batch)
+    nov_loss = novelty_loss_mse(policy, model, dist_class, train_batch)
     # In rllib convention, loss_fn should return one single tensor
     # however, there is no explicit bugs happen returning a list.
     return [original_loss, nov_loss]

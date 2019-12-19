@@ -1,3 +1,4 @@
+import numpy as np
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 from toolbox.env import get_env_maker
@@ -7,9 +8,11 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
     """This is a brief wrapper to create a mock multi-agent environment"""
 
     def __init__(self, env_config):
-        assert "agent_ids" in env_config
+        assert "num_agents" in env_config
         assert "env_name" in env_config
-        agent_ids = env_config['agent_ids']
+        num_agents = env_config['num_agents']
+        agent_ids = ["agent{}".format(i) for i in range(num_agents)]
+        self.num_agents = num_agents
         self.agent_ids = agent_ids
         self.env_name = env_config['env_name']
         self.env_maker = get_env_maker(env_config['env_name'])
@@ -31,6 +34,7 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
     def step(self, action_dict):
         obs, rewards, dones, infos = {}, {}, {}, {}
         for aid, act in action_dict.items():
+            act = np.nan_to_num(act, copy=False)
             o, r, d, i = self.envs[aid].step(act)
             if d:
                 self.dones.add(aid)
@@ -47,7 +51,6 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
 
 
 if __name__ == '__main__':
-    import numpy as np
 
     env_config = {"env_name": "BipedalWalker-v2", "agent_ids": list(range(10))}
 

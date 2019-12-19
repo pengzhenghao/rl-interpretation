@@ -28,10 +28,18 @@ logger = logging.getLogger(__name__)
 
 
 class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
+    """
+    The main contribution this class provides is:
+        1. It allows cross-policy object passing
+        2. It allows to place some object on single GPU without splitting them.
+        3. It corrects the computing of num_steps_sampled and num_steps_trained
+    """
+
     def __init__(
             self,
             workers,
-            no_split_list,
+            compute_num_steps_sampled=None,
+            no_split_list=None,
             process_multiagent_batch_fn=None,
             sgd_batch_size=128,
             num_sgd_iter=10,
@@ -46,6 +54,9 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
         that is allow to parse the cross policy information and store then
         in an object, which will be passed to each policy."""
         self.process_multiagent_batch_fn = process_multiagent_batch_fn
+        self.compute_num_steps_sampled = compute_num_steps_sampled
+        if no_split_list is None:
+            no_split_list = []
         PolicyOptimizer.__init__(self, workers)
 
         self.batch_size = sgd_batch_size
@@ -222,8 +233,151 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                     )
                 fetches[policy_id] = _averaged(iter_extra_fetches)
 
-        self.num_steps_sampled += samples.count
-        self.num_steps_trained += tuples_per_device * len(self.devices)
+        if self.compute_num_steps_sampled:
+            self.num_steps_sampled += self.compute_num_steps_sampled(samples)
+        else:
+            self.num_steps_sampled += np.mean(
+                [b.count for b in samples.policy_batches.values()],
+                dtype=np.int64
+            )
+
+        self.num_steps_trained += np.mean(
+            list(num_loaded_tuples.values()), dtype=np.int64
+        ) * len(self.devices)
+
+        self.learner_stats = fetches
+        return fetches
+
+
+class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
+    """
+    The main contribution this class provides is:
+        1. It corrects the computing of num_steps_sampled and num_steps_trained
+        2. Introduced a new
+    """
+
+    def __init__(
+            self,
+            workers,
+            compute_num_steps_sampled=None,
+            sgd_batch_size=128,
+            num_sgd_iter=10,
+            sample_batch_size=200,
+            num_envs_per_worker=1,
+            train_batch_size=1024,
+            num_gpus=0,
+            standardize_fields=[],
+            shuffle_sequences=True
+    ):
+        super().__init__(
+            workers, sgd_batch_size, num_sgd_iter, sample_batch_size,
+            num_envs_per_worker, train_batch_size, num_gpus,
+            standardize_fields, shuffle_sequences
+        )
+        self.compute_num_steps_sampled = compute_num_steps_sampled
+
+    def step(self):
+        with self.update_weights_timer:
+            if self.workers.remote_workers():
+                weights = ray.put(self.workers.local_worker().get_weights())
+                for e in self.workers.remote_workers():
+                    e.set_weights.remote(weights)
+
+        with self.sample_timer:
+            if self.workers.remote_workers():
+                samples = collect_samples(
+                    self.workers.remote_workers(), self.sample_batch_size,
+                    self.num_envs_per_worker, self.train_batch_size
+                )
+                if samples.count > self.train_batch_size * 2:
+                    logger.info(
+                        "Collected more training samples than expected "
+                        "(actual={}, train_batch_size={}). ".
+                        format(samples.count, self.train_batch_size) +
+                        "This may be because you have many workers or "
+                        "long episodes in 'complete_episodes' batch mode."
+                    )
+            else:
+                samples = []
+                while sum(s.count for s in samples) < self.train_batch_size:
+                    samples.append(self.workers.local_worker().sample())
+                samples = SampleBatch.concat_samples(samples)
+
+            # Handle everything as if multiagent
+            if isinstance(samples, SampleBatch):
+                samples = MultiAgentBatch(
+                    {DEFAULT_POLICY_ID: samples}, samples.count
+                )
+
+        for policy_id, policy in self.policies.items():
+            if policy_id not in samples.policy_batches:
+                continue
+
+            batch = samples.policy_batches[policy_id]
+            for field in self.standardize_fields:
+                value = batch[field]
+                standardized = (value - value.mean()) / max(1e-4, value.std())
+                batch[field] = standardized
+
+        num_loaded_tuples = {}
+        with self.load_timer:
+            for policy_id, batch in samples.policy_batches.items():
+                if policy_id not in self.policies:
+                    continue
+
+                policy = self.policies[policy_id]
+                policy._debug_vars()
+                tuples = policy._get_loss_inputs_dict(
+                    batch, shuffle=self.shuffle_sequences
+                )
+                data_keys = [ph for _, ph in policy._loss_inputs]
+                if policy._state_inputs:
+                    state_keys = policy._state_inputs + [policy._seq_lens]
+                else:
+                    state_keys = []
+                num_loaded_tuples[policy_id] = (
+                    self.optimizers[policy_id].load_data(
+                        self.sess, [tuples[k] for k in data_keys],
+                        [tuples[k] for k in state_keys]
+                    )
+                )
+
+        fetches = {}
+        with self.grad_timer:
+            for policy_id, tuples_per_device in num_loaded_tuples.items():
+                optimizer = self.optimizers[policy_id]
+                num_batches = max(
+                    1,
+                    int(tuples_per_device) // int(self.per_device_batch_size)
+                )
+                logger.debug("== sgd epochs for {} ==".format(policy_id))
+                for i in range(self.num_sgd_iter):
+                    iter_extra_fetches = defaultdict(list)
+                    permutation = np.random.permutation(num_batches)
+                    for batch_index in range(num_batches):
+                        batch_fetches = optimizer.optimize(
+                            self.sess, permutation[batch_index] *
+                            self.per_device_batch_size
+                        )
+                        for k, v in batch_fetches[LEARNER_STATS_KEY].items():
+                            iter_extra_fetches[k].append(v)
+                    logger.debug(
+                        "{} {}".format(i, _averaged(iter_extra_fetches))
+                    )
+                fetches[policy_id] = _averaged(iter_extra_fetches)
+
+        if self.compute_num_steps_sampled:
+            self.num_steps_sampled += self.compute_num_steps_sampled(samples)
+        else:
+            self.num_steps_sampled += np.mean(
+                [b.count for b in samples.policy_batches.values()],
+                dtype=np.int64
+            )
+
+        self.num_steps_trained += np.mean(
+            list(num_loaded_tuples.values()), dtype=np.int64
+        ) * len(self.devices)
+
         self.learner_stats = fetches
         return fetches
 

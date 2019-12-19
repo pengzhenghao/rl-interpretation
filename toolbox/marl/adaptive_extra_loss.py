@@ -4,10 +4,10 @@ from collections import deque
 import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import update_kl
+from ray.rllib.agents.ppo.ppo_policy import setup_mixins
 
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTFPolicy, \
-    ExtraLossPPOTrainer, ValueNetworkMixin, KLCoeffMixin, AddLossMixin, \
-    LearningRateSchedule, EntropyCoeffSchedule, DEFAULT_CONFIG, merge_dicts, \
+    ExtraLossPPOTrainer, AddLossMixin, DEFAULT_CONFIG, merge_dicts, \
     validate_config_basic, kl_and_loss_stats_modified, mixin_list
 
 logger = logging.getLogger(__name__)
@@ -48,21 +48,29 @@ class NoveltyParamMixin(object):
             dtype=tf.float32
         )
         self.maxlen = config['novelty_loss_running_length']
-        self.novelty_stat = None
+        self.novelty_stat = deque(maxlen=self.maxlen)
 
     def update_novelty(self, sampled_novelty):
         sampled_novelty = -sampled_novelty
-
-        if self.novelty_stat is None:
-            # lazy initialize
-            self.novelty_target = min(
-                sampled_novelty - self.increment, self.increment
-            )
-            self.novelty_stat = deque(
-                [self.novelty_target] * self.maxlen, maxlen=self.maxlen
-            )
+        assert sampled_novelty > 0
 
         self.novelty_stat.append(sampled_novelty)
+        if len(self.novelty_stat) < self.maxlen:
+            # start tuning after the queue is full.
+            logger.debug(
+                "Current stat length: {}".format(len(self.novelty_stat))
+            )
+            return self.novelty_loss_param_val
+        elif np.isnan(self.novelty_target):
+            self.novelty_target = max(
+                np.mean(self.novelty_stat) - self.increment, self.increment
+            )
+            assert self.novelty_target > 0
+            logger.debug(
+                "After {} iterations, we set novelty_target to {}"
+                "".format(len(self.novelty_stat), self.novelty_target)
+            )
+
         running_mean = np.mean(self.novelty_stat)
         logger.debug(
             "Current novelty {}, mean {}, target {}, param {}".format(
@@ -80,12 +88,12 @@ class NoveltyParamMixin(object):
             logger.info(msg)
             self.novelty_target += self.increment
 
-        if sampled_novelty > self.increment + self.novelty_target:
-            # if sampled_novelty > 2.0 * self.novelty_target:
-            self.novelty_loss_param_val *= 0.5
-        elif sampled_novelty < self.novelty_target - self.increment:
-            # elif sampled_novelty < 0.5 * self.novelty_target:
-            self.novelty_loss_param_val *= 1.5
+        if sampled_novelty > self.novelty_target:
+            self.novelty_loss_param_val *= 0.9
+        elif sampled_novelty < self.novelty_target:
+            self.novelty_loss_param_val = min(
+                self.novelty_loss_param_val * 1.1, 1.0
+            )
         self.novelty_loss_param.load(
             self.novelty_loss_param_val, session=self.get_session()
         )
@@ -121,12 +129,8 @@ def wrap_after_train_result(trainer, fetches):
 
 
 def setup_mixins_modified(policy, obs_space, action_space, config):
-    ValueNetworkMixin.__init__(policy, obs_space, action_space, config)
-    KLCoeffMixin.__init__(policy, config)
-    EntropyCoeffSchedule.__init__(
-        policy, config["entropy_coeff"], config["entropy_coeff_schedule"]
-    )
-    LearningRateSchedule.__init__(policy, config["lr"], config["lr_schedule"])
+    setup_mixins(policy, obs_space, action_space, config)
+    AddLossMixin.__init__(policy, config)
     NoveltyParamMixin.__init__(policy, config)
 
 

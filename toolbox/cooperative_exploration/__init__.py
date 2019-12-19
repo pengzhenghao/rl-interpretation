@@ -1,2 +1,1 @@
-from toolbox.cooperative_exploration.cooperative_exploration_ppo import \
-    CEPPOTrainer
+from toolbox.cooperative_exploration.ceppo import CEPPOTrainer
