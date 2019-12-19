@@ -419,37 +419,37 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
         else batches[0]
 
 
-class ValueNetworkMixin2(object):
-    def __init__(self, config):
-        if config["use_gae"]:
-
-            @make_tf_callable(self.get_session(), True)
-            def value_batch(ob, prev_action, prev_reward):
-                # We do not support recurrent network now.
-                model_out, _ = self.model(
-                    {
-                        SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
-                        SampleBatch.PREV_ACTIONS: tf.
-                        convert_to_tensor(prev_action),
-                        SampleBatch.PREV_REWARDS: tf.
-                        convert_to_tensor(prev_reward),
-                        "is_training": tf.convert_to_tensor(False),
-                    }
-                )
-                return self.model.value_function()
-        else:
-
-            @make_tf_callable(self.get_session(), True)
-            def value_batch(ob, prev_action, prev_reward):
-                return tf.zeros_like(prev_reward)
-
-        self._value_batch = value_batch
+# class ValueNetworkMixin2(object):
+#     def __init__(self, config):
+#         if config["use_gae"]:
+#
+#             @make_tf_callable(self.get_session(), True)
+#             def value_batch(ob, prev_action, prev_reward):
+#                 # We do not support recurrent network now.
+#                 model_out, _ = self.model(
+#                     {
+#                         SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
+#                         SampleBatch.PREV_ACTIONS: tf.
+#                         convert_to_tensor(prev_action),
+#                         SampleBatch.PREV_REWARDS: tf.
+#                         convert_to_tensor(prev_reward),
+#                         "is_training": tf.convert_to_tensor(False),
+#                     }
+#                 )
+#                 return self.model.value_function()
+#         else:
+#
+#             @make_tf_callable(self.get_session(), True)
+#             def value_batch(ob, prev_action, prev_reward):
+#                 return tf.zeros_like(prev_reward)
+#
+#         self._value_batch = value_batch
 
 
 def setup_mixins_ceppo(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
-    if not config['disable']:
-        ValueNetworkMixin2.__init__(policy, config)
+    # if not config['disable']:
+        # ValueNetworkMixin2.__init__(policy, config)
     if config[DIVERSITY_ENCOURAGING] or config[CURIOSITY]:
         AddLossMixin.__init__(policy, config)
         NoveltyParamMixin.__init__(policy, config)
@@ -635,6 +635,7 @@ class PPOLoss(object):
             use_gae=True,
             model_config=None
     ):
+
         print("Enter PPOLoss Class")
         value_targets = validate_tensor(value_targets, "value_targets")
         advantages = validate_tensor(advantages, "advantages")
@@ -821,7 +822,8 @@ CEPPOTFPolicy = AdaptiveExtraLossPPOTFPolicy.with_updates(
     loss_fn=loss_ceppo,
     before_loss_init=setup_mixins_ceppo,
     stats_fn=wrap_stats_ceppo,
-    mixins=mixin_list + [AddLossMixin, NoveltyParamMixin, ValueNetworkMixin2]
+    mixins=mixin_list + [AddLossMixin, NoveltyParamMixin]
+    # mixins=mixin_list + [AddLossMixin, NoveltyParamMixin, ValueNetworkMixin2]
 )
 
 CEPPOTrainer = AdaptiveExtraLossPPOTrainer.with_updates(
