@@ -373,7 +373,8 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
         elif not policy.config[REPLAY_VALUES]:
             batches.append(postprocess_ppo_gae(policy, other_batch_raw))
         else:  # replay values
-            batches.append(postprocess_ppo_gae_replay(policy, other_batch))
+            if other_batch is not None:
+                batches.append(postprocess_ppo_gae_replay(policy, other_batch))
 
     for batch in batches:
         batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[

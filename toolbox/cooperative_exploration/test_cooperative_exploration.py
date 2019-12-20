@@ -50,10 +50,10 @@ def test_ceppo(local_mode=False):
         extra_config={
             "mode": tune.grid_search(
                 [
-                    # DISABLE,
-                    # DISABLE_AND_EXPAND,
+                    DISABLE,
+                    DISABLE_AND_EXPAND,
                     REPLAY_VALUES,
-                    # NO_REPLAY_VALUES,
+                    NO_REPLAY_VALUES,
                     # DIVERSITY_ENCOURAGING,
                     # DIVERSITY_ENCOURAGING_NO_RV,
                     # DIVERSITY_ENCOURAGING_DISABLE,
