@@ -93,17 +93,21 @@ if __name__ == '__main__':
     if args.mode == "all":
         mode = tune.grid_search(OPTIONAL_MODES)
         num_agents = args.num_agents
-    elif args.mode == "change_num_agents":
-        mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES])
-        num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
-    elif args.mode == "change_num_agents_disable_and_expand":
-        mode = DISABLE_AND_EXPAND
-        num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
-        num_gpus = 0.5
+    # elif args.mode == "change_num_agents":
+    #     mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES])
+    #     num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
+    # elif args.mode == "change_num_agents_disable_and_expand":
+    #     mode = DISABLE_AND_EXPAND
+    #     num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
+    #     num_gpus = 0.5
     elif args.mode == "three":
         mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES, DISABLE])
         clip_action_prob_kl = tune.grid_search([0.01, 0.1, 1])
         num_agents = tune.grid_search([3, 5, 7])
+    elif args.mode == "search_replay_values":
+        clip_action_prob_kl = tune.grid_search([0.1, 1, 10])
+        clip_action_prob_ratio = tune.grid_search([0.5, 1, 2])
+        num_agents = tune.grid_search([3, 5])
     elif args.mode == "baseline_shrink":
         mode = DISABLE_AND_EXPAND
         clip_action_prob_kl = tune.grid_search([0.01, 0.1, 1])
