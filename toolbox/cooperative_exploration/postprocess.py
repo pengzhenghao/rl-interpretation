@@ -29,13 +29,14 @@ def postprocess_ppo_gae_replay(policy, sample_batch):
         last_r,
         policy.config["gamma"],
         policy.config["lambda"],
-        use_gae=policy.config["use_gae"]
+        use_gae=policy.config["use_gae"],
+        clip_action_prob_ratio=policy.config["clip_action_prob_ratio"]
     )
     return batch
 
 
 def compute_advantages_replay(
-        rollout, last_r, gamma=0.9, lambda_=1.0, use_gae=True
+        rollout, last_r, gamma=0.9, lambda_=1.0, use_gae=True, clip_action_prob_ratio=1
 ):
     """Given a rollout, compute its value targets and the advantage.
 
@@ -66,6 +67,7 @@ def compute_advantages_replay(
                         1 - lambda_) - vpred_t[:-1]
 
         ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
+        ratio = np.clip(ratio, 0.0, clip_action_prob_ratio)
 
         # This formula for the advantage comes
         # "Generalized Advantage Estimation": https://arxiv.org/abs/1506.02438

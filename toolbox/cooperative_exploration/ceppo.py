@@ -34,6 +34,7 @@ ceppo_default_config = merge_dicts(
         use_joint_dataset=False,
         mode=REPLAY_VALUES,
         clip_action_prob_kl=1,
+        clip_action_prob_ratio=1,
         # clip_action_prob=0.5,  # DEPRECATED, +- 150% is allowed
         callbacks={
             "on_train_result": on_train_result,
