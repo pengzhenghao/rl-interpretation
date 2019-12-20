@@ -107,7 +107,7 @@ if __name__ == '__main__':
     elif args.mode == "search_replay_values":
         mode = REPLAY_VALUES
         clip_action_prob_kl = tune.grid_search([0.1, 1, 10])
-        clip_action_prob_ratio = tune.grid_search([0.5, 1, 2])
+        ceppo_config["clip_action_prob_ratio"] = tune.grid_search([0.5, 1, 2])
         num_agents = tune.grid_search([3, 5])
     elif args.mode == "baseline_shrink":
         mode = DISABLE_AND_EXPAND
