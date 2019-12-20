@@ -46,7 +46,7 @@ def train(
         stop={"info/num_steps_sampled": stop},
         config=config,
         max_failures=20,
-        reuse_actors=True
+        reuse_actors=False
     )
 
     path = "{}-{}-{}ts-{}agents.pkl".format(
@@ -69,6 +69,7 @@ if __name__ == '__main__':
     parser.add_argument("--env", type=str, default="BipedalWalker-v2")
     parser.add_argument("--exp-name", type=str, default="")
     parser.add_argument("--mode", type=str, default="all")
+    parser.add_argument("--stop", type=float, default=5e6)
     parser.add_argument("--address", type=str, default="")
     args = parser.parse_args()
 
@@ -119,7 +120,7 @@ if __name__ == '__main__':
         extra_config=ceppo_config,
         trainer=CEPPOTrainer,
         env_name=args.env,
-        stop=int(5e6),
+        stop=int(args.stop),
         exp_name="DELETEME-TEST" if args.test else args.exp_name,
         num_agents=num_agents,
         num_seeds=args.num_seeds,
