@@ -62,7 +62,8 @@ def compute_advantages_replay(
              np.array([last_r])]
         )
         delta_t = \
-            traj[SampleBatch.REWARDS] + gamma * vpred_t[1:] - vpred_t[:-1]
+            traj[SampleBatch.REWARDS] + gamma * vpred_t[1:] * (
+                        1 - lambda_) - vpred_t[:-1]
 
         ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
 
@@ -70,19 +71,20 @@ def compute_advantages_replay(
         # "Generalized Advantage Estimation": https://arxiv.org/abs/1506.02438
         # traj[Postprocessing.ADVANTAGES] = discount(delta_t, gamma * lambda_)
         # advantage = ratio * delta_t
-        advantage = calculate_gae_advantage(delta_t, ratio, lambda_, gamma)
+        advantage = calculate_gae_advantage(
+            traj[SampleBatch.VF_PREDS], delta_t, ratio, lambda_, gamma)
         traj[Postprocessing.ADVANTAGES] = advantage
         traj["debug_ratio"] = ratio
 
         fake_delta = np.zeros_like(delta_t)
         fake_delta[-1] = 1
         traj["debug_fake_adv"] = calculate_gae_advantage(
-            fake_delta, ratio, lambda_, gamma
+            np.zeros_like(delta_t), fake_delta, ratio, lambda_, gamma
         )
 
         value_target = (
-            traj[Postprocessing.ADVANTAGES] +
-            ratio * traj[SampleBatch.VF_PREDS]
+                traj[Postprocessing.ADVANTAGES] +
+                traj[SampleBatch.VF_PREDS]
         ).copy().astype(np.float32)
         # traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
         traj[Postprocessing.VALUE_TARGETS] = value_target
@@ -103,41 +105,45 @@ def compute_advantages_replay(
         #     traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES
-         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
     return SampleBatch(traj)
 
 
-def calculate_gae_advantage(delta, ratio, lambda_, gamma):
+def calculate_gae_advantage(values, delta, ratio, lambda_, gamma):
+    assert len(delta) > 0, (values, delta)
+    assert values.shape == delta.shape
     y_n = np.zeros_like(delta)
-    y_n[-1] = ratio[-1] * delta[-1]
+    y_n[-1] = delta[-1]
     length = len(delta)
     for ind in range(length - 2, -1, -1):
         # ind = 8, 7, 6, ..., 0 if length = 10
-        y_n[ind] = ratio[ind] * (delta[ind] + gamma * lambda_ * y_n[ind + 1])
+        y_n[ind] = delta[ind] + ratio[ind + 1] * gamma * lambda_ * (
+                y_n[ind + 1] + values[ind + 1]
+        )
     return y_n
 
-
-def test_calculate_gae_advantage(n=1000):
-    length = 100
-    for i in range(n):
-        delta = np.random.random((length, ))  # suppose it's old advantage
-        ratio = np.random.random((length, ))  # suppose it's the ratio of prob
-        lambda_ = np.random.random()
-        gamma = np.random.random()
-        adv = calculate_gae_advantage(delta, ratio, lambda_, gamma)
-        cor = _calculate_gae_advantage_correct(delta, ratio, lambda_, gamma)
-        np.testing.assert_almost_equal(adv, cor)
-
-
-def _calculate_gae_advantage_correct(delta, ratio, lambda_, gamma):
-    length = len(delta)
-    prev = delta[-1] * ratio[-1]
-    correct = [prev]
-    for i in range(1, length):
-        ind = length - i - 1
-        prev = (prev * gamma * lambda_ + delta[ind]) * ratio[ind]
-        correct.insert(0, prev)
-    return np.array(correct)
+# def test_calculate_gae_advantage(n=1000):
+#     length = 100
+#     for i in range(n):
+#         delta = np.random.random((length, ))  # suppose it's old advantage
+#         ratio = np.random.random((length, ))  # suppose it's the ratio of
+#         prob
+#         lambda_ = np.random.random()
+#         gamma = np.random.random()
+#         adv = calculate_gae_advantage(delta, ratio, lambda_, gamma)
+#         cor = _calculate_gae_advantage_correct(delta, ratio, lambda_, gamma)
+#         np.testing.assert_almost_equal(adv, cor)
+#
+#
+# def _calculate_gae_advantage_correct(delta, ratio, lambda_, gamma):
+#     length = len(delta)
+#     prev = delta[-1] * ratio[-1]
+#     correct = [prev]
+#     for i in range(1, length):
+#         ind = length - i - 1
+#         prev = (prev * gamma * lambda_ + delta[ind]) * ratio[ind]
+#         correct.insert(0, prev)
+#     return np.array(correct)
