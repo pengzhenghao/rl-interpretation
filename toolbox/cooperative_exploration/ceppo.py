@@ -351,16 +351,17 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
                 other_batch[SampleBatch.ACTIONS]
             )
 
-        other_batch, info = _clip_batch(
-            other_batch, policy.config["clip_action_prob_kl"]
-        )
-        episode.user_data['relative_kl'][my_id][pid] = info['kl']
-        episode.user_data['unclip_length'][my_id][pid] = (
-            info['unclip_length'], info['length']
-        )
+        if policy.config["clip_action_prob_kl"] is not None:
+            other_batch, info = _clip_batch(
+                other_batch, policy.config["clip_action_prob_kl"]
+            )
+            episode.user_data['relative_kl'][my_id][pid] = info['kl']
+            episode.user_data['unclip_length'][my_id][pid] = (
+                info['unclip_length'], info['length']
+            )
 
-        if policy.config['check_nan']:
-            assert other_batch[SampleBatch.CUR_OBS].ndim == 2
+        if policy.config['check_nan'] and (other_batch is not None):
+            assert other_batch[SampleBatch.CUR_OBS].ndim == 2, other_batch
             assert other_batch[BEHAVIOUR_LOGITS].ndim == 2
             assert_nan(other_batch[SampleBatch.CUR_OBS])
             assert_nan(other_batch[BEHAVIOUR_LOGITS])

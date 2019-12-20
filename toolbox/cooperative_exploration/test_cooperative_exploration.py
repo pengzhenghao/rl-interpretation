@@ -71,7 +71,8 @@ def test_ceppo(local_mode=False):
             "num_workers": 1,
         },
         # extra_config={"mode": DIVERSITY_ENCOURAGING},
-        env_name="Pendulum-v0"
+        env_name="Pendulum-v0",
+        t=10000
     )
 
 
