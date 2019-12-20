@@ -171,7 +171,8 @@ def validate_and_rewrite_config(config):
         assert "curiosity_type" not in config
         # assert "curiosity_tensity" not in config
 
-    config['check_nan'] = False
+    # config['check_nan'] = False
+    config['check_nan'] = True
 
 
 def _add_intrinsic_reward(policy, my_batch, others_batches, config):
