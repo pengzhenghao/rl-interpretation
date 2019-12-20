@@ -27,19 +27,19 @@ def on_train_result(info):
             result[item_name][policy_id][item_full_name] = val
 
         for item_name in item_list:
-            result[item_name]['over_all_mean'] = np.mean(
+            result[item_name]['overall_mean'] = np.mean(
                 [
                     a[item_name + "_mean"] for a in result[item_name].values()
                     if isinstance(a, dict)
                 ]
             )
-            result[item_name]['over_all_min'] = np.min(
+            result[item_name]['overall_min'] = np.min(
                 [
                     a[item_name + "_min"] for a in result[item_name].values()
                     if isinstance(a, dict)
                 ]
             )
-            result[item_name]['over_all_max'] = np.max(
+            result[item_name]['overall_max'] = np.max(
                 [
                     a[item_name + "_max"] for a in result[item_name].values()
                     if isinstance(a, dict)
