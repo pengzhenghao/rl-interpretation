@@ -143,14 +143,6 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
             train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
         )
 
-    policy.adv_unnorm = train_batch[Postprocessing.ADVANTAGES +
-                                    "_unnormalized"]
-    policy.adv_unnorm_square = tf.square(
-        train_batch[Postprocessing.ADVANTAGES + "_unnormalized"]
-    )
-    policy.debug_fake_adv = train_batch['debug_fake_adv']
-    policy.debug_ratio = train_batch['debug_ratio']
-
     policy.loss_obj = PPOLoss(
         policy.action_space,
         dist_class,
@@ -174,11 +166,13 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         validate_nan=policy.config["check_nan"]
     )
 
-    l = [
-        Postprocessing.ADVANTAGES + "_unnormalized", "debug_ratio",
-        "debug_fake_adv"
-    ]
-    for ll in l:
-        policy.loss_obj.loss += 0 * train_batch[ll]
+    # add some tensors into stat
+    policy.loss_obj.stats["adv_unnorm"] = \
+        train_batch[Postprocessing.ADVANTAGES + "_unnormalized"]
+    policy.loss_obj.stats["adv_unnorm_square"] = tf.square(
+        train_batch[Postprocessing.ADVANTAGES + "_unnormalized"]
+    )
+    policy.loss_obj.stats["debug_fake_adv"] = train_batch['debug_fake_adv']
+    policy.loss_obj.stats["debug_ratio"] = train_batch['debug_ratio']
 
     return policy.loss_obj.loss
