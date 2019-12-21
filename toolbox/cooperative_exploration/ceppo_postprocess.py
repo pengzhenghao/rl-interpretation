@@ -36,7 +36,12 @@ def postprocess_ppo_gae_replay(policy, sample_batch):
 
 
 def compute_advantages_replay(
-        rollout, last_r, gamma=0.9, lambda_=1.0, use_gae=True, clip_action_prob_ratio=1
+        rollout,
+        last_r,
+        gamma=0.9,
+        lambda_=1.0,
+        use_gae=True,
+        clip_action_prob_ratio=1
 ):
     """Given a rollout, compute its value targets and the advantage.
 
@@ -74,7 +79,8 @@ def compute_advantages_replay(
         # traj[Postprocessing.ADVANTAGES] = discount(delta_t, gamma * lambda_)
         # advantage = ratio * delta_t
         advantage = calculate_gae_advantage(
-            traj[SampleBatch.VF_PREDS], delta_t, ratio, lambda_, gamma)
+            traj[SampleBatch.VF_PREDS], delta_t, ratio, lambda_, gamma
+        )
         traj[Postprocessing.ADVANTAGES] = advantage
         traj["debug_ratio"] = ratio
 
@@ -85,8 +91,7 @@ def compute_advantages_replay(
         )
 
         value_target = (
-                traj[Postprocessing.ADVANTAGES] +
-                traj[SampleBatch.VF_PREDS]
+            traj[Postprocessing.ADVANTAGES] + traj[SampleBatch.VF_PREDS]
         ).copy().astype(np.float32)
         # traj[SampleBatch.VF_PREDS]).copy().astype(np.float32)
         traj[Postprocessing.VALUE_TARGETS] = value_target
@@ -107,7 +112,7 @@ def compute_advantages_replay(
         #     traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES
-    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
@@ -122,10 +127,10 @@ def calculate_gae_advantage(values, delta, ratio, lambda_, gamma):
     length = len(delta)
     for ind in range(length - 2, -1, -1):
         # ind = 8, 7, 6, ..., 0 if length = 10
-        y_n[ind] = delta[ind] + ratio[ind + 1] * gamma * lambda_ * (
-                y_n[ind + 1] + values[ind + 1]
-        )
+        y_n[ind] = delta[ind] + ratio[
+            ind + 1] * gamma * lambda_ * (y_n[ind + 1] + values[ind + 1])
     return y_n
+
 
 # def test_calculate_gae_advantage(n=1000):
 #     length = 100
