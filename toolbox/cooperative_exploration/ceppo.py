@@ -48,6 +48,8 @@ ceppo_default_config = merge_dicts(
 
 
 def validate_and_rewrite_config(config):
+    assert config["clip_action_prob_ratio"] == 1
+
     mode = config['mode']
     assert mode in OPTIONAL_MODES
 

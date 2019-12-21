@@ -122,8 +122,13 @@ def compute_advantages_replay(
              np.array([my_last_r])]
         )
         assert ratio.shape == traj[SampleBatch.REWARDS].shape
-        value_target = \
-            ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:])
+        # value_target = \
+        #     ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:])
+
+        value_target = (
+                ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:])
+                + (1 - ratio) * (my_vpred_t[:-1]))
+
         traj[Postprocessing.VALUE_TARGETS] = value_target
 
     else:
