@@ -114,6 +114,7 @@ if __name__ == '__main__':
         clip_action_prob_kl = tune.grid_search([0.1, 1, 10, 100, 1000, 10000])
         # ceppo_config["clip_action_prob_ratio"] = tune.grid_search([0.5, 1, 2, 10])
         num_agents = tune.grid_search([3])
+        ceppo_config["grad_clip"] = tune.grid_search([0.5, 1, 10])
     elif args.mode == "baseline_shrink":
         mode = DISABLE_AND_EXPAND
         clip_action_prob_kl = tune.grid_search([0.01, 0.1, 1])
