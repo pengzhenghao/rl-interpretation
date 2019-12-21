@@ -2,7 +2,7 @@ import tensorflow as tf
 from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, Postprocessing, \
     ACTION_LOGP, SampleBatch
 
-from toolbox.cooperative_exploration.debug import validate_tensor
+from toolbox.cooperative_exploration.ceppo_debug import validate_tensor
 from toolbox.cooperative_exploration.utils import DIVERSITY_ENCOURAGING, \
     CURIOSITY
 from toolbox.marl.extra_loss_ppo_trainer import extra_loss_ppo_loss, \

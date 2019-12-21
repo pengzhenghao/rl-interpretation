@@ -10,10 +10,10 @@ from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.cooperative_exploration.ceppo_loss import loss_ceppo
-from toolbox.cooperative_exploration.debug import on_postprocess_traj, \
+from toolbox.cooperative_exploration.ceppo_debug import on_postprocess_traj, \
     on_episode_start, on_episode_end, on_train_result, \
     assert_nan
-from toolbox.cooperative_exploration.postprocess import \
+from toolbox.cooperative_exploration.ceppo_postprocess import \
     postprocess_ppo_gae_replay
 from toolbox.cooperative_exploration.utils import *
 from toolbox.distance import get_kl_divergence
@@ -320,8 +320,18 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
 
     my_id = "agent{}".format(sample_batch['agent_index'][0])
 
-    batches = [postprocess_ppo_gae(policy, batch)]
-    for pid, (_, other_batch_raw) in others_batches.items():
+    if policy.config[REPLAY_VALUES]:
+        # a little workaround. We normalize advantage for all batch before
+        # concatnation.
+        tmp_batch = postprocess_ppo_gae(policy, batch)
+        value = tmp_batch[Postprocessing.ADVANTAGES]
+        standardized = (value - value.mean()) / max(1e-4, value.std())
+        tmp_batch[Postprocessing.ADVANTAGES] = standardized
+        batches = [tmp_batch]
+    else:
+        batches = [postprocess_ppo_gae(policy, batch)]
+
+    for pid, (other_policy, other_batch_raw) in others_batches.items():
         # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
         # but we still want to take a look of those statics.
         # Maybe in the future we can add knob to remove all such slowly stats.
@@ -330,9 +340,13 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             continue
 
         other_batch = other_batch_raw.copy()
+
+        # four fields that we will overwrite.
+        # Two additional: advantages / value target
         other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
+        other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS].copy()
 
         # use my policy to evaluate the values and other relative data
         # of other's samples.
@@ -372,8 +386,8 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
         elif not policy.config[REPLAY_VALUES]:
             batches.append(postprocess_ppo_gae(policy, other_batch_raw))
         else:  # replay values
-            if other_batch is not None:
-                batches.append(postprocess_ppo_gae_replay(policy, other_batch))
+            if other_batch is not None:  # it could be None due to clipping.
+                batches.append(postprocess_ppo_gae_replay(policy, other_batch, other_policy))
 
     for batch in batches:
         batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
