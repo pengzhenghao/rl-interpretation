@@ -37,7 +37,8 @@ def postprocess_ppo_gae_replay(policy, sample_batch, other_policy):
         policy.config["gamma"],
         policy.config["lambda"],
         use_gae=policy.config["use_gae"],
-        clip_action_prob_ratio=policy.config["clip_action_prob_ratio"]
+        clip_action_prob_ratio=policy.config["clip_action_prob_ratio"],
+        clip_advantage=policy.config['clip_advantage']
     )
     return batch
 
@@ -49,7 +50,8 @@ def compute_advantages_replay(
         gamma=0.9,
         lambda_=1.0,
         use_gae=True,
-        clip_action_prob_ratio=1
+        clip_action_prob_ratio=1,
+        clip_advantage=False
 ):
     """Given a rollout, compute its value targets and the advantage.
 
@@ -90,6 +92,12 @@ def compute_advantages_replay(
         other_advantage = discount(other_delta_t, gamma * lambda_)
         other_advantage = (other_advantage - other_advantage.mean()) / max(
             1e-4, other_advantage.std())
+
+        if clip_advantage:
+            # if clip_advantage happen, the normalization should not happen
+            # at optimizer.
+            other_advantage = np.clip(other_advantage, 0, None)
+
         # we put other's advantage in 'advantages' field. We need to make sure
         # this field is not used in future postprocessing.
         traj[Postprocessing.ADVANTAGES] = other_advantage

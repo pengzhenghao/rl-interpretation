@@ -35,6 +35,7 @@ ceppo_default_config = merge_dicts(
         mode=REPLAY_VALUES,
         clip_action_prob_kl=1,
         clip_action_prob_ratio=1,
+        clip_advantage=False,
         check_nan=True,
         # clip_action_prob=0.5,  # DEPRECATED, +- 150% is allowed
         callbacks={
@@ -488,7 +489,7 @@ def choose_policy_optimizer_modified(workers, config):
         sample_batch_size=config["sample_batch_size"],
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
-        standardize_fields=["advantages"],
+        standardize_fields=["advantages"] if not config['clip_advantage'] else [],
         shuffle_sequences=config["shuffle_sequences"]
     )
 
