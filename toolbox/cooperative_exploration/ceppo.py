@@ -396,9 +396,9 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             Postprocessing.ADVANTAGES].copy().astype(np.float32)
         if "debug_ratio" not in batch:
             assert "debug_fake_adv" not in batch
-            batch['debug_fake_adv'] = batch['debug_ratio'] = np.ones_like(
+            batch['debug_fake_adv'] = batch['debug_ratio'] = np.zeros_like(
                 batch['advantages'], dtype=np.float32
-            ) * -1
+            )
 
     return SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
