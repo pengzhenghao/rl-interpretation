@@ -348,25 +348,7 @@ def ppo(args, network, policy_buffer, config):
                 g['lr'] = lr_now
 
         if i_episode % args.log_num_episode == 0:
-            print(
-                'Finished episode: {} Reward: {:.4f} total_loss = {:.4f} = {'
-                ':.4f} + {} * {:.4f} + {} * {:.4f}' \
-                    .format(i_episode, reward_record[-1]['meanepreward'],
-                            total_loss.data, loss_surr.data,
-                            args.loss_coeff_value,
-                            loss_value.data, args.loss_coeff_entropy,
-                            loss_entropy.data))
-            print('-----------------')
-            avg_r = reward_record[-1]['meanepreward'] / reward_record[-1][
-                'meaneplen']
-            avg_rn = reward_record_novel[-1]['meanepreward'] / \
-                     reward_record_novel[-1]['meaneplen']
-            print('average reward', avg_r)
-            print('average novelty reward', avg_rn)
-            # print('True RN',avg_rn)
-            print('loss and novel loss', total_loss, total_loss_novel)
-            performance = reward_record[-1]['meanepreward'] * (
-                    1 - early_done / total_done)
+            performance = reward_record[-1]['meanepreward'] * (1 - early_done / total_done)
             if performance >= Best_performance:
                 torch.save(network.state_dict(), ENV_NAME.split('-')[
                     0] + config.file_num +
