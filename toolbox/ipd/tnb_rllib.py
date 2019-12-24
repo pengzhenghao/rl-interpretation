@@ -4,8 +4,8 @@ import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, PPOTrainer, PPOTFPolicy
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
-    KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, \
-    SampleBatch, BEHAVIOUR_LOGITS, make_tf_callable, PPOLoss
+    KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch, \
+    BEHAVIOUR_LOGITS, make_tf_callable, PPOLoss, kl_and_loss_stats
 from ray.rllib.evaluation.postprocessing import Postprocessing, discount
 from ray.rllib.models import ModelCatalog
 from ray.tune.util import merge_dicts
@@ -18,11 +18,13 @@ logger = logging.getLogger(__name__)
 ipd_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
-        model={"custom_model": "ActorDoubleCriticNetwork"},
         novelty_threshold=0.5,
         distance_mode="min",
+
+        # Do not modified these parameters.
+        clip_novelty_gradient=False,
         use_second_component=True,
-        clip_novelty_gradient=False
+        model={"custom_model": "ActorDoubleCriticNetwork"},
     )
 )
 
@@ -97,10 +99,10 @@ def compute_advantages(rewards, last_r, gamma, lambda_, values, use_gae=True):
         advantage = discount(delta_t, gamma * lambda_)
         value_target = (advantage + values).copy().astype(np.float32)
     else:
-        rewards_plus_v = np.concatenate([rewards, np.array([last_r])])
-        advantage = discount(rewards_plus_v, gamma)[:-1]
-        # TODO(ekl): support using a critic without GAE
-        value_target = np.zeros_like(advantage)
+        raise NotImplementedError()
+        # rewards_plus_v = np.concatenate([rewards, np.array([last_r])])
+        # advantage = discount(rewards_plus_v, gamma)[:-1]
+        # value_target = np.zeros_like(advantage)
     advantage = advantage.copy().astype(np.float32)
     return advantage, value_target
 
@@ -122,10 +124,8 @@ class AgentPoolMixin(object):
 
         # self.Policy_Buffer = Policy_Buffer
         self.num_of_policies = len(self.policies_pool)
-
         self.novelty_recorder = np.zeros(self.num_of_policies)
         self.novelty_recorder_len = 0
-
         self.threshold = threshold
         self.distance_mode = distance_mode
         assert distance_mode in ['min', 'max']
@@ -257,51 +257,12 @@ def _flatten(tensor):
 
 
 def tnb_gradients(policy, optimizer, loss):
-    err_msg = "We detect the {} contains less than 2 elements. " \
-              "It contain only {} elements, which is not possible." \
-              " Please check the codes."
-
     policy_grad = optimizer.compute_gradients(loss[0])
     novelty_grad = optimizer.compute_gradients(loss[1])
 
-    # flatten the policy_grad
-    # policy_grad_flatten = []
-    # policy_grad_info = []
-    # for idx, (pg, var) in enumerate(policy_grad):
-    #     if novelty_grad[idx][0] is None:
-    #         # Some variables do not related to novelty, so the grad is None
-    #         policy_grad_info.append((None, None, var))
-    #         continue
-    #
-    #     if pg is None:
-    #         continue
-    #     pg_flat, pg_shape, pg_flat_shape = _flatten(pg)
-    #     policy_grad_flatten.append(pg_flat)
-    #     policy_grad_info.append((pg_flat_shape, pg_shape, var))
-    # if len(policy_grad_flatten) < 2:
-    #     raise ValueError(
-    #         err_msg.format("policy_grad_flatten", len(policy_grad_flatten))
-    #     )
-    # # flatten the novelty grad
-    # novelty_grad_flatten = []
-    # novelty_grad_info = []
-    # for ng, _ in novelty_grad:
-    #     if ng is None:
-    #         novelty_grad_info.append((None, None))
-    #         continue
-    #     pg_flat, pg_shape, pg_flat_shape = _flatten(ng)
-    #     novelty_grad_flatten.append(pg_flat)
-    #     novelty_grad_info.append((pg_flat_shape, pg_shape))
-    # if len(novelty_grad_flatten) < 2:
-    #     raise ValueError(
-    #         err_msg.format("novelty_grad_flatten", len(novelty_grad_flatten))
-    #     )
-
     return_gradients = []
-
     policy_grad_flatten = []
     policy_grad_info = []
-
     novelty_grad_flatten = []
     novelty_grad_info = []
 
@@ -384,28 +345,19 @@ def grad_stats_fn(policy, batch, grads):
     return ret
 
 
-def kl_and_loss_stats(policy, train_batch):
-    return {
-        "cur_kl_coeff": tf.cast(policy.kl_coeff, tf.float64),
-        "cur_lr": tf.cast(policy.cur_lr, tf.float64),
-        "total_loss": policy.loss_obj.loss,
+def kl_and_loss_stats_modified(policy, train_batch):
+    ret = kl_and_loss_stats(policy, train_batch)
+    ret.update({
         "novelty_total_loss": policy.novelty_loss_obj.loss,
-        "policy_loss": policy.loss_obj.mean_policy_loss,
         "novelty_policy_loss": policy.novelty_loss_obj.mean_policy_loss,
-        "vf_loss": policy.loss_obj.mean_vf_loss,
         "novelty_vf_loss": policy.novelty_loss_obj.mean_vf_loss,
-        "vf_explained_var": explained_variance(
-            train_batch[Postprocessing.VALUE_TARGETS],
-            policy.model.value_function()),
         "novelty_vf_explained_var": explained_variance(
             train_batch[NOVELTY_VALUE_TARGETS],
             policy.model.novelty_value_function()),
-        "kl": policy.loss_obj.mean_kl,
         "novelty_kl": policy.novelty_loss_obj.mean_kl,
-        "entropy": policy.loss_obj.mean_entropy,
         "novelty_entropy": policy.novelty_loss_obj.mean_entropy,
-        "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
-    }
+    })
+    return ret
 
 
 TNBPolicy = PPOTFPolicy.with_updates(
