@@ -9,7 +9,7 @@ from __future__ import absolute_import, division, print_function
 import ray
 from ray.rllib.models.tf.misc import normc_initializer, get_activation_fn
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
-from ray.rllib.utils import try_import_tf
+from ray.rllib.utils import try_import_tf, merge_dicts
 
 # import sys
 # sys.path.append()
@@ -18,8 +18,8 @@ from ray.rllib.agents.ppo.ppo_policy import build_tf_policy, \
     ppo_surrogate_loss, kl_and_loss_stats, setup_config, setup_mixins, \
     clip_gradients, postprocess_ppo_gae, EntropyCoeffSchedule, KLCoeffMixin, \
     LearningRateSchedule, ValueNetworkMixin, SampleBatch, BEHAVIOUR_LOGITS
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, build_trainer, \
-    choose_policy_optimizer, validate_config, update_kl, \
+from ray.rllib.agents.ppo.ppo import build_trainer, \
+    validate_config, update_kl, \
     warn_about_bad_reward_scales
 
 from ray.rllib.models import ModelCatalog
@@ -27,7 +27,8 @@ from ray.rllib.models import ModelCatalog
 # from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 
 # class MyModelClass(TFModelV2):
-#     def __init__(self, obs_space, action_space, num_outputs, model_config,
+#     def __init__(self, obs_space, action_space, num_outputs,
+#     fc_with_activation_model_config,
 #     name): ...
 #     def forward(self, input_dict, state, seq_lens): ...
 #     def value_function(self): ...
@@ -145,10 +146,16 @@ def vf_preds_and_logits_fetches_new(policy):
     return ret
 
 
-model_config = {"custom_model": "fc_with_activation", "custom_options": {}}
+fc_with_activation_model_config = {
+    "custom_model": "fc_with_activation",
+    "custom_options": {}
+}
 
-ppo_default_config_with_activation = ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG
-ppo_default_config_with_activation['model'].update(model_config)
+ppo_default_config_with_activation = merge_dicts(
+    ray.rllib.agents.ppo.ppo.DEFAULT_CONFIG,
+    dict(model=fc_with_activation_model_config)
+)
+
 PPOTFPolicyWithActivation = build_tf_policy(
     name="PPOTFPolicyWithActivation",
     get_default_config=lambda: ppo_default_config_with_activation,
@@ -165,11 +172,9 @@ PPOTFPolicyWithActivation = build_tf_policy(
     ]
 )
 
-ppo_agent_default_config_with_activation = DEFAULT_CONFIG
-ppo_agent_default_config_with_activation['model'].update(model_config)
 PPOAgentWithActivation = build_trainer(
     name="PPOWithActivation",
-    default_config=ppo_agent_default_config_with_activation,
+    default_config=ppo_default_config_with_activation,
     default_policy=PPOTFPolicyWithActivation,
     make_policy_optimizer=None,
     validate_config=validate_config,
@@ -179,16 +184,19 @@ PPOAgentWithActivation = build_trainer(
 
 
 def register_fc_with_activation():
+    print("TEST PURPOSE, you call: register_fc_with_activation")
     ModelCatalog.register_custom_model(
         "fc_with_activation", FullyConnectedNetworkWithActivation
     )
 
 
-register_fc_with_activation()
+# register_fc_with_activation()
 
 
 def test_ppo():
     from toolbox.utils import initialize_ray
     initialize_ray(test_mode=True)
-    po = PPOAgentWithActivation(env="BipedalWalker-v2", config=model_config)
+    po = PPOAgentWithActivation(
+        env="BipedalWalker-v2", config=fc_with_activation_model_config
+    )
     return po

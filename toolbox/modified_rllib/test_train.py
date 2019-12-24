@@ -58,14 +58,11 @@ def profile():
 
     initialize_ray(num_gpus=4, test_mode=True, local_mode=True)
     ckpt = {
-        'path':
-        "~/ray_results/0810-20seeds/"
+        'path': "~/ray_results/0810-20seeds/"
         "PPO_BipedalWalker-v2_0_seed=20_2019"
         "-08-10_16-54-37xaa2muqm/checkpoint_469/checkpoint-469",
-        'run_name':
-        "PPO",
-        'env_name':
-        "BipedalWalker-v2"
+        'run_name': "PPO",
+        'env_name': "BipedalWalker-v2"
     }
     num_agents = 20
     master_agents = OrderedDict()

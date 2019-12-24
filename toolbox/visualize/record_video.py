@@ -299,17 +299,14 @@ class GridVideoRecorder(object):
             else:
                 period = 100
             frames_info = {
-                "frames":
-                new_frames,
-                "column":
-                None
+                "frames": new_frames,
+                "column": None
                 if name_column_mapping is None else name_column_mapping[name],
-                "row":
-                None if name_row_mapping is None else name_row_mapping[name],
-                "loc":
-                None if name_loc_mapping is None else name_loc_mapping[name],
-                "period":
-                period
+                "row": None
+                if name_row_mapping is None else name_row_mapping[name],
+                "loc": None
+                if name_loc_mapping is None else name_loc_mapping[name],
+                "period": period
             }
 
             frames_dict[name] = frames_info

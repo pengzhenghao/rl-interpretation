@@ -378,16 +378,13 @@ class DynamicTFPolicy(TFPolicy):
             return np.zeros(shape, dtype=tensor.dtype.as_numpy_dtype)
 
         dummy_batch = {
-            SampleBatch.CUR_OBS:
-            fake_array(self._obs_input),
-            SampleBatch.NEXT_OBS:
-            fake_array(self._obs_input),
-            SampleBatch.DONES:
-            np.array([False], dtype=np.bool),
-            SampleBatch.ACTIONS:
-            fake_array(ModelCatalog.get_action_placeholder(self.action_space)),
-            SampleBatch.REWARDS:
-            np.array([0], dtype=np.float32),
+            SampleBatch.CUR_OBS: fake_array(self._obs_input),
+            SampleBatch.NEXT_OBS: fake_array(self._obs_input),
+            SampleBatch.DONES: np.array([False], dtype=np.bool),
+            SampleBatch.ACTIONS: fake_array(
+                ModelCatalog.get_action_placeholder(self.action_space)
+            ),
+            SampleBatch.REWARDS: np.array([0], dtype=np.float32),
         }
 
         # Add dummy things PENGZHENGHAO
@@ -400,10 +397,12 @@ class DynamicTFPolicy(TFPolicy):
         if self._obs_include_prev_action_reward:
             dummy_batch.update(
                 {
-                    SampleBatch.PREV_ACTIONS:
-                    fake_array(self._prev_action_input),
-                    SampleBatch.PREV_REWARDS:
-                    fake_array(self._prev_reward_input),
+                    SampleBatch.PREV_ACTIONS: fake_array(
+                        self._prev_action_input
+                    ),
+                    SampleBatch.PREV_REWARDS: fake_array(
+                        self._prev_reward_input
+                    ),
                 }
             )
         state_init = self.get_initial_state()

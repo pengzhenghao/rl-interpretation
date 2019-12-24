@@ -137,7 +137,7 @@ def collect_frame(
     return new_frame_list, velocity, extra_info_dict, frames_dict
 
 
-DEFAULT_CONFIG = dict(
+multi_exposure_default_config = dict(
     start=0,
     interval=100,
     skip_frame=20,
@@ -149,7 +149,7 @@ DEFAULT_CONFIG = dict(
 
 
 def draw_one_exp(frame_list, velocity, draw_config=None):
-    config = DEFAULT_CONFIG.copy()
+    config = multi_exposure_default_config.copy()
     config.update(draw_config or {})
 
     start = config['start']
