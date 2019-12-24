@@ -2,14 +2,15 @@ import logging
 
 import numpy as np
 import tensorflow as tf
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, PPOTrainer, PPOTFPolicy
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, PPOTrainer, PPOTFPolicy, \
+    LocalMultiGPUOptimizer, SyncSamplesOptimizer
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
     KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch, \
     BEHAVIOUR_LOGITS, make_tf_callable, PPOLoss, kl_and_loss_stats
 from ray.rllib.evaluation.postprocessing import Postprocessing, discount
 from ray.rllib.models import ModelCatalog
-from ray.tune.util import merge_dicts
 from ray.rllib.utils.explained_variance import explained_variance
+from ray.tune.util import merge_dicts
 
 from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
 
@@ -360,6 +361,27 @@ def kl_and_loss_stats_modified(policy, train_batch):
     return ret
 
 
+def choose_policy_optimizer(workers, config):
+    if config["simple_optimizer"]:
+        return SyncSamplesOptimizer(
+            workers,
+            num_sgd_iter=config["num_sgd_iter"],
+            train_batch_size=config["train_batch_size"],
+            sgd_minibatch_size=config["sgd_minibatch_size"],
+            standardize_fields=["advantages", NOVELTY_ADVANTAGES])  # Here!
+
+    return LocalMultiGPUOptimizer(
+        workers,
+        sgd_batch_size=config["sgd_minibatch_size"],
+        num_sgd_iter=config["num_sgd_iter"],
+        num_gpus=config["num_gpus"],
+        sample_batch_size=config["sample_batch_size"],
+        num_envs_per_worker=config["num_envs_per_worker"],
+        train_batch_size=config["train_batch_size"],
+        standardize_fields=["advantages", NOVELTY_ADVANTAGES],  # Here!
+        shuffle_sequences=config["shuffle_sequences"])
+
+
 TNBPolicy = PPOTFPolicy.with_updates(
     name="TNBPolicy",
     get_default_config=lambda: ipd_default_config,
@@ -376,6 +398,7 @@ TNBPolicy = PPOTFPolicy.with_updates(
 
 TNBTrainer = PPOTrainer.with_updates(
     name="TNBPPO",
+    make_policy_optimizer=choose_policy_optimizer,
     default_config=ipd_default_config,
     default_policy=TNBPolicy
 )
