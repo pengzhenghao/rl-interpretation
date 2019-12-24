@@ -47,7 +47,9 @@ class FourWayGridWorld:
         self.map[self.N - 1, int((self.N - 1) / 2)] = self.down
         self.map[int((self.N - 1) / 2), self.N - 1] = self.right
         self.loc = np.asarray(
-            [np.random.randint(self.N), np.random.randint(self.N)])
+            [np.random.randint(self.N),
+             np.random.randint(self.N)]
+        )
         self.step_num = 0
         return self.loc
 

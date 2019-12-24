@@ -23,8 +23,12 @@ def train(
     assert isinstance(stop, int)
     if address is not None:
         num_gpus = None
-    initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus,
-                   address=address)
+    initialize_ray(
+        test_mode=test_mode,
+        local_mode=False,
+        num_gpus=num_gpus,
+        address=address
+    )
     env_config = {"env_name": env_name, "num_agents": num_agents}
     config = {
         "seed": tune.grid_search([i * 100 for i in range(num_seeds)]),
@@ -42,7 +46,7 @@ def train(
         stop={"info/num_steps_sampled": stop},
         config=config,
         max_failures=20,
-        reuse_actors=True
+        reuse_actors=False
     )
 
     path = "{}-{}-{}ts-{}agents.pkl".format(
@@ -65,6 +69,7 @@ if __name__ == '__main__':
     parser.add_argument("--env", type=str, default="BipedalWalker-v2")
     parser.add_argument("--exp-name", type=str, default="")
     parser.add_argument("--mode", type=str, default="all")
+    parser.add_argument("--stop", type=float, default=5e6)
     parser.add_argument("--address", type=str, default="")
     args = parser.parse_args()
 
@@ -88,17 +93,35 @@ if __name__ == '__main__':
     if args.mode == "all":
         mode = tune.grid_search(OPTIONAL_MODES)
         num_agents = args.num_agents
-    elif args.mode == "change_num_agents":
-        mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES])
-        num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
-    elif args.mode == "change_num_agents_disable_and_expand":
-        mode = DISABLE_AND_EXPAND
-        num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
-        num_gpus = 0.5
+    # elif args.mode == "change_num_agents":
+    #     mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES])
+    #     num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
+    # elif args.mode == "change_num_agents_disable_and_expand":
+    #     mode = DISABLE_AND_EXPAND
+    #     num_agents = tune.grid_search(list(range(2, args.num_agents + 1)))
+    #     num_gpus = 0.5
     elif args.mode == "three":
         mode = tune.grid_search([REPLAY_VALUES, NO_REPLAY_VALUES, DISABLE])
         clip_action_prob_kl = tune.grid_search([0.01, 0.1, 1])
         num_agents = tune.grid_search([3, 5, 7])
+    elif args.mode == "search_replay_values":
+        mode = REPLAY_VALUES
+        clip_action_prob_kl = tune.grid_search([0.1, 1, 10])
+        ceppo_config["clip_action_prob_ratio"] = tune.grid_search([0.5, 1, 2])
+        num_agents = tune.grid_search([3, 5])
+    elif args.mode == "new_adv_1221":
+        mode = REPLAY_VALUES
+        clip_action_prob_kl = tune.grid_search([0, 0.1, 100])
+        # ceppo_config["clip_action_prob_ratio"] = tune.grid_search([0.5, 1, 2, 10])
+        num_agents = tune.grid_search([3])
+        ceppo_config["grad_clip"] = tune.grid_search([0.5, 1, 10])
+    elif args.mode == "clip_advantage":
+        mode = REPLAY_VALUES
+        clip_action_prob_kl = tune.grid_search([0, 0.1, 100])
+        # ceppo_config["clip_action_prob_ratio"] = tune.grid_search([0.5, 1, 2, 10])
+        num_agents = tune.grid_search([3])
+        ceppo_config["grad_clip"] = tune.grid_search([0.5, 1, 10])
+        ceppo_config["clip_advantage"] = True
     elif args.mode == "baseline_shrink":
         mode = DISABLE_AND_EXPAND
         clip_action_prob_kl = tune.grid_search([0.01, 0.1, 1])
@@ -115,7 +138,7 @@ if __name__ == '__main__':
         extra_config=ceppo_config,
         trainer=CEPPOTrainer,
         env_name=args.env,
-        stop=int(5e6),
+        stop=int(args.stop),
         exp_name="DELETEME-TEST" if args.test else args.exp_name,
         num_agents=num_agents,
         num_seeds=args.num_seeds,

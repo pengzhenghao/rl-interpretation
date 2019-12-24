@@ -51,7 +51,7 @@ def test_ceppo(local_mode=False):
             "mode": tune.grid_search(
                 [
                     # DISABLE,
-                    # DISABLE_AND_EXPAND,
+                    DISABLE_AND_EXPAND,
                     REPLAY_VALUES,
                     # NO_REPLAY_VALUES,
                     # DIVERSITY_ENCOURAGING,
@@ -69,9 +69,13 @@ def test_ceppo(local_mode=False):
             ),
             "num_cpus_per_worker": 0.5,
             "num_workers": 1,
+
+            # new config:
+            "clip_action_prob_kl": 0.0
         },
         # extra_config={"mode": DIVERSITY_ENCOURAGING},
-        env_name="Pendulum-v0"
+        env_name="Pendulum-v0",
+        t=10000
     )
 
 
@@ -148,7 +152,7 @@ def validate_cetd3(num_gpus=0):
 
 if __name__ == '__main__':
     # test_multiple_num_agents(local_mode=False)
-    test_ceppo(local_mode=False)
+    test_ceppo(local_mode=True)
     # validate_ceppo()
     # test_single_agent()
     # test_cetd3(local_mode=True)
