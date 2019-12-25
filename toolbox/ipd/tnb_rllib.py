@@ -1,4 +1,9 @@
+import json
 import logging
+import os
+import copy
+import pickle
+from collections import OrderedDict
 
 import numpy as np
 import tensorflow as tf
@@ -25,6 +30,7 @@ ipd_default_config = merge_dicts(
         # Do not modified these parameters.
         clip_novelty_gradient=False,
         use_second_component=True,
+        checkpoint_dict="",  # use json to parse a dict into string.
         model={"custom_model": "ActorDoubleCriticNetwork"},
     )
 )
@@ -108,45 +114,90 @@ def compute_advantages(rewards, last_r, gamma, lambda_, values, use_gae=True):
     return advantage, value_target
 
 
-class AgentPoolMixin(object):
-    def __init__(self, path_list, threshold, distance_mode='min'):
-        # restore a buffer of policies from disk.
-        self.policies_pool = []
+class RunningMean(object):
+    """Implement the logic of Sun Hao running mean of rewards.
+     Input is in batch form."""
 
-        assert not path_list
-        for path in path_list:
-            # TODO restore agent. add check.
-            policy = None
-            policy_info = {}
-            self.policies_pool.append(dict(
+    def __init__(self, num_policies):
+        self.length = np.zeros((num_policies, 1))
+        self.accumulated = np.zeros((num_policies, 1))
+        self.num_policies = num_policies
+
+    def __call__(self, x):
+        x = np.asarray(x)
+        assert x.ndim == 2
+        assert x.shape[0] == self.num_policies
+        # ([num_policies, batch size] + [num_policies, 1]) / (batch size + len)
+        ret = (x + self.accumulated) / (x.shape[1] + self.length)
+        self.accumulated += x.sum(axis=1)[:, np.newaxis]
+        self.length += x.shape[1]
+        return ret
+
+
+class AgentPoolMixin(object):
+    def __init__(self, checkpoint_dict, threshold, distance_mode='min'):
+        self.checkpoint_dict = checkpoint_dict
+        self.threshold = threshold
+        assert distance_mode in ['min', 'max']
+        self.distance_mode = distance_mode
+        self.initialized = False
+
+    def _lazy_initialize(self):
+        self.policies_pool = OrderedDict()
+
+        # remove checkpoint_dict, otherwise will create nested policies.
+        tmp_config = copy.deepcopy(self.config)
+        tmp_config["checkpoint_dict"] = "{}"
+
+        for agent_name, checkpoint_path in self.checkpoint_dict.items():
+            # build the policy and restore the weights.
+            with tf.variable_scope(agent_name):
+                policy = TNBPolicy(
+                    self.observation_space,
+                    self.action_space,
+                    tmp_config
+                )
+            path = os.path.abspath(os.path.expanduser(checkpoint_path))
+            wkload = pickle.load(open(path, 'rb'))['worker']
+            state = pickle.loads(wkload)['state']['default_policy']
+            policy.set_state(state)
+
+            policy_info = {"agent_name": agent_name,
+                           "checkpoint_path": checkpoint_path}
+            self.policies_pool[agent_name] = dict(
                 policy=policy,
                 **policy_info
-            ))
-
-        # self.Policy_Buffer = Policy_Buffer
+            )
         self.num_of_policies = len(self.policies_pool)
-        self.novelty_recorder = np.zeros(self.num_of_policies)
-        self.novelty_recorder_len = 0
-        self.threshold = threshold
-        self.distance_mode = distance_mode
-        assert distance_mode in ['min', 'max']
+        self.novelty_stat = RunningMean(self.num_of_policies)
+
+        self.initialized = True
 
     def compute_novelty(self, state, action):
+        if not self.initialized:
+            if not hasattr(self, "_loss_inputs"):
+                return np.zeros((action.shape[0],), dtype=np.float32)
+            else:
+                self._lazy_initialize()
+
         if len(self.policies_pool) == 0:
             return np.zeros((action.shape[0],), dtype=np.float32)
+
+        diff_list = []
         for i, (key, policy_dict) in enumerate(self.policies_pool.items()):
             policy = policy_dict['policy']
             _, _, info = policy.compute_actions(state)
             other_action = get_action_mean(info[BEHAVIOUR_LOGITS])
-            self.novelty_recorder[i] += np.linalg.norm(other_action - action)
-        self.novelty_recorder_len += 1
+            diff_list.append(np.linalg.norm(other_action - action, axis=1))
+
+        per_policy_novelty = self.novelty_stat(diff_list)
         if self.distance_mode == 'min':
-            min_novel = np.min(
-                self.novelty_recorder / self.novelty_recorder_len)
+            min_novel = np.min(per_policy_novelty, axis=0)
+            # self.novelty_recorder / self.novelty_recorder_len)
             return min_novel - self.threshold
         elif self.distance_mode == 'max':
-            max_novel = np.max(
-                self.novelty_recorder / self.novelty_recorder_len)
+            max_novel = np.max(per_policy_novelty, axis=0)
+            # self.novelty_recorder / self.novelty_recorder_len)
             return max_novel - self.threshold
         else:
             raise NotImplementedError()
@@ -181,7 +232,10 @@ class NoveltyValueNetworkMixin(object):
 def setup_mixins_tnb(policy, action_space, obs_space, config):
     setup_mixins(policy, action_space, obs_space, config)
     NoveltyValueNetworkMixin.__init__(policy, obs_space, action_space, config)
-    AgentPoolMixin.__init__(policy, [], config['novelty_threshold'],
+    assert isinstance(config["checkpoint_dict"], str)
+    checkpoint_dict = json.loads(config["checkpoint_dict"])
+    AgentPoolMixin.__init__(policy, checkpoint_dict,
+                            config['novelty_threshold'],
                             config['distance_mode'])
 
 
