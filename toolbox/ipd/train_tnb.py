@@ -170,7 +170,6 @@ def parse_agent_result_builder(analysis, prefix, prev_reward):
             prefix, prev_reward, reward, "STOP" if ret else "CONTINUE"
         )
     )
-
     return ret, agent_result
 
 
@@ -188,14 +187,13 @@ def main(
     prev_agent = None
     preoccupied_checkpoints = None
     not_improve_counter = 0
+    info_dict = {}
+    iteration_result = []
 
     for iteration_id in range(num_iterations):
-        print(
-            "Start iteration {}/{}! Previous best reward {:.4f}.".format(
+        print("Start iteration {}/{}! Previous best reward {:.4f}.".format(
                 iteration_id + 1, num_iterations,
-                prev_reward
-            )
-        )
+                prev_reward))
 
         def parse_agent_result(analysis, prefix):
             return parse_agent_result_builder(analysis, prefix, prev_reward)
@@ -203,7 +201,8 @@ def main(
         # clear up existing worker at previous iteration.
         ray_init()
 
-        result_dict, checkpoint_dict, agent_info_dict, iteration_info = \
+        # train one iteration (at most max_num_agents will be trained)
+        result_dict, checkpoint_dict, _, iteration_info = \
             train_one_iteration(
                 iteration_id=iteration_id,
                 exp_name=exp_name if not test_mode else "DELETEME-TEST",
@@ -214,9 +213,21 @@ def main(
                 preoccupied_checkpoints=preoccupied_checkpoints,
                 test_mode=test_mode
             )
+
+        # save necessary data
+        for agent_name, result in result_dict.items():
+            info = dict(
+                dataframe=next(iter(result['analysis'].trial_dataframes.values())),
+                reward=result['current_reward'],
+                checkpoint=checkpoint_dict[agent_name]
+            )
+            info_dict[agent_name] = info
+        iteration_result.append(iteration_info)
+
+        # get the best agent
         current_reward = iteration_info['best_reward']
         best_agent = iteration_info['best_agent']
-        best_agent_checkpoint = agent_info_dict[best_agent]['checkpoint_path']
+        best_agent_checkpoint = checkpoint_dict[best_agent]
         preoccupied_checkpoints = {best_agent: best_agent_checkpoint}
 
         print(
@@ -231,6 +242,7 @@ def main(
             )
         )
 
+        # early stop mechanism in iteration-level
         if (current_reward > prev_reward) or (prev_agent is None):
             prev_reward = current_reward
             prev_agent = best_agent
@@ -241,25 +253,14 @@ def main(
         if not_improve_counter >= max_not_improve_iterations:
             break
 
-    print("Finish {} iterations! Terminate the program.".format(
-        num_iterations))
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO You need to save the result at some place!!!!!
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
-    ### TODO
+    with open("{}_agent_dict.json".format(exp_name), 'r') as f:
+        json.dump(info_dict, f)
+    with open("{}_iteration_result.json", 'r') as f:
+        json.dump(info_dict, f)
+    print("Finish {} iterations! Data has been saved at: {}. "
+          "Terminate the program.".format(
+        num_iterations, ("{}_agent_dict.json".format(exp_name),
+                         "{}_iteration_result.json".format(exp_name))))
 
 
 if __name__ == '__main__':
@@ -309,7 +310,7 @@ if __name__ == '__main__':
         ray.shutdown()
         initialize_ray(
             test_mode=args.test_mode,
-            local_mode=True,
+            local_mode=False,
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )
