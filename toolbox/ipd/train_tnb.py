@@ -310,7 +310,7 @@ if __name__ == '__main__':
         "entropy_coeff": 0.001,
         "lambda": 0.95,
         "lr": 2.5e-4,
-        "num_gpus": 0.3,
+        "num_gpus": 0,
         # "num_cpus_per_worker": 2,
         # "num_cpus_for_driver": 2
     }
