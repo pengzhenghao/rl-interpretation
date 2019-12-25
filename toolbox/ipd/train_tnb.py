@@ -11,6 +11,7 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
+
 """
 TNB-ES training basic workflow:
 
@@ -79,7 +80,7 @@ def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
     # checkpoint_dict = {'path': PATH, 'iter': The # of iteration}
     checkpoint_dict = get_latest_checkpoint(trial_dir)
     checkpoint = checkpoint_dict['path']
-    info = {"checkpoint_dict": checkpoint_dict}
+    info = {"checkpoint_dict": checkpoint_dict, "checkpoint_path": checkpoint}
     return analysis, checkpoint, info
 
 
@@ -88,6 +89,7 @@ def train_one_iteration(
         exp_name,
         max_num_agents,
         parse_agent_result,
+        preoccupied_checkpoints=None,
         test_mode=False
 ):
     """Conduct one iteration of evolution. Maximum generated agents is defined
@@ -98,6 +100,10 @@ def train_one_iteration(
     agent_info_dict = OrderedDict()
     iteration_info = OrderedDict()
     common_config = copy.deepcopy(COMMON_CONFIG)
+
+    if preoccupied_checkpoints:
+        assert isinstance(preoccupied_checkpoints, dict)
+        checkpoint_dict.update(preoccupied_checkpoints)
 
     if test_mode:
         common_config['num_gpus'] = 0
@@ -139,7 +145,10 @@ def train_one_iteration(
         checkpoint_dict[agent_name] = checkpoint
         result_dict[agent_name] = result
         agent_info_dict[agent_name] = info
-        best_reward = result['current_reward']
+
+        if best_reward < result['current_reward']:
+            iteration_info['best_agent'] = agent_id
+            best_reward = result['current_reward']
 
         if stop_flag:
             break
@@ -172,28 +181,34 @@ def parse_agent_result_builder(analysis, prefix, prev_reward):
 
 
 def main(exp_name, num_iterations, max_num_agents, test_mode=False):
-    prev_reward = float('-inf')
+    prev_reward = float('+inf')
+    preoccupied_checkpoints = None
 
     for iteration_id in range(num_iterations):
-
         def parse_agent_result(analysis, prefix):
             return parse_agent_result_builder(analysis, prefix, prev_reward)
 
-        _, _, _, iteration_info = train_one_iteration(
-            iteration_id=iteration_id,
-            exp_name=exp_name if not test_mode else "DELETEME-TEST",
-            max_num_agents=max_num_agents if not test_mode else 3,
-            parse_agent_result=parse_agent_result,
-            test_mode=test_mode
-        )
+        result_dict, checkpoint_dict, agent_info_dict, iteration_info = \
+            train_one_iteration(
+                iteration_id=iteration_id,
+                exp_name=exp_name if not test_mode else "DELETEME-TEST",
+                max_num_agents=max_num_agents if not test_mode else 3,
+                parse_agent_result=parse_agent_result,
+                preoccupied_checkpoints=preoccupied_checkpoints,
+                test_mode=test_mode
+            )
+
+        best_agent = iteration_info['best_agent']
+        best_agent_checkpoint = agent_info_dict[best_agent]['checkpoint']
+        preoccupied_checkpoints = {best_agent: best_agent_checkpoint}
 
         print(
-            "Finished iteration {}! Current best reward {:.4f}, "
-            "previous best reward {:.4f}".format(
-                iteration_id, iteration_info['best_reward'], prev_reward
+            "Finished iteration {}! Current best reward {:.4f},"
+            " best agent {}, previous best reward {:.4f}.".format(
+                iteration_id, iteration_info['best_reward'],
+                best_agent, prev_reward
             )
         )
-
         prev_reward = iteration_info['best_reward']
 
 
