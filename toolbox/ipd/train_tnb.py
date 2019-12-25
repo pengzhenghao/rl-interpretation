@@ -13,6 +13,7 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
+
 """
 TNB-ES training basic workflow:
 
@@ -47,8 +48,7 @@ def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
         checkpoint_freq=0,
         checkpoint_at_end=True,
         stop=stop,
-        config=config,
-        reuse_actors=True,
+        config=config
     )
 
     # one experiments may have multiple trials, due to some error that
@@ -78,6 +78,7 @@ def train_one_iteration(
         parse_agent_result,
         timesteps_total,
         common_config,
+        ray_init,
         preoccupied_checkpoints=None,
         test_mode=False
 ):
@@ -105,6 +106,8 @@ def train_one_iteration(
     best_reward = float("-inf")
 
     for agent_id in range(max_num_agents):
+        ray_init()
+
         agent_name = "iter{}_agent{}".format(iteration_id, agent_id)
         prefix = "[Iteration {}, Agent {}/{}](start from 1) " \
                  "Agent <{}>:".format(iteration_id + 1, agent_id + 1,
@@ -201,7 +204,7 @@ def main(
             return parse_agent_result_builder(analysis, prefix, prev_reward)
 
         # clear up existing worker at previous iteration.
-        ray_init()
+        # ray_init()
 
         # train one iteration (at most max_num_agents will be trained)
         result_dict, checkpoint_dict, _, iteration_info = \
@@ -212,6 +215,7 @@ def main(
                 parse_agent_result=parse_agent_result,
                 timesteps_total=timesteps_total,
                 common_config=common_config,
+                ray_init=ray_init,
                 preoccupied_checkpoints=preoccupied_checkpoints,
                 test_mode=test_mode
             )
@@ -315,6 +319,7 @@ if __name__ == '__main__':
         # "num_cpus_for_driver": 2
     }
 
+
     def ray_init():
         ray.shutdown()
         initialize_ray(
@@ -323,6 +328,7 @@ if __name__ == '__main__':
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )
+
 
     main(
         exp_name=args.exp_name,
