@@ -3,7 +3,7 @@ import json
 import logging
 import os.path as osp
 from collections import OrderedDict
-
+import numpy as np
 import ray
 from ray import tune
 
@@ -126,6 +126,8 @@ def parse_agent_result_builder(analysis, prefix, prev_reward):
     reward = analysis.dataframe()['episode_reward_mean']
     assert len(reward) == 1
     reward = reward[0]
+    if not np.isfinite(reward):
+        reward = float("-inf")
     ret = reward > prev_reward
     agent_result = {
         "analysis": analysis,
@@ -134,31 +136,60 @@ def parse_agent_result_builder(analysis, prefix, prev_reward):
     }
 
     print("{} Previous episode_reward_mean is {:.4f}, we have {:.4f} now. "
-          "So we choose to {} this agents.".format(
-        prefix, prev_reward, reward, "stop" if ret else "continue"))
+          "So we choose to {} training.".format(
+        prefix, prev_reward, reward, "STOP" if ret else "CONTINUE"))
 
     return ret, agent_result
 
 
-if __name__ == '__main__':
-    initialize_ray(test_mode=True, local_mode=False)
-
+def main(exp_name, num_iterations, max_num_agents, test_mode=False):
     prev_reward = float('-inf')
 
-    for iteration_id in range(3):
+    for iteration_id in range(num_iterations):
         def parse_agent_result(analysis, prefix):
             return parse_agent_result_builder(analysis, prefix, prev_reward)
 
-
         _, _, _, iteration_info = train_one_iteration(
             iteration_id=iteration_id,
-            exp_name="DELETEME_TEST",
-            max_num_agents=3,
+            exp_name=exp_name if not test_mode else "DELETEME-TEST",
+            max_num_agents=max_num_agents if not test_mode else 3,
             parse_agent_result=parse_agent_result,
-            test_mode=True
+            test_mode=test_mode
         )
+
         print("Finished iteration {}! Current best reward {:.4f}, "
               "previous best reward {:.4f}".format(
             iteration_id, iteration_info['best_reward'], prev_reward))
 
         prev_reward = iteration_info['best_reward']
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--exp-name", type=str, default="")
+    # parser.add_argument("--env", type=str, default="BipedalWalker-v2")
+    # parser.add_argument("--run", type=str, default="PPO")
+    parser.add_argument("--num-seeds", type=int, default=1)
+    parser.add_argument("--num-gpus", type=int, default=4)
+    parser.add_argument("--num-iterations", type=int, default=3)
+    parser.add_argument("--max-num-agents", type=int, default=3)
+    parser.add_argument("--test-mode", action="store_true")
+    args = parser.parse_args()
+
+    if not args.test_mode:
+        assert args.exp_name
+
+    initialize_ray(test_mode=args.test_mode, local_mode=False,
+                   num_gpus=args.num_gpus)
+
+    main(args.exp_name, args.num_iterations, args.max_num_agents,
+         args.test_mode)
+
+    """TODO: pengzh]
+    Here a brief sketch that we need to do:
+        1. allow restore the previous-iteration best agent.
+        2. make sure agents is saved.
+        [3.] data parsing
+    """
