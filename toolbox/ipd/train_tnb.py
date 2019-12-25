@@ -253,9 +253,9 @@ def main(
         if not_improve_counter >= max_not_improve_iterations:
             break
 
-    with open("{}_agent_dict.json".format(exp_name), 'r') as f:
+    with open("{}_agent_dict.json".format(exp_name), 'w') as f:
         json.dump(info_dict, f)
-    with open("{}_iteration_result.json", 'r') as f:
+    with open("{}_iteration_result.json", 'w') as f:
         json.dump(info_dict, f)
     print("Finish {} iterations! Data has been saved at: {}. "
           "Terminate the program.".format(

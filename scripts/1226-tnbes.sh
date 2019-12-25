@@ -3,10 +3,10 @@
 ray start --head --redis-port 6789 --num-gpus 4
 
 address="10.1.72.24:6789"
-th_list=(0.5)
+th_list=(0.3 0.5 0.7)
 
 for th in ${th_list[*]}; do
-  expname="1225-tnbes-th$th-preoccupied"
+  expname="1226-tnbes-th$th-preoccupied"
   echo "Start running: $expname"
   nohup python toolbox/ipd/train_tnb.py \
     --exp-name=$expname \
@@ -17,7 +17,7 @@ for th in ${th_list[*]}; do
 done
 
 for th in ${th_list[*]}; do
-  expname="1225-tnbes-th$th-no-preoccupied"
+  expname="1226-tnbes-th$th-no-preoccupied"
   echo "Start running: $expname"
   nohup python toolbox/ipd/train_tnb.py \
     --exp-name=$expname \
