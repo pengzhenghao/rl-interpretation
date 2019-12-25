@@ -1,6 +1,6 @@
 from ray import tune
 
-from toolbox.ipd.tnb_rllib import TNBTrainer
+from toolbox.ipd.tnb import TNBTrainer
 from toolbox import initialize_ray
 
 
