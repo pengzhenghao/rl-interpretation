@@ -3,13 +3,34 @@ import json
 import logging
 import os.path as osp
 from collections import OrderedDict
+
 import numpy as np
 import ray
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.ipd.tnb_rllib import TNBTrainer
+from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
+"""
+TNB-ES training basic workflow:
+
+    1. The outer loops is the evolution iteration. In each iteration we will
+    generate a population of agents, which leverages the diversity-seeking
+    algorithms to make them as diverse as possible.
+
+    2. We will take the best agent within a population (that is, within an
+    iteration) to make it as a 'seed' for next evolution iteration.
+
+    3. How to use the best agent as a seed? We use it as a preoccupied 
+    comparing subject in the new iteration. 
+
+    For example, in the first iteration, there do not exist such 'comparing 
+    subject', so the first agent is trained from sketch without any 
+    diversity-seeking incentive. But in the second evolution iteration, the
+    first agent CAN compare itself with the 'preoccupied comparing subject', 
+    that is the best agent in the previous iteration. By this way, we can 
+    use the best agent in each iteration as the 'seed' for next iteration.
+"""
 
 logger = logging.getLogger(__file__)
 
