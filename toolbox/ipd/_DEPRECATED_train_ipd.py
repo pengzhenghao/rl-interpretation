@@ -11,7 +11,6 @@ from toolbox.process_data.process_data import read_yaml, \
     save_yaml
 from toolbox.utils import get_local_dir, initialize_ray
 
-
 # parser = argparse.ArgumentParser()
 # parser.add_argument("--yaml-path", type=str, required=True)
 # parser.add_argument("--exp-name", type=str, required=True)
@@ -35,8 +34,9 @@ def _search_ckpt(save_path, input_exp_name):
 
     assert osp.exists(osp.dirname(save_path))
 
-    sub_exp_path = osp.join(save_path,
-                            input_exp_name)  # ../exp/exp_seed0_iter3
+    sub_exp_path = osp.join(
+        save_path, input_exp_name
+    )  # ../exp/exp_seed0_iter3
     if (not osp.exists(save_path)) or \
             (not osp.exists(sub_exp_path)) or \
             (not os.listdir(sub_exp_path)):
@@ -54,8 +54,15 @@ def _search_ckpt(save_path, input_exp_name):
 
 
 def train_one_iteration(
-        iter_id, exp_name, init_yaml_path, config, stop_criterion, num_seeds=1,
-        num_gpus=0, test_mode=False):
+        iter_id,
+        exp_name,
+        init_yaml_path,
+        config,
+        stop_criterion,
+        num_seeds=1,
+        num_gpus=0,
+        test_mode=False
+):
     assert isinstance(iter_id, int)
     assert isinstance(exp_name, str)
     assert isinstance(stop_criterion, dict)
@@ -76,8 +83,9 @@ def train_one_iteration(
         tmp_config = copy.deepcopy(config)
         tmp_config.update(seed=i)
         tmp_config['env_config']['yaml_path'] = current_yaml_path
-        initialize_ray(num_gpus=num_gpus, test_mode=test_mode,
-                       local_mode=test_mode)
+        initialize_ray(
+            num_gpus=num_gpus, test_mode=test_mode, local_mode=test_mode
+        )
         tune.run(
             "PPO",
             name=input_exp_name,
@@ -91,8 +99,6 @@ def train_one_iteration(
 
         name_ckpt_mapping = read_yaml(current_yaml_path)
         ckpt_path = _search_ckpt(save_path, input_exp_name)
-
-
 
         last_ckpt_dict = copy.deepcopy(list(name_ckpt_mapping.values())[-1])
         assert isinstance(last_ckpt_dict, dict), last_ckpt_dict
@@ -115,7 +121,9 @@ def test_train_ipd():
             "novelty_threshold": None,
             "yaml_path": None
         },
-        "callbacks": {"on_episode_end": on_episode_end}
+        "callbacks": {
+            "on_episode_end": on_episode_end
+        }
     }
 
     # algo_config = {"BipedalWalker-v2": {
@@ -127,21 +135,25 @@ def test_train_ipd():
     #     "lr": 2.5e-4,
     # }}
 
-    algo_config = {"BipedalWalker-v2": {
-        "num_sgd_iter": 10,
-        "num_envs_per_worker": 1,
-        "gamma": 0.99,
-        'num_workers': 0,
-        "entropy_coeff": 0.001,
-        "lambda": 0.95,
-        "lr": 2.5e-4,
-    }}
+    algo_config = {
+        "BipedalWalker-v2": {
+            "num_sgd_iter": 10,
+            "num_envs_per_worker": 1,
+            "gamma": 0.99,
+            'num_workers': 0,
+            "entropy_coeff": 0.001,
+            "lambda": 0.95,
+            "lr": 2.5e-4,
+        }
+    }
 
     # FIXME this is testing value.
-    stop_config = {"BipedalWalker-v2": {
-        # "timesteps_total": int(1e7)
-        "timesteps_total": 1000,
-    }}
+    stop_config = {
+        "BipedalWalker-v2": {
+            # "timesteps_total": int(1e7)
+            "timesteps_total": 1000,
+        }
+    }
 
     # env_name = args.env
     # FIXME do not hard-coded env_name
@@ -156,11 +168,13 @@ def test_train_ipd():
 
     for iter_id in range(3):
         train_one_iteration(
-            iter_id, "DELETE_TEST",
+            iter_id,
+            "DELETE_TEST",
             init_yaml_path="../../data/yaml/test-2-agents.yaml",
             config=config,
             stop_criterion=stop_config[env_name],
-            test_mode=True)
+            test_mode=True
+        )
 
     print("Finish!")
 

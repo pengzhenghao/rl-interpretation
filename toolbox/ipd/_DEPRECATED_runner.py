@@ -29,7 +29,7 @@ def ppo(args, network, policy_buffer, config):
     # layer_norm=args.layer_norm)
     optimizer = opt.Adam(network.parameters(), lr=args.lr)
 
-    running_state = ZFilter((num_inputs,), clip=5.0)
+    running_state = ZFilter((num_inputs, ), clip=5.0)
 
     # record average 1-round cumulative reward in every episode
     reward_record = []
@@ -65,10 +65,12 @@ def ppo(args, network, policy_buffer, config):
 
             for t in range(args.max_step_per_round):
                 action_mean, action_logstd, value, choreo_value = network(
-                    Tensor(state).float().unsqueeze(0).cuda())
+                    Tensor(state).float().unsqueeze(0).cuda()
+                )
 
-                action, logproba = network.select_action(action_mean,
-                                                         action_logstd)
+                action, logproba = network.select_action(
+                    action_mean, action_logstd
+                )
                 action = action.cpu().data.numpy()[0]
                 logproba = logproba.cpu().data.numpy()[0]
 
@@ -78,7 +80,6 @@ def ppo(args, network, policy_buffer, config):
                 reward_novel = cpn.calculate(state, action_mean)
                 if t >= T_start:
                     reward_novel_sum += reward_novel
-
                 '''
                 TNB
                 '''
@@ -89,8 +90,10 @@ def ppo(args, network, policy_buffer, config):
                     next_state = running_state(next_state)
                 mask = 0 if done else 1
 
-                memory.push(state, value, choreo_value, action, logproba, mask,
-                            next_state, reward, reward_novel)
+                memory.push(
+                    state, value, choreo_value, action, logproba, mask,
+                    next_state, reward, reward_novel
+                )
 
                 if done:
                     total_done += 1
@@ -104,16 +107,22 @@ def ppo(args, network, policy_buffer, config):
             reward_list_novel.append(reward_novel_sum)
             len_list.append(t + 1)
 
-        reward_record.append({
-            'episode': i_episode,
-            'steps': global_steps,
-            'meanepreward': np.mean(reward_list),
-            'meaneplen': np.mean(len_list)})
-        reward_record_novel.append({
-            'episode': i_episode,
-            'steps': global_steps,
-            'meanepreward': np.mean(reward_list_novel),
-            'meaneplen': np.mean(len_list)})
+        reward_record.append(
+            {
+                'episode': i_episode,
+                'steps': global_steps,
+                'meanepreward': np.mean(reward_list),
+                'meaneplen': np.mean(len_list)
+            }
+        )
+        reward_record_novel.append(
+            {
+                'episode': i_episode,
+                'steps': global_steps,
+                'meanepreward': np.mean(reward_list_novel),
+                'meaneplen': np.mean(len_list)
+            }
+        )
 
         rwds.extend(reward_list)
         batch = memory.sample()
@@ -134,7 +143,6 @@ def ppo(args, network, policy_buffer, config):
         prev_return = 0
         prev_value = 0
         prev_advantage = 0
-
         '''----Start for Choreo----'''
         rewards_novel = Tensor(batch.reward_novel)
         values_novel = Tensor(batch.choreo_value)
@@ -165,7 +173,6 @@ def ppo(args, network, policy_buffer, config):
             prev_return = returns[i]
             prev_value = values[i]
             prev_advantage = advantages[i]
-
             '''Start Choreo'''
             returns_novel[i] = rewards_novel[
                                    i] + args.gamma * prev_return_novel * \
@@ -186,33 +193,37 @@ def ppo(args, network, policy_buffer, config):
             '''End Choreo'''
 
         if args.advantage_norm:
-            advantages = (advantages - advantages.mean()) / (
-                    advantages.std() + EPS)
+            advantages = (advantages -
+                          advantages.mean()) / (advantages.std() + EPS)
             '''Start Choreo'''
-            advantages_novel = (advantages_novel - advantages_novel.mean()) / (
-                    advantages_novel.std() + EPS)
+            advantages_novel = (advantages_novel - advantages_novel.mean()
+                                ) / (advantages_novel.std() + EPS)
             '''End Choreo'''
 
-        for i_epoch in range(
-                int(args.num_epoch * batch_size / args.minibatch_size)):
+        for i_epoch in range(int(args.num_epoch * batch_size /
+                                 args.minibatch_size)):
             # sample from current batch
-            minibatch_ind = np.random.choice(batch_size, args.minibatch_size,
-                                             replace=False)
+            minibatch_ind = np.random.choice(
+                batch_size, args.minibatch_size, replace=False
+            )
             minibatch_states = states[minibatch_ind]
             minibatch_actions = actions[minibatch_ind]
             minibatch_oldlogproba = oldlogproba[minibatch_ind]
             minibatch_newlogproba = network.get_logproba(
-                minibatch_states.cuda(), minibatch_actions.cuda()).cpu()
+                minibatch_states.cuda(), minibatch_actions.cuda()
+            ).cpu()
             minibatch_advantages = advantages[minibatch_ind]
             minibatch_returns = returns[minibatch_ind]
             minibatch_newvalues = network._forward_critic(
-                minibatch_states.cuda()).cpu().flatten()
+                minibatch_states.cuda()
+            ).cpu().flatten()
 
             ratio = torch.exp(minibatch_newlogproba - minibatch_oldlogproba)
             surr1 = ratio * minibatch_advantages
-            surr2 = ratio.clamp(1 - clip_now,
-                                1 + clip_now) * minibatch_advantages
-            loss_surr = - torch.mean(torch.min(surr1, surr2))
+            surr2 = ratio.clamp(
+                1 - clip_now, 1 + clip_now
+            ) * minibatch_advantages
+            loss_surr = -torch.mean(torch.min(surr1, surr2))
 
             # not sure the value loss should be clipped as well
             # clip example: https://github.com/Jiankai-Sun/Proximal-Policy
@@ -223,37 +234,40 @@ def ppo(args, network, policy_buffer, config):
             if args.lossvalue_norm:
                 minibatch_return_6std = 6 * minibatch_returns.std()
                 loss_value = torch.mean(
-                    (minibatch_newvalues - minibatch_returns).pow(
-                        2)) / minibatch_return_6std
+                    (minibatch_newvalues - minibatch_returns).pow(2)
+                ) / minibatch_return_6std
             else:
                 loss_value = torch.mean(
-                    (minibatch_newvalues - minibatch_returns).pow(2))
+                    (minibatch_newvalues - minibatch_returns).pow(2)
+                )
 
             loss_entropy = torch.mean(
-                torch.exp(minibatch_newlogproba) * minibatch_newlogproba)
+                torch.exp(minibatch_newlogproba) * minibatch_newlogproba
+            )
 
             total_loss = loss_surr + args.loss_coeff_value * loss_value + \
                          args.loss_coeff_entropy * loss_entropy
-
             '''Start Choreo'''
             minibatch_states_novel = states_novel[minibatch_ind]
             minibatch_actions_novel = actions_novel[minibatch_ind]
             minibatch_oldlogproba_novel = oldlogproba_novel[minibatch_ind]
             minibatch_newlogproba_novel = network.get_logproba(
-                minibatch_states_novel.cuda(),
-                minibatch_actions_novel.cuda()).cpu()
+                minibatch_states_novel.cuda(), minibatch_actions_novel.cuda()
+            ).cpu()
             minibatch_advantages_novel = advantages_novel[minibatch_ind]
             minibatch_returns_novel = returns_novel[minibatch_ind]
             minibatch_newvalues_novel = network._forward_choreo(
-                minibatch_states_novel.cuda()).cpu().flatten()
+                minibatch_states_novel.cuda()
+            ).cpu().flatten()
 
             ratio_novel = torch.exp(
-                minibatch_newlogproba_novel - minibatch_oldlogproba_novel)
+                minibatch_newlogproba_novel - minibatch_oldlogproba_novel
+            )
             surr1_novel = ratio_novel * minibatch_advantages_novel
             surr2_novel = ratio_novel.clamp(1 - clip_now,
                                             1 + clip_now) * \
                           minibatch_advantages_novel
-            loss_surr_novel = - torch.mean(torch.min(surr1_novel, surr2_novel))
+            loss_surr_novel = -torch.mean(torch.min(surr1_novel, surr2_novel))
 
             # not sure the value loss should be clipped as well
             # clip example: https://github.com/Jiankai-Sun/Proximal-Policy
@@ -266,15 +280,19 @@ def ppo(args, network, policy_buffer, config):
                                               minibatch_returns_novel.std() \
                                               + EPS
                 loss_value_novel = torch.mean(
-                    (minibatch_newvalues_novel - minibatch_returns_novel).pow(
-                        2)) / minibatch_return_6std_novel
+                    (minibatch_newvalues_novel -
+                     minibatch_returns_novel).pow(2)
+                ) / minibatch_return_6std_novel
             else:
                 loss_value_novel = torch.mean(
-                    (minibatch_newvalues_novel - minibatch_returns_novel).pow(
-                        2))
+                    (minibatch_newvalues_novel -
+                     minibatch_returns_novel).pow(2)
+                )
 
-            loss_entropy_novel = torch.mean(torch.exp(
-                minibatch_newlogproba_novel) * minibatch_newlogproba_novel)
+            loss_entropy_novel = torch.mean(
+                torch.exp(minibatch_newlogproba_novel) *
+                minibatch_newlogproba_novel
+            )
 
             total_loss_novel = loss_surr_novel + args.loss_coeff_value * \
                                loss_value_novel + args.loss_coeff_entropy * \
@@ -324,9 +342,8 @@ def ppo(args, network, policy_buffer, config):
                     base = 0
                     optimizer.zero_grad()
                     for param in network.parameters():
-                        param.grad += grad[
-                                      base:base + param.numel()].reshape_as(
-                            param)
+                        param.grad += grad[base:base +
+                                           param.numel()].reshape_as(param)
                         base += param.numel()
                     optimizer.step()
                     '''End Choreo'''
@@ -348,28 +365,39 @@ def ppo(args, network, policy_buffer, config):
                 g['lr'] = lr_now
 
         if i_episode % args.log_num_episode == 0:
-            performance = reward_record[-1]['meanepreward'] * (1 - early_done / total_done)
+            performance = reward_record[-1]['meanepreward'] * (
+                1 - early_done / total_done
+            )
             if performance >= Best_performance:
-                torch.save(network.state_dict(), ENV_NAME.split('-')[
-                    0] + config.file_num +
-                           '/CheckPoints/EarlyStopPolicy_Suc_{0}hidden_{'
-                           '1}threshold_{2}repeat'.format(
-                               config.hid_num, config.thres,
-                               str(repeat) + '_temp_best'))
+                torch.save(
+                    network.state_dict(),
+                    ENV_NAME.split('-')[0] + config.file_num +
+                    '/CheckPoints/EarlyStopPolicy_Suc_{0}hidden_{'
+                    '1}threshold_{2}repeat'.format(
+                        config.hid_num, config.thres,
+                        str(repeat) + '_temp_best'
+                    )
+                )
                 Best_performance = performance
 
-                if early_done / total_done < 0.1 and reward_record[-1]['meanepreward'] > np.mean(final_100_reward):
+                if early_done / total_done < 0.1 and reward_record[-1][
+                        'meanepreward'] > np.mean(final_100_reward):
                     print('Find Better Novel Policy!')
                     # policy_buffer[str(repeat)+'_'+str(i_episode)] = network
 
-                    torch.save(network.state_dict(), ENV_NAME.split('-')[
-                        0] + config.file_num +
-                               '/CheckPoints/EarlyStopPolicy_Suc_{0}hidden_{'
-                               '1}threshold_{2}repeat'.format(
-                                   config.hid_num, config.thres,
-                                   str(repeat) + '_' + str(i_episode)))
+                    torch.save(
+                        network.state_dict(),
+                        ENV_NAME.split('-')[0] + config.file_num +
+                        '/CheckPoints/EarlyStopPolicy_Suc_{0}hidden_{'
+                        '1}threshold_{2}repeat'.format(
+                            config.hid_num, config.thres,
+                            str(repeat) + '_' + str(i_episode)
+                        )
+                    )
                     # break
-            print('early stop proportion:', early_done / total_done,
-                  'Temp Best Performance:', Best_performance)
+            print(
+                'early stop proportion:', early_done / total_done,
+                'Temp Best Performance:', Best_performance
+            )
             print('===============================')
     return reward_record, rwds

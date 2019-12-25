@@ -16,7 +16,6 @@ logger = logging.getLogger(__file__)
 COMMON_CONFIG = {
     "env": "BipedalWalker-v2",
     "novelty_threshold": 0.5,
-
     "num_sgd_iter": 10,
     "num_envs_per_worker": 16,
     "gamma": 0.99,
@@ -53,7 +52,8 @@ def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
             "trails: {}".format(
                 len(analysis.trials), analysis.runner_data(),
                 analysis.trial_dataframes.keys()
-            ))
+            )
+        )
 
     # checkpoint_dict = {'path': PATH, 'iter': The # of iteration}
     checkpoint_dict = get_latest_checkpoint(trial_dir)
@@ -62,8 +62,13 @@ def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
     return analysis, checkpoint, info
 
 
-def train_one_iteration(iteration_id, exp_name, max_num_agents,
-                        parse_agent_result, test_mode=False):
+def train_one_iteration(
+        iteration_id,
+        exp_name,
+        max_num_agents,
+        parse_agent_result,
+        test_mode=False
+):
     """Conduct one iteration of evolution. Maximum generated agents is defined
      by max_num_agents"""
     local_dir = osp.join(osp.expanduser("~/ray_results"), exp_name)
@@ -135,9 +140,12 @@ def parse_agent_result_builder(analysis, prefix, prev_reward):
         "previous_reward": prev_reward
     }
 
-    print("{} Previous episode_reward_mean is {:.4f}, we have {:.4f} now. "
-          "So we choose to {} training.".format(
-        prefix, prev_reward, reward, "STOP" if ret else "CONTINUE"))
+    print(
+        "{} Previous episode_reward_mean is {:.4f}, we have {:.4f} now. "
+        "So we choose to {} training.".format(
+            prefix, prev_reward, reward, "STOP" if ret else "CONTINUE"
+        )
+    )
 
     return ret, agent_result
 
@@ -146,6 +154,7 @@ def main(exp_name, num_iterations, max_num_agents, test_mode=False):
     prev_reward = float('-inf')
 
     for iteration_id in range(num_iterations):
+
         def parse_agent_result(analysis, prefix):
             return parse_agent_result_builder(analysis, prefix, prev_reward)
 
@@ -157,9 +166,12 @@ def main(exp_name, num_iterations, max_num_agents, test_mode=False):
             test_mode=test_mode
         )
 
-        print("Finished iteration {}! Current best reward {:.4f}, "
-              "previous best reward {:.4f}".format(
-            iteration_id, iteration_info['best_reward'], prev_reward))
+        print(
+            "Finished iteration {}! Current best reward {:.4f}, "
+            "previous best reward {:.4f}".format(
+                iteration_id, iteration_info['best_reward'], prev_reward
+            )
+        )
 
         prev_reward = iteration_info['best_reward']
 
@@ -181,13 +193,14 @@ if __name__ == '__main__':
     if not args.test_mode:
         assert args.exp_name
 
-    initialize_ray(test_mode=args.test_mode, local_mode=False,
-                   num_gpus=args.num_gpus)
+    initialize_ray(
+        test_mode=args.test_mode, local_mode=False, num_gpus=args.num_gpus
+    )
 
-    main(args.exp_name, args.num_iterations, args.max_num_agents,
-         args.test_mode)
-
-    """TODO: pengzh]
+    main(
+        args.exp_name, args.num_iterations, args.max_num_agents, args.test_mode
+    )
+    """TODO: pengzh
     Here a brief sketch that we need to do:
         1. allow restore the previous-iteration best agent.
         2. make sure agents is saved.

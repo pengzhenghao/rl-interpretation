@@ -14,10 +14,12 @@ tf = try_import_tf()
 class ActorDoubleCriticNetwork(TFModelV2):
     """Generic fully connected network implemented in ModelV2 API."""
 
-    def __init__(self, obs_space, action_space, num_outputs, model_config,
-                 name):
+    def __init__(
+            self, obs_space, action_space, num_outputs, model_config, name
+    ):
         super(ActorDoubleCriticNetwork, self).__init__(
-            obs_space, action_space, num_outputs, model_config, name)
+            obs_space, action_space, num_outputs, model_config, name
+        )
 
         activation = get_activation_fn(model_config.get("fcnet_activation"))
         hiddens = model_config.get("fcnet_hiddens")
@@ -26,7 +28,8 @@ class ActorDoubleCriticNetwork(TFModelV2):
 
         # we are using obs_flat, so take the flattened shape as input
         inputs = tf.keras.layers.Input(
-            shape=(np.product(obs_space.shape), ), name="observations")
+            shape=(np.product(obs_space.shape), ), name="observations"
+        )
         last_layer = inputs
         i = 1
 
@@ -37,13 +40,15 @@ class ActorDoubleCriticNetwork(TFModelV2):
                     size,
                     name="fc_{}".format(i),
                     activation=activation,
-                    kernel_initializer=normc_initializer(1.0))(last_layer)
+                    kernel_initializer=normc_initializer(1.0)
+                )(last_layer)
                 i += 1
             layer_out = tf.keras.layers.Dense(
                 num_outputs,
                 name="fc_out",
                 activation=activation,
-                kernel_initializer=normc_initializer(1.0))(last_layer)
+                kernel_initializer=normc_initializer(1.0)
+            )(last_layer)
         else:
             # the last layer is a linear to size num_outputs
             for size in hiddens:
@@ -51,13 +56,15 @@ class ActorDoubleCriticNetwork(TFModelV2):
                     size,
                     name="fc_{}".format(i),
                     activation=activation,
-                    kernel_initializer=normc_initializer(1.0))(last_layer)
+                    kernel_initializer=normc_initializer(1.0)
+                )(last_layer)
                 i += 1
             layer_out = tf.keras.layers.Dense(
                 num_outputs,
                 name="fc_out",
                 activation=None,
-                kernel_initializer=normc_initializer(0.01))(last_layer)
+                kernel_initializer=normc_initializer(0.01)
+            )(last_layer)
 
         # pengzh: we use three different NN with same size.
         assert not vf_share_layers
@@ -68,13 +75,15 @@ class ActorDoubleCriticNetwork(TFModelV2):
                 size,
                 name="fc_value_{}".format(i),
                 activation=activation,
-                kernel_initializer=normc_initializer(1.0))(last_layer)
+                kernel_initializer=normc_initializer(1.0)
+            )(last_layer)
             i += 1
         value_out = tf.keras.layers.Dense(
             1,
             name="value_out",
             activation=None,
-            kernel_initializer=normc_initializer(0.01))(last_layer)
+            kernel_initializer=normc_initializer(0.01)
+        )(last_layer)
 
         # build the value network for novel
         last_layer = inputs
@@ -84,17 +93,20 @@ class ActorDoubleCriticNetwork(TFModelV2):
                 size,
                 name="fc_value_novel_{}".format(i),
                 activation=activation,
-                kernel_initializer=normc_initializer(1.0))(last_layer)
+                kernel_initializer=normc_initializer(1.0)
+            )(last_layer)
             i += 1
 
         value_out_novel = tf.keras.layers.Dense(
             1,
             name="value_out_novel",
             activation=None,
-            kernel_initializer=normc_initializer(0.01))(last_layer)
+            kernel_initializer=normc_initializer(0.01)
+        )(last_layer)
 
         self.base_model = tf.keras.Model(
-            inputs, [layer_out, value_out, value_out_novel])
+            inputs, [layer_out, value_out, value_out_novel]
+        )
         self.register_variables(self.base_model.variables)
 
     def forward(self, input_dict, state, seq_lens):

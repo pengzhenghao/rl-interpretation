@@ -61,15 +61,15 @@ def postprocess_ipd(policy, sample_batch, other_batches, episode):
         next_state = []
         for i in range(policy.num_state_tensors()):
             next_state.append([sample_batch["state_out_{}".format(i)][-1]])
-        last_r = policy._value(sample_batch[SampleBatch.NEXT_OBS][-1],
-                               sample_batch[SampleBatch.ACTIONS][-1],
-                               sample_batch[SampleBatch.REWARDS][-1],
-                               *next_state)
+        last_r = policy._value(
+            sample_batch[SampleBatch.NEXT_OBS][-1],
+            sample_batch[SampleBatch.ACTIONS][-1],
+            sample_batch[SampleBatch.REWARDS][-1], *next_state
+        )
         last_r_novelty = policy._novelty_value(
             sample_batch[SampleBatch.NEXT_OBS][-1],
             sample_batch[SampleBatch.ACTIONS][-1],
-            sample_batch[NOVELTY_REWARDS][-1],
-            *next_state
+            sample_batch[NOVELTY_REWARDS][-1], *next_state
         )
 
     # compute the advantages of original rewards
@@ -153,21 +153,18 @@ class AgentPoolMixin(object):
             # build the policy and restore the weights.
             with tf.variable_scope(agent_name):
                 policy = TNBPolicy(
-                    self.observation_space,
-                    self.action_space,
-                    tmp_config
+                    self.observation_space, self.action_space, tmp_config
                 )
             path = os.path.abspath(os.path.expanduser(checkpoint_path))
             wkload = pickle.load(open(path, 'rb'))['worker']
             state = pickle.loads(wkload)['state']['default_policy']
             policy.set_state(state)
 
-            policy_info = {"agent_name": agent_name,
-                           "checkpoint_path": checkpoint_path}
-            self.policies_pool[agent_name] = dict(
-                policy=policy,
-                **policy_info
-            )
+            policy_info = {
+                "agent_name": agent_name,
+                "checkpoint_path": checkpoint_path
+            }
+            self.policies_pool[agent_name] = dict(policy=policy, **policy_info)
         self.num_of_policies = len(self.policies_pool)
         self.novelty_stat = RunningMean(self.num_of_policies)
 
@@ -176,12 +173,12 @@ class AgentPoolMixin(object):
     def compute_novelty(self, state, action):
         if not self.initialized:
             if not hasattr(self, "_loss_inputs"):
-                return np.zeros((action.shape[0],), dtype=np.float32)
+                return np.zeros((action.shape[0], ), dtype=np.float32)
             else:
                 self._lazy_initialize()
 
         if len(self.policies_pool) == 0:
-            return np.zeros((action.shape[0],), dtype=np.float32)
+            return np.zeros((action.shape[0], ), dtype=np.float32)
 
         diff_list = []
         for i, (key, policy_dict) in enumerate(self.policies_pool.items()):
@@ -209,15 +206,19 @@ class NoveltyValueNetworkMixin(object):
 
             @make_tf_callable(self.get_session())
             def novelty_value(ob, prev_action, prev_reward, *state):
-                model_out, _ = self.model({
-                    SampleBatch.CUR_OBS: tf.convert_to_tensor([ob]),
-                    SampleBatch.PREV_ACTIONS: tf.convert_to_tensor(
-                        [prev_action]),
-                    SampleBatch.PREV_REWARDS: tf.convert_to_tensor(
-                        [prev_reward]),
-                    "is_training": tf.convert_to_tensor(False),
-                }, [tf.convert_to_tensor([s]) for s in state],
-                    tf.convert_to_tensor([1]))
+                model_out, _ = self.model(
+                    {
+                        SampleBatch.CUR_OBS: tf.convert_to_tensor([ob]),
+                        SampleBatch.PREV_ACTIONS: tf.convert_to_tensor(
+                            [prev_action]
+                        ),
+                        SampleBatch.PREV_REWARDS: tf.convert_to_tensor(
+                            [prev_reward]
+                        ),
+                        "is_training": tf.convert_to_tensor(False),
+                    }, [tf.convert_to_tensor([s]) for s in state],
+                    tf.convert_to_tensor([1])
+                )
                 return self.model.novelty_value_function()[0]
 
         else:
@@ -234,9 +235,10 @@ def setup_mixins_tnb(policy, action_space, obs_space, config):
     NoveltyValueNetworkMixin.__init__(policy, obs_space, action_space, config)
     assert isinstance(config["checkpoint_dict"], str)
     checkpoint_dict = json.loads(config["checkpoint_dict"])
-    AgentPoolMixin.__init__(policy, checkpoint_dict,
-                            config['novelty_threshold'],
-                            config['distance_mode'])
+    AgentPoolMixin.__init__(
+        policy, checkpoint_dict, config['novelty_threshold'],
+        config['distance_mode']
+    )
 
 
 def additional_fetches(policy):
@@ -259,7 +261,8 @@ def tnb_loss(policy, model, dist_class, train_batch):
         mask = tf.reshape(mask, [-1])
     else:
         mask = tf.ones_like(
-            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool)
+            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
+        )
 
     policy.loss_obj = PPOLoss(
         policy.action_space,
@@ -280,7 +283,8 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"])
+        model_config=policy.config["model"]
+    )
 
     policy.novelty_loss_obj = PPOLoss(
         policy.action_space,
@@ -301,7 +305,8 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"])
+        model_config=policy.config["model"]
+    )
 
     return [policy.loss_obj.loss, policy.novelty_loss_obj.loss]
 
@@ -402,16 +407,19 @@ def grad_stats_fn(policy, batch, grads):
 
 def kl_and_loss_stats_modified(policy, train_batch):
     ret = kl_and_loss_stats(policy, train_batch)
-    ret.update({
-        "novelty_total_loss": policy.novelty_loss_obj.loss,
-        "novelty_policy_loss": policy.novelty_loss_obj.mean_policy_loss,
-        "novelty_vf_loss": policy.novelty_loss_obj.mean_vf_loss,
-        "novelty_vf_explained_var": explained_variance(
-            train_batch[NOVELTY_VALUE_TARGETS],
-            policy.model.novelty_value_function()),
-        "novelty_kl": policy.novelty_loss_obj.mean_kl,
-        "novelty_entropy": policy.novelty_loss_obj.mean_entropy,
-    })
+    ret.update(
+        {
+            "novelty_total_loss": policy.novelty_loss_obj.loss,
+            "novelty_policy_loss": policy.novelty_loss_obj.mean_policy_loss,
+            "novelty_vf_loss": policy.novelty_loss_obj.mean_vf_loss,
+            "novelty_vf_explained_var": explained_variance(
+                train_batch[NOVELTY_VALUE_TARGETS],
+                policy.model.novelty_value_function()
+            ),
+            "novelty_kl": policy.novelty_loss_obj.mean_kl,
+            "novelty_entropy": policy.novelty_loss_obj.mean_entropy,
+        }
+    )
     return ret
 
 
@@ -422,7 +430,8 @@ def choose_policy_optimizer(workers, config):
             num_sgd_iter=config["num_sgd_iter"],
             train_batch_size=config["train_batch_size"],
             sgd_minibatch_size=config["sgd_minibatch_size"],
-            standardize_fields=["advantages", NOVELTY_ADVANTAGES])  # Here!
+            standardize_fields=["advantages", NOVELTY_ADVANTAGES]
+        )  # Here!
 
     return LocalMultiGPUOptimizer(
         workers,
@@ -433,7 +442,8 @@ def choose_policy_optimizer(workers, config):
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
         standardize_fields=["advantages", NOVELTY_ADVANTAGES],  # Here!
-        shuffle_sequences=config["shuffle_sequences"])
+        shuffle_sequences=config["shuffle_sequences"]
+    )
 
 
 TNBPolicy = PPOTFPolicy.with_updates(
@@ -446,8 +456,10 @@ TNBPolicy = PPOTFPolicy.with_updates(
     stats_fn=kl_and_loss_stats,
     gradients_fn=tnb_gradients,
     grad_stats_fn=grad_stats_fn,
-    mixins=[LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-            ValueNetworkMixin, NoveltyValueNetworkMixin, AgentPoolMixin]
+    mixins=[
+        LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
+        ValueNetworkMixin, NoveltyValueNetworkMixin, AgentPoolMixin
+    ]
 )
 
 TNBTrainer = PPOTrainer.with_updates(

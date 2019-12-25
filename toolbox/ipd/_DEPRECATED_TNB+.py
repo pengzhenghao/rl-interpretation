@@ -14,55 +14,36 @@ from toolbox.ipd.runner import ppo
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '--hid_num',
-    type=int,
-    default=64,
-    help='number of hidden unit to use')
+    '--hid_num', type=int, default=64, help='number of hidden unit to use'
+)
 parser.add_argument(
-    '--drop_prob',
-    type=float,
-    default=0.0,
-    help='probability of dropout')
+    '--drop_prob', type=float, default=0.0, help='probability of dropout'
+)
 parser.add_argument(
-    '--env_name',
-    type=str,
-    default=None,
-    help='name of environment')
+    '--env_name', type=str, default=None, help='name of environment'
+)
 parser.add_argument(
-    '--num_episode',
-    type=int,
-    default=0,
-    help='number of training episodes')
+    '--num_episode', type=int, default=0, help='number of training episodes'
+)
 parser.add_argument(
     '--num_repeat',
     type=int,
     default=10,
-    help='repeat the experiment for several times')
+    help='repeat the experiment for several times'
+)
+parser.add_argument('--use_gpu', type=int, default=0, help='if use gpu')
 parser.add_argument(
-    '--use_gpu',
-    type=int,
-    default=0,
-    help='if use gpu')
+    '--start_T', type=int, default=20, help='start to calculate novelty'
+)
 parser.add_argument(
-    '--start_T',
-    type=int,
-    default=20,
-    help='start to calculate novelty')
+    '--thres', type=float, default=0.0, help='threshold of novelty'
+)
 parser.add_argument(
-    '--thres',
-    type=float,
-    default=0.0,
-    help='threshold of novelty')
+    '--file_num', type=str, default=None, help='threshold of novelty'
+)
 parser.add_argument(
-    '--file_num',
-    type=str,
-    default=None,
-    help='threshold of novelty')
-parser.add_argument(
-    '--weight',
-    type=float,
-    default=0,
-    help='novelty reward weight')
+    '--weight', type=float, default=0, help='novelty reward weight'
+)
 
 config = parser.parse_args()
 ENV_NAME = config.env_name
@@ -77,32 +58,38 @@ num_inputs = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
 for i in range(10):
     try:
-        policy_net = ActorCritic(config, num_inputs, num_actions,
-                                 layer_norm=True).cuda()
-        policy_net.load_state_dict(torch.load(ENV_NAME.split('-')[
-                                                  0] + config.file_num +
-                                              '/CheckPoints/checkpoint_{'
-                                              '0}hidden_{1}drop_prob_{'
-                                              '2}repeat'.format(
-                                                  config.hid_num,
-                                                  config.drop_prob, i)))
-        load_list.append('checkpoint_{0}hidden_{1}drop_prob_{2}repeat'.format(
-            config.hid_num, config.drop_prob, i))
+        policy_net = ActorCritic(
+            config, num_inputs, num_actions, layer_norm=True
+        ).cuda()
+        policy_net.load_state_dict(
+            torch.load(
+                ENV_NAME.split('-')[0] + config.file_num +
+                '/CheckPoints/checkpoint_{'
+                '0}hidden_{1}drop_prob_{'
+                '2}repeat'.format(config.hid_num, config.drop_prob, i)
+            )
+        )
+        load_list.append(
+            'checkpoint_{0}hidden_{1}drop_prob_{2}repeat'.format(
+                config.hid_num, config.drop_prob, i
+            )
+        )
         policy_buffer[str(i)] = policy_net.eval()
     except:
         pass
-
 
 fn_list = []
 for i in range(10):
     try:
         fn_list.append(
-            np.loadtxt(ENV_NAME.split('-')[0] + config.file_num +
-                       '/Rwds/rwds_{0}hidden_{1}drop_prob_{2}repeat'.format(
-            config.hid_num, config.drop_prob, i)))
+            np.loadtxt(
+                ENV_NAME.split('-')[0] + config.file_num +
+                '/Rwds/rwds_{0}hidden_{1}drop_prob_{2}repeat'.
+                format(config.hid_num, config.drop_prob, i)
+            )
+        )
     except:
         print('wrong in ', i)
-
 
 final_100_reward = []
 for i in range(len(fn_list)):
@@ -130,14 +117,11 @@ mkdir(ENV_NAME.split('-')[0] + config.file_num + '/CheckPoints', exist_ok=True)
 #         train_list.append(i)
 # print('training list now is:',train_list)
 
-
 # for repeat in train_list:
-
 
 #####
 repeat = "DELETEME_TEST"
 #####
-
 
 print(len(policy_buffer), repeat)
 """
@@ -145,10 +129,13 @@ NOTICE:
     `Tensor2` means 2D-Tensor (num_samples, num_dims) 
 """
 
-Transition = namedtuple('Transition', (
-    'state', 'value', 'choreo_value', 'action', 'logproba', 'mask',
-    'next_state',
-    'reward', 'reward_novel'))
+Transition = namedtuple(
+    'Transition', (
+        'state', 'value', 'choreo_value', 'action', 'logproba', 'mask',
+        'next_state', 'reward', 'reward_novel'
+    )
+)
+
 
 class args(object):
     env_name = ENV_NAME
@@ -178,8 +165,9 @@ class args(object):
 env = gym.make(ENV_NAME)
 num_inputs = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
-network = ActorCritic(config, num_inputs, num_actions,
-                      layer_norm=args.layer_norm).cuda()
+network = ActorCritic(
+    config, num_inputs, num_actions, layer_norm=args.layer_norm
+).cuda()
 network.train()
 
 
@@ -194,7 +182,8 @@ def train(args):
         record_dfs.append(reward_record)
     record_dfs = pd.concat(record_dfs, axis=0)
     record_dfs.to_csv(
-        joindir(RESULT_DIR, 'ppo-record-{}.csv'.format(args.env_name)))
+        joindir(RESULT_DIR, 'ppo-record-{}.csv'.format(args.env_name))
+    )
     return rwds
 
 
@@ -204,27 +193,24 @@ rwds = train(args)
 
 torch.save(
     network.state_dict(),
-    ENV_NAME.split('-')[0] +
-    config.file_num +
-    '/CheckPoints/EarlyStopPolicy_Suc_{0}hidden_{1}threshold_{2}repeat'.format(
-        config.hid_num,
-        config.thres,
-        repeat)
+    ENV_NAME.split('-')[0] + config.file_num +
+    '/CheckPoints/EarlyStopPolicy_Suc_{0}hidden_{1}threshold_{2}repeat'.
+    format(config.hid_num, config.thres, repeat)
 )
 
 np.savetxt(
-    ENV_NAME.split('-')[0] +
-    config.file_num +
-    '/Rwds/EarlyStopPolicy_Suc_rwds_{0}hidden_{1}threshold_{2}repeat'.format(
-        config.hid_num, config.thres, repeat),
-    rwds
+    ENV_NAME.split('-')[0] + config.file_num +
+    '/Rwds/EarlyStopPolicy_Suc_rwds_{0}hidden_{1}threshold_{2}repeat'.
+    format(config.hid_num, config.thres, repeat), rwds
 )
 
 network.load_state_dict(
     torch.load(
         ENV_NAME.split('-')[0] + config.file_num +
         '/CheckPoints/EarlyStopPolicy_Suc_{0}hidden_{1}threshold_{'
-        '2}repeat'.format(
-            config.hid_num, config.thres,
-            str(repeat) + '_temp_best')))
+        '2}repeat'.
+        format(config.hid_num, config.thres,
+               str(repeat) + '_temp_best')
+    )
+)
 policy_buffer[str(repeat)] = network.eval()

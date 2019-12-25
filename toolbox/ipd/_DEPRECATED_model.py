@@ -6,10 +6,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-Transition = namedtuple('Transition', (
-    'state', 'value', 'choreo_value', 'action', 'logproba', 'mask',
-    'next_state',
-    'reward', 'reward_novel'))
+Transition = namedtuple(
+    'Transition', (
+        'state', 'value', 'choreo_value', 'action', 'logproba', 'mask',
+        'next_state', 'reward', 'reward_novel'
+    )
+)
 EPS = 1e-10
 
 rwds = []
@@ -67,7 +69,8 @@ class ZFilter:
         self.rs = RunningStat(shape)
 
     def __call__(self, x, update=True):
-        if update: self.rs.push(x)
+        if update:
+            self.rs.push(x)
         if self.demean:
             x = x - self.rs.mean
         if self.destd:
@@ -168,8 +171,9 @@ class ActorCritic(nn.Module):
         action_std = torch.exp(action_logstd)
         action = torch.normal(action_mean, action_std)
         if return_logproba:
-            logproba = self._normal_logproba(action, action_mean,
-                                             action_logstd, action_std)
+            logproba = self._normal_logproba(
+                action, action_mean, action_logstd, action_std
+            )
         return action, logproba
 
     @staticmethod
@@ -178,8 +182,9 @@ class ActorCritic(nn.Module):
             std = torch.exp(logstd)
 
         std_sq = std.pow(2)
-        logproba = - 0.5 * math.log(2 * math.pi) - logstd - (x - mean).pow(
-            2) / (2 * std_sq)
+        logproba = -0.5 * math.log(
+            2 * math.pi
+        ) - logstd - (x - mean).pow(2) / (2 * std_sq)
         return logproba.sum(1)
 
     def get_logproba(self, states, actions):
@@ -192,6 +197,7 @@ class ActorCritic(nn.Module):
         action_mean, action_logstd = self._forward_actor(states)
         action_mean = action_mean.cpu()
         action_logstd = action_logstd.cpu()
-        logproba = self._normal_logproba(actions.cpu(), action_mean,
-                                         action_logstd.cpu())
+        logproba = self._normal_logproba(
+            actions.cpu(), action_mean, action_logstd.cpu()
+        )
         return logproba

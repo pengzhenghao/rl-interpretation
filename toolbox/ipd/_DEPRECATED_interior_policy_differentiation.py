@@ -107,7 +107,9 @@ def test_maddpg_custom_metrics():
             "novelty_threshold": 0.0,
             "yaml_path": os.path.abspath("../data/yaml/test-2-agents.yaml")
         },
-        "callbacks": {"on_episode_end": on_episode_end},
+        "callbacks": {
+            "on_episode_end": on_episode_end
+        },
     }
     initialize_ray(test_mode=True, local_mode=False)
     tune.run("PPO", stop={"training_iteration": 10}, config=extra_config)

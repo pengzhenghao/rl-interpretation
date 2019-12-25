@@ -21,14 +21,17 @@ class calc_policy_novelty(object):
             a_mean, a_logstd, val, val_novel = self.Policy_Buffer[
                 key_i].forward((Tensor(state).float().unsqueeze(0).cuda()))
             self.novelty_recorder[i] += np.linalg.norm(
-                a_mean.cpu().detach().numpy() - action.cpu().detach().numpy())
+                a_mean.cpu().detach().numpy() - action.cpu().detach().numpy()
+            )
 
         self.novelty_recorder_len += 1
         if self.dis_type == 'min':
             min_novel = np.min(
-                self.novelty_recorder / self.novelty_recorder_len)
+                self.novelty_recorder / self.novelty_recorder_len
+            )
             return min_novel - self.THRESH
         elif self.dis_type == 'max':
             max_novel = np.max(
-                self.novelty_recorder / self.novelty_recorder_len)
+                self.novelty_recorder / self.novelty_recorder_len
+            )
             return max_novel - self.THRESH

@@ -16,34 +16,27 @@ from torch import Tensor
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '--hid_num',
-    type=int,
-    default=64,
-    help='number of hidden unit to use')
+    '--hid_num', type=int, default=64, help='number of hidden unit to use'
+)
 parser.add_argument(
-    '--drop_prob',
-    type=float,
-    default=0.0,
-    help='probability of dropout')
+    '--drop_prob', type=float, default=0.0, help='probability of dropout'
+)
 parser.add_argument(
-    '--env_name',
-    type=str,
-    default=None,
-    help='name of environment')
+    '--env_name', type=str, default=None, help='name of environment'
+)
 parser.add_argument(
     '--num_episode',
     type=int,
     default=1000,
-    help='number of training episodes')
+    help='number of training episodes'
+)
 parser.add_argument(
     '--num_repeat',
     type=int,
     default=10,
-    help='repeat the experiment for several times')
-parser.add_argument(
-    '--use_gpu',
-    type=int,
-    default=0)
+    help='repeat the experiment for several times'
+)
+parser.add_argument('--use_gpu', type=int, default=0)
 config = parser.parse_args()
 
 os.environ['CUDA_VISIBLE_DEVICES'] = str(config.use_gpu)
@@ -55,14 +48,17 @@ env.reset()
 
 rwds_history = []
 
-Transition = namedtuple('Transition', (
-    'state', 'value', 'action', 'logproba', 'mask', 'next_state', 'reward'))
+Transition = namedtuple(
+    'Transition',
+    ('state', 'value', 'action', 'logproba', 'mask', 'next_state', 'reward')
+)
 EPS = 1e-10
 RESULT_DIR = 'Result_PPO'
 mkdir(RESULT_DIR, exist_ok=True)
 mkdir(ENV_NAME.split('-')[0] + '/CheckPoints', exist_ok=True)
 mkdir(ENV_NAME.split('-')[0] + '/Rwds', exist_ok=True)
 rwds = []
+
 
 class args(object):
     env_name = ENV_NAME
@@ -116,8 +112,7 @@ class RunningStat(object):
 
     @property
     def var(self):
-        return self._S / (self._n - 1) if self._n > 1 else np.square(
-            self._M)
+        return self._S / (self._n - 1) if self._n > 1 else np.square(self._M)
 
     @property
     def std(self):
@@ -142,7 +137,8 @@ class ZFilter:
         self.rs = RunningStat(shape)
 
     def __call__(self, x, update=True):
-        if update: self.rs.push(x)
+        if update:
+            self.rs.push(x)
         if self.demean:
             x = x - self.rs.mean
         if self.destd:
@@ -205,8 +201,7 @@ class ActorCritic(nn.Module):
         critic_value = self.critic_fc3(x)
         return critic_value
 
-    def select_action(self, action_mean, action_logstd,
-                      return_logproba=True):
+    def select_action(self, action_mean, action_logstd, return_logproba=True):
         """
         given mean and std, sample an action from normal(mean, std)
         also returns probability of the given chosen
@@ -214,8 +209,9 @@ class ActorCritic(nn.Module):
         action_std = torch.exp(action_logstd)
         action = torch.normal(action_mean, action_std)
         if return_logproba:
-            logproba = self._normal_logproba(action, action_mean,
-                                             action_logstd, action_std)
+            logproba = self._normal_logproba(
+                action, action_mean, action_logstd, action_std
+            )
         return action, logproba
 
     @staticmethod
@@ -224,8 +220,9 @@ class ActorCritic(nn.Module):
             std = torch.exp(logstd)
 
         std_sq = std.pow(2)
-        logproba = - 0.5 * math.log(2 * math.pi) - logstd - (x - mean).pow(
-            2) / (2 * std_sq)
+        logproba = -0.5 * math.log(
+            2 * math.pi
+        ) - logstd - (x - mean).pow(2) / (2 * std_sq)
         return logproba.sum(1)
 
     def get_logproba(self, states, actions):
@@ -239,8 +236,9 @@ class ActorCritic(nn.Module):
         action_mean = action_mean.cpu()
         action_logstd = action_logstd.cpu()
         # print(actions,action_mean,action_logstd.cpu())
-        logproba = self._normal_logproba(actions.cpu(), action_mean,
-                                         action_logstd.cpu())
+        logproba = self._normal_logproba(
+            actions.cpu(), action_mean, action_logstd.cpu()
+        )
         return logproba
 
 
@@ -263,12 +261,12 @@ num_inputs = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
 
 if USE_GPU:
-    network = ActorCritic(num_inputs, num_actions,
-                          layer_norm=args.layer_norm).cuda()
+    network = ActorCritic(
+        num_inputs, num_actions, layer_norm=args.layer_norm
+    ).cuda()
     print('using GPU-{}'.format(config.use_gpu))
 else:
-    network = ActorCritic(num_inputs, num_actions,
-                          layer_norm=args.layer_norm)
+    network = ActorCritic(num_inputs, num_actions, layer_norm=args.layer_norm)
 network.train()
 
 
@@ -284,7 +282,7 @@ def ppo(args):
     # layer_norm=args.layer_norm)
     optimizer = opt.Adam(network.parameters(), lr=args.lr)
 
-    running_state = ZFilter((num_inputs,), clip=5.0)
+    running_state = ZFilter((num_inputs, ), clip=5.0)
 
     # record average 1-round cumulative reward in every episode
     reward_record = []
@@ -308,18 +306,21 @@ def ppo(args):
             for t in range(args.max_step_per_round):
                 if USE_GPU:
                     action_mean, action_logstd, value = network(
-                        Tensor(state).float().unsqueeze(0).cuda())
+                        Tensor(state).float().unsqueeze(0).cuda()
+                    )
                 else:
                     action_mean, action_logstd, value = network(
-                        Tensor(state).float().unsqueeze(0))
+                        Tensor(state).float().unsqueeze(0)
+                    )
                 '''action dropout'''
 
                 # action_mean[0][random.randint(0,
                 # env.action_space.shape[0]-1)] = 0
                 # action_mean[0][0] = 0
 
-                action, logproba = network.select_action(action_mean,
-                                                         action_logstd)
+                action, logproba = network.select_action(
+                    action_mean, action_logstd
+                )
                 action = action.cpu().data.numpy()[0]
                 logproba = logproba.cpu().data.numpy()[0]
 
@@ -330,8 +331,9 @@ def ppo(args):
                     next_state = running_state(next_state)
                 mask = 0 if done else 1
 
-                memory.push(state, value, action, logproba, mask,
-                            next_state, reward)
+                memory.push(
+                    state, value, action, logproba, mask, next_state, reward
+                )
 
                 if done:
                     break
@@ -342,11 +344,14 @@ def ppo(args):
             global_steps += (t + 1)
             reward_list.append(reward_sum)
             len_list.append(t + 1)
-        reward_record.append({
-            'episode': i_episode,
-            'steps': global_steps,
-            'meanepreward': np.mean(reward_list),
-            'meaneplen': np.mean(len_list)})
+        reward_record.append(
+            {
+                'episode': i_episode,
+                'steps': global_steps,
+                'meanepreward': np.mean(reward_list),
+                'meaneplen': np.mean(len_list)
+            }
+        )
         rwds.extend(reward_list)
         batch = memory.sample()
         batch_size = len(memory)
@@ -379,48 +384,53 @@ def ppo(args):
             prev_value = values[i]
             prev_advantage = advantages[i]
         if args.advantage_norm:
-            advantages = (advantages - advantages.mean()) / (
-                    advantages.std() + EPS)
+            advantages = (advantages -
+                          advantages.mean()) / (advantages.std() + EPS)
 
-        for i_epoch in range(
-                int(args.num_epoch * batch_size / args.minibatch_size)):
+        for i_epoch in range(int(args.num_epoch * batch_size /
+                                 args.minibatch_size)):
             # sample from current batch
             if not USE_GPU:
                 print('hàhàhàhàhàhàhàhàhàhàhàhàhàhàhàhàhàhàhàhàhà')
                 raise ValueError()
             else:
-                minibatch_ind = np.random.choice(batch_size,
-                                                 args.minibatch_size,
-                                                 replace=False)
+                minibatch_ind = np.random.choice(
+                    batch_size, args.minibatch_size, replace=False
+                )
                 minibatch_states = states[minibatch_ind]
                 minibatch_actions = actions[minibatch_ind]
                 minibatch_oldlogproba = oldlogproba[minibatch_ind]
                 minibatch_newlogproba = network.get_logproba(
-                    minibatch_states.cuda(),
-                    minibatch_actions.cuda()).cpu()
+                    minibatch_states.cuda(), minibatch_actions.cuda()
+                ).cpu()
                 minibatch_advantages = advantages[minibatch_ind]
                 minibatch_returns = returns[minibatch_ind]
                 minibatch_newvalues = network._forward_critic(
-                    minibatch_states.cuda()).cpu().flatten()
+                    minibatch_states.cuda()
+                ).cpu().flatten()
 
                 ratio = torch.exp(
-                    minibatch_newlogproba - minibatch_oldlogproba)
+                    minibatch_newlogproba - minibatch_oldlogproba
+                )
                 surr1 = ratio * minibatch_advantages
-                surr2 = ratio.clamp(1 - clip_now,
-                                    1 + clip_now) * minibatch_advantages
-                loss_surr_cpu = - torch.mean(torch.min(surr1, surr2))
+                surr2 = ratio.clamp(
+                    1 - clip_now, 1 + clip_now
+                ) * minibatch_advantages
+                loss_surr_cpu = -torch.mean(torch.min(surr1, surr2))
 
                 if args.lossvalue_norm:
                     minibatch_return_6std = 6 * minibatch_returns.std()
                     loss_value_cpu = torch.mean(
-                        (minibatch_newvalues - minibatch_returns).pow(
-                            2)) / minibatch_return_6std
+                        (minibatch_newvalues - minibatch_returns).pow(2)
+                    ) / minibatch_return_6std
                 else:
                     loss_value_cpu = torch.mean(
-                        (minibatch_newvalues - minibatch_returns).pow(2))
+                        (minibatch_newvalues - minibatch_returns).pow(2)
+                    )
 
-                loss_entropy_cpu = torch.mean(torch.exp(
-                    minibatch_newlogproba) * minibatch_newlogproba)
+                loss_entropy_cpu = torch.mean(
+                    torch.exp(minibatch_newlogproba) * minibatch_newlogproba
+                )
 
                 total_loss_cpu = loss_surr_cpu + args.loss_coeff_value * \
                                  loss_value_cpu + \
@@ -447,10 +457,11 @@ def ppo(args):
             #    .format(i_episode, reward_record[-1]['meanepreward'],
             #    total_loss.data, loss_surr.data, args.loss_coeff_value,
             #    loss_value.data, args.loss_coeff_entropy, loss_entropy.data))
-            print("total loss cc", i_episode,
-                  reward_record[-1]['meanepreward'], total_loss_cpu.data,
-                  loss_surr_cpu.data, loss_value_cpu.data,
-                  loss_entropy_cpu.data)
+            print(
+                "total loss cc", i_episode, reward_record[-1]['meanepreward'],
+                total_loss_cpu.data, loss_surr_cpu.data, loss_value_cpu.data,
+                loss_entropy_cpu.data
+            )
             print('-----------------')
 
     return reward_record
@@ -467,16 +478,19 @@ def ppo(args):
 #     record_dfs.to_csv(
 #         joindir(RESULT_DIR, 'ppo-record-{}.csv'.format(args.env_name)))
 
-
 # if __name__ == '__main__':
 # for envname in [ENV_NAME]:
 #     args.env_name = envname
 #     test(args)
 
 repeat = None
-torch.save(network.state_dict(), ENV_NAME.split('-')[
-    0] + '/CheckPoints/checkpoint_{0}hidden_{1}drop_prob_{2}repeat'.format(
-    config.hid_num, config.drop_prob, repeat))
-np.savetxt(ENV_NAME.split('-')[
-               0] + '/Rwds/rwds_{0}hidden_{1}drop_prob_{2}repeat'.format(
-    config.hid_num, config.drop_prob, repeat), rwds)
+torch.save(
+    network.state_dict(),
+    ENV_NAME.split('-')[0] +
+    '/CheckPoints/checkpoint_{0}hidden_{1}drop_prob_{2}repeat'.
+    format(config.hid_num, config.drop_prob, repeat)
+)
+np.savetxt(
+    ENV_NAME.split('-')[0] + '/Rwds/rwds_{0}hidden_{1}drop_prob_{2}repeat'.
+    format(config.hid_num, config.drop_prob, repeat), rwds
+)
