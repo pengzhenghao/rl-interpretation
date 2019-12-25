@@ -102,6 +102,7 @@ def train_one_iteration(
     best_reward = float("-inf")
 
     for agent_id in range(max_num_agents):
+        agent_name = "iter{}_agent{}".format(iteration_id, agent_id)
         prefix = "[Iteration {}, Agent {}/{}](start from 1) " \
                  "Agent <{}>:".format(iteration_id + 1, agent_id + 1,
                                       max_num_agents, agent_name)
@@ -109,7 +110,6 @@ def train_one_iteration(
         print("{} Start training.".format(prefix))
 
         # prepare config
-        agent_name = "iter{}_agent{}".format(iteration_id, agent_id)
         agent_config = copy.deepcopy(common_config)
         agent_config["checkpoint_dict"] = json.dumps(checkpoint_dict)
         agent_stop_criterion = dict(
@@ -225,6 +225,8 @@ if __name__ == '__main__':
     parser.add_argument("--max-num-agents", type=int, default=10)
     parser.add_argument("--test-mode", action="store_true")
 
+    parser.add_argument("--address", type=str, default="")
+
     # You may need to grid search
     parser.add_argument("--novelty-threshold", type=float, default=0.5)
     parser.add_argument("--use-preoccupied-agent", action="store_true")
@@ -252,7 +254,8 @@ if __name__ == '__main__':
     }
 
     initialize_ray(
-        test_mode=args.test_mode, local_mode=False, num_gpus=args.num_gpus
+        test_mode=args.test_mode, local_mode=False, num_gpus=args.num_gpus,
+        address=args.address if args.address else None
     )
 
     main(
