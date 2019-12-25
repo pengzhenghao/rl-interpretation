@@ -3,7 +3,7 @@
 ray start --head --redis-port 6789 --num-gpus 4
 
 address="10.1.72.24:6789"
-th_list=(0.4 0.5 0.6)
+th_list=(0.5)
 
 for th in ${th_list[*]}; do
   expname="1225-tnbes-th$th-preoccupied"

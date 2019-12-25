@@ -260,7 +260,7 @@ if __name__ == '__main__':
         test_mode=args.test_mode,
         local_mode=False,
         num_gpus=args.num_gpus if not args.address else None,
-        address=args.address if args.address else None
+        redis_address=args.address if args.address else None
     )
 
     main(
