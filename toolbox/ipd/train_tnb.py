@@ -254,7 +254,8 @@ if __name__ == '__main__':
     }
 
     initialize_ray(
-        test_mode=args.test_mode, local_mode=False, num_gpus=args.num_gpus,
+        test_mode=args.test_mode, local_mode=False,
+        num_gpus=args.num_gpus if not args.adress else None,
         address=args.address if args.address else None
     )
 
