@@ -167,8 +167,10 @@ class AgentPoolMixin(object):
 
             if (self.config['use_preoccupied_agent']) and (i == 0):
                 self.set_state(state)
-                msg = ("We successfully restore current agent with "
-                       "preoccupied agent <{}>. ".format(agent_name))
+                msg = (
+                    "We successfully restore current agent with "
+                    "preoccupied agent <{}>. ".format(agent_name)
+                )
                 logger.info(msg)
                 print(msg)
 
@@ -185,12 +187,12 @@ class AgentPoolMixin(object):
     def compute_novelty(self, state, action):
         if not self.initialized:
             if not hasattr(self, "_loss_inputs"):
-                return np.zeros((action.shape[0],), dtype=np.float32)
+                return np.zeros((action.shape[0], ), dtype=np.float32)
             else:
                 self._lazy_initialize()
 
         if not self.enable_novelty:
-            return np.zeros((action.shape[0],), dtype=np.float32)
+            return np.zeros((action.shape[0], ), dtype=np.float32)
 
         diff_list = []
         for i, (key, policy_dict) in enumerate(self.policies_pool.items()):

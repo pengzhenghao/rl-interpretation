@@ -12,7 +12,6 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
-
 """
 TNB-ES training basic workflow:
 
@@ -186,6 +185,7 @@ def main(
     preoccupied_checkpoints = None
 
     for iteration_id in range(num_iterations):
+
         def parse_agent_result(analysis, prefix):
             return parse_agent_result_builder(analysis, prefix, prev_reward)
 
@@ -208,8 +208,8 @@ def main(
         print(
             "Finished iteration {}! Current best reward {:.4f},"
             " best agent {}, previous best reward {:.4f}.".format(
-                iteration_id, iteration_info['best_reward'],
-                best_agent, prev_reward
+                iteration_id, iteration_info['best_reward'], best_agent,
+                prev_reward
             )
         )
         prev_reward = iteration_info['best_reward']
@@ -257,7 +257,8 @@ if __name__ == '__main__':
     }
 
     initialize_ray(
-        test_mode=args.test_mode, local_mode=False,
+        test_mode=args.test_mode,
+        local_mode=False,
         num_gpus=args.num_gpus if not args.address else None,
         address=args.address if args.address else None
     )
@@ -270,7 +271,6 @@ if __name__ == '__main__':
         common_config=common_config,
         test_mode=args.test_mode
     )
-
     """TODO: pengzh
     Here a brief sketch that we need to do:
         [V] 1. allow restore the previous-iteration best agent.
