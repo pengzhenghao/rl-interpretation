@@ -147,7 +147,7 @@ def train_one_iteration(
         agent_info_dict[agent_name] = info
 
         if best_reward < result['current_reward']:
-            iteration_info['best_agent'] = agent_id
+            iteration_info['best_agent'] = agent_name
             best_reward = result['current_reward']
 
         if stop_flag:

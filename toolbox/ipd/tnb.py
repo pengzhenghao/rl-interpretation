@@ -141,10 +141,13 @@ class AgentPoolMixin(object):
         assert distance_mode in ['min', 'max']
         self.distance_mode = distance_mode
         self.initialized = False
-
-    def _lazy_initialize(self):
         self.policies_pool = OrderedDict()
 
+    @property
+    def enable_novelty(self):
+        return len(self.policies_pool) != 0
+
+    def _lazy_initialize(self):
         # remove checkpoint_dict, otherwise will create nested policies.
         tmp_config = copy.deepcopy(self.config)
         tmp_config["checkpoint_dict"] = "{}"
@@ -177,7 +180,7 @@ class AgentPoolMixin(object):
             else:
                 self._lazy_initialize()
 
-        if len(self.policies_pool) == 0:
+        if not self.enable_novelty:
             return np.zeros((action.shape[0], ), dtype=np.float32)
 
         diff_list = []
@@ -286,29 +289,32 @@ def tnb_loss(policy, model, dist_class, train_batch):
         model_config=policy.config["model"]
     )
 
-    policy.novelty_loss_obj = PPOLoss(
-        policy.action_space,
-        dist_class,
-        model,
-        train_batch[NOVELTY_VALUE_TARGETS],
-        train_batch[NOVELTY_ADVANTAGES],
-        train_batch[SampleBatch.ACTIONS],
-        train_batch[BEHAVIOUR_LOGITS],
-        train_batch["action_logp"],
-        train_batch[NOVELTY_VALUES],
-        action_dist,
-        model.novelty_value_function(),
-        policy.kl_coeff,
-        mask,
-        entropy_coeff=policy.entropy_coeff,
-        clip_param=policy.config["clip_param"],
-        vf_clip_param=policy.config["vf_clip_param"],
-        vf_loss_coeff=policy.config["vf_loss_coeff"],
-        use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"]
-    )
+    if policy.enable_novelty:
+        policy.novelty_loss_obj = PPOLoss(
+            policy.action_space,
+            dist_class,
+            model,
+            train_batch[NOVELTY_VALUE_TARGETS],
+            train_batch[NOVELTY_ADVANTAGES],
+            train_batch[SampleBatch.ACTIONS],
+            train_batch[BEHAVIOUR_LOGITS],
+            train_batch["action_logp"],
+            train_batch[NOVELTY_VALUES],
+            action_dist,
+            model.novelty_value_function(),
+            policy.kl_coeff,
+            mask,
+            entropy_coeff=policy.entropy_coeff,
+            clip_param=policy.config["clip_param"],
+            vf_clip_param=policy.config["vf_clip_param"],
+            vf_loss_coeff=policy.config["vf_loss_coeff"],
+            use_gae=policy.config["use_gae"],
+            model_config=policy.config["model"]
+        )
 
-    return [policy.loss_obj.loss, policy.novelty_loss_obj.loss]
+        return [policy.loss_obj.loss, policy.novelty_loss_obj.loss]
+    else:
+        return [policy.loss_obj.loss, None]
 
 
 def _flatten(tensor):
@@ -318,6 +324,11 @@ def _flatten(tensor):
 
 def tnb_gradients(policy, optimizer, loss):
     policy_grad = optimizer.compute_gradients(loss[0])
+
+    if not policy.enable_novelty:
+        assert loss[1] is None
+        return policy_grad
+
     novelty_grad = optimizer.compute_gradients(loss[1])
 
     return_gradients = []
@@ -397,6 +408,8 @@ def tnb_gradients(policy, optimizer, loss):
 
 
 def grad_stats_fn(policy, batch, grads):
+    if not policy.enable_novelty:
+        return {}
     ret = {
         "cos_similarity": policy.gradient_cosine_similarity,
         "policy_grad_norm": policy.policy_grad_norm,
