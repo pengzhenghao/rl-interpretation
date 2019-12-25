@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+import os
 import os.path as osp
 from collections import OrderedDict
 
@@ -83,6 +84,8 @@ def train_one_iteration(
     """Conduct one iteration of evolution. Maximum generated agents is defined
      by max_num_agents"""
     local_dir = osp.join(osp.expanduser("~/ray_results"), exp_name)
+    os.makedirs(local_dir, exist_ok=True)
+
     result_dict = OrderedDict()
     checkpoint_dict = OrderedDict()
     agent_info_dict = OrderedDict()
@@ -255,7 +258,7 @@ if __name__ == '__main__':
 
     initialize_ray(
         test_mode=args.test_mode, local_mode=False,
-        num_gpus=args.num_gpus if not args.adress else None,
+        num_gpus=args.num_gpus if not args.address else None,
         address=args.address if args.address else None
     )
 
