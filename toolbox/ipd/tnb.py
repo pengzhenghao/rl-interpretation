@@ -155,7 +155,7 @@ class AgentPoolMixin(object):
                 "num_workers": 0,
                 "num_cpus_per_worker": 0,
                 "num_cpus_for_driver": 0.2,
-                # "num_gpus": 0.1,
+                "num_gpus": 0.1,
             }
         )
 
