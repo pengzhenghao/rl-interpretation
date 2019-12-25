@@ -420,6 +420,8 @@ def grad_stats_fn(policy, batch, grads):
 
 def kl_and_loss_stats_modified(policy, train_batch):
     ret = kl_and_loss_stats(policy, train_batch)
+    if not policy.enable_novelty:
+        return ret
     ret.update(
         {
             "novelty_total_loss": policy.novelty_loss_obj.loss,
@@ -466,7 +468,7 @@ TNBPolicy = PPOTFPolicy.with_updates(
     extra_action_fetches_fn=additional_fetches,
     postprocess_fn=postprocess_ipd,
     loss_fn=tnb_loss,
-    stats_fn=kl_and_loss_stats,
+    stats_fn=kl_and_loss_stats_modified,
     gradients_fn=tnb_gradients,
     grad_stats_fn=grad_stats_fn,
     mixins=[

@@ -199,7 +199,7 @@ def main(exp_name, num_iterations, max_num_agents, test_mode=False):
             )
 
         best_agent = iteration_info['best_agent']
-        best_agent_checkpoint = agent_info_dict[best_agent]['checkpoint']
+        best_agent_checkpoint = agent_info_dict[best_agent]['checkpoint_path']
         preoccupied_checkpoints = {best_agent: best_agent_checkpoint}
 
         print(
