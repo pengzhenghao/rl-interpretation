@@ -179,15 +179,33 @@ def main(
         max_num_agents,
         timesteps_total,
         common_config,
-        test_mode=False
+        test_mode=False,
+        _call_shutdown=False,
 ):
     prev_reward = float('+inf')
     preoccupied_checkpoints = None
 
     for iteration_id in range(num_iterations):
+        print(
+            "Start iteration {}/{}! Previous best reward {:.4f}.".format(
+                iteration_id + 1, num_iterations,
+                prev_reward
+            )
+        )
 
         def parse_agent_result(analysis, prefix):
             return parse_agent_result_builder(analysis, prefix, prev_reward)
+
+        # clear up existing worker at previous iteration.
+        # FIXME we don't know whether this would destroy others.
+        if _call_shutdown:
+            ray.shutdown()
+        initialize_ray(
+            test_mode=args.test_mode,
+            local_mode=False,
+            num_gpus=args.num_gpus if not args.address else None,
+            redis_address=args.address if args.address else None
+        )
 
         result_dict, checkpoint_dict, agent_info_dict, iteration_info = \
             train_one_iteration(
@@ -206,13 +224,35 @@ def main(
         preoccupied_checkpoints = {best_agent: best_agent_checkpoint}
 
         print(
-            "Finished iteration {}! Current best reward {:.4f},"
+            "Finished iteration {}/{}! Current best reward {:.4f},"
             " best agent {}, previous best reward {:.4f}.".format(
-                iteration_id, iteration_info['best_reward'], best_agent,
+                iteration_id + 1, num_iterations,
+                iteration_info['best_reward'], best_agent,
                 prev_reward
             )
         )
         prev_reward = iteration_info['best_reward']
+
+    print("Finish {} iterations! Terminate the program.".format(
+        num_iterations))
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO You need to save the result at some place!!!!!
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+    ### TODO
+
 
 
 if __name__ == '__main__':
@@ -227,6 +267,7 @@ if __name__ == '__main__':
     parser.add_argument("--num-iterations", type=int, default=10)
     parser.add_argument("--max-num-agents", type=int, default=10)
     parser.add_argument("--test-mode", action="store_true")
+    parser.add_argument("--shutdown", action="store_true")
 
     parser.add_argument("--address", type=str, default="")
 
@@ -256,12 +297,6 @@ if __name__ == '__main__':
         "num_cpus_for_driver": 0.8
     }
 
-    initialize_ray(
-        test_mode=args.test_mode,
-        local_mode=False,
-        num_gpus=args.num_gpus if not args.address else None,
-        redis_address=args.address if args.address else None
-    )
 
     main(
         exp_name=args.exp_name,
@@ -269,7 +304,8 @@ if __name__ == '__main__':
         max_num_agents=args.max_num_agents,
         timesteps_total=args.timesteps,
         common_config=common_config,
-        test_mode=args.test_mode
+        test_mode=args.test_mode,
+        _call_shutdown=args.shutdown
     )
     """TODO: pengzh
     Here a brief sketch that we need to do:

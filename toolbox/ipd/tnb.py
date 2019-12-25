@@ -152,6 +152,8 @@ class AgentPoolMixin(object):
         # remove checkpoint_dict, otherwise will create nested policies.
         tmp_config = copy.deepcopy(self.config)
         tmp_config["checkpoint_dict"] = "{}"
+        # disable the private worker of each policy, to save resource.
+        tmp_config.update({"num_workers": 0, "num_cpus_per_worker": 0})
 
         for i, (agent_name, checkpoint_path) in \
                 enumerate(self.checkpoint_dict.items()):
