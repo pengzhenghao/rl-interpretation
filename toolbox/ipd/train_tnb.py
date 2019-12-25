@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import os.path as osp
+import pickle
 from collections import OrderedDict
 
 import numpy as np
@@ -12,7 +13,6 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
-
 """
 TNB-ES training basic workflow:
 
@@ -191,9 +191,11 @@ def main(
     iteration_result = []
 
     for iteration_id in range(num_iterations):
-        print("Start iteration {}/{}! Previous best reward {:.4f}.".format(
-                iteration_id + 1, num_iterations,
-                prev_reward))
+        print(
+            "Start iteration {}/{}! Previous best reward {:.4f}.".format(
+                iteration_id + 1, num_iterations, prev_reward
+            )
+        )
 
         def parse_agent_result(analysis, prefix):
             return parse_agent_result_builder(analysis, prefix, prev_reward)
@@ -217,7 +219,9 @@ def main(
         # save necessary data
         for agent_name, result in result_dict.items():
             info = dict(
-                dataframe=next(iter(result['analysis'].trial_dataframes.values())),
+                dataframe=next(
+                    iter(result['analysis'].trial_dataframes.values())
+                ),
                 reward=result['current_reward'],
                 checkpoint=checkpoint_dict[agent_name]
             )
@@ -237,8 +241,9 @@ def main(
             "iterations.".format(
                 iteration_id + 1, num_iterations, current_reward, best_agent,
                 prev_reward, prev_agent, not_improve_counter + int(
-                    (current_reward <= prev_reward) and (
-                            prev_agent is not None))
+                    (current_reward <= prev_reward) and
+                    (prev_agent is not None)
+                )
             )
         )
 
@@ -253,14 +258,19 @@ def main(
         if not_improve_counter >= max_not_improve_iterations:
             break
 
-    with open("{}_agent_dict.json".format(exp_name), 'w') as f:
-        json.dump(info_dict, f)
-    with open("{}_iteration_result.json", 'w') as f:
-        json.dump(info_dict, f)
-    print("Finish {} iterations! Data has been saved at: {}. "
-          "Terminate the program.".format(
-        num_iterations, ("{}_agent_dict.json".format(exp_name),
-                         "{}_iteration_result.json".format(exp_name))))
+    with open("{}_agent_dict.pkl".format(exp_name), 'wb') as f:
+        pickle.dump(info_dict, f)
+    with open("{}_iteration_result.pkl", 'wb') as f:
+        pickle.dump(info_dict, f)
+    print(
+        "Finish {} iterations! Data has been saved at: {}. "
+        "Terminate the program.".format(
+            num_iterations, (
+                "{}_agent_dict.pkl".format(exp_name),
+                "{}_iteration_result.pkl".format(exp_name)
+            )
+        )
+    )
 
 
 if __name__ == '__main__':
@@ -305,7 +315,6 @@ if __name__ == '__main__':
         "num_cpus_for_driver": 0.8
     }
 
-
     def ray_init():
         ray.shutdown()
         initialize_ray(
@@ -314,7 +323,6 @@ if __name__ == '__main__':
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )
-
 
     main(
         exp_name=args.exp_name,
