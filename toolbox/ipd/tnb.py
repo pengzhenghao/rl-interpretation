@@ -1,7 +1,7 @@
+import copy
 import json
 import logging
 import os
-import copy
 import pickle
 from collections import OrderedDict
 
@@ -25,9 +25,10 @@ ipd_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         novelty_threshold=0.5,
-        distance_mode="min",
+        use_preoccupied_agent=False,
 
         # Do not modified these parameters.
+        distance_mode="min",
         clip_novelty_gradient=False,
         use_second_component=True,
         checkpoint_dict="",  # use json to parse a dict into string.
@@ -152,7 +153,8 @@ class AgentPoolMixin(object):
         tmp_config = copy.deepcopy(self.config)
         tmp_config["checkpoint_dict"] = "{}"
 
-        for agent_name, checkpoint_path in self.checkpoint_dict.items():
+        for i, (agent_name, checkpoint_path) in \
+                enumerate(self.checkpoint_dict.items()):
             # build the policy and restore the weights.
             with tf.variable_scope(agent_name):
                 policy = TNBPolicy(
@@ -162,6 +164,13 @@ class AgentPoolMixin(object):
             wkload = pickle.load(open(path, 'rb'))['worker']
             state = pickle.loads(wkload)['state']['default_policy']
             policy.set_state(state)
+
+            if (self.config['use_preoccupied_agent']) and (i == 0):
+                self.set_state(state)
+                msg = ("We successfully restore current agent with "
+                       "preoccupied agent <{}>. ".format(agent_name))
+                logger.info(msg)
+                print(msg)
 
             policy_info = {
                 "agent_name": agent_name,
@@ -176,12 +185,12 @@ class AgentPoolMixin(object):
     def compute_novelty(self, state, action):
         if not self.initialized:
             if not hasattr(self, "_loss_inputs"):
-                return np.zeros((action.shape[0], ), dtype=np.float32)
+                return np.zeros((action.shape[0],), dtype=np.float32)
             else:
                 self._lazy_initialize()
 
         if not self.enable_novelty:
-            return np.zeros((action.shape[0], ), dtype=np.float32)
+            return np.zeros((action.shape[0],), dtype=np.float32)
 
         diff_list = []
         for i, (key, policy_dict) in enumerate(self.policies_pool.items()):

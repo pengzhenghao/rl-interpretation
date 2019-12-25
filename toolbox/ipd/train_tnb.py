@@ -35,20 +35,6 @@ TNB-ES training basic workflow:
 
 logger = logging.getLogger(__file__)
 
-COMMON_CONFIG = {
-    "env": "BipedalWalker-v2",
-    "novelty_threshold": 0.5,
-    "num_sgd_iter": 10,
-    "num_envs_per_worker": 16,
-    "gamma": 0.99,
-    "entropy_coeff": 0.001,
-    "lambda": 0.95,
-    "lr": 2.5e-4,
-    "num_gpus": 0.2,
-    "num_cpus_per_worker": 0.5,
-    "num_cpus_for_driver": 0.8
-}
-
 
 def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
     assert ray.is_initialized()
@@ -56,12 +42,12 @@ def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
         TNBTrainer,
         name=agent_name,
         local_dir=local_dir,
-        verbose=2 if test_mode else 1,
+        verbose=2,
         checkpoint_freq=0,
         checkpoint_at_end=True,
         stop=stop,
         config=config,
-        reuse_actors=True
+        reuse_actors=True,
     )
 
     # one experiments may have multiple trials, due to some error that
@@ -89,6 +75,8 @@ def train_one_iteration(
         exp_name,
         max_num_agents,
         parse_agent_result,
+        timesteps_total,
+        common_config,
         preoccupied_checkpoints=None,
         test_mode=False
 ):
@@ -99,10 +87,10 @@ def train_one_iteration(
     checkpoint_dict = OrderedDict()
     agent_info_dict = OrderedDict()
     iteration_info = OrderedDict()
-    common_config = copy.deepcopy(COMMON_CONFIG)
 
     if preoccupied_checkpoints:
         assert isinstance(preoccupied_checkpoints, dict)
+        assert len(preoccupied_checkpoints) == 1
         checkpoint_dict.update(preoccupied_checkpoints)
 
     if test_mode:
@@ -114,12 +102,18 @@ def train_one_iteration(
     best_reward = float("-inf")
 
     for agent_id in range(max_num_agents):
+        prefix = "[Iteration {}, Agent {}/{}](start from 1) " \
+                 "Agent <{}>:".format(iteration_id + 1, agent_id + 1,
+                                      max_num_agents, agent_name)
+
+        print("{} Start training.".format(prefix))
+
         # prepare config
         agent_name = "iter{}_agent{}".format(iteration_id, agent_id)
         agent_config = copy.deepcopy(common_config)
         agent_config["checkpoint_dict"] = json.dumps(checkpoint_dict)
         agent_stop_criterion = dict(
-            timesteps_total=int(2e6) if not test_mode else 10000
+            timesteps_total=int(timesteps_total) if not test_mode else 10000
         )
 
         # train one agent
@@ -131,10 +125,6 @@ def train_one_iteration(
             test_mode=test_mode
         )
 
-        prefix = "[Iteration {}, Agent {}/{}](start from 1) " \
-                 "Agent <{}>:".format(iteration_id + 1, agent_id + 1,
-                                      max_num_agents, agent_name)
-
         print("{} Finished training.".format(prefix))
 
         # stop this evolution iteration
@@ -142,6 +132,7 @@ def train_one_iteration(
 
         # checkpoint would look like: /home/xxx/ray_results/exp_name/
         # iter0_agent0/PPO.../checkpoint-10/checkpoint_10
+        assert agent_name not in checkpoint_dict
         checkpoint_dict[agent_name] = checkpoint
         result_dict[agent_name] = result
         agent_info_dict[agent_name] = info
@@ -180,7 +171,14 @@ def parse_agent_result_builder(analysis, prefix, prev_reward):
     return ret, agent_result
 
 
-def main(exp_name, num_iterations, max_num_agents, test_mode=False):
+def main(
+        exp_name,
+        num_iterations,
+        max_num_agents,
+        timesteps_total,
+        common_config,
+        test_mode=False
+):
     prev_reward = float('+inf')
     preoccupied_checkpoints = None
 
@@ -194,6 +192,8 @@ def main(exp_name, num_iterations, max_num_agents, test_mode=False):
                 exp_name=exp_name if not test_mode else "DELETEME-TEST",
                 max_num_agents=max_num_agents if not test_mode else 3,
                 parse_agent_result=parse_agent_result,
+                timesteps_total=timesteps_total,
+                common_config=common_config,
                 preoccupied_checkpoints=preoccupied_checkpoints,
                 test_mode=test_mode
             )
@@ -216,29 +216,57 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
+
     parser.add_argument("--exp-name", type=str, default="")
-    # parser.add_argument("--env", type=str, default="BipedalWalker-v2")
-    # parser.add_argument("--run", type=str, default="PPO")
-    parser.add_argument("--num-seeds", type=int, default=1)
+    # parser.add_argument("--num-seeds", type=int, default=1)
     parser.add_argument("--num-gpus", type=int, default=4)
-    parser.add_argument("--num-iterations", type=int, default=3)
-    parser.add_argument("--max-num-agents", type=int, default=3)
+    parser.add_argument("--timesteps", type=int, default=1e6)
+    parser.add_argument("--num-iterations", type=int, default=10)
+    parser.add_argument("--max-num-agents", type=int, default=10)
     parser.add_argument("--test-mode", action="store_true")
+
+    # You may need to grid search
+    parser.add_argument("--novelty-threshold", type=float, default=0.5)
+    parser.add_argument("--use-preoccupied-agent", action="store_true")
+
     args = parser.parse_args()
 
     if not args.test_mode:
         assert args.exp_name
+
+    common_config = {
+        "novelty_threshold": args.novelty_threshold,
+        "use_preoccupied_agent": args.use_preoccupied_agent,
+
+        # do not change
+        "env": "BipedalWalker-v2",
+        "num_sgd_iter": 10,
+        "num_envs_per_worker": 16,
+        "gamma": 0.99,
+        "entropy_coeff": 0.001,
+        "lambda": 0.95,
+        "lr": 2.5e-4,
+        "num_gpus": 1,
+        "num_cpus_per_worker": 0.5,
+        "num_cpus_for_driver": 0.8
+    }
 
     initialize_ray(
         test_mode=args.test_mode, local_mode=False, num_gpus=args.num_gpus
     )
 
     main(
-        args.exp_name, args.num_iterations, args.max_num_agents, args.test_mode
+        exp_name=args.exp_name,
+        num_iterations=args.num_iterations,
+        max_num_agents=args.max_num_agents,
+        timesteps_total=args.timesteps,
+        common_config=common_config,
+        test_mode=args.test_mode
     )
+
     """TODO: pengzh
     Here a brief sketch that we need to do:
-        1. allow restore the previous-iteration best agent.
-        2. make sure agents is saved.
-        [3.] data parsing
+        [V] 1. allow restore the previous-iteration best agent.
+        [ ] 2. make sure agents is saved.
+        [ ] 3. data parsing
     """
