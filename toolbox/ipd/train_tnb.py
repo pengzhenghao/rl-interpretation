@@ -12,6 +12,7 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
+
 """
 TNB-ES training basic workflow:
 
@@ -177,13 +178,16 @@ def main(
         exp_name,
         num_iterations,
         max_num_agents,
+        max_not_improve_iterations,
         timesteps_total,
         common_config,
+        ray_init,
         test_mode=False,
-        _call_shutdown=False,
 ):
     prev_reward = float('+inf')
+    prev_agent = None
     preoccupied_checkpoints = None
+    not_improve_counter = 0
 
     for iteration_id in range(num_iterations):
         print(
@@ -197,15 +201,7 @@ def main(
             return parse_agent_result_builder(analysis, prefix, prev_reward)
 
         # clear up existing worker at previous iteration.
-        # FIXME we don't know whether this would destroy others.
-        if _call_shutdown:
-            ray.shutdown()
-        initialize_ray(
-            test_mode=args.test_mode,
-            local_mode=False,
-            num_gpus=args.num_gpus if not args.address else None,
-            redis_address=args.address if args.address else None
-        )
+        ray_init()
 
         result_dict, checkpoint_dict, agent_info_dict, iteration_info = \
             train_one_iteration(
@@ -218,20 +214,32 @@ def main(
                 preoccupied_checkpoints=preoccupied_checkpoints,
                 test_mode=test_mode
             )
-
+        current_reward = iteration_info['best_reward']
         best_agent = iteration_info['best_agent']
         best_agent_checkpoint = agent_info_dict[best_agent]['checkpoint_path']
         preoccupied_checkpoints = {best_agent: best_agent_checkpoint}
 
         print(
             "Finished iteration {}/{}! Current best reward {:.4f},"
-            " best agent {}, previous best reward {:.4f}.".format(
-                iteration_id + 1, num_iterations,
-                iteration_info['best_reward'], best_agent,
-                prev_reward
+            " best agent {}, previous best reward {:.4f}, "
+            "previous best agent {}. Not improve performance for {} "
+            "iterations.".format(
+                iteration_id + 1, num_iterations, current_reward, best_agent,
+                prev_reward, prev_agent, not_improve_counter + int(
+                    (current_reward <= prev_reward) and (
+                            prev_agent is not None))
             )
         )
-        prev_reward = iteration_info['best_reward']
+
+        if (current_reward > prev_reward) or (prev_agent is None):
+            prev_reward = current_reward
+            prev_agent = best_agent
+            not_improve_counter = 0
+        else:
+            not_improve_counter += 1
+
+        if not_improve_counter >= max_not_improve_iterations:
+            break
 
     print("Finish {} iterations! Terminate the program.".format(
         num_iterations))
@@ -254,7 +262,6 @@ def main(
     ### TODO
 
 
-
 if __name__ == '__main__':
     import argparse
 
@@ -267,13 +274,13 @@ if __name__ == '__main__':
     parser.add_argument("--num-iterations", type=int, default=10)
     parser.add_argument("--max-num-agents", type=int, default=10)
     parser.add_argument("--test-mode", action="store_true")
-    parser.add_argument("--shutdown", action="store_true")
 
     parser.add_argument("--address", type=str, default="")
 
     # You may need to grid search
     parser.add_argument("--novelty-threshold", type=float, default=0.5)
     parser.add_argument("--use-preoccupied-agent", action="store_true")
+    parser.add_argument("--max-not-improve-iterations", type=int, default=3)
 
     args = parser.parse_args()
 
@@ -298,14 +305,25 @@ if __name__ == '__main__':
     }
 
 
+    def ray_init():
+        ray.shutdown()
+        initialize_ray(
+            test_mode=args.test_mode,
+            local_mode=True,
+            num_gpus=args.num_gpus if not args.address else None,
+            redis_address=args.address if args.address else None
+        )
+
+
     main(
         exp_name=args.exp_name,
         num_iterations=args.num_iterations,
         max_num_agents=args.max_num_agents,
         timesteps_total=args.timesteps,
         common_config=common_config,
-        test_mode=args.test_mode,
-        _call_shutdown=args.shutdown
+        max_not_improve_iterations=args.max_not_improve_iterations,
+        ray_init=ray_init,
+        test_mode=args.test_mode
     )
     """TODO: pengzh
     Here a brief sketch that we need to do:
