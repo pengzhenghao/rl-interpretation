@@ -191,7 +191,7 @@ def main(
         ray_init,
         test_mode=False,
 ):
-    prev_reward = float('+inf')
+    prev_reward = float('-inf')
     prev_agent = None
     preoccupied_checkpoints = None
     not_improve_counter = 0
@@ -200,7 +200,7 @@ def main(
 
     for iteration_id in range(num_iterations):
         print(
-            "Start iteration {}/{}! Previous best reward {:.4f}.".format(
+            "[Iteration {}/{}] Start! Previous best reward {:.4f}.".format(
                 iteration_id + 1, num_iterations, prev_reward
             )
         )
@@ -241,10 +241,9 @@ def main(
         current_reward = iteration_info['best_reward']
         best_agent = iteration_info['best_agent']
         best_agent_checkpoint = checkpoint_dict[best_agent]
-        preoccupied_checkpoints = {best_agent: best_agent_checkpoint}
 
         print(
-            "Finished iteration {}/{}! Current best reward {:.4f},"
+            "[Iteration {}/{}] Finish! Current best reward {:.4f},"
             " best agent {}, previous best reward {:.4f}, "
             "previous best agent {}. Not improve performance for {} "
             "iterations.".format(
@@ -260,11 +259,26 @@ def main(
         if (current_reward > prev_reward) or (prev_agent is None):
             prev_reward = current_reward
             prev_agent = best_agent
+            preoccupied_checkpoints = {best_agent: best_agent_checkpoint}
             not_improve_counter = 0
         else:
             not_improve_counter += 1
 
         if not_improve_counter >= max_not_improve_iterations:
+            print(
+                "[Iteration {}/{}] Stop Iterating! Current best reward {:.4f},"
+                " best agent {}, previous best reward {:.4f}, "
+                "previous best agent {}. Not improve performance for {} "
+                "iterations. Exceed the maximum number of not-improving "
+                "iteration {}, so we stop the whole program.".format(
+                    iteration_id + 1, num_iterations, current_reward,
+                    best_agent,
+                    prev_reward, prev_agent, not_improve_counter + int(
+                        (current_reward <= prev_reward) and
+                        (prev_agent is not None)
+                    ), max_not_improve_iterations
+                )
+            )
             break
 
     with open("{}_agent_dict.pkl".format(exp_name), 'wb') as f:
@@ -291,7 +305,7 @@ if __name__ == '__main__':
     # parser.add_argument("--num-seeds", type=int, default=1)
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--timesteps", type=float, default=1e6)
-    parser.add_argument("--num-iterations", type=int, default=10)
+    parser.add_argument("--num-iterations", type=int, default=100)
     parser.add_argument("--max-num-agents", type=int, default=10)
     parser.add_argument("--test-mode", action="store_true")
     parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
@@ -301,6 +315,7 @@ if __name__ == '__main__':
     # You may need to grid search
     # parser.add_argument("--novelty-threshold", type=float, default=0.5)
     parser.add_argument("--use-preoccupied-agent", action="store_true")
+    parser.add_argument("--disable-tnb", action="store_true")
     parser.add_argument("--max-not-improve-iterations", type=int, default=3)
 
     args = parser.parse_args()
@@ -321,8 +336,7 @@ if __name__ == '__main__':
         "lambda": 0.95,
         "lr": 2.5e-4,
         "num_gpus": 0.3,
-        # "num_cpus_per_worker": 2,
-        # "num_cpus_for_driver": 2
+        "disable_tnb": args.disable_tnb
     }
 
     walker_config = {
@@ -337,7 +351,8 @@ if __name__ == '__main__':
         "num_gpus": 0.5,
         "num_cpus_per_worker": 0.5,
         "num_envs_per_worker": 16,
-        'num_workers': 8
+        'num_workers': 8,
+        "disable_tnb": args.disable_tnb
     }
 
     if args.env_name == "BipedalWalker-v2":
@@ -351,7 +366,7 @@ if __name__ == '__main__':
         ray.shutdown()
         initialize_ray(
             test_mode=args.test_mode,
-            local_mode=True,
+            local_mode=False,
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )

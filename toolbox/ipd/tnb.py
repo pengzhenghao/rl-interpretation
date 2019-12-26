@@ -189,6 +189,9 @@ class AgentPoolMixin(object):
         if self.config['use_preoccupied_agent'] and self.checkpoint_dict:
             best_agent = max(self.checkpoint_dict,
                              key=lambda k: self.checkpoint_dict[k]['reward'])
+
+            assert next(iter(self.checkpoint_dict.keys())) == best_agent
+
             state = _restore_state(self.checkpoint_dict[best_agent]['path'])
             self.set_state(state)
             msg = (
