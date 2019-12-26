@@ -11,7 +11,7 @@ if __name__ == '__main__':
     parser.add_argument("--num-gpus", type=int, default=8)
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--num-agents", type=int, default=10)
-    # parser.add_argument("--env", type=str, default="BipedalWalker-v2")
+    parser.add_argument("--env", type=str, default="Humanoid-v2")
     parser.add_argument("--exp-name", type=str, default="")
     # parser.add_argument("--mode", type=str, default="all")
     # parser.add_argument("--stop", type=float, default=5e6)
@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
     humanoid_config = {
         "update_steps": tune.grid_search([100000, 200000, 500000]),
-        "env": "Humanoid-v2",
+        "env": args.env,
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
         "lr": 0.0001,
