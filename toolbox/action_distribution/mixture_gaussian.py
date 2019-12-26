@@ -8,7 +8,6 @@ from ray.rllib.models.tf.tf_action_dist import TFActionDistribution
 
 logger = logging.getLogger(__name__)
 tfd = tfp.distributions
-
 """This codes is still contains bugs. But I can not find it.
 
 The most significant symptom is the NaN may raise as the sample, which
@@ -20,6 +19,8 @@ But I have not really try to look at does it really yield NaN as sample.
 
 Anyway, this branch is closed. 
 """
+
+
 class GaussianMixture(TFActionDistribution):
     name = "GaussianMixture"
 
@@ -35,8 +36,9 @@ class GaussianMixture(TFActionDistribution):
         self.means = tf.reshape(splits[0], [-1, self.k, action_length])
         self.weight = splits[-1]
 
-        self.mixture_dist = tfd.Categorical(logits=self.weight,
-                                            allow_nan_stats=False)
+        self.mixture_dist = tfd.Categorical(
+            logits=self.weight, allow_nan_stats=False
+        )
         self.components_dist = tfd.MultivariateNormalDiag(
             self.means,  # One for each component.
             self.stds,

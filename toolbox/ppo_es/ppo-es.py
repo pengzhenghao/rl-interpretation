@@ -14,10 +14,7 @@ from toolbox.modified_rllib.multi_gpu_optimizer import \
 logger = logging.getLogger(__name__)
 
 ppo_es_default_config = merge_dicts(
-    DEFAULT_CONFIG,
-    dict(
-        update_steps=100000,
-    )
+    DEFAULT_CONFIG, dict(update_steps=100000, )
 )
 
 
@@ -50,6 +47,7 @@ def after_train_result(trainer, result):
         print(msg)
         logger.info(msg)
         trainer.update_policy_counter += 1
+
 
 def validate_config(config):
     """
@@ -89,7 +87,10 @@ if __name__ == '__main__':
         "num_sgd_iter": 2,
         "train_batch_size": 400,
         "env": MultiAgentEnvWrapper,
-        "env_config": {"env_name": env_name, "num_agents": num_agents},
+        "env_config": {
+            "env_name": env_name,
+            "num_agents": num_agents
+        },
         "update_steps": 1000
     }
     tune.run(

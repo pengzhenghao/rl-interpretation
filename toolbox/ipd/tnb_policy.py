@@ -173,7 +173,8 @@ class AgentPoolMixin(object):
                     self.observation_space, self.action_space, tmp_config
                 )
                 path = os.path.abspath(
-                    os.path.expanduser(checkpoint_info['path']))
+                    os.path.expanduser(checkpoint_info['path'])
+                )
                 state = _restore_state(path)
                 policy.set_weights(state)
 
@@ -186,15 +187,19 @@ class AgentPoolMixin(object):
             self.policies_pool[agent_name] = policy_info
 
         if self.config['use_preoccupied_agent'] and self.checkpoint_dict:
-            best_agent = max(self.checkpoint_dict,
-                             key=lambda k: self.checkpoint_dict[k]['reward'])
+            best_agent = max(
+                self.checkpoint_dict,
+                key=lambda k: self.checkpoint_dict[k]['reward']
+            )
             assert next(iter(self.checkpoint_dict.keys())) == best_agent
             self.set_weights(
-                self.policies_pool[best_agent]['policy'].get_weights())
+                self.policies_pool[best_agent]['policy'].get_weights()
+            )
             msg = (
                 "We successfully restore current agent with "
                 " best agent <{}>, it's reward {}. ".format(
-                    best_agent, self.checkpoint_dict[best_agent]['reward'])
+                    best_agent, self.checkpoint_dict[best_agent]['reward']
+                )
             )
             logger.info(msg)
             print(msg)
@@ -207,10 +212,10 @@ class AgentPoolMixin(object):
     def compute_novelty(self, state, action):
         if not self.initialized_policies_pool:
             if not hasattr(self, "_loss_inputs"):
-                return np.zeros((action.shape[0],), dtype=np.float32)
+                return np.zeros((action.shape[0], ), dtype=np.float32)
 
         if not self.enable_novelty:
-            return np.zeros((action.shape[0],), dtype=np.float32)
+            return np.zeros((action.shape[0], ), dtype=np.float32)
 
         assert self.initialized_policies_pool, self.policies_pool
 

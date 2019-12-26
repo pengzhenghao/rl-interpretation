@@ -203,13 +203,13 @@ algo_specify_config = algo_specify_config_dict[args.run]
 
 general_config = {
     "log_level": "DEBUG" if args.test_mode else "ERROR",
-    "env": args.env if args.env!= "atari" else tune.grid_search([
-        "BreakoutNoFrameskip-v4",
-        "BeamRiderNoFrameskip-v4",
-        "QbertNoFrameskip-v4",
-        "SpaceInvadersNoFrameskip-v4"
-    ]),
-    "num_gpus": 0.15 if 0.15<args.num_gpus else 0,
+    "env": args.env if args.env != "atari" else tune.grid_search(
+        [
+            "BreakoutNoFrameskip-v4", "BeamRiderNoFrameskip-v4",
+            "QbertNoFrameskip-v4", "SpaceInvadersNoFrameskip-v4"
+        ]
+    ),
+    "num_gpus": 0.15 if 0.15 < args.num_gpus else 0,
     "num_cpus_for_driver": 0.2,
     "num_cpus_per_worker": 0.75
 }

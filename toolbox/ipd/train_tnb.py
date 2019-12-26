@@ -13,7 +13,6 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
-
 """
 TNB-ES training basic workflow:
 
@@ -274,8 +273,8 @@ def main(
                 "iterations. Exceed the maximum number of not-improving "
                 "iteration {}, so we stop the whole program.".format(
                     iteration_id + 1, num_iterations, current_reward,
-                    best_agent,
-                    prev_reward, prev_agent, not_improve_counter + int(
+                    best_agent, prev_reward, prev_agent,
+                    not_improve_counter + int(
                         (current_reward <= prev_reward) and
                         (prev_agent is not None)
                     ), max_not_improve_iterations
@@ -330,7 +329,6 @@ if __name__ == '__main__':
         "use_preoccupied_agent": args.use_preoccupied_agent,
         "env": args.env_name,
         "disable_tnb": args.disable_tnb,
-
         "num_sgd_iter": 10,
         "num_envs_per_worker": 16,
         "gamma": 0.99,
@@ -345,7 +343,6 @@ if __name__ == '__main__':
         "use_preoccupied_agent": args.use_preoccupied_agent,
         "disable_tnb": args.disable_tnb,
         "env": args.env_name,
-
         "novelty_threshold": 1.1,
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
@@ -374,7 +371,6 @@ if __name__ == '__main__':
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )
-
 
     main(
         exp_name=args.exp_name,

@@ -366,6 +366,7 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                     )
                 fetches[policy_id] = _averaged(iter_extra_fetches)
 
+        # Here!
         if self.compute_num_steps_sampled:
             self.num_steps_sampled += self.compute_num_steps_sampled(samples)
         else:
@@ -374,6 +375,7 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                 dtype=np.int64
             )
 
+        # Here!
         self.num_steps_trained += np.mean(
             list(num_loaded_tuples.values()), dtype=np.int64
         ) * len(self.devices)
@@ -388,3 +390,25 @@ def _averaged(kv):
         if v[0] is not None and not isinstance(v[0], dict):
             out[k] = np.mean(v)
     return out
+
+
+def make_policy_optimizer_basic_modification(workers, config):
+    """The original optimizer has wrong number of trained samples stats.
+    So we make little modification and use the corrected optimizer.
+    This function is only made for PPO.
+    """
+    if config["simple_optimizer"]:
+        raise NotImplementedError()
+
+    return LocalMultiGPUOptimizerCorrectedNumberOfSampled(
+        workers,
+        compute_num_steps_sampled=None,
+        sgd_batch_size=config["sgd_minibatch_size"],
+        num_sgd_iter=config["num_sgd_iter"],
+        num_gpus=config["num_gpus"],
+        sample_batch_size=config["sample_batch_size"],
+        num_envs_per_worker=config["num_envs_per_worker"],
+        train_batch_size=config["train_batch_size"],
+        standardize_fields=["advantages"],
+        shuffle_sequences=config["shuffle_sequences"]
+    )

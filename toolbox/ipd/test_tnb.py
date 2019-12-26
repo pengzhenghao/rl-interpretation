@@ -25,16 +25,14 @@ def test_train_ipd(local_mode=False):
 def test_tnbes(local_mode=False):
     env_name = "CartPole-v0"
     config = {
-        "num_sgd_iter": 2, "env": env_name, "use_preoccupied_agent": True
+        "num_sgd_iter": 2,
+        "env": env_name,
+        "use_preoccupied_agent": True
     }
 
     def ray_init():
         ray.shutdown()
-        initialize_ray(
-            test_mode=True,
-            local_mode=local_mode,
-            num_gpus=0
-        )
+        initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=0)
 
     tnb_es(
         exp_name="DELETEME-TEST",
