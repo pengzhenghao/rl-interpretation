@@ -26,6 +26,7 @@ ipd_default_config = merge_dicts(
     dict(
         novelty_threshold=0.5,
         use_preoccupied_agent=False,
+        disable_tnb=False,
 
         # Do not modified these parameters.
         distance_mode="min",
@@ -138,7 +139,8 @@ class RunningMean(object):
 class AgentPoolMixin(object):
     def __init__(self, checkpoint_dict, threshold, distance_mode='min'):
         self.checkpoint_dict = checkpoint_dict
-        self.enable_novelty = len(self.checkpoint_dict) != 0
+        self.enable_novelty = (len(self.checkpoint_dict) != 0) and \
+                              (not self.config['disable_tnb'])
         self.threshold = threshold
         assert distance_mode in ['min', 'max']
         self.distance_mode = distance_mode
@@ -404,7 +406,7 @@ def tnb_gradients(policy, optimizer, loss):
 
     policy.gradient_cosine_similarity = cos_similarity
     policy.policy_grad_norm = tf.norm(policy_grad_flatten)
-    policy.novelty_grad_norm = tf.norm(novelty_grad_norm)
+    policy.novelty_grad_norm = tf.norm(novelty_grad_flatten)
 
     if policy.config["use_second_component"]:
         total_grad = tf.cond(cos_similarity > 0, less_90_deg, greater_90_deg)

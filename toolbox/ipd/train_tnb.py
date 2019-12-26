@@ -294,7 +294,7 @@ if __name__ == '__main__':
     parser.add_argument("--address", type=str, default="")
 
     # You may need to grid search
-    parser.add_argument("--novelty-threshold", type=float, default=0.5)
+    # parser.add_argument("--novelty-threshold", type=float, default=0.5)
     parser.add_argument("--use-preoccupied-agent", action="store_true")
     parser.add_argument("--max-not-improve-iterations", type=int, default=3)
 
@@ -304,7 +304,7 @@ if __name__ == '__main__':
         assert args.exp_name
 
     ppo_config = {
-        "novelty_threshold": args.novelty_threshold,
+        "novelty_threshold": 0.5,
         "use_preoccupied_agent": args.use_preoccupied_agent,
 
         # do not change
@@ -321,6 +321,7 @@ if __name__ == '__main__':
     }
 
     walker_config = {
+        "novelty_threshold": 1.1,
         "env": args.env_name,
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
