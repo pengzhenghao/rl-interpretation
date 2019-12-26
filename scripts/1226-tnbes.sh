@@ -13,6 +13,7 @@ for th in ${th_list[*]}; do
     --novelty-threshold $th \
     --use-preoccupied-agent \
     --address $address \
+    --timesteps 5e6 \
     --env-name Walker2d-v3 \
     > log/$expname.log 2>&1 &
 done
@@ -24,6 +25,7 @@ for th in ${th_list[*]}; do
     --exp-name=$expname \
     --novelty-threshold $th \
     --address $address \
+    --timesteps 5e6 \
     --env-name Walker2d-v3 \
     > log/$expname.log 2>&1 &
 done
