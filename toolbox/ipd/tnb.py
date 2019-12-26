@@ -136,6 +136,12 @@ class RunningMean(object):
         return ret
 
 
+def _restore_state(ckpt):
+    wkload = pickle.load(open(ckpt, 'rb'))['worker']
+    state = pickle.loads(wkload)['state']['default_policy']
+    return state
+
+
 class AgentPoolMixin(object):
     def __init__(self, checkpoint_dict, threshold, distance_mode='min'):
         self.checkpoint_dict = checkpoint_dict
@@ -161,32 +167,38 @@ class AgentPoolMixin(object):
             }
         )
 
-        for i, (agent_name, checkpoint_path) in \
+        for i, (agent_name, checkpoint_info) in \
                 enumerate(self.checkpoint_dict.items()):
             # build the policy and restore the weights.
             with tf.variable_scope(agent_name):
                 policy = TNBPolicy(
                     self.observation_space, self.action_space, tmp_config
                 )
-            path = os.path.abspath(os.path.expanduser(checkpoint_path))
-            wkload = pickle.load(open(path, 'rb'))['worker']
-            state = pickle.loads(wkload)['state']['default_policy']
+            path = os.path.abspath(os.path.expanduser(checkpoint_info['path']))
+            state = _restore_state(path)
             policy.set_state(state)
 
-            if (self.config['use_preoccupied_agent']) and (i == 0):
-                self.set_state(state)
-                msg = (
-                    "We successfully restore current agent with "
-                    "preoccupied agent <{}>. ".format(agent_name)
-                )
-                logger.info(msg)
-                print(msg)
-
             policy_info = {
+                "policy": policy,
                 "agent_name": agent_name,
-                "checkpoint_path": checkpoint_path
+                "checkpoint_path": checkpoint_info['path'],
+                "reward": checkpoint_info['reward']
             }
-            self.policies_pool[agent_name] = dict(policy=policy, **policy_info)
+            self.policies_pool[agent_name] = policy_info
+
+        if self.config['use_preoccupied_agent'] and self.checkpoint_dict:
+            best_agent = max(self.checkpoint_dict,
+                             key=lambda k: self.checkpoint_dict[k]['reward'])
+            state = _restore_state(self.checkpoint_dict[best_agent]['path'])
+            self.set_state(state)
+            msg = (
+                "We successfully restore current agent with "
+                "pthe best agent <{}>, it's reward {}. ".format(
+                    best_agent, self.checkpoint_dict[best_agent]['reward'])
+            )
+            logger.info(msg)
+            print(msg)
+
         self.num_of_policies = len(self.policies_pool)
         self.novelty_stat = RunningMean(self.num_of_policies)
 
@@ -195,12 +207,12 @@ class AgentPoolMixin(object):
     def compute_novelty(self, state, action):
         if not self.initialized:
             if not hasattr(self, "_loss_inputs"):
-                return np.zeros((action.shape[0], ), dtype=np.float32)
+                return np.zeros((action.shape[0],), dtype=np.float32)
             else:
                 self._lazy_initialize()
 
         if not self.enable_novelty:
-            return np.zeros((action.shape[0], ), dtype=np.float32)
+            return np.zeros((action.shape[0],), dtype=np.float32)
 
         diff_list = []
         for i, (key, policy_dict) in enumerate(self.policies_pool.items()):

@@ -139,7 +139,12 @@ def train_one_iteration(
         # checkpoint would look like: /home/xxx/ray_results/exp_name/
         # iter0_agent0/PPO.../checkpoint-10/checkpoint_10
         assert agent_name not in checkpoint_dict
-        checkpoint_dict[agent_name] = checkpoint
+
+        checkpoint_dict[agent_name] = {
+            "path": checkpoint,
+            "reward": result['current_reward']
+        }  # this dict is used at AgentPoolMixin._lazy_initialize
+
         result_dict[agent_name] = result
         agent_info_dict[agent_name] = info
 
@@ -346,7 +351,7 @@ if __name__ == '__main__':
         ray.shutdown()
         initialize_ray(
             test_mode=args.test_mode,
-            local_mode=False,
+            local_mode=True,
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )
