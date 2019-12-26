@@ -285,7 +285,7 @@ if __name__ == '__main__':
     parser.add_argument("--exp-name", type=str, default="")
     # parser.add_argument("--num-seeds", type=int, default=1)
     parser.add_argument("--num-gpus", type=int, default=4)
-    parser.add_argument("--timesteps", type=int, default=1e6)
+    parser.add_argument("--timesteps", type=float, default=1e6)
     parser.add_argument("--num-iterations", type=int, default=10)
     parser.add_argument("--max-num-agents", type=int, default=10)
     parser.add_argument("--test-mode", action="store_true")
@@ -354,7 +354,7 @@ if __name__ == '__main__':
         exp_name=args.exp_name,
         num_iterations=args.num_iterations,
         max_num_agents=args.max_num_agents,
-        timesteps_total=args.timesteps,
+        timesteps_total=int(args.timesteps),
         common_config=common_config,
         max_not_improve_iterations=args.max_not_improve_iterations,
         ray_init=ray_init,
