@@ -1,8 +1,12 @@
+import logging
+
 from ray.rllib.agents.ppo.ppo import PPOTrainer, LocalMultiGPUOptimizer, \
     SyncSamplesOptimizer
 
 from toolbox.ipd.tnb_policy import TNBPolicy, NOVELTY_ADVANTAGES, \
     ipd_default_config
+
+logger = logging.getLogger(__name__)
 
 
 def choose_policy_optimizer(workers, config):
@@ -28,9 +32,29 @@ def choose_policy_optimizer(workers, config):
     )
 
 
+def before_train_step(trainer):
+    policy = trainer.get_policy()
+    print(
+        "********** We enter before_train_step, "
+        "policy.initialized_policies_pool: ",
+        policy.initialized_policies_pool, ", enter count: ",
+        policy.enter_count)
+    if not policy.initialized_policies_pool:
+        # function to call for each worker (including remote and local workers)
+        def init_novelty(worker):
+            # function for each policy within one worker.
+            def _init_novelty_policy(policy, _):
+                policy._lazy_initialize()
+
+            worker.foreach_policy(_init_novelty_policy)
+
+        trainer.workers.foreach_worker(init_novelty)
+
+
 TNBTrainer = PPOTrainer.with_updates(
     name="TNBPPO",
     make_policy_optimizer=choose_policy_optimizer,
     default_config=ipd_default_config,
+    before_train_step=before_train_step,
     default_policy=TNBPolicy
 )

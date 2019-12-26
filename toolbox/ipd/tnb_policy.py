@@ -149,7 +149,7 @@ class AgentPoolMixin(object):
         self.threshold = threshold
         assert distance_mode in ['min', 'max']
         self.distance_mode = distance_mode
-        self.initialized = False
+        self.initialized_policies_pool = False
         self.policies_pool = OrderedDict()
 
     def _lazy_initialize(self):
@@ -165,7 +165,6 @@ class AgentPoolMixin(object):
                 "num_gpus": 0.1,
             }
         )
-
         for i, (agent_name, checkpoint_info) in \
                 enumerate(self.checkpoint_dict.items()):
             # build the policy and restore the weights.
@@ -189,15 +188,9 @@ class AgentPoolMixin(object):
         if self.config['use_preoccupied_agent'] and self.checkpoint_dict:
             best_agent = max(self.checkpoint_dict,
                              key=lambda k: self.checkpoint_dict[k]['reward'])
-
             assert next(iter(self.checkpoint_dict.keys())) == best_agent
-
-            state = _restore_state(self.checkpoint_dict[best_agent]['path'])
-
-            old_weight = copy.deepcopy(self.get_weights())
-
-            self.set_weights(state)
-
+            self.set_weights(
+                self.policies_pool[best_agent]['policy'].get_weights())
             msg = (
                 "We successfully restore current agent with "
                 " best agent <{}>, it's reward {}. ".format(
@@ -209,17 +202,17 @@ class AgentPoolMixin(object):
         self.num_of_policies = len(self.policies_pool)
         self.novelty_stat = RunningMean(self.num_of_policies)
 
-        self.initialized = True
+        self.initialized_policies_pool = True
 
     def compute_novelty(self, state, action):
-        if not self.initialized:
+        if not self.initialized_policies_pool:
             if not hasattr(self, "_loss_inputs"):
                 return np.zeros((action.shape[0],), dtype=np.float32)
-            else:
-                self._lazy_initialize()
 
         if not self.enable_novelty:
             return np.zeros((action.shape[0],), dtype=np.float32)
+
+        assert self.initialized_policies_pool, self.policies_pool
 
         diff_list = []
         for i, (key, policy_dict) in enumerate(self.policies_pool.items()):

@@ -50,4 +50,4 @@ def test_tnbes(local_mode=False):
 
 if __name__ == '__main__':
     # test_train_ipd(local_mode=True)
-    test_tnbes(local_mode=True)
+    test_tnbes(local_mode=False)
