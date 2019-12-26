@@ -6,7 +6,7 @@ address="10.1.72.24:6789"
 th_list=(1.1 0.8)
 
 for th in ${th_list[*]}; do
-  expname="1226-tnbes-th$th-preoccupied"
+  expname="1226-tnbes-th$th-preoccupied-walker"
   echo "Start running: $expname"
   nohup python toolbox/ipd/train_tnb.py \
     --exp-name=$expname \
@@ -19,7 +19,7 @@ for th in ${th_list[*]}; do
 done
 
 for th in ${th_list[*]}; do
-  expname="1226-tnbes-th$th-no-preoccupied"
+  expname="1226-tnbes-th$th-no-preoccupied-walker"
   echo "Start running: $expname"
   nohup python toolbox/ipd/train_tnb.py \
     --exp-name=$expname \
