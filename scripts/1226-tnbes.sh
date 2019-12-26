@@ -21,7 +21,7 @@ nohup python toolbox/ipd/train_tnb.py \
   --exp-name=$expname \
   --address $address \
   --timesteps 5e6 \
-  --max-not-improve-itertations 1 \
+  --max-not-improve-iterations 1 \
   --env-name Walker2d-v3 \
   --disable-tnb \
   > log/$expname.log 2>&1 &
@@ -42,6 +42,6 @@ nohup python toolbox/ipd/train_tnb.py \
   --exp-name=$expname \
   --address $address \
   --timesteps 5e6 \
-  --max-not-improve-itertations 1 \
+  --max-not-improve-iterations 1 \
   --env-name Walker2d-v3 \
   > log/$expname.log 2>&1 &
