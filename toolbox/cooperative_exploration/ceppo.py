@@ -349,7 +349,8 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
         other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
-        other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS].copy()
+        other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
+                                                    ].copy()
 
         # use my policy to evaluate the values and other relative data
         # of other's samples.
@@ -390,7 +391,11 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
             batches.append(postprocess_ppo_gae(policy, other_batch_raw))
         else:  # replay values
             if other_batch is not None:  # it could be None due to clipping.
-                batches.append(postprocess_ppo_gae_replay(policy, other_batch, other_policy))
+                batches.append(
+                    postprocess_ppo_gae_replay(
+                        policy, other_batch, other_policy
+                    )
+                )
 
     for batch in batches:
         batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
@@ -489,7 +494,8 @@ def choose_policy_optimizer_modified(workers, config):
         sample_batch_size=config["sample_batch_size"],
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
-        standardize_fields=["advantages"] if not config['clip_advantage'] else [],
+        standardize_fields=["advantages"]
+        if not config['clip_advantage'] else [],
         shuffle_sequences=config["shuffle_sequences"]
     )
 

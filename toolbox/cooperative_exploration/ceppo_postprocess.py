@@ -87,11 +87,13 @@ def compute_advantages_replay(
             [rollout["other_vf_preds"],
              np.array([other_last_r])]
         )
-        other_delta_t = (traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:]
-                         - other_vpred_t[:-1])
+        other_delta_t = (
+            traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:] -
+            other_vpred_t[:-1]
+        )
         other_advantage = discount(other_delta_t, gamma * lambda_)
-        other_advantage = (other_advantage - other_advantage.mean()) / max(
-            1e-4, other_advantage.std())
+        other_advantage = (other_advantage - other_advantage.mean()
+                           ) / max(1e-4, other_advantage.std())
 
         if clip_advantage:
             # if clip_advantage happen, the normalization should not happen
@@ -134,8 +136,9 @@ def compute_advantages_replay(
         #     ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:])
 
         value_target = (
-                ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:])
-                + (1 - ratio) * (my_vpred_t[:-1]))
+            ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
+            (1 - ratio) * (my_vpred_t[:-1])
+        )
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
 
@@ -156,7 +159,7 @@ def compute_advantages_replay(
         #     traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES
-    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
