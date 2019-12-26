@@ -308,7 +308,7 @@ if __name__ == '__main__':
         "use_preoccupied_agent": args.use_preoccupied_agent,
 
         # do not change
-        "env": "BipedalWalker-v2",
+        "env": args.env_name,
         "num_sgd_iter": 10,
         "num_envs_per_worker": 16,
         "gamma": 0.99,
@@ -321,6 +321,7 @@ if __name__ == '__main__':
     }
 
     walker_config = {
+        "env": args.env_name,
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
         "lr": 0.0001,
