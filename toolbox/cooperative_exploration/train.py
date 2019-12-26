@@ -20,7 +20,7 @@ def train(
         test_mode=False,
         address=None
 ):
-    assert isinstance(stop, int)
+    # assert isinstance(stop, int)
     if address is not None:
         num_gpus = None
     initialize_ray(
@@ -43,7 +43,8 @@ def train(
         local_dir=get_local_dir(),
         name=exp_name,
         checkpoint_at_end=True,
-        stop={"info/num_steps_sampled": stop},
+        stop={"info/num_steps_sampled": stop}
+        if isinstance(stop, int) else stop,
         config=config,
         max_failures=20,
         reuse_actors=False
@@ -112,13 +113,15 @@ if __name__ == '__main__':
     elif args.mode == "new_adv_1221":
         mode = REPLAY_VALUES
         clip_action_prob_kl = tune.grid_search([0, 0.1, 100])
-        # ceppo_config["clip_action_prob_ratio"] = tune.grid_search([0.5, 1, 2, 10])
+        # ceppo_config["clip_action_prob_ratio"] = tune.grid_search([0.5, 1,
+        # 2, 10])
         num_agents = tune.grid_search([3])
         ceppo_config["grad_clip"] = tune.grid_search([0.5, 1, 10])
     elif args.mode == "clip_advantage":
         mode = REPLAY_VALUES
         clip_action_prob_kl = tune.grid_search([0, 0.1, 100])
-        # ceppo_config["clip_action_prob_ratio"] = tune.grid_search([0.5, 1, 2, 10])
+        # ceppo_config["clip_action_prob_ratio"] = tune.grid_search([0.5, 1,
+        # 2, 10])
         num_agents = tune.grid_search([3])
         ceppo_config["grad_clip"] = tune.grid_search([0.5, 1, 10])
         ceppo_config["clip_advantage"] = True
