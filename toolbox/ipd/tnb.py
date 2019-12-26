@@ -34,11 +34,6 @@ def choose_policy_optimizer(workers, config):
 
 def before_train_step(trainer):
     policy = trainer.get_policy()
-    print(
-        "********** We enter before_train_step, "
-        "policy.initialized_policies_pool: ",
-        policy.initialized_policies_pool, ", enter count: ",
-        policy.enter_count)
     if not policy.initialized_policies_pool:
         # function to call for each worker (including remote and local workers)
         def init_novelty(worker):
