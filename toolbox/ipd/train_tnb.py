@@ -200,8 +200,10 @@ def main(
 
     for iteration_id in range(num_iterations):
         print(
-            "[Iteration {}/{}] Start! Previous best reward {:.4f}.".format(
-                iteration_id + 1, num_iterations, prev_reward
+            "[Iteration {}/{}] Start! Previous best reward {:.4f},"
+            " best agent {}. Current preoccupied_checkpoints keys {}.".format(
+                iteration_id + 1, num_iterations, prev_reward, prev_agent,
+                preoccupied_checkpoints.keys()
             )
         )
 
@@ -281,17 +283,18 @@ def main(
             )
             break
 
-    with open("{}_agent_dict.pkl".format(exp_name), 'wb') as f:
+    agent_dict_file_name = "{}_agent_dict.pkl".format(exp_name)
+    with open(agent_dict_file_name, 'wb') as f:
         pickle.dump(info_dict, f)
-    with open("{}_iteration_result.pkl", 'wb') as f:
+
+    iteration_result_file_name = "{}_iteration_result.pkl".format(exp_name)
+    with open(iteration_result_file_name, 'wb') as f:
         pickle.dump(info_dict, f)
+
     print(
         "Finish {} iterations! Data has been saved at: {}. "
         "Terminate the program.".format(
-            num_iterations, (
-                "{}_agent_dict.pkl".format(exp_name),
-                "{}_iteration_result.pkl".format(exp_name)
-            )
+            num_iterations, (agent_dict_file_name, iteration_result_file_name)
         )
     )
 
@@ -350,8 +353,8 @@ if __name__ == '__main__':
         'train_batch_size': 65536,
         "num_gpus": 0.5,
         "num_cpus_per_worker": 0.5,
-        "num_envs_per_worker": 16,
-        'num_workers': 8,
+        "num_envs_per_worker": 22,
+        'num_workers': 12,
         "disable_tnb": args.disable_tnb
     }
 
