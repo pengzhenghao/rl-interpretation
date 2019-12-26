@@ -289,6 +289,7 @@ if __name__ == '__main__':
     parser.add_argument("--num-iterations", type=int, default=10)
     parser.add_argument("--max-num-agents", type=int, default=10)
     parser.add_argument("--test-mode", action="store_true")
+    parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
 
     parser.add_argument("--address", type=str, default="")
 
@@ -302,7 +303,7 @@ if __name__ == '__main__':
     if not args.test_mode:
         assert args.exp_name
 
-    common_config = {
+    ppo_config = {
         "novelty_threshold": args.novelty_threshold,
         "use_preoccupied_agent": args.use_preoccupied_agent,
 
@@ -319,6 +320,24 @@ if __name__ == '__main__':
         # "num_cpus_for_driver": 2
     }
 
+    walker_config = {
+        "kl_coeff": 1.0,
+        "num_sgd_iter": 20,
+        "lr": 0.0001,
+        'sample_batch_size': 256,
+        'sgd_minibatch_size': 4096,
+        'train_batch_size': 65536,
+        "num_gpus": 1,
+        "num_envs_per_worker": 16,
+        'num_workers': 8
+    }
+
+    if args.env_name == "BipedalWalker-v2":
+        common_config = ppo_config
+    elif args.env_name == "Walker2d-v3":
+        common_config = walker_config
+    else:
+        raise NotImplementedError()
 
     def ray_init():
         ray.shutdown()
