@@ -327,11 +327,10 @@ if __name__ == '__main__':
         assert args.exp_name
 
     ppo_config = {
-        "novelty_threshold": 0.5,
         "use_preoccupied_agent": args.use_preoccupied_agent,
-
-        # do not change
         "env": args.env_name,
+        "disable_tnb": args.disable_tnb,
+
         "num_sgd_iter": 10,
         "num_envs_per_worker": 16,
         "gamma": 0.99,
@@ -339,12 +338,15 @@ if __name__ == '__main__':
         "lambda": 0.95,
         "lr": 2.5e-4,
         "num_gpus": 0.3,
-        "disable_tnb": args.disable_tnb
+        "novelty_threshold": 0.5
     }
 
     walker_config = {
-        "novelty_threshold": 1.1,
+        "use_preoccupied_agent": args.use_preoccupied_agent,
+        "disable_tnb": args.disable_tnb,
         "env": args.env_name,
+
+        "novelty_threshold": 1.1,
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
         "lr": 0.0001,
@@ -355,7 +357,6 @@ if __name__ == '__main__':
         "num_cpus_per_worker": 0.5,
         "num_envs_per_worker": 22,
         'num_workers': 12,
-        "disable_tnb": args.disable_tnb
     }
 
     if args.env_name == "BipedalWalker-v2":

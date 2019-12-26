@@ -174,9 +174,10 @@ class AgentPoolMixin(object):
                 policy = TNBPolicy(
                     self.observation_space, self.action_space, tmp_config
                 )
-            path = os.path.abspath(os.path.expanduser(checkpoint_info['path']))
-            state = _restore_state(path)
-            policy.set_state(state)
+                path = os.path.abspath(
+                    os.path.expanduser(checkpoint_info['path']))
+                state = _restore_state(path)
+                policy.set_state(state)
 
             policy_info = {
                 "policy": policy,
@@ -196,7 +197,7 @@ class AgentPoolMixin(object):
             self.set_state(state)
             msg = (
                 "We successfully restore current agent with "
-                "pthe best agent <{}>, it's reward {}. ".format(
+                " best agent <{}>, it's reward {}. ".format(
                     best_agent, self.checkpoint_dict[best_agent]['reward'])
             )
             logger.info(msg)
