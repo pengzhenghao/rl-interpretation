@@ -3,6 +3,7 @@ import argparse
 from ray import tune
 
 from toolbox.cooperative_exploration.train import train
+from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.ppo_es.ppo_es import PPOESTrainer
 
 if __name__ == '__main__':
@@ -22,8 +23,15 @@ if __name__ == '__main__':
         assert args.exp_name
 
     humanoid_config = {
+        # can change
         "update_steps": tune.grid_search([100000, 200000, 500000]),
-        "env": args.env,
+        "env": MultiAgentEnvWrapper,
+        "env_config": {
+            "env_name": args.env,
+            "num_agents": args.num_agents
+        },
+
+        # should be fixed
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
         "lr": 0.0001,
@@ -42,6 +50,7 @@ if __name__ == '__main__':
         extra_config=humanoid_config,
         trainer=PPOESTrainer,
         env_name=args.env,
+
         stop={
             "episode_reward_mean": 6000,
             "timesteps_total": int(2e8)
