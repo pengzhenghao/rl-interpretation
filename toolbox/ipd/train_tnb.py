@@ -193,7 +193,7 @@ def main(
 ):
     prev_reward = float('-inf')
     prev_agent = None
-    preoccupied_checkpoints = None
+    preoccupied_checkpoints = {}
     not_improve_counter = 0
     info_dict = {}
     iteration_result = []
