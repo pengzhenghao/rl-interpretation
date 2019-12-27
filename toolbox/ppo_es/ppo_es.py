@@ -52,7 +52,9 @@ def after_train_result(trainer, result):
         trainer.update_policy_counter += 1
 
     result['update_policy_counter'] = trainer.update_policy_counter
-    result['update_policy_threshold'] = trainer.update_policy_counter * update_steps
+    result[
+        'update_policy_threshold'] = trainer.update_policy_counter * \
+                                     update_steps
 
 
 def validate_config(config):
@@ -73,6 +75,8 @@ def validate_config(config):
         for i in tmp_env.agent_ids
     }
     config["multiagent"]["policy_mapping_fn"] = lambda x: x
+    update_steps = config['update_steps']
+    assert (isinstance(update_steps, int)) or (update_steps == 'baseline')
 
 
 PPOESTrainer = PPOTrainer.with_updates(

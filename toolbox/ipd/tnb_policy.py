@@ -54,7 +54,7 @@ def get_action_mean(logits):
 def postprocess_tnb(policy, sample_batch, other_batches, episode):
     completed = sample_batch["dones"][-1]
     sample_batch[NOVELTY_REWARDS] = policy.compute_novelty(
-        sample_batch[SampleBatch.CUR_OBS], sample_batch[SampleBatch.ACTIONS]
+        sample_batch, other_batches, episode
     )
 
     if completed:
@@ -190,7 +190,9 @@ class AgentPoolMixin(object):
 
         self.initialized_policies_pool = True
 
-    def compute_novelty(self, state, action):
+    def compute_novelty(self, sample_batch, other_batches, episode):
+        state = sample_batch[SampleBatch.CUR_OBS]
+        action = sample_batch[SampleBatch.ACTIONS]
         if not self.initialized_policies_pool:
             if not hasattr(self, "_loss_inputs"):
                 return np.zeros((action.shape[0],), dtype=np.float32)

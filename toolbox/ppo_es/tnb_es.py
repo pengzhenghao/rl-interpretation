@@ -2,13 +2,13 @@ from ray import tune
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
     KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch
-from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.tune.util import merge_dicts
 
 from toolbox import initialize_ray
+from toolbox.distance import get_kl_divergence
 from toolbox.ipd.tnb import validate_config as validate_config_TNBTrainer
 from toolbox.ipd.tnb_policy import NoveltyValueNetworkMixin, TNBPolicy, \
-    tnb_default_config, compute_advantages
+    tnb_default_config, BEHAVIOUR_LOGITS
 from toolbox.ipd.tnb_utils import *
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.modified_rllib.multi_gpu_optimizer import \
@@ -19,8 +19,8 @@ from toolbox.ppo_es.ppo_es import PPOESTrainer, \
 tnbes_config = merge_dicts(
     merge_dicts(DEFAULT_CONFIG, tnb_default_config), dict(
         update_steps=100000,
-        novelty_threshold=0.5,
         use_tnb_plus=False,
+        novelty_type="mse",  # must in ['mse', 'kl']
         use_novelty_value_network=False
     )
 )
@@ -37,70 +37,54 @@ TNBESTrainer merge the TNBTrainer and PPOESTrainer.
 """
 
 
+class ComputeNoveltyMixin(object):
+
+    def __init__(self):
+        self.enable_novelty = True
+
+    def compute_novelty(self, my_batch, others_batches, episode):
+        if not others_batches:
+            return np.zeros_like(my_batch[SampleBatch.REWARDS],
+                                 dtype=np.float32)
+
+        replays = []
+        for (other_policy, _) in others_batches.values():
+            _, _, info = other_policy.compute_actions(
+                my_batch[SampleBatch.CUR_OBS])
+            replays.append(info[BEHAVIOUR_LOGITS])
+
+        assert replays
+
+        if self.config["novelty_type"] == "kl":
+            return np.mean(
+                [get_kl_divergence(
+                    my_batch[BEHAVIOUR_LOGITS], logit, mean=False
+                ) for logit in replays
+                ], axis=0)
+
+        elif self.config["novelty_type"] == "mse":
+            replays = [np.split(logit, 2, axis=1)[0] for logit in replays]
+            my_act = np.split(my_batch[BEHAVIOUR_LOGITS], 2, axis=1)[0]
+            return np.mean(
+                [(np.square(my_act - other_act)).mean(1) for other_act in
+                 replays], axis=0)
+        else:
+            raise NotImplementedError()
+
+
 def setup_mixins_tnb(policy, action_space, obs_space, config):
     setup_mixins(policy, action_space, obs_space, config)
     NoveltyValueNetworkMixin.__init__(policy, obs_space, action_space, config)
-
-
-def postprocess_tnbes(policy, sample_batch, other_batches, episode):
-    completed = sample_batch["dones"][-1]
-    sample_batch[NOVELTY_REWARDS] = policy.compute_novelty(
-        sample_batch[SampleBatch.CUR_OBS], sample_batch[SampleBatch.ACTIONS]
-    )
-
-    if completed:
-        last_r_novelty = last_r = 0.0
-    else:
-        next_state = []
-        for i in range(policy.num_state_tensors()):
-            next_state.append([sample_batch["state_out_{}".format(i)][-1]])
-        last_r = policy._value(
-            sample_batch[SampleBatch.NEXT_OBS][-1],
-            sample_batch[SampleBatch.ACTIONS][-1],
-            sample_batch[SampleBatch.REWARDS][-1], *next_state
-        )
-        last_r_novelty = policy._novelty_value(
-            sample_batch[SampleBatch.NEXT_OBS][-1],
-            sample_batch[SampleBatch.ACTIONS][-1],
-            sample_batch[NOVELTY_REWARDS][-1], *next_state
-        )
-
-    # compute the advantages of original rewards
-    advantages, value_target = compute_advantages(
-        sample_batch[SampleBatch.REWARDS],
-        last_r,
-        policy.config["gamma"],
-        policy.config["lambda"],
-        sample_batch[SampleBatch.VF_PREDS],
-        use_gae=policy.config["use_gae"]
-    )
-    sample_batch[Postprocessing.ADVANTAGES] = advantages
-    sample_batch[Postprocessing.VALUE_TARGETS] = value_target
-
-    # compute the advantages of novelty rewards
-    novelty_advantages, novelty_value_target = compute_advantages(
-        rewards=sample_batch[NOVELTY_REWARDS],
-        last_r=last_r_novelty,
-        gamma=policy.config["gamma"],
-        lambda_=policy.config["lambda"],
-        values=sample_batch[NOVELTY_VALUES]
-        if policy.config['use_novelty_value_network'] else None,
-        use_gae=policy.config['use_novelty_value_network']
-    )
-    sample_batch[NOVELTY_ADVANTAGES] = novelty_advantages
-    sample_batch[NOVELTY_VALUE_TARGETS] = novelty_value_target
-
-    return sample_batch
+    ComputeNoveltyMixin.__init__(policy)
 
 
 TNBESPolicy = TNBPolicy.with_updates(
     name="TNBESPolicy",
     get_default_config=lambda: tnbes_config,
     before_loss_init=setup_mixins_tnb,
-    postprocess_fn=postprocess_tnbes,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin, NoveltyValueNetworkMixin
+        ValueNetworkMixin, NoveltyValueNetworkMixin, ComputeNoveltyMixin
     ]
 )
 
@@ -108,6 +92,7 @@ TNBESPolicy = TNBPolicy.with_updates(
 def validate_config(config):
     validate_config_PPOESTrainer(config)
     validate_config_TNBTrainer(config)
+    assert config['novelty_type'] in ['mse', 'kl']
 
 
 def make_policy_optimizer_tnbes(workers, config):
@@ -142,10 +127,9 @@ TNBESTrainer = PPOESTrainer.with_updates(
 
 if __name__ == '__main__':
     # Test codes
-    initialize_ray(test_mode=True, local_mode=True)
+    initialize_ray(test_mode=True, local_mode=False)
     env_name = "CartPole-v0"
     num_agents = 3
-
     config = {
         "num_sgd_iter": 2,
         "train_batch_size": 400,
@@ -154,7 +138,10 @@ if __name__ == '__main__':
             "env_name": env_name,
             "num_agents": num_agents
         },
-        "update_steps": 1000
+        "update_steps": 1000,
+        "use_tnb_plus": tune.grid_search([True, False]),
+        "novelty_type": tune.grid_search(["mse", 'kl']),
+        "use_novelty_value_network": True
     }
     tune.run(
         TNBESTrainer,
