@@ -68,11 +68,11 @@ if __name__ == '__main__':
         "num_envs_per_worker": 22,
         'num_workers': 12,
     }
-
+    config = humanoid_config if not args.walker else walker_config
     train(
-        extra_config=humanoid_config if not args.walker else walker_config,
+        extra_config=config,
         trainer=PPOESTrainer,
-        env_name=args.env,
+        env_name=config['env_config']['env_name'],
 
         stop={
             "episode_reward_mean": 6000,
