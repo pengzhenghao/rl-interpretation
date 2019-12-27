@@ -29,6 +29,7 @@ def test_tnbes(local_mode=False):
         "env": env_name,
         "use_preoccupied_agent": True,
         "use_tnb_plus": True,
+        "disable_tnb": True
         # "novelty_threshold": tune.grid_search([0.4, 0.6])
     }
 
