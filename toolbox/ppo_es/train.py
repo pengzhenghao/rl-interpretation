@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     humanoid_config = {
         # can change
-        "update_steps": tune.grid_search([100000, 200000, 500000]),
+        "update_steps": tune.grid_search([200000, 500000, 1000000]),
         "env": MultiAgentEnvWrapper,
         "env_config": {
             "env_name": "Humanoid-v2",
@@ -33,17 +33,19 @@ if __name__ == '__main__':
         },
 
         # should be fixed
+        "clip_param": 0.2,
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
-        "lr": 0.0001,
+        "lr": 0.0003,
         "gamma": 0.995,
         "lambda": 0.95,
         'sgd_minibatch_size': 4096,
         'train_batch_size': 65536,
         "sample_batch_size": 256,
         "num_envs_per_worker": 16,
-        "num_cpus_per_worker": 0.5,
-        'num_workers': 12,
+        "num_cpus_per_worker": 0.4,
+        "num_cpus_for_drivers": 0.5,
+        'num_workers': 16,
         "num_gpus": 0.8
     }
 
@@ -74,12 +76,7 @@ if __name__ == '__main__':
         trainer=PPOESTrainer,
         env_name=config['env_config']['env_name'],
 
-        stop={
-            "episode_reward_mean": 6000,
-            "timesteps_total": int(2e8)
-        } if not args.walker else {
-            "timesteps_total": int(5e6)
-        },
+        stop={"timesteps_total": int(2e8) if not args.walker else int(5e6)},
         exp_name="DELETEME-TEST" if args.test else args.exp_name,
         num_agents=args.num_agents if not args.test else 3,
         num_seeds=args.num_seeds,
