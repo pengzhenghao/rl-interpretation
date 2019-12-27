@@ -26,9 +26,11 @@ ipd_default_config = merge_dicts(
         novelty_threshold=0.5,
         use_preoccupied_agent=False,
         disable_tnb=False,
+        use_tnb_plus=True,
 
         # Do not modified these parameters.
         distance_mode="min",
+        tnb_plus_threshold=0.0,
         clip_novelty_gradient=False,
         use_second_component=True,
         checkpoint_dict="",  # use json to parse a dict into string.
@@ -212,10 +214,10 @@ class AgentPoolMixin(object):
     def compute_novelty(self, state, action):
         if not self.initialized_policies_pool:
             if not hasattr(self, "_loss_inputs"):
-                return np.zeros((action.shape[0], ), dtype=np.float32)
+                return np.zeros((action.shape[0],), dtype=np.float32)
 
         if not self.enable_novelty:
-            return np.zeros((action.shape[0], ), dtype=np.float32)
+            return np.zeros((action.shape[0],), dtype=np.float32)
 
         assert self.initialized_policies_pool, self.policies_pool
 
@@ -348,10 +350,10 @@ def tnb_loss(policy, model, dist_class, train_batch):
         model_config=policy.config["model"]
     )
 
-    # if policy.enable_novelty:
-    return [policy.loss_obj.loss, policy.novelty_loss_obj.loss]
-    # else:
-    #     return [policy.loss_obj.loss, None]
+    policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])
+
+    return [policy.loss_obj.loss, policy.novelty_loss_obj.loss,
+            policy.novelty_reward_mean]
 
 
 def _flatten(tensor):
@@ -367,6 +369,7 @@ def tnb_gradients(policy, optimizer, loss):
 
     policy_grad = optimizer.compute_gradients(loss[0])
     novelty_grad = optimizer.compute_gradients(loss[1])
+    novelty_reward_mean = loss[2]
 
     return_gradients = []
     policy_grad_flatten = []
@@ -430,6 +433,13 @@ def tnb_gradients(policy, optimizer, loss):
     else:
         total_grad = less_90_deg()
 
+    if policy.config['use_tnb_plus']:
+        total_grad = tf.cond(
+            novelty_reward_mean > policy.config['tnb_plus_threshold'],
+            lambda: policy_grad_flatten,  # if true, use original policy grad.
+            lambda: total_grad  # if false, use TNB
+        )
+
     # reshape back the gradients
     count = 0
     for idx, (flat_shape, org_shape, var) in enumerate(policy_grad_info):
@@ -470,6 +480,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
             ),
             "novelty_kl": policy.novelty_loss_obj.mean_kl,
             "novelty_entropy": policy.novelty_loss_obj.mean_entropy,
+            "novelty_reward_mean": policy.novelty_reward_mean
         }
     )
     return ret
