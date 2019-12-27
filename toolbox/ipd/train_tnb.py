@@ -357,10 +357,11 @@ if __name__ == '__main__':
         'sample_batch_size': 256,
         'sgd_minibatch_size': 4096,
         'train_batch_size': 65536,
-        "num_gpus": 0.5,
-        "num_cpus_per_worker": 0.5,
-        "num_envs_per_worker": 22,
-        'num_workers': 12,
+        "num_gpus": 0.4,
+        "num_cpus_per_worker": 0.4,
+        "num_cpus_for_driver": 0.4,
+        "num_envs_per_worker": 16,
+        'num_workers': 8,
     }
 
     if args.env_name == "BipedalWalker-v2":
