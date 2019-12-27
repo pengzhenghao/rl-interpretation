@@ -28,6 +28,9 @@ def after_train_result(trainer, result):
     steps = result['info']['num_steps_trained']
 
     update_steps = trainer.config['update_steps']
+    if update_steps == "baseline":
+        update_steps = float('+inf')
+
     if steps > update_steps * trainer.update_policy_counter:
         best_agent = max(rewards, key=lambda x: rewards[x])
         weights = trainer.get_policy(best_agent).get_weights()
@@ -47,6 +50,9 @@ def after_train_result(trainer, result):
         print(msg)
         logger.info(msg)
         trainer.update_policy_counter += 1
+
+    result['update_policy_counter'] = trainer.update_policy_counter
+    result['update_policy_threshold'] = trainer.update_policy_counter * update_steps
 
 
 def validate_config(config):
