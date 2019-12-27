@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     humanoid_config = {
         # can change
-        "update_steps": tune.grid_search([200000, 500000, 1000000]),
+        "update_steps": tune.grid_search([200000, 500000, 10  00000]),
         "env": MultiAgentEnvWrapper,
         "env_config": {
             "env_name": "Humanoid-v2",
@@ -44,7 +44,7 @@ if __name__ == '__main__':
         "sample_batch_size": 256,
         "num_envs_per_worker": 16,
         "num_cpus_per_worker": 0.4,
-        "num_cpus_for_drivers": 0.5,
+        "num_cpus_for_driver": 0.5,
         'num_workers': 16,
         "num_gpus": 0.8
     }
