@@ -1,10 +1,10 @@
 import logging
 
 from ray.rllib.agents.ppo.ppo import PPOTrainer, LocalMultiGPUOptimizer, \
-    SyncSamplesOptimizer
+    SyncSamplesOptimizer, validate_config as validate_config_original
 
 from toolbox.ipd.tnb_policy import TNBPolicy, NOVELTY_ADVANTAGES, \
-    ipd_default_config
+    tnb_default_config
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +46,19 @@ def before_train_step(trainer):
         trainer.workers.foreach_worker(init_novelty)
 
 
+def validate_config(config):
+    validate_config_original(config)
+    assert config['model']['custom_model'] == "ActorDoubleCriticNetwork"
+    config['model']['custom_options'] = {
+        "use_novelty_value_network": config['use_novelty_value_network']
+    }
+
+
 TNBTrainer = PPOTrainer.with_updates(
     name="TNBPPO",
+    validate_config=validate_config,
     make_policy_optimizer=choose_policy_optimizer,
-    default_config=ipd_default_config,
+    default_config=tnb_default_config,
     before_train_step=before_train_step,
     default_policy=TNBPolicy
 )

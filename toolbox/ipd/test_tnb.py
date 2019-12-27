@@ -28,8 +28,8 @@ def test_tnbes(local_mode=False):
         "num_sgd_iter": 2,
         "env": env_name,
         "use_preoccupied_agent": True,
-        "use_tnb_plus": tune.grid_search([True, False]),
-        "novelty_threshold": tune.grid_search([0.4, 0.6])
+        "use_tnb_plus": True,
+        # "novelty_threshold": tune.grid_search([0.4, 0.6])
     }
 
     def ray_init():

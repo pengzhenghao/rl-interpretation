@@ -1,11 +1,8 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
-
-from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from ray.rllib.models.tf.misc import normc_initializer, get_activation_fn
+from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from ray.rllib.utils import try_import_tf
 
 tf = try_import_tf()
@@ -25,10 +22,12 @@ class ActorDoubleCriticNetwork(TFModelV2):
         hiddens = model_config.get("fcnet_hiddens")
         no_final_linear = model_config.get("no_final_linear")
         vf_share_layers = model_config.get("vf_share_layers")
+        self.use_novelty_value_network = model_config['custom_options'][
+            "use_novelty_value_network"]
 
         # we are using obs_flat, so take the flattened shape as input
         inputs = tf.keras.layers.Input(
-            shape=(np.product(obs_space.shape), ), name="observations"
+            shape=(np.product(obs_space.shape),), name="observations"
         )
         last_layer = inputs
         i = 1
@@ -85,37 +84,47 @@ class ActorDoubleCriticNetwork(TFModelV2):
             kernel_initializer=normc_initializer(0.01)
         )(last_layer)
 
-        # build the value network for novel
-        last_layer = inputs
-        i = 1
-        for size in hiddens:
-            last_layer = tf.keras.layers.Dense(
-                size,
-                name="fc_value_novel_{}".format(i),
-                activation=activation,
-                kernel_initializer=normc_initializer(1.0)
+        if self.use_novelty_value_network:
+            # build the value network for novel
+            last_layer = inputs
+            i = 1
+            for size in hiddens:
+                last_layer = tf.keras.layers.Dense(
+                    size,
+                    name="fc_value_novel_{}".format(i),
+                    activation=activation,
+                    kernel_initializer=normc_initializer(1.0)
+                )(last_layer)
+                i += 1
+
+            value_out_novel = tf.keras.layers.Dense(
+                1,
+                name="value_out_novel",
+                activation=None,
+                kernel_initializer=normc_initializer(0.01)
             )(last_layer)
-            i += 1
 
-        value_out_novel = tf.keras.layers.Dense(
-            1,
-            name="value_out_novel",
-            activation=None,
-            kernel_initializer=normc_initializer(0.01)
-        )(last_layer)
-
-        self.base_model = tf.keras.Model(
-            inputs, [layer_out, value_out, value_out_novel]
-        )
+            self.base_model = tf.keras.Model(
+                inputs, [layer_out, value_out, value_out_novel]
+            )
+        else:
+            self.base_model = tf.keras.Model(
+                inputs, [layer_out, value_out]
+            )
         self.register_variables(self.base_model.variables)
 
     def forward(self, input_dict, state, seq_lens):
-        model_out, self._value_out, self._value_out_novel = \
-            self.base_model(input_dict["obs_flat"])
+        if self.use_novelty_value_network:
+            model_out, self._value_out, self._value_out_novel = \
+                self.base_model(input_dict["obs_flat"])
+        else:
+            model_out, self._value_out = \
+                self.base_model(input_dict["obs_flat"])
         return model_out, state
 
     def value_function(self):
         return tf.reshape(self._value_out, [-1])
 
     def novelty_value_function(self):
+        assert self.use_novelty_value_network
         return tf.reshape(self._value_out_novel, [-1])

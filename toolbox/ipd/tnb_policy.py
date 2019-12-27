@@ -5,28 +5,32 @@ import os
 import pickle
 from collections import OrderedDict
 
-import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTFPolicy, DEFAULT_CONFIG
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
     KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch, \
-    BEHAVIOUR_LOGITS, make_tf_callable, PPOLoss, kl_and_loss_stats
+    BEHAVIOUR_LOGITS, make_tf_callable, kl_and_loss_stats
 from ray.rllib.evaluation.postprocessing import Postprocessing, discount
 from ray.rllib.models import ModelCatalog
 from ray.rllib.utils.explained_variance import explained_variance
 from ray.tune.util import merge_dicts
 
+from toolbox.ipd.tnb_loss import tnb_gradients, tnb_loss
 from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
+from toolbox.ipd.tnb_utils import *
 
 logger = logging.getLogger(__name__)
 
-ipd_default_config = merge_dicts(
+tnb_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         novelty_threshold=0.5,
         use_preoccupied_agent=False,
         disable_tnb=False,
         use_tnb_plus=True,
+        # disabling novelty value network can save the cost of extra NN and
+        # prevents misleading novelty policy gradient.
+        use_novelty_value_network=True,
 
         # Do not modified these parameters.
         distance_mode="min",
@@ -38,11 +42,6 @@ ipd_default_config = merge_dicts(
     )
 )
 
-NOVELTY_REWARDS = "novelty_rewards"
-NOVELTY_VALUES = "novelty_values"
-NOVELTY_ADVANTAGES = "novelty_advantages"
-NOVELTY_VALUE_TARGETS = "novelty_value_targets"
-
 ModelCatalog.register_custom_model(
     "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
 )
@@ -52,7 +51,7 @@ def get_action_mean(logits):
     return np.split(logits, 2, axis=1)[0]
 
 
-def postprocess_ipd(policy, sample_batch, other_batches, episode):
+def postprocess_tnb(policy, sample_batch, other_batches, episode):
     completed = sample_batch["dones"][-1]
     sample_batch[NOVELTY_REWARDS] = policy.compute_novelty(
         sample_batch[SampleBatch.CUR_OBS], sample_batch[SampleBatch.ACTIONS]
@@ -89,12 +88,13 @@ def postprocess_ipd(policy, sample_batch, other_batches, episode):
 
     # compute the advantages of novelty rewards
     novelty_advantages, novelty_value_target = compute_advantages(
-        sample_batch[NOVELTY_REWARDS],
-        last_r_novelty,
-        policy.config["gamma"],
-        policy.config["lambda"],
-        sample_batch[NOVELTY_VALUES],
-        use_gae=policy.config["use_gae"]
+        rewards=sample_batch[NOVELTY_REWARDS],
+        last_r=last_r_novelty,
+        gamma=policy.config["gamma"],
+        lambda_=policy.config["lambda"],
+        values=sample_batch[NOVELTY_VALUES]
+        if policy.config['use_novelty_value_network'] else None,
+        use_gae=policy.config['use_novelty_value_network']
     )
     sample_batch[NOVELTY_ADVANTAGES] = novelty_advantages
     sample_batch[NOVELTY_VALUE_TARGETS] = novelty_value_target
@@ -109,32 +109,11 @@ def compute_advantages(rewards, last_r, gamma, lambda_, values, use_gae=True):
         advantage = discount(delta_t, gamma * lambda_)
         value_target = (advantage + values).copy().astype(np.float32)
     else:
-        raise NotImplementedError()
-        # rewards_plus_v = np.concatenate([rewards, np.array([last_r])])
-        # advantage = discount(rewards_plus_v, gamma)[:-1]
-        # value_target = np.zeros_like(advantage)
+        rewards_plus_v = np.concatenate([rewards, np.array([last_r])])
+        advantage = discount(rewards_plus_v, gamma)[:-1]
+        value_target = np.zeros_like(advantage)
     advantage = advantage.copy().astype(np.float32)
     return advantage, value_target
-
-
-class RunningMean(object):
-    """Implement the logic of Sun Hao running mean of rewards.
-     Input is in batch form."""
-
-    def __init__(self, num_policies):
-        self.length = np.zeros((num_policies, 1))
-        self.accumulated = np.zeros((num_policies, 1))
-        self.num_policies = num_policies
-
-    def __call__(self, x):
-        x = np.asarray(x)
-        assert x.ndim == 2
-        assert x.shape[0] == self.num_policies
-        # ([num_policies, batch size] + [num_policies, 1]) / (batch size + len)
-        ret = (x + self.accumulated) / (x.shape[1] + self.length)
-        self.accumulated += x.sum(axis=1)[:, np.newaxis]
-        self.length += x.shape[1]
-        return ret
 
 
 def _restore_state(ckpt):
@@ -243,7 +222,7 @@ class AgentPoolMixin(object):
 
 class NoveltyValueNetworkMixin(object):
     def __init__(self, obs_space, action_space, config):
-        if config["use_gae"]:
+        if config["use_gae"] and config['use_novelty_value_network']:
 
             @make_tf_callable(self.get_session())
             def novelty_value(ob, prev_action, prev_reward, *state):
@@ -284,178 +263,13 @@ def setup_mixins_tnb(policy, action_space, obs_space, config):
 
 def additional_fetches(policy):
     """Adds value function and logits outputs to experience train_batches."""
-    return {
+    ret = {
         SampleBatch.VF_PREDS: policy.model.value_function(),
-        BEHAVIOUR_LOGITS: policy.model.last_output(),
-        NOVELTY_VALUES: policy.model.novelty_value_function()
+        BEHAVIOUR_LOGITS: policy.model.last_output()
     }
-
-
-def tnb_loss(policy, model, dist_class, train_batch):
-    """Add novelty loss with original ppo loss using TNB method"""
-    logits, state = model.from_batch(train_batch)
-    action_dist = dist_class(logits, model)
-
-    if state:
-        max_seq_len = tf.reduce_max(train_batch["seq_lens"])
-        mask = tf.sequence_mask(train_batch["seq_lens"], max_seq_len)
-        mask = tf.reshape(mask, [-1])
-    else:
-        mask = tf.ones_like(
-            train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
-        )
-
-    policy.loss_obj = PPOLoss(
-        policy.action_space,
-        dist_class,
-        model,
-        train_batch[Postprocessing.VALUE_TARGETS],
-        train_batch[Postprocessing.ADVANTAGES],
-        train_batch[SampleBatch.ACTIONS],
-        train_batch[BEHAVIOUR_LOGITS],
-        train_batch["action_logp"],
-        train_batch[SampleBatch.VF_PREDS],
-        action_dist,
-        model.value_function(),
-        policy.kl_coeff,
-        mask,
-        entropy_coeff=policy.entropy_coeff,
-        clip_param=policy.config["clip_param"],
-        vf_clip_param=policy.config["vf_clip_param"],
-        vf_loss_coeff=policy.config["vf_loss_coeff"],
-        use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"]
-    )
-
-    # if policy.enable_novelty:
-    policy.novelty_loss_obj = PPOLoss(
-        policy.action_space,
-        dist_class,
-        model,
-        train_batch[NOVELTY_VALUE_TARGETS],
-        train_batch[NOVELTY_ADVANTAGES],
-        train_batch[SampleBatch.ACTIONS],
-        train_batch[BEHAVIOUR_LOGITS],
-        train_batch["action_logp"],
-        train_batch[NOVELTY_VALUES],
-        action_dist,
-        model.novelty_value_function(),
-        policy.kl_coeff,
-        mask,
-        entropy_coeff=policy.entropy_coeff,
-        clip_param=policy.config["clip_param"],
-        vf_clip_param=policy.config["vf_clip_param"],
-        vf_loss_coeff=policy.config["vf_loss_coeff"],
-        use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"]
-    )
-
-    policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])
-    policy.novelty_reward_ratio = tf.reduce_mean(tf.cast(
-        train_batch[NOVELTY_REWARDS] > policy.config['tnb_plus_threshold'],
-        'float32'
-    ))
-
-    return [policy.loss_obj.loss, policy.novelty_loss_obj.loss,
-            policy.novelty_reward_mean]
-
-
-def _flatten(tensor):
-    flat = tf.reshape(tensor, shape=[-1])
-    return flat, tensor.shape, flat.shape
-
-
-def tnb_gradients(policy, optimizer, loss):
-    if not policy.enable_novelty:
-        with tf.control_dependencies([loss[1]]):
-            policy_grad = optimizer.compute_gradients(loss[0])
-        return policy_grad
-
-    policy_grad = optimizer.compute_gradients(loss[0])
-    novelty_grad = optimizer.compute_gradients(loss[1])
-    novelty_reward_mean = loss[2]
-
-    return_gradients = []
-    policy_grad_flatten = []
-    policy_grad_info = []
-    novelty_grad_flatten = []
-    novelty_grad_info = []
-
-    for (pg, var), (ng, var2) in zip(policy_grad, novelty_grad):
-        assert var == var2
-        if pg is None:
-            return_gradients.append((ng, var))
-            continue
-        if ng is None:
-            return_gradients.append((pg, var))
-            continue
-
-        pg_flat, pg_shape, pg_flat_shape = _flatten(pg)
-        policy_grad_flatten.append(pg_flat)
-        policy_grad_info.append((pg_flat_shape, pg_shape, var))
-
-        ng_flat, ng_shape, ng_flat_shape = _flatten(ng)
-        novelty_grad_flatten.append(ng_flat)
-        novelty_grad_info.append((ng_flat_shape, ng_shape))
-
-    policy_grad_flatten = tf.concat(policy_grad_flatten, 0)
-    novelty_grad_flatten = tf.concat(novelty_grad_flatten, 0)
-
-    # implement the logic of TNB
-    policy_grad_norm = tf.linalg.l2_normalize(policy_grad_flatten)
-    novelty_grad_norm = tf.linalg.l2_normalize(novelty_grad_flatten)
-    cos_similarity = tf.reduce_sum(
-        tf.multiply(policy_grad_norm, novelty_grad_norm)
-    )
-
-    def less_90_deg():
-        tg = tf.linalg.l2_normalize(policy_grad_norm + novelty_grad_norm)
-        pg_length = tf.norm(tf.multiply(policy_grad_flatten, tg))
-        ng_length = tf.norm(tf.multiply(novelty_grad_flatten, tg))
-        if hasattr(policy, "novelty_loss_param"):
-            # we are not at the original TNB, at this time
-            # policy.novelty_loss_param exists, we multiplied it with g_novel.
-            ng_length = policy.novelty_loss_param * ng_length
-        if policy.config["clip_novelty_gradient"]:
-            ng_length = tf.minimum(pg_length, ng_length)
-        tg_lenth = (pg_length + ng_length) / 2
-        tg = tg * tg_lenth
-        return tg
-
-    def greater_90_deg():
-        tg = -cos_similarity * novelty_grad_norm + policy_grad_norm
-        tg = tf.linalg.l2_normalize(tg)
-        tg = tg * tf.norm(tf.multiply(policy_grad_norm, tg))
-        return tg
-
-    policy.gradient_cosine_similarity = cos_similarity
-    policy.policy_grad_norm = tf.norm(policy_grad_flatten)
-    policy.novelty_grad_norm = tf.norm(novelty_grad_flatten)
-
-    if policy.config["use_second_component"]:
-        total_grad = tf.cond(cos_similarity > 0, less_90_deg, greater_90_deg)
-    else:
-        total_grad = less_90_deg()
-
-    if policy.config['use_tnb_plus']:
-        total_grad = tf.cond(
-            novelty_reward_mean > policy.config['tnb_plus_threshold'],
-            lambda: policy_grad_flatten,  # if true, use original policy grad.
-            lambda: total_grad  # if false, use TNB
-        )
-
-    # reshape back the gradients
-    count = 0
-    for idx, (flat_shape, org_shape, var) in enumerate(policy_grad_info):
-        if flat_shape is None:
-            return_gradients.append((None, var))
-            continue
-        size = flat_shape.as_list()[0]
-        grad = total_grad[count:count + size]
-        return_gradients.append((tf.reshape(grad, org_shape), var))
-        count += size
-
-    return return_gradients
+    if policy.config['use_novelty_value_network']:
+        ret[NOVELTY_VALUES] = policy.model.novelty_value_function()
+    return ret
 
 
 def grad_stats_fn(policy, batch, grads):
@@ -478,25 +292,26 @@ def kl_and_loss_stats_modified(policy, train_batch):
             "novelty_total_loss": policy.novelty_loss_obj.loss,
             "novelty_policy_loss": policy.novelty_loss_obj.mean_policy_loss,
             "novelty_vf_loss": policy.novelty_loss_obj.mean_vf_loss,
-            "novelty_vf_explained_var": explained_variance(
-                train_batch[NOVELTY_VALUE_TARGETS],
-                policy.model.novelty_value_function()
-            ),
             "novelty_kl": policy.novelty_loss_obj.mean_kl,
             "novelty_entropy": policy.novelty_loss_obj.mean_entropy,
             "novelty_reward_mean": policy.novelty_reward_mean,
             "novelty_reward_ratio": policy.novelty_reward_ratio
         }
     )
+    if policy.config['use_novelty_value_network']:
+        ret['novelty_vf_explained_var'] = explained_variance(
+            train_batch[NOVELTY_VALUE_TARGETS],
+            policy.model.novelty_value_function()
+        )
     return ret
 
 
 TNBPolicy = PPOTFPolicy.with_updates(
     name="TNBPolicy",
-    get_default_config=lambda: ipd_default_config,
+    get_default_config=lambda: tnb_default_config,
     before_loss_init=setup_mixins_tnb,
     extra_action_fetches_fn=additional_fetches,
-    postprocess_fn=postprocess_ipd,
+    postprocess_fn=postprocess_tnb,
     loss_fn=tnb_loss,
     stats_fn=kl_and_loss_stats_modified,
     gradients_fn=tnb_gradients,
