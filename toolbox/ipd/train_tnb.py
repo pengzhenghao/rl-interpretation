@@ -317,9 +317,10 @@ if __name__ == '__main__':
     parser.add_argument("--address", type=str, default="")
 
     # You may need to grid search
-    # parser.add_argument("--novelty-threshold", type=float, default=0.5)
+    parser.add_argument("--novelty-threshold", type=float, default=0.5)
     parser.add_argument("--use-preoccupied-agent", action="store_true")
     parser.add_argument("--disable-tnb", action="store_true")
+    parser.add_argument("--use-tnb-plus", action="store_true")
     parser.add_argument("--max-not-improve-iterations", type=int, default=3)
 
     args = parser.parse_args()
@@ -331,6 +332,8 @@ if __name__ == '__main__':
         "use_preoccupied_agent": args.use_preoccupied_agent,
         "env": args.env_name,
         "disable_tnb": args.disable_tnb,
+        "use_tnb_plus": args.use_tnb_plus,
+        "novelty_threshold": args.novelty_threshold,
         "num_sgd_iter": 10,
         "num_envs_per_worker": 16,
         "gamma": 0.99,
@@ -338,14 +341,16 @@ if __name__ == '__main__':
         "lambda": 0.95,
         "lr": 2.5e-4,
         "num_gpus": 0.3,
-        "novelty_threshold": 0.5
+        # "novelty_threshold": 0.5
     }
 
     walker_config = {
         "use_preoccupied_agent": args.use_preoccupied_agent,
         "disable_tnb": args.disable_tnb,
         "env": args.env_name,
-        "novelty_threshold": 1.1,
+        "use_tnb_plus": args.use_tnb_plus,
+        "novelty_threshold": args.novelty_threshold,
+        # "novelty_threshold": 1.1,
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
         "lr": 0.0001,

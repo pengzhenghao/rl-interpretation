@@ -351,6 +351,10 @@ def tnb_loss(policy, model, dist_class, train_batch):
     )
 
     policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])
+    policy.novelty_reward_ratio = tf.reduce_mean(tf.cast(
+        train_batch[NOVELTY_REWARDS] > policy.config['tnb_plus_threshold'],
+        'float32'
+    ))
 
     return [policy.loss_obj.loss, policy.novelty_loss_obj.loss,
             policy.novelty_reward_mean]
@@ -480,7 +484,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
             ),
             "novelty_kl": policy.novelty_loss_obj.mean_kl,
             "novelty_entropy": policy.novelty_loss_obj.mean_entropy,
-            "novelty_reward_mean": policy.novelty_reward_mean
+            "novelty_reward_mean": policy.novelty_reward_mean,
+            "novelty_reward_ratio": policy.novelty_reward_ratio
         }
     )
     return ret
