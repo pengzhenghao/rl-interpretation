@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # env_name = "BipedalWalker-v2"
     num_agents = 5
     fps = 50
-    seed = 200
+    seed = 500
     steps = None
 
     # wkload = pickle.load(open(os.path.expanduser(ckpt), 'rb'))['worker']
