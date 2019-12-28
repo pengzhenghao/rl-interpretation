@@ -583,7 +583,7 @@ def rollout(
 
             if require_frame:
                 frame_extra_info["done"].append(done)
-                frame_extra_info["reward"].append(reward_total)
+                frame_extra_info["reward"].append(copy.deepcopy(reward_total))
                 frame_extra_info["step"].append(steps)
 
                 # data required for calculating period.

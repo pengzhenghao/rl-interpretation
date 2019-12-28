@@ -22,6 +22,7 @@ if __name__ == '__main__':
     # env_name = "BipedalWalker-v2"
     num_agents = 5
     fps = 50
+    seed = 200
     steps = None
 
     # wkload = pickle.load(open(os.path.expanduser(ckpt), 'rb'))['worker']
@@ -58,6 +59,9 @@ if __name__ == '__main__':
             "num_agents": 2,
             "render_policy": agent_id
         })
+
+        env.seed(seed)
+
         ret = rollout(agent,
                       env,
                       "ENV_NAME",
@@ -81,8 +85,8 @@ if __name__ == '__main__':
             })
         path = gvr.generate_single_video(frames_dict)
         rew = ret['frame_extra_info']['reward'][-1][agent_id]
-        print('Accumulated reward for agent <{}>: {}, average {}.'.format(
-            agent_id, rew, rew / num_agents))
+        print('Accumulated reward for agent <{}>: {}'.format(
+            agent_id, rew))
         print('Agent: <{}> video has been saved at <{}>.'.format(
             agent_id, os.path.abspath(path)))
         # break
