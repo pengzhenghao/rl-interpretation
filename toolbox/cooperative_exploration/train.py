@@ -42,6 +42,9 @@ def train(
         trainer,
         local_dir=get_local_dir(),
         name=exp_name,
+        checkpoint_freq=10,
+        keep_checkpoints_num=10,
+        checkpoint_score_attr="episode_reward_mean",
         checkpoint_at_end=True,
         stop={"info/num_steps_sampled": stop}
         if isinstance(stop, int) else stop,
