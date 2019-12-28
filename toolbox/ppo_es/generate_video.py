@@ -51,7 +51,7 @@ if __name__ == '__main__':
         }
         agent = TNBESTrainer(config=walker_config, env=MultiAgentEnvWrapper)
 
-        agent.restore(ckpt)
+        agent.restore(os.path.expanduser(ckpt))
 
         env = MultiAgentEnvWrapper({
             "env_name": env_name,
