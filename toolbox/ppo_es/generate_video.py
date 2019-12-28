@@ -18,11 +18,11 @@ if __name__ == '__main__':
            "use_novelty_value_network=True_2019-12-28_10-48-349e8joanr" \
            "/checkpoint_1645/checkpoint-1645"
 
-    # env_name = "Walker2d-v3"
-    env_name = "BipedalWalker-v2"
+    env_name = "Walker2d-v3"
+    # env_name = "BipedalWalker-v2"
     num_agents = 5
     fps = 50
-    steps = 100
+    steps = None
 
     wkload = pickle.load(open(os.path.expanduser(ckpt), 'rb'))['worker']
     states = pickle.loads(wkload)['state']
@@ -63,7 +63,7 @@ if __name__ == '__main__':
                       num_steps=steps,
                       multiagent_environment=True)
         frames = ret['frames']
-        # frames = frames[..., ::3]
+        frames = frames[..., 2::-1]
         frames_dict = dict({agent_id: {
             "frames": frames,
             "column": None,
@@ -82,4 +82,4 @@ if __name__ == '__main__':
             agent_id, rew, rew / num_agents))
         print('Agent: <{}> video has been saved at <{}>.'.format(
             agent_id, os.path.abspath(path)))
-        break
+        # break
