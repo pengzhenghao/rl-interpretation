@@ -46,7 +46,8 @@ if __name__ == '__main__':
 
     walker_config = {
         # can change
-        "update_steps": tune.grid_search([0, 200000, 500000, "baseline"]),
+        "update_steps": tune.grid_search([0, 200000, 500000, 1000000,
+                                          "baseline"]),
         "use_tnb_plus": False,
         "novelty_type": tune.grid_search(["mse", 'kl']),
         "use_novelty_value_network": tune.grid_search([True, False]),
@@ -77,7 +78,7 @@ if __name__ == '__main__':
         trainer=TNBESTrainer,
         env_name=config['env_config']['env_name'],
 
-        stop={"timesteps_total": int(2e8) if not args.walker else int(1e7)},
+        stop={"timesteps_total": int(2e8) if not args.walker else int(5e7)},
         exp_name="DELETEME-TEST" if args.test else args.exp_name,
         num_agents=args.num_agents if not args.test else 3,
         num_seeds=args.num_seeds,
