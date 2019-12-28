@@ -12,10 +12,12 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         assert "env_name" in env_config
         num_agents = env_config['num_agents']
         agent_ids = ["agent{}".format(i) for i in range(num_agents)]
+        self._render_policy = env_config.get('render_policy')
         self.num_agents = num_agents
         self.agent_ids = agent_ids
         self.env_name = env_config['env_name']
-        self.env_maker = get_env_maker(env_config['env_name'])
+        self.env_maker = get_env_maker(
+            env_config['env_name'], require_render=bool(self._render_policy))
         self.envs = {}
         if not isinstance(agent_ids, list):
             agent_ids = [agent_ids]
@@ -45,6 +47,11 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
     def seed(self, s):
         for env in self.envs.values():
             env.seed(s)
+
+    def render(self, *args, **kwargs):
+        assert self._render_policy
+        assert self._render_policy in self.envs
+        return self.envs[self._render_policy].render(*args, **kwargs)
 
     def __repr__(self):
         return "MultiAgentEnvWrapper({})".format(self.env_name)

@@ -426,7 +426,8 @@ def rollout(
         require_full_frame=False,
         require_env_state=False,
         render_mode="rgb_array",
-        num_rollouts=1
+        num_rollouts=1,
+        multiagent_environment=False
 ):
     assert require_frame or require_trajectory or require_extra_info or \
            require_env_state, "You must ask for some output!"
@@ -459,7 +460,7 @@ def rollout(
         }
     else:
         # env = gym.make(env_name)
-        multiagent = False
+        multiagent = multiagent_environment
         policy = agent.policy
         state_init = {DEFAULT_POLICY_ID: None}
         use_lstm = {p: None for p, s in state_init.items()}
@@ -502,7 +503,7 @@ def rollout(
         )
         prev_rewards = collections.defaultdict(lambda: 0.)
         done = False
-        reward_total = 0.0
+        reward_total = 0.0 if not multiagent else {}
 
         while not done and steps < (num_steps or steps + 1):
             if steps % LOG_INTERVAL_STEPS == (LOG_INTERVAL_STEPS - 1):
@@ -559,13 +560,24 @@ def rollout(
                 frame_extra_info['value_function'].append(
                     value_functions[_DUMMY_AGENT_ID]
                 )
-            action = action_dict[_DUMMY_AGENT_ID]
+
+            if multiagent_environment:
+                action = action_dict
+            else:
+                action = action_dict[_DUMMY_AGENT_ID]
 
             next_obs, reward, done, _ = env.step(action)
 
             if multiagent:
                 done = done["__all__"]
-                reward_total += sum(reward.values())
+
+                for rewk, rewv in reward.items():
+                    if rewk not in reward_total:
+                        reward_total[rewk] = 0.0
+                    reward_total[rewk] += rewv
+                #
+                #
+                # reward_total += sum(reward.values())
             else:
                 reward_total += reward
 
