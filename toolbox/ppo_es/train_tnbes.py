@@ -69,6 +69,7 @@ if __name__ == '__main__':
         'train_batch_size': 65536,
         "num_gpus": 0.5,
         "num_cpus_per_worker": 0.5,
+        "num_cpus_for_driver": 0.5,
         "num_envs_per_worker": 16,
         'num_workers': 8,
     }
