@@ -24,8 +24,8 @@ if __name__ == '__main__':
     fps = 50
     steps = None
 
-    wkload = pickle.load(open(os.path.expanduser(ckpt), 'rb'))['worker']
-    states = pickle.loads(wkload)['state']
+    # wkload = pickle.load(open(os.path.expanduser(ckpt), 'rb'))['worker']
+    # states = pickle.loads(wkload)['state']
 
     for i in range(num_agents):
         agent_id = "agent{}".format(i)
@@ -50,6 +50,9 @@ if __name__ == '__main__':
             'num_workers': 0,
         }
         agent = TNBESTrainer(config=walker_config, env=MultiAgentEnvWrapper)
+
+        agent.restore(ckpt)
+
         env = MultiAgentEnvWrapper({
             "env_name": env_name,
             "num_agents": 2,
