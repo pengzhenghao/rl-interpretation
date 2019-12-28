@@ -432,8 +432,8 @@ def rollout(
     assert require_frame or require_trajectory or require_extra_info or \
            require_env_state, "You must ask for some output!"
 
-    if num_steps is None:
-        num_steps = 3000
+    # if num_steps is None:
+    #     num_steps = 3000
 
     policy_agent_mapping = default_policy_agent_mapping
 
