@@ -50,7 +50,8 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
 
     def render(self, *args, **kwargs):
         assert self._render_policy
-        assert self._render_policy in self.envs
+        assert self._render_policy in self.envs, (
+            self._render_policy, self.envs.keys())
         return self.envs[self._render_policy].render(*args, **kwargs)
 
     def __repr__(self):
