@@ -46,13 +46,10 @@ if __name__ == '__main__':
 
     walker_config = {
         # can change
-        "update_steps": tune.grid_search([0, 200000, 500000, 1000000,
-                                          "baseline"]),
-        "use_tnb_plus": False,
         "novelty_type": tune.grid_search(["mse", 'kl']),
         "use_novelty_value_network": tune.grid_search([True, False]),
-
-
+        "update_steps": tune.grid_search([0, 200000, 500000, "baseline"]),
+        "use_tnb_plus": False,
 
         "env": MultiAgentEnvWrapper,
         "env_config": {
@@ -67,7 +64,7 @@ if __name__ == '__main__':
         'sample_batch_size': 256,
         'sgd_minibatch_size': 4096,
         'train_batch_size': 65536,
-        "num_gpus": 0.5,
+        "num_gpus": 0.45,
         "num_cpus_per_worker": 0.5,
         "num_cpus_for_driver": 0.5,
         "num_envs_per_worker": 16,
