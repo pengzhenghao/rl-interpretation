@@ -71,10 +71,10 @@ def build_walkerv3(seed=None, require_shadow=False):
 def get_env_maker(name, require_render=False):
     if require_render and name == "BipedalWalker-v2":
         return build_opencv_bipedal_walker
-    if require_render:
+    if require_render and name in ENV_MAKER_LOOKUP:
         return make_build_gym_env(name)
-    if name in ENV_MAKER_LOOKUP:
-        return ENV_MAKER_LOOKUP[name]
+    # if name in ENV_MAKER_LOOKUP:
+    #     return ENV_MAKER_LOOKUP[name]
     else:
         assert name in [s.id for s in gym.envs.registry.all()], \
             "name of env not in {}".format(
