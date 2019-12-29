@@ -49,8 +49,8 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         return obs, rewards, dones, infos
 
     def seed(self, s):
-        for env in self.envs.values():
-            env.seed(s)
+        for env_id, env in enumerate(self.envs.values()):
+            env.seed(s + env_id * 10)
 
     def render(self, *args, **kwargs):
         assert self._render_policy
