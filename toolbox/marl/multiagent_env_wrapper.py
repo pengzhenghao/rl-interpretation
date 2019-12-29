@@ -39,6 +39,10 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
             act = np.nan_to_num(act, copy=False)
             o, r, d, i = self.envs[aid].step(act)
             if d:
+                if d in self.dones:
+                    print("WARNING! current {} is already in"
+                          "self.dones: {}. Given reward {}.".format(
+                        aid, self.dones, r))
                 self.dones.add(aid)
             obs[aid], rewards[aid], dones[aid], infos[aid] = o, r, d, i
         dones["__all__"] = len(self.dones) == len(self.agent_ids)
@@ -65,7 +69,7 @@ if __name__ == '__main__':
     mae = MultiAgentEnvWrapper(env_config)
     mae.reset()
     while True:
-        ret = mae.step({i: np.zeros((17, )) for i in range(10)})
+        ret = mae.step({i: np.zeros((17,)) for i in range(10)})
         if ret[2]['__all__']:
             print("Finish! ", ret)
             break
