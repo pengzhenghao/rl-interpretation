@@ -18,6 +18,7 @@ from ray.tune.util import merge_dicts
 from toolbox.ipd.tnb_loss import tnb_gradients, tnb_loss
 from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
 from toolbox.ipd.tnb_utils import *
+from toolbox.marl.utils import on_train_result
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ tnb_default_config = merge_dicts(
         clip_novelty_gradient=False,
         use_second_component=True,
         model={"custom_model": "ActorDoubleCriticNetwork"},
+        callbacks={"on_train_result": on_train_result}
     )
 )
 

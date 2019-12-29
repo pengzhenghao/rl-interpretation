@@ -8,13 +8,17 @@ from ray.tune.util import merge_dicts
 
 from toolbox import initialize_ray
 from toolbox.marl import MultiAgentEnvWrapper
+from toolbox.marl.utils import on_train_result
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     make_policy_optimizer_basic_modification
 
 logger = logging.getLogger(__name__)
 
 ppo_es_default_config = merge_dicts(
-    DEFAULT_CONFIG, dict(update_steps=100000, )
+    DEFAULT_CONFIG, dict(
+        update_steps=100000,
+        callbacks={"on_train_result": on_train_result}
+    )
 )
 
 
@@ -89,7 +93,7 @@ PPOESTrainer = PPOTrainer.with_updates(
 
 if __name__ == '__main__':
     # def test_train_ipd(local_mode=False):
-    initialize_ray(test_mode=True, local_mode=True)
+    initialize_ray(test_mode=True, local_mode=False)
     env_name = "CartPole-v0"
     num_agents = 3
 
