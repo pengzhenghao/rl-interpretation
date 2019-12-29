@@ -566,10 +566,10 @@ def rollout(
             else:
                 action = action_dict[_DUMMY_AGENT_ID]
 
-            next_obs, reward, done, _ = env.step(action)
+            next_obs, reward, raw_done, _ = env.step(action)
 
             if multiagent:
-                done = done["__all__"]
+                done = raw_done["__all__"]
 
                 for rewk, rewv in reward.items():
                     if rewk not in reward_total:
@@ -579,10 +579,11 @@ def rollout(
                 #
                 # reward_total += sum(reward.values())
             else:
+                done = raw_done
                 reward_total += reward
 
             if require_frame:
-                frame_extra_info["done"].append(done)
+                frame_extra_info["done"].append(raw_done)
                 frame_extra_info["reward"].append(copy.deepcopy(reward_total))
                 frame_extra_info["step"].append(steps)
 
