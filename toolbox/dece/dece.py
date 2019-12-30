@@ -6,10 +6,10 @@ from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
     setup_mixins, kl_and_loss_stats, BEHAVIOUR_LOGITS, Postprocessing, \
     ACTION_LOGP
 from ray.rllib.policy.tf_policy import ACTION_PROB
+from toolbox.dece.dece_loss import loss_dece
 
 from toolbox.cooperative_exploration.ceppo_debug import on_postprocess_traj, \
     on_episode_start, on_episode_end, on_train_result
-from toolbox.cooperative_exploration.ceppo_loss import loss_ceppo
 from toolbox.cooperative_exploration.ceppo_postprocess import \
     postprocess_ppo_gae_replay
 from toolbox.cooperative_exploration.utils import *
@@ -25,7 +25,7 @@ from toolbox.ppo_es.tnb_es import TNBESTrainer, TNBESPolicy, \
 
 logger = logging.getLogger(__name__)
 
-cetnb_default_config = merge_dicts(
+dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         diversity_encouraging=True,
@@ -197,11 +197,11 @@ def wrap_stats_ceppo(policy, train_batch):
 #         update_kl(trainer, fetches)
 
 
-CETNBPolicy = TNBESPolicy.with_updates(
-    name="CETNBPolicy",
-    get_default_config=lambda: cetnb_default_config,
+DECEPolicy = TNBESPolicy.with_updates(
+    name="DECEPolicy",
+    get_default_config=lambda: dece_default_config,
     postprocess_fn=postprocess_ceppo,
-    loss_fn=loss_ceppo,
+    loss_fn=loss_dece,
 )
 
 
@@ -221,11 +221,10 @@ def validate_config(config):
     assert config['train_batch_size'] >= config["sgd_minibatch_size"]
 
 
-
-CETNBTrainer = TNBESTrainer.with_updates(
-    name="CETNBTrainer",
-    default_config=cetnb_default_config,
-    default_policy=CETNBPolicy,
+DECETrainer = TNBESTrainer.with_updates(
+    name="DECETrainer",
+    default_config=dece_default_config,
+    default_policy=DECEPolicy,
     validate_config=validate_config
 )
 # FIXME So till now the only change to TNBESTrainer
