@@ -80,7 +80,8 @@ def train_one_iteration(
         common_config,
         ray_init,
         preoccupied_checkpoints=None,
-        test_mode=False
+        test_mode=False,
+        disable_early_stop=False
 ):
     """Conduct one iteration of evolution. Maximum generated agents is defined
      by max_num_agents"""
@@ -152,7 +153,7 @@ def train_one_iteration(
             iteration_info['best_agent'] = agent_name
             best_reward = result['current_reward']
 
-        if stop_flag:
+        if (stop_flag) and (not disable_early_stop):
             break
 
     iteration_info['best_reward'] = best_reward
@@ -191,6 +192,7 @@ def main(
         common_config,
         ray_init,
         test_mode=False,
+        disable_early_stop=False
 ):
     prev_reward = float('-inf')
     prev_agent = None
@@ -225,7 +227,8 @@ def main(
                 common_config=common_config,
                 ray_init=ray_init,
                 preoccupied_checkpoints=preoccupied_checkpoints,
-                test_mode=test_mode
+                test_mode=test_mode,
+                disable_early_stop=disable_early_stop
             )
 
         # save necessary data
