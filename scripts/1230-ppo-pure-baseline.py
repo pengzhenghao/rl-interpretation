@@ -5,7 +5,7 @@ from ray import tune
 from toolbox import initialize_ray, get_local_dir
 
 if __name__ == '__main__':
-    exp_name = "12230-ppo-pure-baseline"
+    exp_name = "1230-ppo-pure-baseline"  # It's "12230-ppo..." previously....
     env_name = "Walker2d-v3"
     stop = int(5e7)
     num_gpus = 4
