@@ -1,51 +1,25 @@
 import logging
 
 import numpy as np
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
     setup_mixins, kl_and_loss_stats, BEHAVIOUR_LOGITS, Postprocessing, \
     ACTION_LOGP
 from ray.rllib.policy.tf_policy import ACTION_PROB
-from toolbox.dece.dece_loss import loss_dece
 
-from toolbox.cooperative_exploration.ceppo_debug import on_postprocess_traj, \
-    on_episode_start, on_episode_end, on_train_result
 from toolbox.cooperative_exploration.ceppo_postprocess import \
     postprocess_ppo_gae_replay
-from toolbox.cooperative_exploration.utils import *
+# from toolbox.cooperative_exploration.utils import *
+from toolbox.dece.dece_loss import loss_dece
 from toolbox.distance import get_kl_divergence
-from toolbox.marl.adaptive_extra_loss import merge_dicts, wrap_stats_fn
+from toolbox.marl.adaptive_extra_loss import wrap_stats_fn
 from toolbox.marl.extra_loss_ppo_trainer import JOINT_OBS, PEER_ACTION, \
     SampleBatch
 from toolbox.ppo_es.tnb_es import TNBESTrainer, TNBESPolicy, \
     validate_config as validate_config_tnbes
 
-# from toolbox.ipd.tnb import TNBTrainer, TNBPolicy, \
-#     validate_config as validate_config_tnbes
+from toolbox.dece.utils import *
 
 logger = logging.getLogger(__name__)
-
-dece_default_config = merge_dicts(
-    DEFAULT_CONFIG,
-    dict(
-        diversity_encouraging=True,
-        use_bisector=True,
-        use_diversity_value_network=True,
-        clip_diversity_gradient=True,
-        delay_update=True,
-        diversity_reward_type="mse",
-        replay_values=True,
-        two_side_clip_loss=True,
-
-        # Don't touch
-        callbacks={
-            "on_train_result": on_train_result,
-            "on_episode_start": on_episode_start,
-            "on_postprocess_traj": on_postprocess_traj,
-            "on_episode_end": on_episode_end
-        }
-    )
-)
 
 
 def _compute_logp(logit, x):
