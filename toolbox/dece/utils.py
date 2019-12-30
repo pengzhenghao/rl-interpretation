@@ -121,6 +121,11 @@ DIVERSITY_REWARD_TYPE = "diversity_reward_type"
 REPLAY_VALUES = "replay_values"
 TWO_SIDE_CLIP_LOSS = "two_side_clip_loss"
 
+NOVELTY_REWARDS = "novelty_rewards"
+NOVELTY_VALUES = "novelty_values"
+NOVELTY_ADVANTAGES = "novelty_advantages"
+NOVELTY_VALUE_TARGETS = "novelty_value_targets"
+
 dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(

@@ -1,138 +1,63 @@
-import tensorflow as tf
-from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, Postprocessing, \
-    ACTION_LOGP, SampleBatch
+from ray.rllib.agents.ppo.ppo_policy import SampleBatch, BEHAVIOUR_LOGITS, \
+    PPOLoss, ppo_surrogate_loss
+from ray.rllib.evaluation.postprocessing import Postprocessing
 
-from toolbox.cooperative_exploration.ceppo_debug import validate_tensor
-from toolbox.cooperative_exploration.utils import DIVERSITY_ENCOURAGING, \
-    CURIOSITY
-from toolbox.marl.extra_loss_ppo_trainer import extra_loss_ppo_loss, \
-    novelty_loss_mse
+from toolbox.dece.utils import *
+# from toolbox.marl.extra_loss_ppo_trainer import extra_loss_ppo_loss
+
+
+# from toolbox.ipd.tnb_utils import *
+
+def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
+    """Add novelty loss with original ppo loss"""
+    raise NotImplementedError()
+    # original_loss = ppo_surrogate_loss(policy, model, dist_class,
+    # train_batch)
+    # nov_loss = novelty_loss_mse(policy, model, dist_class, train_batch)
+    # alpha = policy.novelty_loss_param
+    # total_loss = (1 - alpha) * original_loss + alpha * nov_loss
+    # policy.total_loss = total_loss
+    # return total_loss
 
 
 def loss_dece(policy, model, dist_class, train_batch):
-    if policy.config[DIVERSITY_ENCOURAGING]:
-        return extra_loss_ppo_loss(policy, model, dist_class, train_batch)
-    if policy.config[CURIOSITY]:
-        # create policy.novelty_loss for adaptively adjust curiosity.
-        novelty_loss_mse(policy, model, dist_class, train_batch)
-    return ppo_surrogate_loss(policy, model, dist_class, train_batch)
+    if not policy.config[DIVERSITY_ENCOURAGING]:
+        return ppo_surrogate_loss(policy, model, dist_class, train_batch)
+    if policy.config[USE_BISECTOR]:
+        return tnb_loss(policy, model, dist_class, train_batch)
+    # TODO FIXME extra_loss is not implement!
+    return extra_loss_ppo_loss(policy, model, dist_class, train_batch)
 
 
-class PPOLoss(object):
-    def __init__(
-            self,
-            action_space,
-            dist_class,
-            model,
-            value_targets,
-            advantages,
-            actions,
-            prev_logits,
-            prev_actions_logp,
-            vf_preds,
-            curr_action_dist,
-            value_fn,
-            cur_kl_coeff,
-            valid_mask,
-            entropy_coeff=0,
-            clip_param=0.1,
-            vf_clip_param=0.1,
-            vf_loss_coeff=1.0,
-            use_gae=True,
-            model_config=None,
-            validate_nan=False
-    ):
-        print("Enter PPOLoss Class")
-        self.stats = {}
-
-        def validate_and_stat(tensor, name):
-            tensor = validate_tensor(tensor, name, validate_nan)
-            self.stats[name] = tensor
-            return tensor
-
-        value_targets = validate_and_stat(value_targets, "value_targets")
-        _ = validate_and_stat(tf.square(value_targets), "value_targets_square")
-        prev_logits = validate_tensor(prev_logits, "prev_logits")
-        prev_actions_logp = validate_and_stat(
-            prev_actions_logp, "prev_actions_logp"
-        )
-        vf_preds = validate_and_stat(vf_preds, "vf_preds")
-        _ = validate_and_stat(tf.square(vf_preds), "vf_preds_square")
-        value_fn = validate_tensor(value_fn, "value_fn")
-        _ = validate_and_stat(tf.square(value_fn), "value_fn_square")
-
+class PPOLossNovelty(object):
+    def __init__(self, dist_class, model, advantages, actions, prev_logits,
+                 prev_actions_logp, curr_action_dist, cur_kl_coeff, valid_mask,
+                 entropy_coeff=0, clip_param=0.1):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
         prev_dist = dist_class(prev_logits, model)
-        curr_action_logp = curr_action_dist.logp(actions)
-        prev_actions_logp = validate_and_stat(
-            prev_actions_logp, "prev_actions_logp"
-        )
-        curr_action_logp = validate_and_stat(
-            curr_action_logp, "curr_actions_logp"
-        )
-        logp_diff = validate_and_stat(
-            curr_action_logp - prev_actions_logp, "logp_diff"
-        )
-        logp_ratio = tf.exp(logp_diff)
-        logp_ratio = validate_and_stat(logp_ratio, "logp_ratio")
-
+        logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
         action_kl = prev_dist.kl(curr_action_dist)
+        self.mean_kl = reduce_mean_valid(action_kl)
         curr_entropy = curr_action_dist.entropy()
-        self.mean_kl = validate_and_stat(reduce_mean_valid(action_kl), "kl")
-        self.mean_entropy = validate_and_stat(
-            reduce_mean_valid(curr_entropy), "entropy"
-        )
-
+        self.mean_entropy = reduce_mean_valid(curr_entropy)
         surrogate_loss = tf.minimum(
             advantages * logp_ratio,
-            advantages *
-            tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
-        )
-
-        self.mean_policy_loss = validate_and_stat(
-            reduce_mean_valid(-surrogate_loss), "policy_loss"
-        )
-
-        if use_gae:
-            vf_loss1 = tf.square(value_fn - value_targets)
-            vf_clipped = vf_preds + tf.clip_by_value(
-                value_fn - vf_preds, -vf_clip_param, vf_clip_param
-            )
-            vf_loss2 = tf.square(vf_clipped - value_targets)
-            vf_loss = tf.maximum(vf_loss1, vf_loss2)
-
-            self.mean_vf_loss = validate_and_stat(
-                reduce_mean_valid(vf_loss), "mean_vf_loss"
-            )
-            _ = validate_and_stat(vf_loss1, "vf_loss1")
-            _ = validate_and_stat(vf_loss2, "vf_loss2")
-            _ = validate_and_stat(vf_clipped, "vf_loss2_clipped")
-
-            loss = reduce_mean_valid(
-                -surrogate_loss + cur_kl_coeff * action_kl +
-                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
-            )
-        else:
-            self.mean_vf_loss = tf.constant(0.0)
-            loss = reduce_mean_valid(
-                -surrogate_loss + cur_kl_coeff * action_kl -
-                entropy_coeff * curr_entropy
-            )
-
-        self.loss = validate_and_stat(loss, "loss")
+            advantages * tf.clip_by_value(logp_ratio, 1 - clip_param,
+                                          1 + clip_param))
+        self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
+        self.mean_vf_loss = tf.constant(0.0)
+        loss = reduce_mean_valid(-surrogate_loss +
+                                 cur_kl_coeff * action_kl -
+                                 entropy_coeff * curr_entropy)
+        self.loss = loss
 
 
-def ppo_surrogate_loss(policy, model, dist_class, train_batch):
-    train_batch[
-        SampleBatch.CUR_OBS
-    ] = validate_tensor(train_batch[SampleBatch.CUR_OBS], "CUR_OBS")
-
+def tnb_loss(policy, model, dist_class, train_batch):
+    """Add novelty loss with original ppo loss using TNB method"""
     logits, state = model.from_batch(train_batch)
-    logits = validate_tensor(logits, "action_dist logits")
     action_dist = dist_class(logits, model)
-    action_dist.std = validate_tensor(action_dist.std, "action_dist.std")
 
     if state:
         max_seq_len = tf.reduce_max(train_batch["seq_lens"])
@@ -151,7 +76,7 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         train_batch[Postprocessing.ADVANTAGES],
         train_batch[SampleBatch.ACTIONS],
         train_batch[BEHAVIOUR_LOGITS],
-        train_batch[ACTION_LOGP],
+        train_batch["action_logp"],
         train_batch[SampleBatch.VF_PREDS],
         action_dist,
         model.value_function(),
@@ -162,17 +87,122 @@ def ppo_surrogate_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"],
-        validate_nan=policy.config["check_nan"]
+        model_config=policy.config["model"]
     )
 
-    # add some tensors into stat
-    policy.loss_obj.stats["adv_unnorm"] = \
-        train_batch[Postprocessing.ADVANTAGES + "_unnormalized"]
-    policy.loss_obj.stats["adv_unnorm_square"] = tf.square(
-        train_batch[Postprocessing.ADVANTAGES + "_unnormalized"]
-    )
-    policy.loss_obj.stats["debug_fake_adv"] = train_batch['debug_fake_adv']
-    policy.loss_obj.stats["debug_ratio"] = train_batch['debug_ratio']
+    # if policy.enable_novelty:
+    if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
+        policy.novelty_loss_obj = PPOLoss(
+            policy.action_space,
+            dist_class,
+            model,
+            train_batch[NOVELTY_VALUE_TARGETS],
+            train_batch[NOVELTY_ADVANTAGES],
+            train_batch[SampleBatch.ACTIONS],
+            train_batch[BEHAVIOUR_LOGITS],
+            train_batch["action_logp"],
+            train_batch[NOVELTY_VALUES],
+            action_dist,
+            model.novelty_value_function(),
+            policy.kl_coeff,
+            mask,
+            entropy_coeff=policy.entropy_coeff,
+            clip_param=policy.config["clip_param"],
+            vf_clip_param=policy.config["vf_clip_param"],
+            vf_loss_coeff=policy.config["vf_loss_coeff"],
+            use_gae=policy.config["use_gae"],
+            model_config=policy.config["model"]
+        )
+    else:
+        policy.novelty_loss_obj = PPOLossNovelty(
+            dist_class,
+            model,
+            train_batch[NOVELTY_ADVANTAGES],
+            train_batch[SampleBatch.ACTIONS],
+            train_batch[BEHAVIOUR_LOGITS],
+            train_batch["action_logp"],
+            action_dist,
+            policy.kl_coeff,
+            mask,
+            entropy_coeff=policy.entropy_coeff,
+            clip_param=policy.config["clip_param"]
+        )
+    policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])
+    return [policy.loss_obj.loss, policy.novelty_loss_obj.loss,
+            policy.novelty_reward_mean]
 
-    return policy.loss_obj.loss
+
+def _flatten(tensor):
+    flat = tf.reshape(tensor, shape=[-1])
+    return flat, tensor.shape, flat.shape
+
+
+def tnb_gradients(policy, optimizer, loss):
+    if not policy.enable_novelty:
+        with tf.control_dependencies([loss[1]]):
+            policy_grad = optimizer.compute_gradients(loss[0])
+        return policy_grad
+
+    policy_grad = optimizer.compute_gradients(loss[0])
+    novelty_grad = optimizer.compute_gradients(loss[1])
+
+    return_gradients = []
+    policy_grad_flatten = []
+    policy_grad_info = []
+    novelty_grad_flatten = []
+    novelty_grad_info = []
+
+    for (pg, var), (ng, var2) in zip(policy_grad, novelty_grad):
+        assert var == var2
+        if pg is None:
+            return_gradients.append((ng, var))
+            continue
+        if ng is None:
+            return_gradients.append((pg, var))
+            continue
+
+        pg_flat, pg_shape, pg_flat_shape = _flatten(pg)
+        policy_grad_flatten.append(pg_flat)
+        policy_grad_info.append((pg_flat_shape, pg_shape, var))
+
+        ng_flat, ng_shape, ng_flat_shape = _flatten(ng)
+        novelty_grad_flatten.append(ng_flat)
+        novelty_grad_info.append((ng_flat_shape, ng_shape))
+
+    policy_grad_flatten = tf.concat(policy_grad_flatten, 0)
+    novelty_grad_flatten = tf.concat(novelty_grad_flatten, 0)
+
+    # implement the logic of TNB
+    policy_grad_norm = tf.linalg.l2_normalize(policy_grad_flatten)
+    novelty_grad_norm = tf.linalg.l2_normalize(novelty_grad_flatten)
+    cos_similarity = tf.reduce_sum(
+        tf.multiply(policy_grad_norm, novelty_grad_norm)
+    )
+
+    tg = tf.linalg.l2_normalize(policy_grad_norm + novelty_grad_norm)
+    pg_length = tf.norm(tf.multiply(policy_grad_flatten, tg))
+    ng_length = tf.norm(tf.multiply(novelty_grad_flatten, tg))
+
+    if policy.config[CLIP_DIVERSITY_GRADIENT]:
+        ng_length = tf.minimum(pg_length, ng_length)
+
+    tg_lenth = (pg_length + ng_length) / 2
+    tg = tg * tg_lenth
+    total_grad = tg
+
+    policy.gradient_cosine_similarity = cos_similarity
+    policy.policy_grad_norm = tf.norm(policy_grad_flatten)
+    policy.novelty_grad_norm = tf.norm(novelty_grad_flatten)
+
+    # reshape back the gradients
+    count = 0
+    for idx, (flat_shape, org_shape, var) in enumerate(policy_grad_info):
+        if flat_shape is None:
+            return_gradients.append((None, var))
+            continue
+        size = flat_shape.as_list()[0]
+        grad = total_grad[count:count + size]
+        return_gradients.append((tf.reshape(grad, org_shape), var))
+        count += size
+
+    return return_gradients
