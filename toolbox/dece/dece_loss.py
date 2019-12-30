@@ -3,6 +3,8 @@ from ray.rllib.agents.ppo.ppo_policy import SampleBatch, BEHAVIOUR_LOGITS, \
 from ray.rllib.evaluation.postprocessing import Postprocessing
 
 from toolbox.dece.utils import *
+
+
 # from toolbox.marl.extra_loss_ppo_trainer import extra_loss_ppo_loss
 
 
@@ -11,8 +13,7 @@ from toolbox.dece.utils import *
 def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss"""
     raise NotImplementedError()
-    # original_loss = ppo_surrogate_loss(policy, model, dist_class,
-    # train_batch)
+    original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
     # nov_loss = novelty_loss_mse(policy, model, dist_class, train_batch)
     # alpha = policy.novelty_loss_param
     # total_loss = (1 - alpha) * original_loss + alpha * nov_loss
@@ -25,8 +26,9 @@ def loss_dece(policy, model, dist_class, train_batch):
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
     if policy.config[USE_BISECTOR]:
         return tnb_loss(policy, model, dist_class, train_batch)
-    # TODO FIXME extra_loss is not implement!
-    return extra_loss_ppo_loss(policy, model, dist_class, train_batch)
+    else:  # USE_BISECTOR makes difference at computing_gradient!
+        # So here are same either.
+        return tnb_loss(policy, model, dist_class, train_batch)
 
 
 class PPOLossNovelty(object):

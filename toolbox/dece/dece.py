@@ -1,23 +1,23 @@
 import logging
 
-import numpy as np
-from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, \
-    setup_mixins, kl_and_loss_stats, BEHAVIOUR_LOGITS, Postprocessing, \
-    ACTION_LOGP
+from ray.rllib.agents.ppo.ppo import PPOTFPolicy
+from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, ACTION_LOGP, \
+    setup_mixins, ValueNetworkMixin, KLCoeffMixin, LearningRateSchedule, \
+    EntropyCoeffSchedule, SampleBatch, BEHAVIOUR_LOGITS, make_tf_callable, \
+    kl_and_loss_stats
+from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.tf_policy import ACTION_PROB
+from ray.rllib.utils.explained_variance import explained_variance
 
 from toolbox.cooperative_exploration.ceppo_postprocess import \
     postprocess_ppo_gae_replay
-# from toolbox.cooperative_exploration.utils import *
-from toolbox.dece.dece_loss import loss_dece
+from toolbox.dece.dece_loss import loss_dece, tnb_gradients
+from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
-from toolbox.marl.adaptive_extra_loss import wrap_stats_fn
-from toolbox.marl.extra_loss_ppo_trainer import JOINT_OBS, PEER_ACTION, \
-    SampleBatch
-from toolbox.ppo_es.tnb_es import TNBESTrainer, TNBESPolicy, \
+from toolbox.ppo_es.tnb_es import TNBESTrainer, \
     validate_config as validate_config_tnbes
 
-from toolbox.dece.utils import *
+# from toolbox.ipd.tnb_utils import *
 
 logger = logging.getLogger(__name__)
 
@@ -69,14 +69,14 @@ def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
         batch['debug_fake_adv'] = np.zeros_like(
             batch["advantages"], dtype=np.float32
         )
-        if policy.config[DIVERSITY_ENCOURAGING] or policy.config[CURIOSITY]:
-            # assert not policy.config["use_joint_dataset"]
-            batch[JOINT_OBS] = np.zeros_like(
-                sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
-            )
-            batch[PEER_ACTION] = np.zeros_like(
-                sample_batch[SampleBatch.ACTIONS], dtype=np.float32
-            )
+        # if policy.config[DIVERSITY_ENCOURAGING] or policy.config[CURIOSITY]:
+        #     # assert not policy.config["use_joint_dataset"]
+        #     batch[JOINT_OBS] = np.zeros_like(
+        #         sample_batch[SampleBatch.CUR_OBS], dtype=np.float32
+        #     )
+        #     batch[PEER_ACTION] = np.zeros_like(
+        #         sample_batch[SampleBatch.ACTIONS], dtype=np.float32
+        #     )
         return batch
 
     batch = sample_batch
@@ -155,8 +155,8 @@ def setup_mixins_ceppo(policy, obs_space, action_space, config):
 
 
 def wrap_stats_ceppo(policy, train_batch):
-    if policy.config[DIVERSITY_ENCOURAGING]:
-        return wrap_stats_fn(policy, train_batch)
+    # if policy.config[DIVERSITY_ENCOURAGING]:
+    #     return wrap_stats_fn(policy, train_batch)
     ret = kl_and_loss_stats(policy, train_batch)
     if hasattr(policy.loss_obj, "stats"):
         assert isinstance(policy.loss_obj.stats, dict)
@@ -164,18 +164,138 @@ def wrap_stats_ceppo(policy, train_batch):
     return ret
 
 
-# def wrap_after_train_result_ceppo(trainer, fetches):
-#     if trainer.config[DIVERSITY_ENCOURAGING] or trainer.config[CURIOSITY]:
-#         wrap_after_train_result(trainer, fetches)
-#     else:
-#         update_kl(trainer, fetches)
+def grad_stats_fn(policy, batch, grads):
+    if not policy.enable_novelty:
+        return {}
+    ret = {
+        "cos_similarity": policy.gradient_cosine_similarity,
+        "policy_grad_norm": policy.policy_grad_norm,
+        "novelty_grad_norm": policy.novelty_grad_norm
+    }
+    return ret
 
 
-DECEPolicy = TNBESPolicy.with_updates(
+class NoveltyValueNetworkMixin(object):
+    def __init__(self, obs_space, action_space, config):
+        if config["use_gae"] and config['use_novelty_value_network']:
+
+            @make_tf_callable(self.get_session())
+            def novelty_value(ob, prev_action, prev_reward, *state):
+                model_out, _ = self.model(
+                    {
+                        SampleBatch.CUR_OBS: tf.convert_to_tensor([ob]),
+                        SampleBatch.PREV_ACTIONS: tf.convert_to_tensor(
+                            [prev_action]
+                        ),
+                        SampleBatch.PREV_REWARDS: tf.convert_to_tensor(
+                            [prev_reward]
+                        ),
+                        "is_training": tf.convert_to_tensor(False),
+                    }, [tf.convert_to_tensor([s]) for s in state],
+                    tf.convert_to_tensor([1])
+                )
+                return self.model.novelty_value_function()[0]
+
+        else:
+
+            @make_tf_callable(self.get_session())
+            def novelty_value(ob, prev_action, prev_reward, *state):
+                return tf.constant(0.0)
+
+        self._novelty_value = novelty_value
+
+
+def additional_fetches(policy):
+    """Adds value function and logits outputs to experience train_batches."""
+    ret = {
+        SampleBatch.VF_PREDS: policy.model.value_function(),
+        BEHAVIOUR_LOGITS: policy.model.last_output()
+    }
+    if policy.config['use_novelty_value_network']:
+        ret[NOVELTY_VALUES] = policy.model.novelty_value_function()
+    return ret
+
+
+def kl_and_loss_stats_modified(policy, train_batch):
+    ret = kl_and_loss_stats(policy, train_batch)
+    if not policy.enable_novelty:
+        return ret
+    ret.update(
+        {
+            "novelty_total_loss": policy.novelty_loss_obj.loss,
+            "novelty_policy_loss": policy.novelty_loss_obj.mean_policy_loss,
+            "novelty_vf_loss": policy.novelty_loss_obj.mean_vf_loss,
+            "novelty_kl": policy.novelty_loss_obj.mean_kl,
+            "novelty_entropy": policy.novelty_loss_obj.mean_entropy,
+            "novelty_reward_mean": policy.novelty_reward_mean,
+            "novelty_reward_ratio": policy.novelty_reward_ratio
+        }
+    )
+    if policy.config['use_novelty_value_network']:
+        ret['novelty_vf_explained_var'] = explained_variance(
+            train_batch[NOVELTY_VALUE_TARGETS],
+            policy.model.novelty_value_function()
+        )
+    return ret
+
+
+class ComputeNoveltyMixin(object):
+
+    def __init__(self):
+        self.enable_novelty = True
+
+    def compute_novelty(self, my_batch, others_batches, episode):
+        if not others_batches:
+            return np.zeros_like(my_batch[SampleBatch.REWARDS],
+                                 dtype=np.float32)
+
+        replays = []
+        for (other_policy, _) in others_batches.values():
+            _, _, info = other_policy.compute_actions(
+                my_batch[SampleBatch.CUR_OBS])
+            replays.append(info[BEHAVIOUR_LOGITS])
+
+        assert replays
+
+        if self.config["novelty_type"] == "kl":
+            return np.mean(
+                [get_kl_divergence(
+                    my_batch[BEHAVIOUR_LOGITS], logit, mean=False
+                ) for logit in replays
+                ], axis=0)
+
+        elif self.config["novelty_type"] == "mse":
+            replays = [np.split(logit, 2, axis=1)[0] for logit in replays]
+            my_act = np.split(my_batch[BEHAVIOUR_LOGITS], 2, axis=1)[0]
+            return np.mean(
+                [(np.square(my_act - other_act)).mean(1) for other_act in
+                 replays], axis=0)
+        else:
+            raise NotImplementedError()
+
+
+def setup_mixins_tnb(policy, action_space, obs_space, config):
+    setup_mixins(policy, action_space, obs_space, config)
+    NoveltyValueNetworkMixin.__init__(policy, obs_space, action_space, config)
+    ComputeNoveltyMixin.__init__(policy)
+
+
+DECEPolicy = PPOTFPolicy.with_updates(
     name="DECEPolicy",
     get_default_config=lambda: dece_default_config,
     postprocess_fn=postprocess_ceppo,
     loss_fn=loss_dece,
+
+    stats_fn=kl_and_loss_stats_modified,
+    gradients_fn=tnb_gradients,
+    grad_stats_fn=grad_stats_fn,
+    extra_action_fetches_fn=additional_fetches,
+
+    before_loss_init=setup_mixins_tnb,
+    mixins=[
+        LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
+        ValueNetworkMixin, NoveltyValueNetworkMixin, ComputeNoveltyMixin
+    ]
 )
 
 
