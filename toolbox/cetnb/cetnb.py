@@ -25,20 +25,17 @@ from toolbox.ppo_es.tnb_es import TNBESTrainer, TNBESPolicy, \
 
 logger = logging.getLogger(__name__)
 
-# FIXME think twice on the config design
 cetnb_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
-        # learn_with_peers=True,
-        # use_joint_dataset=False,
-
-        mode=REPLAY_VALUES,
-        clip_action_prob_kl=1,
-        clip_action_prob_ratio=1,
-        # clip_advantage=False,
-
-        # check_nan=True,
-        # clip_action_prob=0.5,  # DEPRECATED, +- 150% is allowed
+        diversity_encouraging=True,
+        use_bisector=True,
+        use_diversity_value_network=True,
+        clip_diversity_gradient=True,
+        delay_update=True,
+        diversity_reward_type="mse",
+        replay_values=True,
+        two_side_clip_loss=True,
 
         # Don't touch
         callbacks={
@@ -216,30 +213,13 @@ CETNBPolicy = TNBESPolicy.with_updates(
 def validate_config(config):
     validate_config_tnbes(config)
 
-    mode = config['mode']
-    # FIXME think twice on the MODES.
-    if mode not in [DISABLE, DIVERSITY_ENCOURAGING_DISABLE,
-                    CURIOSITY_DISABLE,
-                    CURIOSITY_KL_DISABLE]:
-        num_agents = len(config['multiagent']['policies'])
-        config['train_batch_size'] = int(
-            config['train_batch_size'] // num_agents
-        )
+    # Reduce the train batch size for each agent
+    num_agents = len(config['multiagent']['policies'])
+    config['train_batch_size'] = int(
+        config['train_batch_size'] // num_agents
+    )
+    assert config['train_batch_size'] >= config["sgd_minibatch_size"]
 
-        config['num_envs_per_worker'] = max(
-            1, int(config['num_envs_per_worker'] // num_agents)
-        )
-
-        if config['train_batch_size'] < config["sgd_minibatch_size"]:
-            raise ValueError(
-                "You are using too many agents here! Current"
-                " train_batch_size {}, sgd_minibatch_size {},"
-                " num_agents {}.".format(
-                    config['train_batch_size'], config[
-                        "sgd_minibatch_size"],
-                    num_agents
-                )
-            )
 
 
 CETNBTrainer = TNBESTrainer.with_updates(
