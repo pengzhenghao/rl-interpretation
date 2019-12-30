@@ -29,7 +29,7 @@ tnb_default_config = merge_dicts(
         use_preoccupied_agent=False,
         disable_tnb=False,
         use_tnb_plus=True,
-        checkpoint_dict="",  # use json to parse a dict into string.
+        checkpoint_dict="{}",  # use json to parse a dict into string.
         # disabling novelty value network can save the cost of extra NN and
         # prevents misleading novelty policy gradient.
         use_novelty_value_network=True,
