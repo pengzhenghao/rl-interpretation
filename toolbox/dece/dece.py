@@ -6,6 +6,7 @@ from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dece.dece_policy import DECEPolicy
 from toolbox.dece.utils import *
+from toolbox.dece.utils import _I_AM_CLONE
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerCorrectedNumberOfSampled
 
