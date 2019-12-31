@@ -191,7 +191,7 @@ def _clip_batch(other_batch, clip_action_prob_kl):
     return other_batch, info
 
 
-def postprocess_diversity(policy, batch, others_batches, episode):
+def postprocess_diversity(policy, batch, others_batches, episode=None):
     # if policy.config[DIVERSITY_ENCOURAGING]:
     completed = batch["dones"][-1]
     batch[NOVELTY_REWARDS] = policy.compute_novelty(
@@ -255,12 +255,15 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         # a little workaround. We normalize advantage for all batch before
         # concatnation.
         tmp_batch = postprocess_ppo_gae(policy, batch)
+        tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches)
         value = tmp_batch[Postprocessing.ADVANTAGES]
         standardized = (value - value.mean()) / max(1e-4, value.std())
         tmp_batch[Postprocessing.ADVANTAGES] = standardized
         batches = [tmp_batch]
     else:
-        batches = [postprocess_ppo_gae(policy, batch)]
+        batch = postprocess_ppo_gae(policy, batch)
+        batch = postprocess_diversity(policy, batch, others_batches)
+        batches = [batch]
 
     for pid, (other_policy, other_batch_raw) in others_batches.items():
         # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
@@ -296,16 +299,16 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
                 other_batch[SampleBatch.ACTIONS]
             )
 
-        if not policy.config[REPLAY_VALUES]:
-            other_batch_raw = postprocess_diversity(policy, other_batch_raw,
-                                                    others_batches)
+        if policy.config[REPLAY_VALUES]:
+            # replay values
+            postprocess_diversity(policy, other_batch, others_batches)
+            batches.append(postprocess_ppo_gae_replay(
+                policy, other_batch, other_policy
+            ))
+        else:
+            other_batch_raw = postprocess_diversity(
+                policy, other_batch_raw, others_batches)
             batches.append(postprocess_ppo_gae(policy, other_batch_raw))
-        else:  # replay values
-            if other_batch is not None:  # it could be None due to clipping.
-                postprocess_diversity(policy, other_batch, others_batches)
-                batches.append(postprocess_ppo_gae_replay(
-                    policy, other_batch, other_policy
-                ))
 
     for batch in batches:
         batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
@@ -318,7 +321,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
     batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
-
+    episode.batch_builder.count = batch.count
     return batch
 
 

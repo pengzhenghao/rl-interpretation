@@ -233,5 +233,5 @@ DECETrainer = PPOTrainer.with_updates(
     default_config=dece_default_config,
     default_policy=DECEPolicy,
     validate_config=validate_config,
-    make_policy_optimizer=LocalMultiGPUOptimizerCorrectedNumberOfSampled
+    make_policy_optimizer=make_policy_optimizer_tnbes
 )

@@ -123,7 +123,7 @@ def _flatten(tensor):
 
 
 def tnb_gradients(policy, optimizer, loss):
-    if not policy.enable_novelty:
+    if not policy.config[USE_BISECTOR]:
         with tf.control_dependencies([loss[1]]):
             policy_grad = optimizer.compute_gradients(loss[0])
         return policy_grad
