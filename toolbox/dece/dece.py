@@ -15,15 +15,11 @@ from toolbox.distance import get_kl_divergence
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerCorrectedNumberOfSampled
 
+from ray.rllib.models import ModelCatalog
 from toolbox.dece.dece_postprocess import postprocess_dece
 
-# from toolbox.ipd.tnb_utils import *
 
 logger = logging.getLogger(__name__)
-
-
-# def setup_mixins_ceppo(policy, obs_space, action_space, config):
-#     setup_mixins(policy, obs_space, action_space, config)
 
 
 def wrap_stats_ceppo(policy, train_batch):
@@ -35,14 +31,15 @@ def wrap_stats_ceppo(policy, train_batch):
 
 
 def grad_stats_fn(policy, batch, grads):
-    if not policy.enable_novelty:
+    if policy.config[USE_BISECTOR]:
+        ret = {
+            "cos_similarity": policy.gradient_cosine_similarity,
+            "policy_grad_norm": policy.policy_grad_norm,
+            "novelty_grad_norm": policy.novelty_grad_norm
+        }
+        return ret
+    else:
         return {}
-    ret = {
-        "cos_similarity": policy.gradient_cosine_similarity,
-        "policy_grad_norm": policy.policy_grad_norm,
-        "novelty_grad_norm": policy.novelty_grad_norm
-    }
-    return ret
 
 
 class NoveltyValueNetworkMixin(object):
@@ -88,7 +85,7 @@ def additional_fetches(policy):
 
 def kl_and_loss_stats_modified(policy, train_batch):
     ret = kl_and_loss_stats(policy, train_batch)
-    if not policy.enable_novelty:
+    if not policy.config[DIVERSITY_ENCOURAGING]:
         return ret
     ret.update(
         {
@@ -110,8 +107,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
 
 class ComputeNoveltyMixin(object):
 
-    def __init__(self):
-        self.enable_novelty = True
+    # def __init__(self):
+        # self.enable_novelty = True
 
     def compute_novelty(self, my_batch, others_batches, episode=None):
         """It should be noted that in Cooperative Exploration setting,
@@ -189,12 +186,19 @@ def validate_config(config):
     config["multiagent"]["policy_mapping_fn"] = lambda x: x
 
     # check the model
-    if config[USE_BISECTOR]:
-        assert config['model']['custom_model'] == "ActorDoubleCriticNetwork"
+    if config[DIVERSITY_ENCOURAGING] and config[USE_DIVERSITY_VALUE_NETWORK]:
+        ModelCatalog.register_custom_model(
+            "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
+        )
+
+        config['model']['custom_model'] = "ActorDoubleCriticNetwork"
         config['model']['custom_options'] = {
             "use_novelty_value_network": config[USE_DIVERSITY_VALUE_NETWORK]
             # the name 'novelty' is deprecated
         }
+    else:
+        config['model']['custom_model'] = None
+        config['model']['custom_options'] = None
 
     # Reduce the train batch size for each agent
     num_agents = len(config['multiagent']['policies'])
@@ -204,6 +208,13 @@ def validate_config(config):
     assert config['train_batch_size'] >= config["sgd_minibatch_size"]
 
     validate_config_original(config)
+
+    if not config[DIVERSITY_ENCOURAGING]:
+        assert not config[USE_BISECTOR]
+        assert not config[USE_DIVERSITY_VALUE_NETWORK]
+        # assert not config[]
+
+
 
 
 def make_policy_optimizer_tnbes(workers, config):

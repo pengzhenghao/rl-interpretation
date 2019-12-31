@@ -131,7 +131,7 @@ NOVELTY_VALUE_TARGETS = "novelty_value_targets"
 dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
-        model={"custom_model": "ActorDoubleCriticNetwork"},
+        # model={"custom_model": "ActorDoubleCriticNetwork"},
         callbacks={
             "on_train_result": on_train_result,
             "on_episode_start": on_episode_start,
@@ -149,7 +149,7 @@ dece_default_config = merge_dicts(
         }
     )
 )
-
-ModelCatalog.register_custom_model(
-    "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
-)
+#
+# ModelCatalog.register_custom_model(
+#     "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
+# )
