@@ -59,39 +59,47 @@ if __name__ == '__main__':
 
         agent.restore(os.path.expanduser(ckpt))
 
-        env = MultiAgentEnvWrapper({
-            "env_name": env_name,
-            "num_agents": num_agents,
-            "render_policy": agent_id
-        })
+        env = MultiAgentEnvWrapper(
+            {
+                "env_name": env_name,
+                "num_agents": num_agents,
+                "render_policy": agent_id
+            }
+        )
 
         env.seed(seed)
 
-        ret = rollout(agent,
-                      env,
-                      "ENV_NAME",
-                      require_frame=True,
-                      require_full_frame=True,
-                      num_steps=steps,
-                      multiagent_environment=True)
+        ret = rollout(
+            agent,
+            env,
+            "ENV_NAME",
+            require_frame=True,
+            require_full_frame=True,
+            num_steps=steps,
+            multiagent_environment=True
+        )
         frames = ret['frames']
         frames = frames[..., 2::-1]
-        frames_dict = dict({agent_id: {
-            "frames": frames,
-            "column": None,
-            "row": None,
-            "loc": None,
-            "period": 0
-        }})
+        frames_dict = dict(
+            {
+                agent_id: {
+                    "frames": frames,
+                    "column": None,
+                    "row": None,
+                    "loc": None,
+                    "period": 0
+                }
+            }
+        )
         new_extra_info_dict = dict(
             frame_info={
                 "width": ret['frames'][0].shape[1],
                 "height": ret['frames'][0].shape[0]
-            })
+            }
+        )
 
         rew = ret['frame_extra_info']['reward'][-1][agent_id]
-        print('Accumulated reward for agent <{}>: {}'.format(
-            agent_id, rew))
+        print('Accumulated reward for agent <{}>: {}'.format(agent_id, rew))
 
         video_path = "data/1228-tnbes-5agent-walker-large/{}-novelty_mode" \
                      "{}-rew{:.4f}".format(
@@ -100,6 +108,9 @@ if __name__ == '__main__':
 
         path = gvr.generate_single_video(frames_dict)
 
-        print('Agent: <{}> video has been saved at <{}>.'.format(
-            agent_id, os.path.abspath(path)))
+        print(
+            'Agent: <{}> video has been saved at <{}>.'.format(
+                agent_id, os.path.abspath(path)
+            )
+        )
         # break

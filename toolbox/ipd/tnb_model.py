@@ -27,7 +27,7 @@ class ActorDoubleCriticNetwork(TFModelV2):
 
         # we are using obs_flat, so take the flattened shape as input
         inputs = tf.keras.layers.Input(
-            shape=(np.product(obs_space.shape),), name="observations"
+            shape=(np.product(obs_space.shape), ), name="observations"
         )
         last_layer = inputs
         i = 1
@@ -108,9 +108,7 @@ class ActorDoubleCriticNetwork(TFModelV2):
                 inputs, [layer_out, value_out, value_out_novel]
             )
         else:
-            self.base_model = tf.keras.Model(
-                inputs, [layer_out, value_out]
-            )
+            self.base_model = tf.keras.Model(inputs, [layer_out, value_out])
         self.register_variables(self.base_model.variables)
 
     def forward(self, input_dict, state, seq_lens):

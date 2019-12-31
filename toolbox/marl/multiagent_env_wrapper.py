@@ -17,7 +17,8 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         self.agent_ids = agent_ids
         self.env_name = env_config['env_name']
         self.env_maker = get_env_maker(
-            env_config['env_name'], require_render=bool(self._render_policy))
+            env_config['env_name'], require_render=bool(self._render_policy)
+        )
         self.envs = {}
         if not isinstance(agent_ids, list):
             agent_ids = [agent_ids]
@@ -40,9 +41,12 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
             o, r, d, i = self.envs[aid].step(act)
             if d:
                 if d in self.dones:
-                    print("WARNING! current {} is already in"
-                          "self.dones: {}. Given reward {}.".format(
-                        aid, self.dones, r))
+                    print(
+                        "WARNING! current {} is already in"
+                        "self.dones: {}. Given reward {}.".format(
+                            aid, self.dones, r
+                        )
+                    )
                 self.dones.add(aid)
             obs[aid], rewards[aid], dones[aid], infos[aid] = o, r, d, i
         dones["__all__"] = len(self.dones) == len(self.agent_ids)
@@ -55,7 +59,8 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
     def render(self, *args, **kwargs):
         assert self._render_policy
         assert self._render_policy in self.envs, (
-            self._render_policy, self.envs.keys())
+            self._render_policy, self.envs.keys()
+        )
         return self.envs[self._render_policy].render(*args, **kwargs)
 
     def __repr__(self):
@@ -69,7 +74,7 @@ if __name__ == '__main__':
     mae = MultiAgentEnvWrapper(env_config)
     mae.reset()
     while True:
-        ret = mae.step({i: np.zeros((17,)) for i in range(10)})
+        ret = mae.step({i: np.zeros((17, )) for i in range(10)})
         if ret[2]['__all__']:
             print("Finish! ", ret)
             break

@@ -17,14 +17,14 @@ from toolbox.ppo_es.ppo_es import PPOESTrainer, \
     validate_config as validate_config_PPOESTrainer
 
 tnbes_config = merge_dicts(
-    merge_dicts(DEFAULT_CONFIG, tnb_default_config), dict(
+    merge_dicts(DEFAULT_CONFIG, tnb_default_config),
+    dict(
         update_steps=100000,
         use_tnb_plus=False,
         novelty_type="mse",  # must in ['mse', 'kl']
         use_novelty_value_network=False
     )
 )
-
 """
 The main different between the TNBTrainer at toolbox.ipd and here is that
 the weight swapping operation is done by passing checkpoint_dict in config
@@ -38,36 +38,44 @@ TNBESTrainer merge the TNBTrainer and PPOESTrainer.
 
 
 class ComputeNoveltyMixin(object):
-
     def __init__(self):
         self.enable_novelty = True
 
     def compute_novelty(self, my_batch, others_batches, episode):
         if not others_batches:
-            return np.zeros_like(my_batch[SampleBatch.REWARDS],
-                                 dtype=np.float32)
+            return np.zeros_like(
+                my_batch[SampleBatch.REWARDS], dtype=np.float32
+            )
 
         replays = []
         for (other_policy, _) in others_batches.values():
             _, _, info = other_policy.compute_actions(
-                my_batch[SampleBatch.CUR_OBS])
+                my_batch[SampleBatch.CUR_OBS]
+            )
             replays.append(info[BEHAVIOUR_LOGITS])
 
         assert replays
 
         if self.config["novelty_type"] == "kl":
             return np.mean(
-                [get_kl_divergence(
-                    my_batch[BEHAVIOUR_LOGITS], logit, mean=False
-                ) for logit in replays
-                ], axis=0)
+                [
+                    get_kl_divergence(
+                        my_batch[BEHAVIOUR_LOGITS], logit, mean=False
+                    ) for logit in replays
+                ],
+                axis=0
+            )
 
         elif self.config["novelty_type"] == "mse":
             replays = [np.split(logit, 2, axis=1)[0] for logit in replays]
             my_act = np.split(my_batch[BEHAVIOUR_LOGITS], 2, axis=1)[0]
             return np.mean(
-                [(np.square(my_act - other_act)).mean(1) for other_act in
-                 replays], axis=0)
+                [
+                    (np.square(my_act - other_act)).mean(1)
+                    for other_act in replays
+                ],
+                axis=0
+            )
         else:
             raise NotImplementedError()
 

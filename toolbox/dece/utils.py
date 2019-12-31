@@ -137,7 +137,8 @@ dece_default_config = merge_dicts(
             "on_episode_start": on_episode_start,
             "on_postprocess_traj": on_postprocess_traj,
             "on_episode_end": on_episode_end
-        }, **{
+        },
+        **{
             DIVERSITY_ENCOURAGING: True,
             USE_BISECTOR: True,
             USE_DIVERSITY_VALUE_NETWORK: True,

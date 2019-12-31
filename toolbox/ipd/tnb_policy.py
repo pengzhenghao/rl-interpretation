@@ -197,10 +197,10 @@ class AgentPoolMixin(object):
         action = sample_batch[SampleBatch.ACTIONS]
         if not self.initialized_policies_pool:
             if not hasattr(self, "_loss_inputs"):
-                return np.zeros((action.shape[0],), dtype=np.float32)
+                return np.zeros((action.shape[0], ), dtype=np.float32)
 
         if not self.enable_novelty:
-            return np.zeros((action.shape[0],), dtype=np.float32)
+            return np.zeros((action.shape[0], ), dtype=np.float32)
 
         assert self.initialized_policies_pool, self.policies_pool
 

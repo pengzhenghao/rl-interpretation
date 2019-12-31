@@ -13,7 +13,6 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
-
 """
 TNB-ES training basic workflow:
 
@@ -374,7 +373,6 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError()
 
-
     def ray_init():
         ray.shutdown()
         initialize_ray(
@@ -383,7 +381,6 @@ if __name__ == '__main__':
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )
-
 
     main(
         exp_name=args.exp_name,

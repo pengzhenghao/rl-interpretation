@@ -16,9 +16,20 @@ def loss_dece(policy, model, dist_class, train_batch):
 
 
 class PPOLossNovelty(object):
-    def __init__(self, dist_class, model, advantages, actions, prev_logits,
-                 prev_actions_logp, curr_action_dist, cur_kl_coeff, valid_mask,
-                 entropy_coeff=0, clip_param=0.1):
+    def __init__(
+            self,
+            dist_class,
+            model,
+            advantages,
+            actions,
+            prev_logits,
+            prev_actions_logp,
+            curr_action_dist,
+            cur_kl_coeff,
+            valid_mask,
+            entropy_coeff=0,
+            clip_param=0.1
+    ):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
@@ -30,13 +41,15 @@ class PPOLossNovelty(object):
         self.mean_entropy = reduce_mean_valid(curr_entropy)
         surrogate_loss = tf.minimum(
             advantages * logp_ratio,
-            advantages * tf.clip_by_value(logp_ratio, 1 - clip_param,
-                                          1 + clip_param))
+            advantages *
+            tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
+        )
         self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
         self.mean_vf_loss = tf.constant(0.0)
-        loss = reduce_mean_valid(-surrogate_loss +
-                                 cur_kl_coeff * action_kl -
-                                 entropy_coeff * curr_entropy)
+        loss = reduce_mean_valid(
+            -surrogate_loss + cur_kl_coeff * action_kl -
+            entropy_coeff * curr_entropy
+        )
         self.loss = loss
 
 
@@ -113,8 +126,10 @@ def tnb_loss(policy, model, dist_class, train_batch):
             clip_param=policy.config["clip_param"]
         )
     policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])
-    return [policy.loss_obj.loss, policy.novelty_loss_obj.loss,
-            policy.novelty_reward_mean]
+    return [
+        policy.loss_obj.loss, policy.novelty_loss_obj.loss,
+        policy.novelty_reward_mean
+    ]
 
 
 def _flatten(tensor):

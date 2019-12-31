@@ -17,13 +17,11 @@ def postprocess_ppo_gae_replay(policy, batch, other_policy):
         for i in range(policy.num_state_tensors()):
             next_state.append([batch["state_out_{}".format(i)][-1]])
         other_last_r = other_policy._value(
-            batch[SampleBatch.NEXT_OBS][-1],
-            batch[SampleBatch.ACTIONS][-1],
+            batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
             batch[SampleBatch.REWARDS][-1], *next_state
         )
         my_last_r = policy._value(
-            batch[SampleBatch.NEXT_OBS][-1],
-            batch[SampleBatch.ACTIONS][-1],
+            batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
             batch[SampleBatch.REWARDS][-1], *next_state
         )
     batch = compute_advantages_replay(
@@ -38,12 +36,7 @@ def postprocess_ppo_gae_replay(policy, batch, other_policy):
 
 
 def compute_advantages_replay(
-        rollout,
-        my_last_r,
-        other_last_r,
-        gamma=0.9,
-        lambda_=1.0,
-        use_gae=True
+        rollout, my_last_r, other_last_r, gamma=0.9, lambda_=1.0, use_gae=True
 ):
     """Given a rollout, compute its value targets and the advantage.
 
@@ -80,8 +73,8 @@ def compute_advantages_replay(
              np.array([other_last_r])]
         )
         other_delta_t = (
-                traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:] -
-                other_vpred_t[:-1]
+            traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:] -
+            other_vpred_t[:-1]
         )
         other_advantage = discount(other_delta_t, gamma * lambda_)
         other_advantage = (other_advantage - other_advantage.mean()
@@ -113,8 +106,8 @@ def compute_advantages_replay(
         #     ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:])
 
         value_target = (
-                ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
-                (1 - ratio) * (my_vpred_t[:-1])
+            ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
+            (1 - ratio) * (my_vpred_t[:-1])
         )
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
@@ -136,7 +129,7 @@ def compute_advantages_replay(
         #     traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES
-    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
@@ -162,8 +155,8 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     p = np.exp(logp)
     return logp, p
@@ -205,8 +198,7 @@ def postprocess_diversity(policy, batch, others_batches, episode=None):
         for i in range(policy.num_state_tensors()):
             next_state.append([batch["state_out_{}".format(i)][-1]])
         last_r_novelty = policy._novelty_value(
-            batch[SampleBatch.NEXT_OBS][-1],
-            batch[SampleBatch.ACTIONS][-1],
+            batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
             batch[NOVELTY_REWARDS][-1], *next_state
         )
 
@@ -282,7 +274,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
         other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
-        ].copy()
+                                                    ].copy()
 
         # use my policy to evaluate the values and other relative data
         # of other's samples.
@@ -302,12 +294,13 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         if policy.config[REPLAY_VALUES]:
             # replay values
             postprocess_diversity(policy, other_batch, others_batches)
-            batches.append(postprocess_ppo_gae_replay(
-                policy, other_batch, other_policy
-            ))
+            batches.append(
+                postprocess_ppo_gae_replay(policy, other_batch, other_policy)
+            )
         else:
             other_batch_raw = postprocess_diversity(
-                policy, other_batch_raw, others_batches)
+                policy, other_batch_raw, others_batches
+            )
             batches.append(postprocess_ppo_gae(policy, other_batch_raw))
 
     for batch in batches:
@@ -325,8 +318,9 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     return batch
 
 
-def _compute_advantages_for_diversity(rewards, last_r, gamma, lambda_, values,
-                                      use_gae=True):
+def _compute_advantages_for_diversity(
+        rewards, last_r, gamma, lambda_, values, use_gae=True
+):
     if use_gae:
         vpred_t = np.concatenate([values, np.array([last_r])])
         delta_t = (rewards + gamma * vpred_t[1:] - vpred_t[:-1])

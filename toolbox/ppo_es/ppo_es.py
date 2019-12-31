@@ -15,10 +15,8 @@ from toolbox.modified_rllib.multi_gpu_optimizer import \
 logger = logging.getLogger(__name__)
 
 ppo_es_default_config = merge_dicts(
-    DEFAULT_CONFIG, dict(
-        update_steps=100000,
-        callbacks={"on_train_result": on_train_result}
-    )
+    DEFAULT_CONFIG,
+    dict(update_steps=100000, callbacks={"on_train_result": on_train_result})
 )
 
 

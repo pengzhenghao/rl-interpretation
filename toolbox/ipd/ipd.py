@@ -15,15 +15,20 @@ def on_episode_step(info):
     print('pass')
 
 
-ipd_default_config = merge_dicts(DEFAULT_CONFIG, {
-    "checkpoint_dict": "{}",
-    "novelty_threshold": 0.5,
+ipd_default_config = merge_dicts(
+    DEFAULT_CONFIG,
+    {
+        "checkpoint_dict": "{}",
+        "novelty_threshold": 0.5,
 
-    # don't touch
-    "use_novelty_value_network": False,
-    "callbacks": {"on_episode_step": on_episode_step},
-    "distance_mode": "min"
-})
+        # don't touch
+        "use_novelty_value_network": False,
+        "callbacks": {
+            "on_episode_step": on_episode_step
+        },
+        "distance_mode": "min"
+    }
+)
 
 
 def choose_policy_optimizer(workers, config):
@@ -75,7 +80,6 @@ IPDPolicy = PPOTFPolicy.with_updates(
 
 IPDTrainer = PPOTrainer.with_updates(
     name="IPD",
-
     make_policy_optimizer=choose_policy_optimizer,
     default_config=ipd_default_config,
     before_train_step=before_train_step,

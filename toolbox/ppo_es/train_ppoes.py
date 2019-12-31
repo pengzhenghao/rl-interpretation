@@ -74,7 +74,6 @@ if __name__ == '__main__':
         extra_config=config,
         trainer=PPOESTrainer,
         env_name=config['env_config']['env_name'],
-
         stop={"timesteps_total": int(2e8) if not args.walker else int(1e7)},
         exp_name="DELETEME-TEST" if args.test else args.exp_name,
         num_agents=args.num_agents if not args.test else 3,
