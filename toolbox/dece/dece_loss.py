@@ -5,22 +5,6 @@ from ray.rllib.evaluation.postprocessing import Postprocessing
 from toolbox.dece.utils import *
 
 
-# from toolbox.marl.extra_loss_ppo_trainer import extra_loss_ppo_loss
-
-
-# from toolbox.ipd.tnb_utils import *
-
-def extra_loss_ppo_loss(policy, model, dist_class, train_batch):
-    """Add novelty loss with original ppo loss"""
-    raise NotImplementedError()
-    original_loss = ppo_surrogate_loss(policy, model, dist_class, train_batch)
-    # nov_loss = novelty_loss_mse(policy, model, dist_class, train_batch)
-    # alpha = policy.novelty_loss_param
-    # total_loss = (1 - alpha) * original_loss + alpha * nov_loss
-    # policy.total_loss = total_loss
-    # return total_loss
-
-
 def loss_dece(policy, model, dist_class, train_batch):
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
@@ -92,7 +76,6 @@ def tnb_loss(policy, model, dist_class, train_batch):
         model_config=policy.config["model"]
     )
 
-    # if policy.enable_novelty:
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         policy.novelty_loss_obj = PPOLoss(
             policy.action_space,
