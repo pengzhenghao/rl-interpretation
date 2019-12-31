@@ -1,7 +1,6 @@
 import copy
 import logging
 from collections import OrderedDict
-
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
     KLCoeffMixin, LearningRateSchedule, \
     EntropyCoeffSchedule, SampleBatch, BEHAVIOUR_LOGITS, make_tf_callable, \
@@ -11,6 +10,7 @@ from ray.rllib.utils.explained_variance import explained_variance
 from toolbox.dece.dece_loss import loss_dece, tnb_gradients
 from toolbox.dece.dece_postprocess import postprocess_dece
 from toolbox.dece.utils import *
+from toolbox.dece.utils import _I_AM_CLONE
 from toolbox.distance import get_kl_divergence
 
 logger = logging.getLogger(__name__)
@@ -105,6 +105,8 @@ class ComputeNoveltyMixin(object):
         self.policies_pool = OrderedDict()
 
     def _lazy_initialize(self, weights, my_name):
+        if self.config[_I_AM_CLONE]:
+            return
         assert self.config[DELAY_UPDATE]
         tmp_config = copy.deepcopy(self.config)
         # disable the private worker of each policy, to save resource.
@@ -113,12 +115,16 @@ class ComputeNoveltyMixin(object):
             "num_cpus_per_worker": 0,
             "num_cpus_for_driver": 0.2,
             "num_gpus": 0.1,
+
+            _I_AM_CLONE: True,
+            DELAY_UPDATE: False
         })
         for agent_name, agent_weight in weights.items():
             if agent_name == my_name:
                 continue
             # build the policy and restore the weights.
-            with tf.variable_scope("polices_pool/" + agent_name, reuse=tf.AUTO_REUSE):
+            with tf.variable_scope("polices_pool/" + agent_name,
+                                   reuse=tf.AUTO_REUSE):
                 policy = DECEPolicy(
                     self.observation_space, self.action_space, tmp_config
                 )
@@ -129,6 +135,7 @@ class ComputeNoveltyMixin(object):
 
     def _delay_update(self, weights, my_name, tau=None):
         assert self.config[DELAY_UPDATE]
+        assert not self.config[_I_AM_CLONE]
         if tau is None:
             tau = self.config['tau']
         assert my_name not in self.policies_pool

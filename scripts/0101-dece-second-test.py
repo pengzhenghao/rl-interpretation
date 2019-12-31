@@ -6,7 +6,7 @@ from toolbox.dece.utils import *
 from toolbox.dece.dece import DECETrainer
 
 if __name__ == '__main__':
-    exp_name = "1231-dece-first-test"
+    exp_name = "0101-dece-second-test"
 
     walker_config = {
         DELAY_UPDATE: tune.grid_search([True, False]),
@@ -40,5 +40,5 @@ if __name__ == '__main__':
         num_agents=walker_config['env_config']['num_agents'],
         num_seeds=3,
         num_gpus=8,
-        test_mode=False
+        test_mode=True
     )

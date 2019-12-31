@@ -1,9 +1,10 @@
 import numpy as np
+import pickle
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
 from ray.rllib.models import ModelCatalog
 from ray.tune.util import merge_dicts
-import pickle
+
 from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
 
@@ -92,6 +93,7 @@ def _restore_state(ckpt):
     state = pickle.loads(wkload)['state']['default_policy']
     return state
 
+
 def validate_tensor(x, msg=None, enable=True):
     """Validate whether the tensor contain NaN or Inf. Default unable."""
     if enable:
@@ -127,6 +129,8 @@ DIVERSITY_REWARD_TYPE = "diversity_reward_type"
 REPLAY_VALUES = "replay_values"
 TWO_SIDE_CLIP_LOSS = "two_side_clip_loss"
 
+_I_AM_CLONE = "i_am_clone"
+
 NOVELTY_REWARDS = "novelty_rewards"
 NOVELTY_VALUES = "novelty_values"
 NOVELTY_ADVANTAGES = "novelty_advantages"
@@ -147,8 +151,9 @@ dece_default_config = merge_dicts(
             DELAY_UPDATE: True,
             DIVERSITY_REWARD_TYPE: "mse",
             REPLAY_VALUES: True,
-            TWO_SIDE_CLIP_LOSS: True
+            TWO_SIDE_CLIP_LOSS: True,
+
+            _I_AM_CLONE: False
         }
     )
 )
-

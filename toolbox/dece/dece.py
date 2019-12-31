@@ -87,7 +87,7 @@ def _delay_update(trainer, tau=None):
 
 
 def setup_policies_pool(trainer):
-    if not trainer.config[DELAY_UPDATE]:
+    if (not trainer.config[DELAY_UPDATE]) or trainer.config[_I_AM_CLONE]:
         return
     assert not trainer.get_policy('agent0').initialized_policies_pool
     weights = {k: p.get_weights() for k, p in
@@ -106,7 +106,7 @@ def setup_policies_pool(trainer):
 def after_optimizer_iteration(trainer, fetches):
     """Update the policies pool in each policy."""
     update_kl(trainer, fetches)
-    if trainer.config[DELAY_UPDATE]:
+    if trainer.config[DELAY_UPDATE] and (not trainer.config[_I_AM_CLONE]):
         _delay_update(trainer)
 
 
