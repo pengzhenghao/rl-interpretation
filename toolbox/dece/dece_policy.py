@@ -127,20 +127,20 @@ class ComputeNoveltyMixin(object):
         self.num_of_policies = len(self.policies_pool)
         self.initialized_policies_pool = True
 
-    def _delay_update(self, policy_map, my_name, tau=None):
+    def _delay_update(self, weights, my_name, tau=None):
         assert self.config[DELAY_UPDATE]
         if tau is None:
             tau = self.config['tau']
         assert my_name not in self.policies_pool
-        assert set(policy_map.keys()) == set(
+        assert set(weights.keys()) == set(
             list(self.policies_pool.keys()) + [my_name])
         assert 0 <= tau <= 1
 
-        for other_name, other_policy in policy_map.items():
+        for other_name, other_weights in weights.items():
             if my_name == other_name:
                 continue
             new_weight = (
-                    other_policy.get_weights() * tau +
+                    other_weights * tau +
                     self.policies_pool[other_name].get_weights() * (1 - tau)
             )
             self.policies_pool[other_name].set_weights(new_weight)

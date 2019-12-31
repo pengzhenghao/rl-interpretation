@@ -11,7 +11,7 @@ def test_dece(config={}, local_mode=False):
         local_mode=local_mode,
         extra_config=config,
         env_name="Pendulum-v0",
-        t=20000
+        t=2000
     )
 
 

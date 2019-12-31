@@ -1,7 +1,7 @@
 import logging
 
-from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, update_kl, \
-    warn_about_bad_reward_scales, validate_config as validate_config_original
+from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, \
+    validate_config as validate_config_original
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dece.dece_policy import DECEPolicy
@@ -74,9 +74,12 @@ def make_policy_optimizer_tnbes(workers, config):
 
 
 def _delay_update(trainer, tau=None):
+    weights = {k: p.get_weights() for k, p in
+               trainer.workers.local_worker().policy_map.items()}
+
     def _func(worker):
         def _func_policy(policy, my_policy_name):
-            policy._delay_update(worker.policy_map, my_policy_name, tau=tau)
+            policy._delay_update(weights, my_policy_name, tau=tau)
 
         worker.foreach_policy(_func_policy)
 
