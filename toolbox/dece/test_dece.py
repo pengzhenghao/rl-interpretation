@@ -11,7 +11,7 @@ def test_dece(config={}, local_mode=False):
         local_mode=local_mode,
         extra_config=config,
         env_name="Pendulum-v0",
-        t=1000
+        t=20000
     )
 
 
@@ -29,6 +29,12 @@ def test_dece_batch0(local_mode=False):
     )
 
 
+def test_two_side_loss(local_mode=False):
+    test_dece({TWO_SIDE_CLIP_LOSS: tune.grid_search([True, False])},
+              local_mode)
+
+
 if __name__ == '__main__':
     # test_dece(local_mode=False)
-    test_dece_batch0(local_mode=False)
+    # test_dece_batch0(local_mode=False)
+    test_two_side_loss(local_mode=False)
