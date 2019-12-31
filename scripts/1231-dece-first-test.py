@@ -10,6 +10,7 @@ if __name__ == '__main__':
 
     walker_config = {
         DELAY_UPDATE: tune.grid_search([True, False]),
+        USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([True, False]),
         REPLAY_VALUES: tune.grid_search([True, False]),
         "env": MultiAgentEnvWrapper,
         "env_config": {
