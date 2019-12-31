@@ -58,16 +58,7 @@ def compute_advantages_replay(
 
     if use_gae:
         assert SampleBatch.VF_PREDS in rollout, "Values not found!"
-        # vpred_t = np.concatenate(
-        #     [rollout[SampleBatch.VF_PREDS],
-        #      np.array([last_r])]
-        # )
-        # delta_t = \
-        #     traj[SampleBatch.REWARDS] + gamma * vpred_t[1:] * (
-        #             1 - lambda_) - vpred_t[:-1]
 
-        # use other's values to compute advantages
-        # this advantage will not be used to comput value target.
         other_vpred_t = np.concatenate(
             [rollout["other_vf_preds"],
              np.array([other_last_r])]
@@ -77,8 +68,8 @@ def compute_advantages_replay(
             other_vpred_t[:-1]
         )
         other_advantage = discount(other_delta_t, gamma * lambda_)
-        other_advantage = (other_advantage - other_advantage.mean()
-                           ) / max(1e-4, other_advantage.std())
+        # other_advantage = (other_advantage - other_advantage.mean()
+        #                    ) / max(1e-4, other_advantage.std())
 
         # we put other's advantage in 'advantages' field. We need to make sure
         # this field is not used in future postprocessing.
@@ -248,9 +239,9 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         # concatnation.
         tmp_batch = postprocess_ppo_gae(policy, batch)
         tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches)
-        value = tmp_batch[Postprocessing.ADVANTAGES]
-        standardized = (value - value.mean()) / max(1e-4, value.std())
-        tmp_batch[Postprocessing.ADVANTAGES] = standardized
+        # value = tmp_batch[Postprocessing.ADVANTAGES]
+        # standardized = (value - value.mean()) / max(1e-4, value.std())
+        # tmp_batch[Postprocessing.ADVANTAGES] = standardized
         batches = [tmp_batch]
     else:
         batch = postprocess_ppo_gae(policy, batch)
