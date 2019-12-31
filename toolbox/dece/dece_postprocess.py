@@ -314,7 +314,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
     batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
-    episode.batch_builder.count = batch.count
+    # episode.batch_builder.count = batch.count
     return batch
 
 
