@@ -1,8 +1,10 @@
 import numpy as np
 import tensorflow as tf
-from ray.rllib.agents.ppo import DEFAULT_CONFIG
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
+from ray.rllib.models import ModelCatalog
 from ray.tune.util import merge_dicts
 
+from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
 
 
@@ -129,6 +131,7 @@ NOVELTY_VALUE_TARGETS = "novelty_value_targets"
 dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
+        model={"custom_model": "ActorDoubleCriticNetwork"},
         callbacks={
             "on_train_result": on_train_result,
             "on_episode_start": on_episode_start,
@@ -145,4 +148,8 @@ dece_default_config = merge_dicts(
             TWO_SIDE_CLIP_LOSS: True
         }
     )
+)
+
+ModelCatalog.register_custom_model(
+    "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
 )

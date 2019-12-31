@@ -1,21 +1,22 @@
 import logging
 
-from ray.rllib.agents.ppo.ppo import PPOTFPolicy
+from ray.rllib.agents.ppo.ppo import \
+    validate_config as validate_config_original
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, ACTION_LOGP, \
     setup_mixins, ValueNetworkMixin, KLCoeffMixin, LearningRateSchedule, \
     EntropyCoeffSchedule, SampleBatch, BEHAVIOUR_LOGITS, make_tf_callable, \
-    kl_and_loss_stats
+    kl_and_loss_stats, PPOTFPolicy
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.tf_policy import ACTION_PROB
 from ray.rllib.utils.explained_variance import explained_variance
+from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.cooperative_exploration.ceppo_postprocess import \
     postprocess_ppo_gae_replay
 from toolbox.dece.dece_loss import loss_dece, tnb_gradients
 from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
-from toolbox.ppo_es.tnb_es import TNBESTrainer, \
-    validate_config as validate_config_tnbes
+from toolbox.ppo_es.tnb_es import TNBESTrainer
 
 # from toolbox.ipd.tnb_utils import *
 
@@ -305,7 +306,22 @@ DECEPolicy = PPOTFPolicy.with_updates(
 
 
 def validate_config(config):
-    validate_config_tnbes(config)
+    # create multi-agent environment
+    assert _global_registry.contains(ENV_CREATOR, config["env"])
+    env_creator = _global_registry.get(ENV_CREATOR, config["env"])
+    tmp_env = env_creator(config["env_config"])
+    config["multiagent"]["policies"] = {
+        i: (None, tmp_env.observation_space, tmp_env.action_space, {})
+        for i in tmp_env.agent_ids
+    }
+    config["multiagent"]["policy_mapping_fn"] = lambda x: x
+
+    # check the model
+    if config[USE_BISECTOR]:
+        assert config['model']['custom_model'] == "ActorDoubleCriticNetwork"
+        config['model']['custom_options'] = {
+            "use_novelty_value_network": config['use_novelty_value_network']
+        }
 
     # Reduce the train batch size for each agent
     num_agents = len(config['multiagent']['policies'])
@@ -313,6 +329,8 @@ def validate_config(config):
         config['train_batch_size'] // num_agents
     )
     assert config['train_batch_size'] >= config["sgd_minibatch_size"]
+
+    validate_config_original(config)
 
 
 DECETrainer = TNBESTrainer.with_updates(
