@@ -1,5 +1,6 @@
 import logging
-from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, \
+
+from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, update_kl, \
     warn_about_bad_reward_scales, validate_config as validate_config_original
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
@@ -85,26 +86,23 @@ def _delay_update(trainer, tau=None):
 def setup_policies_pool(trainer):
     if not trainer.config[DELAY_UPDATE]:
         return
-    policy = trainer.get_policy('agent0')
-    assert not policy.initialized_policies_pool
-    names = list(trainer.workers.local_worker().policy_map.keys())
+    assert not trainer.get_policy('agent0').initialized_policies_pool
+    weights = {k: p.get_weights() for k, p in
+               trainer.workers.local_worker().policy_map.items()}
 
     def _init_pool(worker):
         def _init_novelty_policy(policy, my_policy_name):
-            assert my_policy_name in names, (names, my_policy_name)
-            tmp_names = names.copy()
-            tmp_names.remove(my_policy_name)
-            policy._lazy_initialize(tmp_names)
+            policy._lazy_initialize(weights, my_policy_name)
 
         worker.foreach_policy(_init_novelty_policy)
 
     trainer.workers.foreach_worker(_init_pool)
-    _delay_update(trainer, 1.0)
+    # _delay_update(trainer, 1.0)
 
 
-def after_train_result(trainer, result):
+def after_optimizer_iteration(trainer, fetches):
     """Update the policies pool in each policy."""
-    warn_about_bad_reward_scales(trainer, result)
+    update_kl(trainer, fetches)
     if trainer.config[DELAY_UPDATE]:
         _delay_update(trainer)
 
@@ -116,5 +114,5 @@ DECETrainer = PPOTrainer.with_updates(
     validate_config=validate_config,
     make_policy_optimizer=make_policy_optimizer_tnbes,
     after_init=setup_policies_pool,
-    after_train_result=after_train_result
+    after_optimizer_step=after_optimizer_iteration
 )

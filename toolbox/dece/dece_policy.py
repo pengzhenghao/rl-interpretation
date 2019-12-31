@@ -104,9 +104,8 @@ class ComputeNoveltyMixin(object):
         self.initialized_policies_pool = False
         self.policies_pool = OrderedDict()
 
-    def _lazy_initialize(self, names):
+    def _lazy_initialize(self, weights, my_name):
         assert self.config[DELAY_UPDATE]
-        assert isinstance(names, list)
         tmp_config = copy.deepcopy(self.config)
         # disable the private worker of each policy, to save resource.
         tmp_config.update({
@@ -115,12 +114,15 @@ class ComputeNoveltyMixin(object):
             "num_cpus_for_driver": 0.2,
             "num_gpus": 0.1,
         })
-        for agent_name in names:
+        for agent_name, agent_weight in weights.items():
+            if agent_name == my_name:
+                continue
             # build the policy and restore the weights.
             with tf.variable_scope("polices_pool/" + agent_name, reuse=tf.AUTO_REUSE):
                 policy = DECEPolicy(
                     self.observation_space, self.action_space, tmp_config
                 )
+                policy.set_weights(agent_weight)
             self.policies_pool[agent_name] = policy
         self.num_of_policies = len(self.policies_pool)
         self.initialized_policies_pool = True
@@ -214,7 +216,3 @@ DECEPolicy = PPOTFPolicy.with_updates(
         ValueNetworkMixin, NoveltyValueNetworkMixin, ComputeNoveltyMixin
     ]
 )
-
-# FIXME the key modification is the loss. We introduce new element such as
-#  the 'other_values' in postprocess. Then we generate advantage based on them.
-#  We then use the
