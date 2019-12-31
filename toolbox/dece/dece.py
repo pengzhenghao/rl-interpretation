@@ -57,7 +57,7 @@ def _clip_batch(other_batch, clip_action_prob_kl):
     return other_batch, info
 
 
-def postprocess_ceppo(policy, sample_batch, others_batches=None, episode=None):
+def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
         batch["advantages_unnormalized"] = np.zeros_like(
@@ -283,7 +283,7 @@ def setup_mixins_tnb(policy, action_space, obs_space, config):
 DECEPolicy = PPOTFPolicy.with_updates(
     name="DECEPolicy",
     get_default_config=lambda: dece_default_config,
-    postprocess_fn=postprocess_ceppo,
+    postprocess_fn=postprocess_dece,
     loss_fn=loss_dece,
 
     stats_fn=kl_and_loss_stats_modified,
