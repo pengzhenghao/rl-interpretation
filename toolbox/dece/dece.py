@@ -1,7 +1,9 @@
 import logging
-
+import os
+from collections import OrderedDict
+import copy
 from ray.rllib.agents.ppo.ppo import PPOTrainer, \
-    validate_config as validate_config_original
+    validate_config as validate_config_original, update_kl
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
     KLCoeffMixin, LearningRateSchedule, \
     EntropyCoeffSchedule, SampleBatch, BEHAVIOUR_LOGITS, make_tf_callable, \
@@ -10,13 +12,11 @@ from ray.rllib.utils.explained_variance import explained_variance
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dece.dece_loss import loss_dece, tnb_gradients
+from toolbox.dece.dece_postprocess import postprocess_dece
 from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerCorrectedNumberOfSampled
-
-from ray.rllib.models import ModelCatalog
-from toolbox.dece.dece_postprocess import postprocess_dece
 
 logger = logging.getLogger(__name__)
 
@@ -105,9 +105,30 @@ def kl_and_loss_stats_modified(policy, train_batch):
 
 
 class ComputeNoveltyMixin(object):
+    def __init__(self):
+        self.initialized_policies_pool = False
+        self.policies_pool = OrderedDict()
 
-    # def __init__(self):
-    # self.enable_novelty = True
+    def _lazy_initialize(self):
+        assert self.config[DELAY_UPDATE]
+        tmp_config = copy.deepcopy(self.config)
+        # disable the private worker of each policy, to save resource.
+        tmp_config.update({
+                "num_workers": 0,
+                "num_cpus_per_worker": 0,
+                "num_cpus_for_driver": 0.2,
+                "num_gpus": 0.1,
+            })
+        for i, (agent_name, checkpoint_info) in \
+                enumerate(self.checkpoint_dict.items()):
+            # build the policy and restore the weights.
+            with tf.variable_scope(agent_name):
+                policy = DECEPolicy(
+                    self.observation_space, self.action_space, tmp_config
+                )
+            self.policies_pool[agent_name] = policy
+        self.num_of_policies = len(self.policies_pool)
+        self.initialized_policies_pool = True
 
     def compute_novelty(self, my_batch, others_batches, episode=None):
         """It should be noted that in Cooperative Exploration setting,
@@ -154,7 +175,7 @@ class ComputeNoveltyMixin(object):
             raise NotImplementedError()
 
 
-def setup_mixins_tnb(policy, action_space, obs_space, config):
+def setup_mixins_dece(policy, action_space, obs_space, config):
     setup_mixins(policy, action_space, obs_space, config)
     NoveltyValueNetworkMixin.__init__(policy, obs_space, action_space, config)
     ComputeNoveltyMixin.__init__(policy)
@@ -169,12 +190,13 @@ DECEPolicy = PPOTFPolicy.with_updates(
     gradients_fn=tnb_gradients,
     grad_stats_fn=grad_stats_fn,
     extra_action_fetches_fn=additional_fetches,
-    before_loss_init=setup_mixins_tnb,
+    before_loss_init=setup_mixins_dece,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
         ValueNetworkMixin, NoveltyValueNetworkMixin, ComputeNoveltyMixin
     ]
 )
+
 
 # FIXME the key modification is the loss. We introduce new element such as
 #  the 'other_values' in postprocess. Then we generate advantage based on them.
@@ -242,10 +264,57 @@ def make_policy_optimizer_tnbes(workers, config):
     )
 
 
+def after_optimizer_step_dece(trainer, fetches):
+    update_kl(trainer, fetches)
+
+    if trainer.config[DELAY_UPDATE]:
+        """Update the polices_pool slowly."""
+        global_timestep = trainer.optimizer.num_steps_sampled
+        trainer.workers.local_worker().foreach_trainable_policy(
+            lambda p, _: p.update_target())
+        trainer.state["last_target_update_ts"] = global_timestep
+    trainer.state["num_target_updates"] += 1
+
+
+def setup_policies_pool(trainer):
+    policy = trainer.get_policy()
+    if not policy.initialized_policies_pool:
+        # function to call for each worker (including remote and local workers)
+        def _init_pool(worker):
+            # function for each policy within one worker.
+            def _init_novelty_policy(policy, _):
+                policy._lazy_initialize()
+
+            worker.foreach_policy(_init_novelty_policy)
+
+        trainer.workers.foreach_worker(_init_pool)
+
+
+def after_train_result(trainer, result):
+    """Update the policies pool in each policy."""
+    policy = trainer.get_policy()
+    if not policy.initialized_policies_pool:
+        # function to call for each worker (including remote and local workers)
+        def _init_pool(worker):
+            # function for each policy within one worker.
+            def _init_novelty_policy(policy, _):
+                policy._lazy_initialize()
+
+            worker.foreach_policy(_init_novelty_policy)
+
+        trainer.workers.foreach_worker(_init_pool)
+
+
+
+
+
+
 DECETrainer = PPOTrainer.with_updates(
     name="DECETrainer",
     default_config=dece_default_config,
     default_policy=DECEPolicy,
     validate_config=validate_config,
-    make_policy_optimizer=make_policy_optimizer_tnbes
+    make_policy_optimizer=make_policy_optimizer_tnbes,
+    after_optimizer_step=after_optimizer_step_dece,
+    after_init=setup_policies_pool
 )

@@ -3,7 +3,7 @@ import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
 from ray.rllib.models import ModelCatalog
 from ray.tune.util import merge_dicts
-
+import pickle
 from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
 
@@ -87,6 +87,10 @@ def on_episode_end(info):
         episode.custom_metrics[tmp.format(pid)] = \
             unclipped_length / total_length
 
+def _restore_state(ckpt):
+    wkload = pickle.load(open(ckpt, 'rb'))['worker']
+    state = pickle.loads(wkload)['state']['default_policy']
+    return state
 
 def validate_tensor(x, msg=None, enable=True):
     """Validate whether the tensor contain NaN or Inf. Default unable."""

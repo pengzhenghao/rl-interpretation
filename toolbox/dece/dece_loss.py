@@ -54,26 +54,28 @@ class PPOLossNovelty(object):
 
 
 class PPOLossTwoSideClip(object):
-    def __init__(self,
-                 action_space,
-                 dist_class,
-                 model,
-                 value_targets,
-                 advantages,
-                 actions,
-                 prev_logits,
-                 prev_actions_logp,
-                 vf_preds,
-                 curr_action_dist,
-                 value_fn,
-                 cur_kl_coeff,
-                 valid_mask,
-                 entropy_coeff=0,
-                 clip_param=0.1,
-                 vf_clip_param=0.1,
-                 vf_loss_coeff=1.0,
-                 use_gae=True,
-                 model_config=None):
+    def __init__(
+            self,
+            action_space,
+            dist_class,
+            model,
+            value_targets,
+            advantages,
+            actions,
+            prev_logits,
+            prev_actions_logp,
+            vf_preds,
+            curr_action_dist,
+            value_fn,
+            cur_kl_coeff,
+            valid_mask,
+            entropy_coeff=0,
+            clip_param=0.1,
+            vf_clip_param=0.1,
+            vf_loss_coeff=1.0,
+            use_gae=True,
+            model_config=None
+    ):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
@@ -96,18 +98,21 @@ class PPOLossTwoSideClip(object):
         if use_gae:
             vf_loss1 = tf.square(value_fn - value_targets)
             vf_clipped = vf_preds + tf.clip_by_value(
-                value_fn - vf_preds, -vf_clip_param, vf_clip_param)
+                value_fn - vf_preds, -vf_clip_param, vf_clip_param
+            )
             vf_loss2 = tf.square(vf_clipped - value_targets)
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
             self.mean_vf_loss = reduce_mean_valid(vf_loss)
             loss = reduce_mean_valid(
                 -new_surrogate_loss + cur_kl_coeff * action_kl +
-                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy)
+                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
+            )
         else:
             self.mean_vf_loss = tf.constant(0.0)
-            loss = reduce_mean_valid(-new_surrogate_loss +
-                                     cur_kl_coeff * action_kl -
-                                     entropy_coeff * curr_entropy)
+            loss = reduce_mean_valid(
+                -new_surrogate_loss + cur_kl_coeff * action_kl -
+                entropy_coeff * curr_entropy
+            )
         self.loss = loss
 
 
