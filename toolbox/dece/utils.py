@@ -53,39 +53,39 @@ def on_train_result(info):
         result['custom_metrics'].clear()
 
 
-def on_episode_start(info):
-    episode = info["episode"]
-    episode.user_data["relative_kl"] = {
-        pid: {}
-        for pid in episode._policies.keys()
-    }
-    episode.user_data["unclip_length"] = {
-        pid: {}
-        for pid in episode._policies.keys()
-    }
+# def on_episode_start(info):
+#     episode = info["episode"]
+#     episode.user_data["relative_kl"] = {
+#         pid: {}
+#         for pid in episode._policies.keys()
+#     }
+#     episode.user_data["unclip_length"] = {
+#         pid: {}
+#         for pid in episode._policies.keys()
+#     }
 
 
-def on_postprocess_traj(info):
-    pass
+# def on_postprocess_traj(info):
+#     pass
 
 
-def on_episode_end(info):
-    episode = info["episode"]
-
-    tmp = "{}-action_kl"
-    for pid, oth in episode.user_data['relative_kl'].items():
-        episode.custom_metrics[tmp.format(pid)] = np.mean(
-            np.concatenate([kl for kl in oth.values()])
-        )
-
-    tmp = "{}-unclipped_ratio"
-    for pid, oth in episode.user_data['unclip_length'].items():
-        if not oth:
-            continue
-        total_length = sum(l for (_, l) in oth.values())
-        unclipped_length = sum(l for (l, _) in oth.values())
-        episode.custom_metrics[tmp.format(pid)] = \
-            unclipped_length / total_length
+# def on_episode_end(info):
+#     episode = info["episode"]
+#
+#     tmp = "{}-action_kl"
+#     for pid, oth in episode.user_data['relative_kl'].items():
+#         episode.custom_metrics[tmp.format(pid)] = np.mean(
+#             np.concatenate([kl for kl in oth.values()])
+#         )
+#
+#     tmp = "{}-unclipped_ratio"
+#     for pid, oth in episode.user_data['unclip_length'].items():
+#         if not oth:
+#             continue
+#         total_length = sum(l for (_, l) in oth.values())
+#         unclipped_length = sum(l for (l, _) in oth.values())
+#         episode.custom_metrics[tmp.format(pid)] = \
+#             unclipped_length / total_length
 
 def _restore_state(ckpt):
     wkload = pickle.load(open(ckpt, 'rb'))['worker']
@@ -135,12 +135,9 @@ NOVELTY_VALUE_TARGETS = "novelty_value_targets"
 dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
-        # model={"custom_model": "ActorDoubleCriticNetwork"},
+        tau=5e-3,
         callbacks={
-            "on_train_result": on_train_result,
-            "on_episode_start": on_episode_start,
-            "on_postprocess_traj": on_postprocess_traj,
-            "on_episode_end": on_episode_end
+            "on_train_result": on_train_result
         },
         **{
             DIVERSITY_ENCOURAGING: True,
@@ -154,7 +151,4 @@ dece_default_config = merge_dicts(
         }
     )
 )
-#
-# ModelCatalog.register_custom_model(
-#     "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
-# )
+
