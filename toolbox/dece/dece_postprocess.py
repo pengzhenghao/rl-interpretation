@@ -175,38 +175,6 @@ def _clip_batch(other_batch, clip_action_prob_kl):
     return other_batch, info
 
 
-def postprocess_diversity(policy, batch, others_batches, episode=None):
-    # if policy.config[DIVERSITY_ENCOURAGING]:
-    completed = batch["dones"][-1]
-    batch[NOVELTY_REWARDS] = policy.compute_novelty(
-        batch, others_batches, episode
-    )
-
-    if completed:
-        last_r_novelty = 0.0
-    else:
-        next_state = []
-        for i in range(policy.num_state_tensors()):
-            next_state.append([batch["state_out_{}".format(i)][-1]])
-        last_r_novelty = policy._novelty_value(
-            batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
-            batch[NOVELTY_REWARDS][-1], *next_state
-        )
-
-    # compute the advantages of novelty rewards
-    novelty_advantages, novelty_value_target = \
-        _compute_advantages_for_diversity(
-            rewards=batch[NOVELTY_REWARDS],
-            last_r=last_r_novelty,
-            gamma=policy.config["gamma"],
-            lambda_=policy.config["lambda"],
-            values=batch[NOVELTY_VALUES]
-            if policy.config[USE_DIVERSITY_VALUE_NETWORK] else None,
-            use_gae=policy.config[USE_DIVERSITY_VALUE_NETWORK]
-        )
-    batch[NOVELTY_ADVANTAGES] = novelty_advantages
-    batch[NOVELTY_VALUE_TARGETS] = novelty_value_target
-    return batch
 
 
 def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
@@ -276,6 +244,9 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         other_batch[SampleBatch.VF_PREDS] = replay_result[SampleBatch.VF_PREDS]
         other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
 
+        if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
+            other_batch[NOVELTY_VALUES] = replay_result[NOVELTY_VALUES]
+
         other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
             _compute_logp(
                 other_batch[BEHAVIOUR_LOGITS],
@@ -283,17 +254,13 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             )
 
         if policy.config[REPLAY_VALUES]:
-            # replay values
-            other_batch = postprocess_diversity(
-                policy, other_batch, others_batches)
-            batches.append(
-                postprocess_ppo_gae_replay(policy, other_batch, other_policy)
-            )
+            other_batch = postprocess_diversity(policy, other_batch, others_batches)
+            to_add_batch = postprocess_ppo_gae_replay(policy, other_batch, other_policy)
         else:
-            other_batch_raw = postprocess_diversity(
-                policy, other_batch_raw, others_batches
-            )
-            batches.append(postprocess_ppo_gae(policy, other_batch_raw))
+            other_batch_raw = postprocess_diversity(policy, other_batch_raw, others_batches)
+            to_add_batch = postprocess_ppo_gae(policy, other_batch_raw)
+
+        batches.append(to_add_batch)
 
     for batch in batches:
         batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
@@ -306,7 +273,40 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
     batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
-    # episode.batch_builder.count = batch.count
+    return batch
+
+
+
+def postprocess_diversity(policy, batch, others_batches, episode=None):
+    completed = batch["dones"][-1]
+    batch[NOVELTY_REWARDS] = policy.compute_novelty(
+        batch, others_batches, episode
+    )
+
+    if completed:
+        last_r_novelty = 0.0
+    else:
+        next_state = []
+        for i in range(policy.num_state_tensors()):
+            next_state.append([batch["state_out_{}".format(i)][-1]])
+        last_r_novelty = policy._novelty_value(
+            batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
+            batch[NOVELTY_REWARDS][-1], *next_state
+        )
+
+    # compute the advantages of novelty rewards
+    novelty_advantages, novelty_value_target = \
+        _compute_advantages_for_diversity(
+            rewards=batch[NOVELTY_REWARDS],
+            last_r=last_r_novelty,
+            gamma=policy.config["gamma"],
+            lambda_=policy.config["lambda"],
+            values=batch[NOVELTY_VALUES]
+            if policy.config[USE_DIVERSITY_VALUE_NETWORK] else None,
+            use_gae=policy.config[USE_DIVERSITY_VALUE_NETWORK]
+        )
+    batch[NOVELTY_ADVANTAGES] = novelty_advantages
+    batch[NOVELTY_VALUE_TARGETS] = novelty_value_target
     return batch
 
 
