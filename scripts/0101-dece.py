@@ -8,7 +8,7 @@ from toolbox.dece.dece import DECETrainer
 from toolbox.dece.utils import *
 from toolbox.marl import MultiAgentEnvWrapper
 
-os.environ['OMP_NUM_THREADS'] = 1
+os.environ['OMP_NUM_THREADS'] = '1'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -19,7 +19,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     exp_name = args.exp_name
 
-    assert os.getenv("OMP_NUM_THREADS") == 1
+    assert os.getenv("OMP_NUM_THREADS") == '1'
 
     walker_config = {
         DELAY_UPDATE: tune.grid_search([True, False]),
