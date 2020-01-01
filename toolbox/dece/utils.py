@@ -129,8 +129,6 @@ DIVERSITY_REWARD_TYPE = "diversity_reward_type"
 REPLAY_VALUES = "replay_values"
 TWO_SIDE_CLIP_LOSS = "two_side_clip_loss"
 
-_I_AM_CLONE = "i_am_clone"
-
 NOVELTY_REWARDS = "novelty_rewards"
 NOVELTY_VALUES = "novelty_values"
 NOVELTY_ADVANTAGES = "novelty_advantages"
@@ -152,8 +150,6 @@ dece_default_config = merge_dicts(
             DIVERSITY_REWARD_TYPE: "mse",
             REPLAY_VALUES: True,
             TWO_SIDE_CLIP_LOSS: True,
-
-            _I_AM_CLONE: False
         }
     )
 )

@@ -1,12 +1,13 @@
+import copy
 import logging
 
+import ray
 from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, \
     validate_config as validate_config_original
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dece.dece_policy import DECEPolicy
 from toolbox.dece.utils import *
-from toolbox.dece.utils import _I_AM_CLONE
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerCorrectedNumberOfSampled
 
@@ -75,39 +76,82 @@ def make_policy_optimizer_tnbes(workers, config):
 
 
 def _delay_update(trainer, tau=None):
-    weights = {k: p.get_weights() for k, p in
-               trainer.workers.local_worker().policy_map.items()}
+    local_worker = trainer.workers.local_worker()
+    if tau is None:
+        tau = trainer.config['tau']
 
-    def _func(worker):
-        def _func_policy(policy, my_policy_name):
-            policy._delay_update(weights, my_policy_name, tau=tau)
+    weights = {}
+    for policy_name, policy in local_worker.policy_map.items():
+        weight = policy.get_weights()
+        new_weight = (weight * tau + local_worker.policies_pool[
+            policy_name].get_weights() * (1 - tau))
+        weights[policy_name] = new_weight
+        print("Successfully update the <{}> policy in local worker policies "
+              "pool. Current tau: {}".format(policy_name, tau))
 
-        worker.foreach_policy(_func_policy)
+    weights = ray.put(weights)
 
-    trainer.workers.foreach_worker(_func)
+    def _delay_update_for_worker(worker, worker_index):
+        local_weights = ray.get(weights)
+        for policy_name, tmp_weight in local_weights.items():
+            worker.policies_pool[policy_name].set_weights(tmp_weight)
+            print("Successfully update the <{}> policy in worker <{}> "
+                  "policies pool. Current tau: {}".format(
+                policy_name, "local0" if not worker_index
+                else "remote{}".format(worker_index), tau))
+
+    trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
+    ray.internal.free([weights])
 
 
 def setup_policies_pool(trainer):
-    if (not trainer.config[DELAY_UPDATE]) or trainer.config[_I_AM_CLONE]:
+    if not trainer.config[DELAY_UPDATE]:
         return
     assert not trainer.get_policy('agent0').initialized_policies_pool
     weights = {k: p.get_weights() for k, p in
                trainer.workers.local_worker().policy_map.items()}
+    weights = ray.put(weights)
 
     def _init_pool(worker):
+        """We load the policies pool at each worker, instead of each policy,
+        to save memory."""
+        local_weights = ray.get(weights)
+        tmp_policy = next(iter(worker.policy_map.values()))
+        policies_pool = {}
+        for agent_name, agent_weight in local_weights.items():
+            tmp_config = copy.deepcopy(tmp_policy.config)
+            # disable the private worker of each policy, to save resource.
+            tmp_config.update({
+                "num_workers": 0,
+                "num_cpus_per_worker": 0,
+                "num_cpus_for_driver": 0.2,
+                "num_gpus": 0.1,
+                DELAY_UPDATE: False
+            })
+            # build the policy and restore the weights.
+            with tf.variable_scope("polices_pool/" + agent_name,
+                                   reuse=tf.AUTO_REUSE):
+                policy = DECEPolicy(
+                    tmp_policy.observation_space, tmp_policy.action_space,
+                    tmp_config
+                )
+                policy.set_weights(agent_weight)
+            policies_pool[agent_name] = policy
+        worker.policies_pool = policies_pool  # add new attribute to worker
+
         def _init_novelty_policy(policy, my_policy_name):
-            policy._lazy_initialize(weights, my_policy_name)
+            policy._lazy_initialize(worker.policies_pool, my_policy_name)
 
         worker.foreach_policy(_init_novelty_policy)
 
     trainer.workers.foreach_worker(_init_pool)
-    # _delay_update(trainer, 1.0)
+    ray.internal.free([weights])
 
 
 def after_optimizer_iteration(trainer, fetches):
     """Update the policies pool in each policy."""
     update_kl(trainer, fetches)
-    if trainer.config[DELAY_UPDATE] and (not trainer.config[_I_AM_CLONE]):
+    if trainer.config[DELAY_UPDATE]:
         _delay_update(trainer)
 
 

@@ -102,58 +102,40 @@ def kl_and_loss_stats_modified(policy, train_batch):
 class ComputeNoveltyMixin(object):
     def __init__(self):
         self.initialized_policies_pool = False
-        self.policies_pool = OrderedDict()
+        self.policies_pool = {}
 
-    def _lazy_initialize(self, weights, my_name):
-        if self.config[_I_AM_CLONE]:
-            return
+    def _lazy_initialize(self, policies_pool, my_name):
         assert self.config[DELAY_UPDATE]
-        tmp_config = copy.deepcopy(self.config)
-        # disable the private worker of each policy, to save resource.
-        tmp_config.update({
-            "num_workers": 0,
-            "num_cpus_per_worker": 0,
-            "num_cpus_for_driver": 0.2,
-            "num_gpus": 0.1,
-
-            _I_AM_CLONE: True,
-            DELAY_UPDATE: False
-        })
-        for agent_name, agent_weight in weights.items():
-            if agent_name == my_name:
-                continue
-            # build the policy and restore the weights.
-            with tf.variable_scope("polices_pool/" + agent_name,
-                                   reuse=tf.AUTO_REUSE):
-                policy = DECEPolicy(
-                    self.observation_space, self.action_space, tmp_config
-                )
-                policy.set_weights(agent_weight)
-            self.policies_pool[agent_name] = policy
+        self.policies_pool = {
+            agent_name: other_policy
+            for agent_name, other_policy in policies_pool.items()
+            if agent_name != my_name
+        }
         self.num_of_policies = len(self.policies_pool)
         self.initialized_policies_pool = True
 
     def _delay_update(self, weights, my_name, tau=None):
-        assert self.config[DELAY_UPDATE]
-        assert not self.config[_I_AM_CLONE]
-        if tau is None:
-            tau = self.config['tau']
-        assert my_name not in self.policies_pool
-        assert set(weights.keys()) == set(
-            list(self.policies_pool.keys()) + [my_name])
-        assert 0 <= tau <= 1
-
-        for other_name, other_weights in weights.items():
-            if my_name == other_name:
-                continue
-            new_weight = (
-                    other_weights * tau +
-                    self.policies_pool[other_name].get_weights() * (1 - tau)
-            )
-            self.policies_pool[other_name].set_weights(new_weight)
-            print(
-                "Successfully update the <{}> in <{}>'s policies_pool. "
-                "Current tau: {}".format(other_name, my_name, tau))
+        raise ValueError()
+        # assert self.config[DELAY_UPDATE]
+        # assert not self.config[_I_AM_CLONE]
+        # if tau is None:
+        #     tau = self.config['tau']
+        # assert my_name not in self.policies_pool
+        # assert set(weights.keys()) == set(
+        #     list(self.policies_pool.keys()) + [my_name])
+        # assert 0 <= tau <= 1
+        #
+        # for other_name, other_weights in weights.items():
+        #     if my_name == other_name:
+        #         continue
+        #     new_weight = (
+        #             other_weights * tau +
+        #             self.policies_pool[other_name].get_weights() * (1 - tau)
+        #     )
+        #     self.policies_pool[other_name].set_weights(new_weight)
+        #     print(
+        #         "Successfully update the <{}> in <{}>'s policies_pool. "
+        #         "Current tau: {}".format(other_name, my_name, tau))
 
     def compute_novelty(self, my_batch, others_batches, episode=None):
         """It should be noted that in Cooperative Exploration setting,
