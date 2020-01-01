@@ -64,8 +64,8 @@ def compute_advantages_replay(
              np.array([other_last_r])]
         )
         other_delta_t = (
-            traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:] -
-            other_vpred_t[:-1]
+                traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:] -
+                other_vpred_t[:-1]
         )
         other_advantage = discount(other_delta_t, gamma * lambda_)
         # other_advantage = (other_advantage - other_advantage.mean()
@@ -96,10 +96,10 @@ def compute_advantages_replay(
         # value_target = \
         #     ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:])
 
-        value_target = (
-            ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
-            (1 - ratio) * (my_vpred_t[:-1])
-        )
+        clipped_ratio = np.clip(ratio, 0, 1.0)
+        value_target = (clipped_ratio * (
+                    traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) + (
+                                    1 - clipped_ratio) * (my_vpred_t[:-1]))
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
 
@@ -120,7 +120,7 @@ def compute_advantages_replay(
         #     traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES
-         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
@@ -146,8 +146,8 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     p = np.exp(logp)
     return logp, p
@@ -265,7 +265,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
         other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
-                                                    ].copy()
+        ].copy()
 
         # use my policy to evaluate the values and other relative data
         # of other's samples.
