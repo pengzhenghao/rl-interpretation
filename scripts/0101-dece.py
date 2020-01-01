@@ -1,12 +1,19 @@
+import argparse
+
 from ray import tune
 
 from toolbox.cooperative_exploration.train import train
-from toolbox.marl import MultiAgentEnvWrapper
-from toolbox.dece.utils import *
 from toolbox.dece.dece import DECETrainer
+from toolbox.dece.utils import *
+from toolbox.marl import MultiAgentEnvWrapper
 
 if __name__ == '__main__':
-    exp_name = "0101-dece-test"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--exp-name", type=str, default="0101-dece-test")
+    parser.add_argument("--num-gpus", type=int, default=8)
+    parser.add_argument("--test", action="store_true")
+    args = parser.parse_args()
+    exp_name = args.exp_name
 
     walker_config = {
         DELAY_UPDATE: tune.grid_search([True, False]),
@@ -39,6 +46,6 @@ if __name__ == '__main__':
         exp_name=exp_name,
         num_agents=walker_config['env_config']['num_agents'],
         num_seeds=3,
-        num_gpus=8,
-        test_mode=True
+        num_gpus=args.num_gpus,
+        test_mode=args.test
     )
