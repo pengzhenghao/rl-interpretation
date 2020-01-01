@@ -1,16 +1,11 @@
-import copy
 import logging
-from collections import OrderedDict
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
-    KLCoeffMixin, LearningRateSchedule, \
-    EntropyCoeffSchedule, SampleBatch, BEHAVIOUR_LOGITS, make_tf_callable, \
-    kl_and_loss_stats, PPOTFPolicy
+
+from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch, BEHAVIOUR_LOGITS, make_tf_callable, kl_and_loss_stats, PPOTFPolicy
 from ray.rllib.utils.explained_variance import explained_variance
 
 from toolbox.dece.dece_loss import loss_dece, tnb_gradients
 from toolbox.dece.dece_postprocess import postprocess_dece
 from toolbox.dece.utils import *
-from toolbox.dece.utils import _I_AM_CLONE
 from toolbox.distance import get_kl_divergence
 
 logger = logging.getLogger(__name__)
@@ -56,7 +51,6 @@ class NoveltyValueNetworkMixin(object):
                     tf.convert_to_tensor([1])
                 )
                 return self.model.novelty_value_function()[0]
-
         else:
 
             @make_tf_callable(self.get_session())
@@ -114,29 +108,6 @@ class ComputeNoveltyMixin(object):
         self.num_of_policies = len(self.policies_pool)
         self.initialized_policies_pool = True
 
-    def _delay_update(self, weights, my_name, tau=None):
-        raise ValueError()
-        # assert self.config[DELAY_UPDATE]
-        # assert not self.config[_I_AM_CLONE]
-        # if tau is None:
-        #     tau = self.config['tau']
-        # assert my_name not in self.policies_pool
-        # assert set(weights.keys()) == set(
-        #     list(self.policies_pool.keys()) + [my_name])
-        # assert 0 <= tau <= 1
-        #
-        # for other_name, other_weights in weights.items():
-        #     if my_name == other_name:
-        #         continue
-        #     new_weight = (
-        #             other_weights * tau +
-        #             self.policies_pool[other_name].get_weights() * (1 - tau)
-        #     )
-        #     self.policies_pool[other_name].set_weights(new_weight)
-        #     print(
-        #         "Successfully update the <{}> in <{}>'s policies_pool. "
-        #         "Current tau: {}".format(other_name, my_name, tau))
-
     def compute_novelty(self, my_batch, others_batches, episode=None):
         """It should be noted that in Cooperative Exploration setting,
         This implementation is inefficient. Since the 'observation' of each
@@ -147,17 +118,16 @@ class ComputeNoveltyMixin(object):
             return np.zeros_like(
                 my_batch[SampleBatch.REWARDS], dtype=np.float32
             )
-
         replays = {}
-        policies_dict = {k: p for k, (p, _) in others_batches.items()} if not \
-            self.config[DELAY_UPDATE] else self.policies_pool
+        if self.config[DELAY_UPDATE]:
+            policies_dict = self.policies_pool
+        else:
+            policies_dict = {k: p for k, (p, _) in others_batches.items()}
         for other_name, other_policy in policies_dict.items():
             _, _, info = other_policy.compute_actions(
                 my_batch[SampleBatch.CUR_OBS]
             )
             replays[other_name] = info[BEHAVIOUR_LOGITS]
-        assert replays
-
         if self.config[DIVERSITY_REWARD_TYPE] == "kl":
             return np.mean(
                 [

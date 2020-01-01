@@ -1,11 +1,10 @@
-import numpy as np
 import pickle
+
+import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
-from ray.rllib.models import ModelCatalog
 from ray.tune.util import merge_dicts
 
-from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
 
 
@@ -65,10 +64,8 @@ def on_train_result(info):
 #         for pid in episode._policies.keys()
 #     }
 
-
 # def on_postprocess_traj(info):
 #     pass
-
 
 # def on_episode_end(info):
 #     episode = info["episode"]
@@ -87,6 +84,7 @@ def on_train_result(info):
 #         unclipped_length = sum(l for (l, _) in oth.values())
 #         episode.custom_metrics[tmp.format(pid)] = \
 #             unclipped_length / total_length
+
 
 def _restore_state(ckpt):
     wkload = pickle.load(open(ckpt, 'rb'))['worker']
@@ -129,6 +127,7 @@ DIVERSITY_REWARD_TYPE = "diversity_reward_type"
 REPLAY_VALUES = "replay_values"
 TWO_SIDE_CLIP_LOSS = "two_side_clip_loss"
 
+I_AM_CLONE = "i_am_clone"
 NOVELTY_REWARDS = "novelty_rewards"
 NOVELTY_VALUES = "novelty_values"
 NOVELTY_ADVANTAGES = "novelty_advantages"
@@ -138,9 +137,7 @@ dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         tau=5e-3,
-        callbacks={
-            "on_train_result": on_train_result
-        },
+        callbacks={"on_train_result": on_train_result},
         **{
             DIVERSITY_ENCOURAGING: True,
             USE_BISECTOR: True,
@@ -150,6 +147,7 @@ dece_default_config = merge_dicts(
             DIVERSITY_REWARD_TYPE: "mse",
             REPLAY_VALUES: True,
             TWO_SIDE_CLIP_LOSS: True,
+            I_AM_CLONE: False
         }
     )
 )
