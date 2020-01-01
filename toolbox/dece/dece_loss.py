@@ -53,6 +53,69 @@ class PPOLossNovelty(object):
         self.loss = loss
 
 
+class PPOLossTwoSideClip(object):
+    def __init__(
+            self,
+            action_space,
+            dist_class,
+            model,
+            value_targets,
+            advantages,
+            actions,
+            prev_logits,
+            prev_actions_logp,
+            vf_preds,
+            curr_action_dist,
+            value_fn,
+            cur_kl_coeff,
+            valid_mask,
+            entropy_coeff=0,
+            clip_param=0.1,
+            vf_clip_param=0.1,
+            vf_loss_coeff=1.0,
+            use_gae=True,
+            model_config=None
+    ):
+        def reduce_mean_valid(t):
+            return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
+
+        prev_dist = dist_class(prev_logits, model)
+        # Make loss functions.
+        logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
+        action_kl = prev_dist.kl(curr_action_dist)
+        self.mean_kl = reduce_mean_valid(action_kl)
+
+        curr_entropy = curr_action_dist.entropy()
+        self.mean_entropy = reduce_mean_valid(curr_entropy)
+
+        abs_adv = tf.abs(advantages)
+        new_surrogate_loss = \
+            tf.sign(advantages) * tf.minimum(
+                abs_adv * logp_ratio, abs_adv * (1 + clip_param)
+            )
+        self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
+
+        if use_gae:
+            vf_loss1 = tf.square(value_fn - value_targets)
+            vf_clipped = vf_preds + tf.clip_by_value(
+                value_fn - vf_preds, -vf_clip_param, vf_clip_param
+            )
+            vf_loss2 = tf.square(vf_clipped - value_targets)
+            vf_loss = tf.maximum(vf_loss1, vf_loss2)
+            self.mean_vf_loss = reduce_mean_valid(vf_loss)
+            loss = reduce_mean_valid(
+                -new_surrogate_loss + cur_kl_coeff * action_kl +
+                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
+            )
+        else:
+            self.mean_vf_loss = tf.constant(0.0)
+            loss = reduce_mean_valid(
+                -new_surrogate_loss + cur_kl_coeff * action_kl -
+                entropy_coeff * curr_entropy
+            )
+        self.loss = loss
+
+
 def tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""
     logits, state = model.from_batch(train_batch)
@@ -90,7 +153,9 @@ def tnb_loss(policy, model, dist_class, train_batch):
     )
 
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-        policy.novelty_loss_obj = PPOLoss(
+        loss_cls = PPOLossTwoSideClip \
+            if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
+        policy.novelty_loss_obj = loss_cls(
             policy.action_space,
             dist_class,
             model,

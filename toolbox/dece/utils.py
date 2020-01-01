@@ -1,10 +1,10 @@
+import pickle
+
 import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
-from ray.rllib.models import ModelCatalog
 from ray.tune.util import merge_dicts
 
-from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
 
 
@@ -53,39 +53,43 @@ def on_train_result(info):
         result['custom_metrics'].clear()
 
 
-def on_episode_start(info):
-    episode = info["episode"]
-    episode.user_data["relative_kl"] = {
-        pid: {}
-        for pid in episode._policies.keys()
-    }
-    episode.user_data["unclip_length"] = {
-        pid: {}
-        for pid in episode._policies.keys()
-    }
+# def on_episode_start(info):
+#     episode = info["episode"]
+#     episode.user_data["relative_kl"] = {
+#         pid: {}
+#         for pid in episode._policies.keys()
+#     }
+#     episode.user_data["unclip_length"] = {
+#         pid: {}
+#         for pid in episode._policies.keys()
+#     }
+
+# def on_postprocess_traj(info):
+#     pass
+
+# def on_episode_end(info):
+#     episode = info["episode"]
+#
+#     tmp = "{}-action_kl"
+#     for pid, oth in episode.user_data['relative_kl'].items():
+#         episode.custom_metrics[tmp.format(pid)] = np.mean(
+#             np.concatenate([kl for kl in oth.values()])
+#         )
+#
+#     tmp = "{}-unclipped_ratio"
+#     for pid, oth in episode.user_data['unclip_length'].items():
+#         if not oth:
+#             continue
+#         total_length = sum(l for (_, l) in oth.values())
+#         unclipped_length = sum(l for (l, _) in oth.values())
+#         episode.custom_metrics[tmp.format(pid)] = \
+#             unclipped_length / total_length
 
 
-def on_postprocess_traj(info):
-    pass
-
-
-def on_episode_end(info):
-    episode = info["episode"]
-
-    tmp = "{}-action_kl"
-    for pid, oth in episode.user_data['relative_kl'].items():
-        episode.custom_metrics[tmp.format(pid)] = np.mean(
-            np.concatenate([kl for kl in oth.values()])
-        )
-
-    tmp = "{}-unclipped_ratio"
-    for pid, oth in episode.user_data['unclip_length'].items():
-        if not oth:
-            continue
-        total_length = sum(l for (_, l) in oth.values())
-        unclipped_length = sum(l for (l, _) in oth.values())
-        episode.custom_metrics[tmp.format(pid)] = \
-            unclipped_length / total_length
+def _restore_state(ckpt):
+    wkload = pickle.load(open(ckpt, 'rb'))['worker']
+    state = pickle.loads(wkload)['state']['default_policy']
+    return state
 
 
 def validate_tensor(x, msg=None, enable=True):
@@ -123,6 +127,7 @@ DIVERSITY_REWARD_TYPE = "diversity_reward_type"
 REPLAY_VALUES = "replay_values"
 TWO_SIDE_CLIP_LOSS = "two_side_clip_loss"
 
+I_AM_CLONE = "i_am_clone"
 NOVELTY_REWARDS = "novelty_rewards"
 NOVELTY_VALUES = "novelty_values"
 NOVELTY_ADVANTAGES = "novelty_advantages"
@@ -131,13 +136,8 @@ NOVELTY_VALUE_TARGETS = "novelty_value_targets"
 dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
-        # model={"custom_model": "ActorDoubleCriticNetwork"},
-        callbacks={
-            "on_train_result": on_train_result,
-            "on_episode_start": on_episode_start,
-            "on_postprocess_traj": on_postprocess_traj,
-            "on_episode_end": on_episode_end
-        },
+        tau=5e-3,
+        callbacks={"on_train_result": on_train_result},
         **{
             DIVERSITY_ENCOURAGING: True,
             USE_BISECTOR: True,
@@ -146,11 +146,8 @@ dece_default_config = merge_dicts(
             DELAY_UPDATE: True,
             DIVERSITY_REWARD_TYPE: "mse",
             REPLAY_VALUES: True,
-            TWO_SIDE_CLIP_LOSS: True
+            TWO_SIDE_CLIP_LOSS: True,
+            I_AM_CLONE: False
         }
     )
 )
-#
-# ModelCatalog.register_custom_model(
-#     "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
-# )
