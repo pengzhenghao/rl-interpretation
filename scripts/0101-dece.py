@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from ray import tune
 
@@ -7,13 +8,18 @@ from toolbox.dece.dece import DECETrainer
 from toolbox.dece.utils import *
 from toolbox.marl import MultiAgentEnvWrapper
 
+os.environ['OMP_NUM_THREADS'] = 1
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--exp-name", type=str, default="0101-dece-test")
+    parser.add_argument("--exp-name", type=str, default="0101-dece")
     parser.add_argument("--num-gpus", type=int, default=8)
+    parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
     exp_name = args.exp_name
+
+    assert os.getenv("OMP_NUM_THREADS") == 1
 
     walker_config = {
         DELAY_UPDATE: tune.grid_search([True, False]),
@@ -45,7 +51,7 @@ if __name__ == '__main__':
         stop={"timesteps_total": int(5e7)},
         exp_name=exp_name,
         num_agents=walker_config['env_config']['num_agents'],
-        num_seeds=3,
+        num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
         test_mode=args.test
     )

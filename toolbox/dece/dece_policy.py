@@ -99,6 +99,7 @@ class ComputeNoveltyMixin(object):
         self.policies_pool = {}
 
     def _lazy_initialize(self, policies_pool, my_name):
+        assert not self.config[I_AM_CLONE]
         assert self.config[DELAY_UPDATE]
         self.policies_pool = {
             agent_name: other_policy

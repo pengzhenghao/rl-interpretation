@@ -123,7 +123,7 @@ def setup_policies_pool(trainer):
         worker.foreach_policy(_init_novelty_policy)
 
     trainer.workers.foreach_worker(_init_pool)
-    ray.internal.free([weights])
+    # ray.internal.free([weights])
 
 
 def after_optimizer_iteration(trainer, fetches):
@@ -160,7 +160,7 @@ def after_optimizer_iteration(trainer, fetches):
                 )
 
         trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
-        ray.internal.free([weights])
+        # ray.internal.free([weights])
 
 
 DECETrainer = PPOTrainer.with_updates(
