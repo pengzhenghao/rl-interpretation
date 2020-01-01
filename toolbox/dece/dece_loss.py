@@ -84,15 +84,11 @@ class PPOLossTwoSideClip(object):
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
-
         curr_entropy = curr_action_dist.entropy()
         self.mean_entropy = reduce_mean_valid(curr_entropy)
 
-        abs_adv = tf.abs(advantages)
-        new_surrogate_loss = \
-            tf.sign(advantages) * tf.minimum(
-                abs_adv * logp_ratio, abs_adv * (1 + clip_param)
-            )
+        new_surrogate_loss = advantages * tf.minimum(
+            logp_ratio, 1 + clip_param)
         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
 
         if use_gae:
@@ -129,8 +125,9 @@ def tnb_loss(policy, model, dist_class, train_batch):
         mask = tf.ones_like(
             train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
         )
-
-    policy.loss_obj = PPOLoss(
+    loss_cls = PPOLossTwoSideClip \
+        if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
+    policy.loss_obj = loss_cls(
         policy.action_space,
         dist_class,
         model,
@@ -153,8 +150,6 @@ def tnb_loss(policy, model, dist_class, train_batch):
     )
 
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-        loss_cls = PPOLossTwoSideClip \
-            if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
         policy.novelty_loss_obj = loss_cls(
             policy.action_space,
             dist_class,

@@ -284,7 +284,8 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
         if policy.config[REPLAY_VALUES]:
             # replay values
-            postprocess_diversity(policy, other_batch, others_batches)
+            other_batch = postprocess_diversity(
+                policy, other_batch, others_batches)
             batches.append(
                 postprocess_ppo_gae_replay(policy, other_batch, other_policy)
             )
