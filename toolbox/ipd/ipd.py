@@ -42,7 +42,6 @@ ipd_default_config = merge_dicts(
             "on_episode_end": on_episode_end
         },
         "distance_mode": "min",
-        "batch_mode": "complete_episodes",
         "disable_tnb": False,
         I_AM_CLONE: False
     }

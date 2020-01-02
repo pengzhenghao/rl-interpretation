@@ -13,6 +13,7 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
+
 """
 TNB-ES training basic workflow:
 
@@ -37,7 +38,8 @@ TNB-ES training basic workflow:
 logger = logging.getLogger(__file__)
 
 
-def train_one_agent(trainer, local_dir, agent_name, config, stop, test_mode=False):
+def train_one_agent(trainer, local_dir, agent_name, config, stop,
+                    test_mode=False):
     assert ray.is_initialized()
     analysis = tune.run(
         trainer,
@@ -154,6 +156,12 @@ def train_one_iteration(
         if best_reward < result['current_reward']:
             iteration_info['best_agent'] = agent_name
             best_reward = result['current_reward']
+
+        if stop_flag and disable_early_stop:
+            print("{} Though we choose to STOP here, but we set"
+                  " disable_eary_stop in order to align different "
+                  "expeirments, therefore we CONTINUE this iteration."
+                  "".format(prefix))
 
         if (stop_flag) and (not disable_early_stop):
             break
@@ -378,6 +386,7 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError()
 
+
     def ray_init():
         ray.shutdown()
         initialize_ray(
@@ -386,6 +395,7 @@ if __name__ == '__main__':
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )
+
 
     main(
         exp_name=args.exp_name,
