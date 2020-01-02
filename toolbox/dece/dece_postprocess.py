@@ -62,9 +62,8 @@ def compute_advantages_replay(
             [rollout[SampleBatch.VF_PREDS],
              np.array([my_last_r])]
         )
-        delta_t = \
-            traj[SampleBatch.REWARDS] + gamma * vpred_t[1:] * (
-                    1 - lambda_) - vpred_t[:-1]
+        delta_t = traj[SampleBatch.REWARDS
+                       ] + gamma * vpred_t[1:] * (1 - lambda_) - vpred_t[:-1]
         # other_vpred_t = np.concatenate(
         #     [rollout["other_vf_preds"],
         #      np.array([other_last_r])]
@@ -92,8 +91,8 @@ def compute_advantages_replay(
         )
 
         traj["abs_advantage"] = np.abs(advantage)
-        traj[Postprocessing.ADVANTAGES] = (advantage - advantage.mean()
-                                           ) / max(1e-4, advantage.std())
+        traj[Postprocessing.ADVANTAGES
+             ] = (advantage - advantage.mean()) / max(1e-4, advantage.std())
         traj["debug_ratio"] = ratio
 
         my_vpred_t = np.concatenate(
@@ -103,9 +102,11 @@ def compute_advantages_replay(
         assert ratio.shape == traj[SampleBatch.REWARDS].shape
 
         clipped_ratio = np.clip(ratio, 0, 1.0)
-        value_target = (clipped_ratio * (
-                traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) + (
-                                1 - clipped_ratio) * (my_vpred_t[:-1]))
+        value_target = (
+            clipped_ratio *
+            (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
+            (1 - clipped_ratio) * (my_vpred_t[:-1])
+        )
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
 
@@ -126,7 +127,7 @@ def compute_advantages_replay(
         #     traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES
-    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
@@ -152,8 +153,8 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     p = np.exp(logp)
     return logp, p
@@ -209,7 +210,8 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         tmp_batch = postprocess_ppo_gae(policy, batch)
 
         tmp_batch["abs_advantage"] = np.abs(
-            tmp_batch[Postprocessing.ADVANTAGES])
+            tmp_batch[Postprocessing.ADVANTAGES]
+        )
 
         tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches)
         value = tmp_batch[Postprocessing.ADVANTAGES]
@@ -219,8 +221,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     else:
         batch = postprocess_ppo_gae(policy, batch)
 
-        batch["abs_advantage"] = np.abs(
-            batch[Postprocessing.ADVANTAGES])
+        batch["abs_advantage"] = np.abs(batch[Postprocessing.ADVANTAGES])
 
         batch = postprocess_diversity(policy, batch, others_batches)
         batches = [batch]
@@ -242,7 +243,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
         other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
-        ].copy()
+                                                    ].copy()
 
         # use my policy to evaluate the values and other relative data
         # of other's samples.
@@ -263,17 +264,21 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             )
 
         if policy.config[REPLAY_VALUES]:
-            other_batch = postprocess_diversity(policy, other_batch,
-                                                others_batches)
-            to_add_batch = postprocess_ppo_gae_replay(policy, other_batch,
-                                                      other_policy)
+            other_batch = postprocess_diversity(
+                policy, other_batch, others_batches
+            )
+            to_add_batch = postprocess_ppo_gae_replay(
+                policy, other_batch, other_policy
+            )
         else:
-            other_batch_raw = postprocess_diversity(policy, other_batch_raw,
-                                                    others_batches)
+            other_batch_raw = postprocess_diversity(
+                policy, other_batch_raw, others_batches
+            )
             to_add_batch = postprocess_ppo_gae(policy, other_batch_raw)
 
             to_add_batch["abs_advantage"] = np.abs(
-                to_add_batch[Postprocessing.ADVANTAGES])
+                to_add_batch[Postprocessing.ADVANTAGES]
+            )
 
         batches.append(to_add_batch)
 

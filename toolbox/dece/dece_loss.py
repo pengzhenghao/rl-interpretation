@@ -47,7 +47,8 @@ class PPOLossTwoSideNovelty(object):
         # )
 
         new_surrogate_loss = advantages * tf.minimum(
-            logp_ratio, 1 + clip_param)
+            logp_ratio, 1 + clip_param
+        )
 
         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
         self.mean_vf_loss = tf.constant(0.0)
@@ -93,7 +94,8 @@ class PPOLossTwoSideClip(object):
         self.mean_entropy = reduce_mean_valid(curr_entropy)
 
         new_surrogate_loss = advantages * tf.minimum(
-            logp_ratio, 1 + clip_param)
+            logp_ratio, 1 + clip_param
+        )
         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
 
         if use_gae:
@@ -193,10 +195,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
     policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])
     policy.debug_ratio = train_batch["debug_ratio"]
     policy.abs_advantage = train_batch["abs_advantage"]
-    return [
-        policy.loss_obj.loss, policy.novelty_loss_obj.loss,
-        policy.novelty_reward_mean
-    ]
+    return [policy.loss_obj.loss, policy.novelty_loss_obj.loss]
 
 
 def _flatten(tensor):
