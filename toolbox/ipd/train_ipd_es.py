@@ -1,7 +1,10 @@
 import argparse
 
+import ray
+
+from toolbox import initialize_ray
 from toolbox.ipd.ipd import IPDEnv, IPDTrainer
-from toolbox.ipd.train_tnb import main, ray_init
+from toolbox.ipd.train_tnb import main
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -59,6 +62,17 @@ if __name__ == '__main__':
         })
     else:
         raise NotImplementedError()
+
+
+    def ray_init():
+        ray.shutdown()
+        initialize_ray(
+            test_mode=args.test_mode,
+            local_mode=False,
+            num_gpus=args.num_gpus if not args.address else None,
+            redis_address=args.address if args.address else None
+        )
+
 
     main(
         trainer=IPDTrainer,
