@@ -50,7 +50,7 @@ def test_three_tuning(local_mode=False):
 
 
 if __name__ == '__main__':
-    test_dece(local_mode=True)
+    test_dece(local_mode=False)
     # test_dece_batch0(local_mode=False)
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)

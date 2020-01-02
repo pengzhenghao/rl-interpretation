@@ -15,7 +15,7 @@ def loss_dece(policy, model, dist_class, train_batch):
         return tnb_loss(policy, model, dist_class, train_batch)
 
 
-class PPOLossNovelty(object):
+class PPOLossTwoSideNovelty(object):
     def __init__(
             self,
             dist_class,
@@ -39,15 +39,20 @@ class PPOLossNovelty(object):
         self.mean_kl = reduce_mean_valid(action_kl)
         curr_entropy = curr_action_dist.entropy()
         self.mean_entropy = reduce_mean_valid(curr_entropy)
-        surrogate_loss = tf.minimum(
-            advantages * logp_ratio,
-            advantages *
-            tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
-        )
-        self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
+
+        # surrogate_loss = tf.minimum(
+        #     advantages * logp_ratio,
+        #     advantages *
+        #     tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
+        # )
+
+        new_surrogate_loss = advantages * tf.minimum(
+            logp_ratio, 1 + clip_param)
+
+        self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
         self.mean_vf_loss = tf.constant(0.0)
         loss = reduce_mean_valid(
-            -surrogate_loss + cur_kl_coeff * action_kl -
+            -new_surrogate_loss + cur_kl_coeff * action_kl -
             entropy_coeff * curr_entropy
         )
         self.loss = loss
@@ -172,7 +177,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
             model_config=policy.config["model"]
         )
     else:
-        policy.novelty_loss_obj = PPOLossNovelty(
+        policy.novelty_loss_obj = PPOLossTwoSideNovelty(
             dist_class,
             model,
             train_batch[NOVELTY_ADVANTAGES],
@@ -186,6 +191,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
             clip_param=policy.config["clip_param"]
         )
     policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])
+    policy.debug_ratio = train_batch["debug_ratio"]
     return [
         policy.loss_obj.loss, policy.novelty_loss_obj.loss,
         policy.novelty_reward_mean

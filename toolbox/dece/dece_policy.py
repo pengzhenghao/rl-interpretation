@@ -82,7 +82,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
             "novelty_vf_loss": policy.novelty_loss_obj.mean_vf_loss,
             "novelty_kl": policy.novelty_loss_obj.mean_kl,
             "novelty_entropy": policy.novelty_loss_obj.mean_entropy,
-            "novelty_reward_mean": policy.novelty_reward_mean
+            "novelty_reward_mean": policy.novelty_reward_mean,
+            "debug_ratio": policy.debug_ratio
         }
     )
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
@@ -104,8 +105,8 @@ class ComputeNoveltyMixin(object):
         self.policies_pool = {
             agent_name: other_policy
             for agent_name, other_policy in policies_pool.items()
-            if agent_name != my_name
-        }
+            # if agent_name != my_name
+        }  # Since it must in DELAY_UPDATE mode, we allow reuse all polices.
         self.num_of_policies = len(self.policies_pool)
         self.initialized_policies_pool = True
 
