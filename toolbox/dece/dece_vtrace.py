@@ -156,10 +156,7 @@ def _make_time_major(policy, seq_lens, tensor, drop_last=False):
         B = 1
         T = tf.shape(tensor)[0]
 
-    with tf.control_dependencies(
-            tf.print("T: ", T, " B: ", B, " shape: ", tf.shape(tensor))):
-        rs = tf.reshape(tensor,
-                        tf.concat([[B, T], tf.shape(tensor)[1:]], axis=0))
+    rs = tf.reshape(tensor, tf.concat([[B, T], tf.shape(tensor)[1:]], axis=0))
 
     # swap B and T axes
     res = tf.transpose(
