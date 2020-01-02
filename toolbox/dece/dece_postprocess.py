@@ -7,19 +7,6 @@ from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
 
 
-def calculate_gae_advantage(values, delta, ratio, lambda_, gamma):
-    assert len(delta) > 0, (values, delta)
-    assert values.shape == delta.shape
-    y_n = np.zeros_like(delta)
-    y_n[-1] = delta[-1]
-    length = len(delta)
-    for ind in range(length - 2, -1, -1):
-        # ind = 8, 7, 6, ..., 0 if length = 10
-        y_n[ind] = delta[ind] + ratio[
-            ind + 1] * gamma * lambda_ * (y_n[ind + 1] + values[ind + 1])
-    return y_n
-
-
 def postprocess_ppo_gae_replay(policy, batch, other_policy):
     """Adds the policy logits, VF preds, and advantages to the trajectory."""
     completed = batch["dones"][-1]
@@ -96,7 +83,6 @@ def compute_advantages_replay(
         # this field is not used in future postprocessing.
         # traj[Postprocessing.ADVANTAGES] = other_advantage
 
-
         # other_delta_t = (
         #     traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:] -
         #     other_vpred_t[:-1]
@@ -105,11 +91,10 @@ def compute_advantages_replay(
             traj[SampleBatch.VF_PREDS], delta_t, ratio, lambda_, gamma
         )
 
-        advantage = (advantage - advantage.mean()) / max(1e-4, advantage.std())  # normalize it here.
-
-        traj[Postprocessing.ADVANTAGES] = advantage
-        traj["debug_ratio"] = ratio
         traj["abs_advantage"] = np.abs(advantage)
+        traj[Postprocessing.ADVANTAGES] = (advantage - advantage.mean()
+                                           ) / max(1e-4, advantage.std())
+        traj["debug_ratio"] = ratio
 
         my_vpred_t = np.concatenate(
             [rollout[SampleBatch.VF_PREDS],
@@ -199,13 +184,10 @@ def _clip_batch(other_batch, clip_action_prob_kl):
 def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
-        batch["advantages_unnormalized"] = np.zeros_like(
+        batch["abs_advantage"] = np.zeros_like(
             batch["advantages"], dtype=np.float32
         )
         batch['debug_ratio'] = np.zeros_like(
-            batch["advantages"], dtype=np.float32
-        )
-        batch['debug_fake_adv'] = np.zeros_like(
             batch["advantages"], dtype=np.float32
         )
         if policy.config[DIVERSITY_ENCOURAGING]:
@@ -225,13 +207,21 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         # a little workaround. We normalize advantage for all batch before
         # concatnation.
         tmp_batch = postprocess_ppo_gae(policy, batch)
+
+        tmp_batch["abs_advantage"] = np.abs(
+            tmp_batch[Postprocessing.ADVANTAGES])
+
         tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches)
-        # value = tmp_batch[Postprocessing.ADVANTAGES]
-        # standardized = (value - value.mean()) / max(1e-4, value.std())
-        # tmp_batch[Postprocessing.ADVANTAGES] = standardized
+        value = tmp_batch[Postprocessing.ADVANTAGES]
+        standardized = (value - value.mean()) / max(1e-4, value.std())
+        tmp_batch[Postprocessing.ADVANTAGES] = standardized
         batches = [tmp_batch]
     else:
         batch = postprocess_ppo_gae(policy, batch)
+
+        batch["abs_advantage"] = np.abs(
+            batch[Postprocessing.ADVANTAGES])
+
         batch = postprocess_diversity(policy, batch, others_batches)
         batches = [batch]
 
@@ -282,14 +272,17 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
                                                     others_batches)
             to_add_batch = postprocess_ppo_gae(policy, other_batch_raw)
 
+            to_add_batch["abs_advantage"] = np.abs(
+                to_add_batch[Postprocessing.ADVANTAGES])
+
         batches.append(to_add_batch)
 
     for batch in batches:
-        batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
-            Postprocessing.ADVANTAGES].copy().astype(np.float32)
+        # batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
+        #     Postprocessing.ADVANTAGES].copy().astype(np.float32)
         if "debug_ratio" not in batch:
-            assert "debug_fake_adv" not in batch
-            batch['debug_fake_adv'] = batch['debug_ratio'] = np.zeros_like(
+            # assert "debug_fake_adv" not in batch
+            batch['debug_ratio'] = np.zeros_like(
                 batch['advantages'], dtype=np.float32
             )
 
@@ -342,6 +335,6 @@ def _compute_advantages_for_diversity(
     else:
         rewards_plus_v = np.concatenate([rewards, np.array([last_r])])
         advantage = discount(rewards_plus_v, gamma)[:-1]
-        value_target = np.zeros_like(advantage)
+        value_target = np.zeros_like(advantage, dtype=np.float32)
     advantage = advantage.copy().astype(np.float32)
     return advantage, value_target
