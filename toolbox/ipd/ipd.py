@@ -121,7 +121,7 @@ def after_init(trainer):
     if len(checkpoint_dict) == 0:
         return
     weights = {
-        k: _restore_state(ckpt) if ckpt is not None else None
+        k: _restore_state(ckpt['path']) if ckpt is not None else None
         for k, ckpt in checkpoint_dict.items()
         # if ckpt is not None
     }
