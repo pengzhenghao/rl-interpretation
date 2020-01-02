@@ -201,9 +201,17 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             batch[NOVELTY_ADVANTAGES] = np.zeros_like(
                 batch["advantages"], dtype=np.float32
             )
+            batch['other_logits'] = np.zeros_like(
+                batch[BEHAVIOUR_LOGITS], dtype=np.float32
+            )
+            batch['other_action_logp'] = np.zeros_like(
+                batch[ACTION_LOGP], dtype=np.float32
+            )
         return batch
 
     batch = sample_batch
+    batch["other_logits"] = batch[BEHAVIOUR_LOGITS].copy()
+    batch["other_action_logp"] = batch[ACTION_LOGP].copy()
     if policy.config[REPLAY_VALUES]:
         # a little workaround. We normalize advantage for all batch before
         # concatnation.
