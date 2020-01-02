@@ -83,7 +83,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
             "novelty_kl": policy.novelty_loss_obj.mean_kl,
             "novelty_entropy": policy.novelty_loss_obj.mean_entropy,
             "novelty_reward_mean": policy.novelty_reward_mean,
-            "debug_ratio": policy.debug_ratio
+            "debug_ratio": policy.debug_ratio,
+            "abs_advantage": policy.abs_advantage
         }
     )
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:

@@ -192,6 +192,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
         )
     policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])
     policy.debug_ratio = train_batch["debug_ratio"]
+    policy.abs_advantage = train_batch["abs_advantage"]
     return [
         policy.loss_obj.loss, policy.novelty_loss_obj.loss,
         policy.novelty_reward_mean

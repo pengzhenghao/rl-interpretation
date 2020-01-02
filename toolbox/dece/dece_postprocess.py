@@ -7,6 +7,19 @@ from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
 
 
+def calculate_gae_advantage(values, delta, ratio, lambda_, gamma):
+    assert len(delta) > 0, (values, delta)
+    assert values.shape == delta.shape
+    y_n = np.zeros_like(delta)
+    y_n[-1] = delta[-1]
+    length = len(delta)
+    for ind in range(length - 2, -1, -1):
+        # ind = 8, 7, 6, ..., 0 if length = 10
+        y_n[ind] = delta[ind] + ratio[
+            ind + 1] * gamma * lambda_ * (y_n[ind + 1] + values[ind + 1])
+    return y_n
+
+
 def postprocess_ppo_gae_replay(policy, batch, other_policy):
     """Adds the policy logits, VF preds, and advantages to the trajectory."""
     completed = batch["dones"][-1]
@@ -58,48 +71,56 @@ def compute_advantages_replay(
 
     if use_gae:
         assert SampleBatch.VF_PREDS in rollout, "Values not found!"
+        vpred_t = np.concatenate(
+            [rollout[SampleBatch.VF_PREDS],
+             np.array([my_last_r])]
+        )
+        delta_t = \
+            traj[SampleBatch.REWARDS] + gamma * vpred_t[1:] * (
+                    1 - lambda_) - vpred_t[:-1]
+        # other_vpred_t = np.concatenate(
+        #     [rollout["other_vf_preds"],
+        #      np.array([other_last_r])]
+        # )
+        # other_delta_t = (
+        #         traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:] -
+        #         other_vpred_t[:-1]
+        # )
+        # other_advantage = discount(other_delta_t, gamma * lambda_)
 
-        other_vpred_t = np.concatenate(
-            [rollout["other_vf_preds"],
-             np.array([other_last_r])]
-        )
-        other_delta_t = (
-                traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:] -
-                other_vpred_t[:-1]
-        )
-        other_advantage = discount(other_delta_t, gamma * lambda_)
+        ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
         # other_advantage = (other_advantage - other_advantage.mean()
         #                    ) / max(1e-4, other_advantage.std())
 
         # we put other's advantage in 'advantages' field. We need to make sure
         # this field is not used in future postprocessing.
-        traj[Postprocessing.ADVANTAGES] = other_advantage
+        # traj[Postprocessing.ADVANTAGES] = other_advantage
 
-        # Ratio is almost deprecated. We only use it to compute value target.
-        ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
-        # ratio = np.clip(ratio, 0.0, clip_action_prob_ratio)
-        traj["debug_ratio"] = ratio
-        fake_delta = np.zeros_like(ratio)
-        fake_delta[-1] = 1
-        traj["debug_fake_adv"] = calculate_gae_advantage(
-            np.zeros_like(ratio), fake_delta, ratio, lambda_, gamma
+
+        # other_delta_t = (
+        #     traj[SampleBatch.REWARDS] + gamma * other_vpred_t[1:] -
+        #     other_vpred_t[:-1]
+        # )
+        advantage = calculate_gae_advantage(
+            traj[SampleBatch.VF_PREDS], delta_t, ratio, lambda_, gamma
         )
 
-        # value_target = (
-        #         traj[Postprocessing.ADVANTAGES] + traj[SampleBatch.VF_PREDS]
-        # ).copy().astype(np.float32)
+        advantage = (advantage - advantage.mean()) / max(1e-4, advantage.std())  # normalize it here.
+
+        traj[Postprocessing.ADVANTAGES] = advantage
+        traj["debug_ratio"] = ratio
+        traj["abs_advantage"] = np.abs(advantage)
+
         my_vpred_t = np.concatenate(
             [rollout[SampleBatch.VF_PREDS],
              np.array([my_last_r])]
         )
         assert ratio.shape == traj[SampleBatch.REWARDS].shape
-        # value_target = \
-        #     ratio * (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:])
 
         clipped_ratio = np.clip(ratio, 0, 1.0)
         value_target = (clipped_ratio * (
-                    traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) + (
-                                    1 - clipped_ratio) * (my_vpred_t[:-1]))
+                traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) + (
+                                1 - clipped_ratio) * (my_vpred_t[:-1]))
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
 
@@ -173,8 +194,6 @@ def _clip_batch(other_batch, clip_action_prob_kl):
         other_batch = other_batch.slice(0, length)
 
     return other_batch, info
-
-
 
 
 def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
@@ -254,10 +273,13 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             )
 
         if policy.config[REPLAY_VALUES]:
-            other_batch = postprocess_diversity(policy, other_batch, others_batches)
-            to_add_batch = postprocess_ppo_gae_replay(policy, other_batch, other_policy)
+            other_batch = postprocess_diversity(policy, other_batch,
+                                                others_batches)
+            to_add_batch = postprocess_ppo_gae_replay(policy, other_batch,
+                                                      other_policy)
         else:
-            other_batch_raw = postprocess_diversity(policy, other_batch_raw, others_batches)
+            other_batch_raw = postprocess_diversity(policy, other_batch_raw,
+                                                    others_batches)
             to_add_batch = postprocess_ppo_gae(policy, other_batch_raw)
 
         batches.append(to_add_batch)
@@ -274,7 +296,6 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
     return batch
-
 
 
 def postprocess_diversity(policy, batch, others_batches, episode=None):
