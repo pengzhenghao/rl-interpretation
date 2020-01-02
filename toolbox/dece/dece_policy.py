@@ -20,7 +20,7 @@ def wrap_stats_ceppo(policy, train_batch):
 
 
 def grad_stats_fn(policy, batch, grads):
-    if policy.config[USE_BISECTOR]:
+    if policy.config[USE_BISECTOR] and (not policy.config[I_AM_CLONE]):
         ret = {
             "cos_similarity": policy.gradient_cosine_similarity,
             "policy_grad_norm": policy.policy_grad_norm,

@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 def loss_dece(policy, model, dist_class, train_batch):
-    if policy.config[I_AM_CLONE]:
-        return [tf.constant(0.0), tf.constant(0.0)]
+    # if policy.config[I_AM_CLONE]:  # the basic loss. useless.
+    #     return tnb_loss(policy, model, dist_class, train_batch)
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
     if policy.config['use_vtrace']:
@@ -218,7 +218,9 @@ def _flatten(tensor):
 
 
 def tnb_gradients(policy, optimizer, loss):
-    if not policy.config[USE_BISECTOR] or policy.config[I_AM_CLONE]:
+    # if policy.config[I_AM_CLONE]:
+    #     return optimizer.compute_gradients(loss)
+    if (not policy.config[USE_BISECTOR]) or (policy.config[I_AM_CLONE]):
         with tf.control_dependencies([loss[1]]):
             policy_grad = optimizer.compute_gradients(loss[0])
         return policy_grad
