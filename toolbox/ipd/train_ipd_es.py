@@ -22,10 +22,8 @@ if __name__ == '__main__':
     common_config = {
         "env": IPDEnv,
         "env_config": {
-            "env_name": args.env_name,
-            "novelty_threshold": args.novelty_threshold
+            "env_name": args.env_name
         },
-        # "novelty_threshold": novelty_threshold,
 
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
@@ -44,9 +42,10 @@ if __name__ == '__main__':
     if args.env_name == "Walker2d-v3":
         timesteps = int(2e7)
         config['novelty_threshold'] = 1.1
+        config['env_config']['novelty_threshold'] = 1.1
     elif args.env_name == "Hopper-v3":
         timesteps = int(2e7)
-        config['novelty_threshold'] = 0.6
+        config['env_config']['novelty_threshold'] = 0.6
     elif args.env_name == "HalfCheetah-v3":
         timesteps = int(5e7)
         config.update({
@@ -60,6 +59,7 @@ if __name__ == '__main__':
             "grad_clip": 0.5,
             'novelty_threshold': 1.3
         })
+        config['env_config']['novelty_threshold'] = 1.3
     else:
         raise NotImplementedError()
 

@@ -101,6 +101,7 @@ def train_one_iteration(
     if test_mode:
         common_config['num_gpus'] = 0
         common_config['sample_batch_size'] = 32
+        common_config['sgd_minibatch_size'] = 32
         common_config['train_batch_size'] = 128
         common_config['num_sgd_iter'] = 2
 
