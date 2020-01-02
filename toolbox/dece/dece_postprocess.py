@@ -210,9 +210,11 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         return batch
 
     batch = sample_batch
-    batch["other_logits"] = batch[BEHAVIOUR_LOGITS].copy()
-    batch["other_action_logp"] = batch[ACTION_LOGP].copy()
     if policy.config[REPLAY_VALUES]:
+
+        batch["other_logits"] = batch[BEHAVIOUR_LOGITS].copy()
+        batch["other_action_logp"] = batch[ACTION_LOGP].copy()
+
         # a little workaround. We normalize advantage for all batch before
         # concatnation.
         tmp_batch = postprocess_ppo_gae(policy, batch)
