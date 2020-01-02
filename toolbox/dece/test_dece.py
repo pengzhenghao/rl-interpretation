@@ -65,4 +65,4 @@ if __name__ == '__main__':
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)
     # test_three_tuning(local_mode=False)
-    test_vtrace(local_mode=True)
+    test_vtrace(local_mode=False)

@@ -72,6 +72,8 @@ def additional_fetches(policy):
 
 
 def kl_and_loss_stats_modified(policy, train_batch):
+    if policy.config[I_AM_CLONE]:
+        return {}
     ret = kl_and_loss_stats(policy, train_batch)
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ret

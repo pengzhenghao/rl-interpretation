@@ -80,20 +80,20 @@ class VTraceSurrogateLoss(object):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
         # Compute vtrace on the CPU for better perf.
-        # with tf.device("/cpu:0"):
-        self.vtrace_returns = vtrace.multi_from_logits(
-            behaviour_policy_logits=behaviour_logits,
-            target_policy_logits=old_policy_behaviour_logits,
-            actions=tf.unstack(actions, axis=2),
-            discounts=tf.to_float(~dones) * discount,
-            rewards=rewards,
-            values=values,
-            bootstrap_value=bootstrap_value,
-            dist_class=dist_class,
-            model=model,
-            clip_rho_threshold=tf.cast(clip_rho_threshold, tf.float32),
-            clip_pg_rho_threshold=tf.cast(clip_pg_rho_threshold,
-                                          tf.float32))
+        with tf.device("/cpu:0"):
+            self.vtrace_returns = vtrace.multi_from_logits(
+                behaviour_policy_logits=behaviour_logits,
+                target_policy_logits=old_policy_behaviour_logits,
+                actions=tf.unstack(actions, axis=2),
+                discounts=tf.to_float(~dones) * discount,
+                rewards=rewards,
+                values=values,
+                bootstrap_value=bootstrap_value,
+                dist_class=dist_class,
+                model=model,
+                clip_rho_threshold=tf.cast(clip_rho_threshold, tf.float32),
+                clip_pg_rho_threshold=tf.cast(clip_pg_rho_threshold,
+                                              tf.float32))
 
         self.is_ratio = tf.clip_by_value(
             tf.exp(prev_actions_logp - old_policy_actions_logp), 0.0, 2.0)
