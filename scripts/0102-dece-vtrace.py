@@ -36,7 +36,7 @@ if __name__ == '__main__':
         "num_gpus": 2,
         "num_cpus_per_worker": 1,
         "num_cpus_for_driver": 1,
-        "num_envs_per_worker": 16,
+        "num_envs_per_worker": 8,
         'num_workers': 16,
     }
     train(
