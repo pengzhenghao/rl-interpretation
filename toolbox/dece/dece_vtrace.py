@@ -2,8 +2,7 @@ import logging
 
 import gym
 from ray.rllib.agents.impala import vtrace
-from ray.rllib.agents.impala.vtrace_policy import _make_time_major, \
-    BEHAVIOUR_LOGITS
+from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
 from ray.rllib.models.tf.tf_action_dist import Categorical
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils import try_import_tf
@@ -125,6 +124,47 @@ class VTraceSurrogateLoss(object):
         # Optional additional KL Loss
         if use_kl_loss:
             self.loss += cur_kl_coeff * self.mean_kl
+
+
+def _make_time_major(policy, seq_lens, tensor, drop_last=False):
+    """Swaps batch and trajectory axis.
+
+    Arguments:
+        policy: Policy reference
+        seq_lens: Sequence lengths if recurrent or None
+        tensor: A tensor or list of tensors to reshape.
+        drop_last: A bool indicating whether to drop the last
+        trajectory item.
+
+    Returns:
+        res: A tensor with swapped axes or a list of tensors with
+        swapped axes.
+    """
+    if isinstance(tensor, list):
+        return [
+            _make_time_major(policy, seq_lens, t, drop_last) for t in tensor
+        ]
+
+    if policy.is_recurrent():
+        B = tf.shape(seq_lens)[0]
+        T = tf.shape(tensor)[0] // B
+    else:
+        # Important: chop the tensor into batches at known episode cut
+        # boundaries. TODO(ekl) this is kind of a hack
+        T = policy.config["sample_batch_size"]
+        B = tf.shape(tensor)[0] // T
+
+    with tf.control_dependencies(
+            tf.print("T: ", T, " B: ", B, " shape: ", tf.shape(tensor))):
+        rs = tf.reshape(tensor, tf.concat([[B, T], tf.shape(tensor)[1:]], axis=0))
+
+    # swap B and T axes
+    res = tf.transpose(
+        rs, [1, 0] + list(range(2, 1 + int(tf.shape(tensor).shape[0]))))
+
+    if drop_last:
+        return res[:-1]
+    return res
 
 
 def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
