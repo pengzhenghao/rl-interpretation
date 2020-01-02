@@ -1,27 +1,32 @@
 import copy
-import logging
-import os.path as osp
-import pickle
 import json
+import logging
+import pickle
+
+import gym
 import numpy as np
 import ray
-import scipy.signal
 import tensorflow as tf
-from ray.rllib.agents.ppo.ppo import PPOTrainer, PPOTFPolicy, DEFAULT_CONFIG, \
-    validate_config as validate_config_ppo
-from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae
+from ray.rllib.agents.ppo.ppo import PPOTrainer, PPOTFPolicy, DEFAULT_CONFIG
 
 from toolbox.ipd.tnb_policy import setup_mixins_tnb, AgentPoolMixin, \
     KLCoeffMixin, EntropyCoeffSchedule, LearningRateSchedule, \
     ValueNetworkMixin, merge_dicts
-import gym
-I_AM_CLONE = 'i_am_clone'
+
 logger = logging.getLogger(__name__)
+
+I_AM_CLONE = 'i_am_clone'
+T_START = 20
+LOWER_NOVEL_BOUND = -0.1
 
 
 def on_episode_end(info):
-    episode = info['episode']
-    # print('pass')
+    envs = info['env'].get_unwrapped()
+    novelty_sum = np.mean([env.novelty_sum for env in envs])
+    info['episode'].custom_metrics['novelty_sum'] = novelty_sum
+    info['episode'].custom_metrics['early_stop_ratio'] = np.mean([
+        i['early_stop'] for i in info['episode']._agent_to_last_info.values()
+    ])
 
 
 ipd_default_config = merge_dicts(
@@ -43,113 +48,64 @@ ipd_default_config = merge_dicts(
     }
 )
 
-T_START = 20
-LOWER_NOVEL_BOUND = -0.1
 
-
-class IPDEnv:
-    """
-    A hacking workaround to implement IPD. This is not used for
-    large-scale training since assign each environment with N agents
-    is not practicable.
-    """
-
+class IPDEnv(gym.Env):
     def __init__(self, env_config):
-        print('env_config:', env_config)
-        # exit(0)
-        # assert 'yaml_path' in env_config, "Should contain yaml_path in config"
-        # assert isinstance(env_config['yaml_path'], str)
-        # assert osp.exists(env_config['yaml_path'])
-        # for key in env_config_required_items:
-        #     assert key in env_config
-
         self.env = gym.make(env_config['env_name'])
         self.observation_space = self.env.observation_space
         self.action_space = self.env.action_space
         self.prev_obs = None
-
-        # self.policies_pool = env_config['policies_pool']
-
         self.policies_pool = {}
-
-        # load agents from yaml file which contains checkpoints information.
-        # name_ckpt_mapping = read_yaml(env_config['yaml_path'], number=2)
-        # extra_config = {"num_workers": 0, "num_cpus_per_worker": 0}
-        # self.agent_pool = OrderedDict()
-        # for name, ckpt in name_ckpt_mapping.items():
-        #     assert ckpt['env_name'] == env_config['env_name']
-        #     self.agent_pool[name] = restore_agent(
-        #         ckpt['run_name'], ckpt['path'], ckpt['env_name'],
-        #         extra_config
-        #     )
-
-        # self.novelty_recorder = {k: 0.0 for k in self.agent_pool.keys()}
-        # self.novelty_recorder_count = 0
-        # self.novelty_sum = 0.0
         self.threshold = env_config['novelty_threshold']
+        self.novelty_stat = None
+        self.distance_mode = "min"
+        self.novelty_recorder = None
+        self.novelty_recorder_count = None
+        self.novelty_sum = None
+
+    def _init(self):
+        self.novelty_recorder = {k: 0.0 for k in self.policies_pool.keys()}
+        self.novelty_recorder_count = 0
+        self.novelty_sum = 0.0
 
     def reset(self, **kwargs):
         self.prev_obs = self.env.reset(**kwargs)
-        # self.novelty_recorder = {k: 0.0 for k in self.agent_pool.keys()}
-        # self.novelty_recorder_count = 0
-        # self.novelty_sum = 0.0
+        self._init()
         return self.prev_obs
 
     def step(self, action):
         assert self.prev_obs is not None
         early_stop = self._criterion(action)
-
         o, r, original_d, i = self.env.step(action)
         self.prev_obs = o
         done = early_stop or original_d
-        i['early_stop'] = done
+        i['early_stop'] = early_stop
         return o, r, done, i
 
     def _criterion(self, action):
         """Compute novelty, update recorder and return early-stop flag."""
-        # for agent_name, agent in self.agent_pool.items():
-        #     act = agent.compute_action(self.prev_obs)
-        #     novelty = np.linalg.norm(act - action)
-        #     self.novelty_recorder[agent_name] += novelty
-        # self.novelty_recorder_count += 1
-        #
-        # if self.novelty_recorder_count < T_START:
-        #     return False
-        #
-        # min_novelty = \
-        #     min(self.novelty_recorder.values()) / self.novelty_recorder_count
-        # min_novelty = min_novelty - self.threshold
-        #
-        # self.novelty_sum += min_novelty
-        # if self.novelty_sum <= LOWER_NOVEL_BOUND:
-        #     return True
+        if len(self.policies_pool) == 0:
+            return False
+        if self.novelty_recorder is None:
+            self._init()
+
+        for agent_name, policy in self.policies_pool.items():
+            act, _, _ = policy.compute_single_action(self.prev_obs, [])
+            novelty = np.linalg.norm(act - action)
+            self.novelty_recorder[agent_name] += novelty
+        self.novelty_recorder_count += 1
+        if self.novelty_recorder_count < T_START:
+            return False
+        min_novelty = min(self.novelty_recorder.values()
+                          ) / self.novelty_recorder_count
+        min_novelty = min_novelty - self.threshold
+        self.novelty_sum += min_novelty
+        if self.novelty_sum <= LOWER_NOVEL_BOUND:
+            return True
         return False
 
-    def seed(self, s):
+    def seed(self, s=None):
         self.env.seed(s)
-
-
-def on_episode_end(info):
-    envs = info['env'].get_unwrapped()
-    novelty = np.mean([env.novelty_sum for env in envs])
-    info['episode'].custom_metrics['novelty'] = novelty
-
-
-# def test_maddpg_custom_metrics():
-#     extra_config = {
-#         "env": IPDEnv,
-#         "env_config": {
-#             "env_name": "BipedalWalker-v2",
-#             "novelty_threshold": 0.0,
-#             "checkpoint_dict": os.path.abspath(
-#             "../data/yaml/test-2-agents.yaml")
-#         },
-#         "callbacks": {
-#             "on_episode_end": on_episode_end
-#         },
-#     }
-#     initialize_ray(test_mode=True, local_mode=False)
-#     tune.run("PPO", stop={"training_iteration": 10}, config=extra_config)
 
 
 def _restore_state(ckpt):
@@ -161,25 +117,20 @@ def _restore_state(ckpt):
 def after_init(trainer):
     if trainer.config[I_AM_CLONE]:
         return
-
     checkpoint_dict = json.loads(trainer.config['checkpoint_dict'])
-
+    if len(checkpoint_dict) == 0:
+        return
     weights = {
         k: _restore_state(ckpt) if ckpt is not None else None
         for k, ckpt in checkpoint_dict.items()
         # if ckpt is not None
     }
-
-    if len(weights) == 0:
-        return
-
     weights = ray.put(weights)
 
     def _init_pool(worker):
         """We load the policies pool at each worker, instead of each policy,
         to save memory."""
         local_weights = ray.get(weights)
-
         tmp_policy = worker.get_policy()
         policies_pool = {}
         for agent_name, agent_weight in local_weights.items():
@@ -212,61 +163,23 @@ def after_init(trainer):
         worker.foreach_env(_set_polices_pool)
 
     trainer.workers.foreach_worker(_init_pool)
-    print('finish!')
-
-
-
-def accumulate(x, gamma=1.0):
-    return scipy.signal.lfilter([1], [1, -gamma], x, axis=0)
-
-
-def postprocess_fn(policy, batch, others_batches, episode):
-    # clip the episode.
-    if policy.initialized_policies_pool:
-        nov = policy.compute_novelty(batch)
-
-        criterion = accumulate(nov)
-        index = np.argmax(criterion <= 0)
-        batch = batch.slice(0, index)
-
-        episode.custom_metrics['novelty_min'] = nov.min()
-        episode.custom_metrics['novelty_mean'] = nov.mean()
-        episode.custom_metrics['novelty_max'] = nov.max()
-        episode.custom_metrics['keep_ratio'] = index / len(nov)
-        episode.custom_metrics['keep_length'] = index
-        episode.custom_metrics['original_length'] = len(nov)
-    if batch.count > 0:
-        batch = postprocess_ppo_gae(policy, batch, others_batches, episode)
-    return batch
 
 
 IPDPolicy = PPOTFPolicy.with_updates(
     name="IPDPolicy",
     get_default_config=lambda: ipd_default_config,
     before_loss_init=setup_mixins_tnb,
-    postprocess_fn=postprocess_fn,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
         ValueNetworkMixin, AgentPoolMixin
     ]
 )
 
-
-def validate_config(config):
-    validate_config_ppo(config)
-
-    config['env_config'][
-        'policies_pool'] = {}  # wait for fill by setup_policies_pool
-
-
-
 IPDTrainer = PPOTrainer.with_updates(
     name="IPD",
     default_config=ipd_default_config,
-    # before_init=setup_policies_pool,
     after_init=after_init,
-    default_policy=IPDPolicy,
-    validate_config=validate_config,
+    default_policy=IPDPolicy
 )
 
 if __name__ == '__main__':
@@ -274,7 +187,7 @@ if __name__ == '__main__':
 
     from toolbox import initialize_ray
 
-    initialize_ray(test_mode=True, local_mode=True)
+    initialize_ray(test_mode=True, local_mode=False)
     env_name = "CartPole-v0"
     config = {"num_sgd_iter": 2, "env": IPDEnv,
               "env_config": {

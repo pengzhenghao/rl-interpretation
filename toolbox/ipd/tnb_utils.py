@@ -17,6 +17,8 @@ class RunningMean(object):
 
     def __call__(self, x):
         x = np.asarray(x)
+        if x.ndim == 1:
+            x = x[:, np.newaxis]
         assert x.ndim == 2
         assert x.shape[0] == self.num_policies
         # ([num_policies, batch size] + [num_policies, 1]) / (batch size + len)
