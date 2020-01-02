@@ -37,10 +37,10 @@ TNB-ES training basic workflow:
 logger = logging.getLogger(__file__)
 
 
-def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
+def train_one_agent(trainer, local_dir, agent_name, config, stop, test_mode=False):
     assert ray.is_initialized()
     analysis = tune.run(
-        TNBTrainer,
+        trainer,
         name=agent_name,
         local_dir=local_dir,
         verbose=2,
@@ -71,6 +71,7 @@ def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
 
 
 def train_one_iteration(
+        trainer,
         iteration_id,
         exp_name,
         max_num_agents,
@@ -124,6 +125,7 @@ def train_one_iteration(
 
         # train one agent
         analysis, checkpoint, info = train_one_agent(
+            trainer=trainer,
             local_dir=local_dir,
             agent_name=agent_name,
             config=agent_config,
@@ -191,7 +193,8 @@ def main(
         common_config,
         ray_init,
         test_mode=False,
-        disable_early_stop=False
+        disable_early_stop=False,
+        trainer=TNBTrainer
 ):
     prev_reward = float('-inf')
     prev_agent = None
@@ -218,6 +221,7 @@ def main(
         # train one iteration (at most max_num_agents will be trained)
         result_dict, checkpoint_dict, _, iteration_info = \
             train_one_iteration(
+                trainer=trainer,
                 iteration_id=iteration_id,
                 exp_name=exp_name if not test_mode else "DELETEME-TEST",
                 max_num_agents=max_num_agents if not test_mode else 3,
