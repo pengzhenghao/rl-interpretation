@@ -14,11 +14,11 @@ class FourWayGridWorld(gym.Env):
         self.right = 10
         self.up = 10
         self.down = 10
-        self.reset()
         self.observation_space = Box(0, self.N - 1, shape=(2,))
         self.action_space = Box(-1, 1, shape=(2,))
         self.early_done = env_config.get('early_done')
         self.int_initialize = not env_config.get('not_int_initialize')
+        self.reset()
 
     @property
     def done(self):
