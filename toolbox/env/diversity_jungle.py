@@ -7,12 +7,13 @@ from gym.spaces import Box
 
 # 200 points is Solved.
 class FourWayGridWorld:
-    def __init__(self, N=17, left=10, right=10, up=10, down=10):
+    def __init__(self, env_config=None):
+        N = 17
         self.N = 17
-        self.left = left
-        self.right = right
-        self.up = up
-        self.down = down
+        self.left = 10
+        self.right = 10
+        self.up = 10
+        self.down = 10
         self.map = np.ones((N, N)) * (-0.1)
         self.map[int((N - 1) / 2), 0] = self.left
         self.map[0, int((N - 1) / 2)] = self.up
