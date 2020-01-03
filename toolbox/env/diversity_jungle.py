@@ -17,25 +17,26 @@ class FourWayGridWorld(gym.Env):
         self.reset()
         self.observation_space = Box(0, self.N - 1, shape=(2,))
         self.action_space = Box(-1, 1, shape=(2,))
+        self.early_done = env_config.get('early_done')
+        self.int_initialize = not env_config.get('not_int_initialize')
+
+    @property
+    def done(self):
+        if self.early_done:
+            return (0 >= self.x) or (self.x >= self.N - 1) or \
+                   (self.y <= 0) or (self.y >= self.N - 1) or \
+                   (self.step_num >= 2 * self.N)
+        return self.step_num >= 2 * self.N
 
     def step(self, action):
-        self.x = _clip(
-            self.x + action[0],
-            max(self.x - 1, 0),
-            min(self.x + 1, self.N - 1)
-        )
-        self.y = _clip(
-            self.y + action[1],
-            max(self.y - 1, 0),
-            min(self.y + 1, self.N - 1)
-        )
+        x = _clip(action[0], -1, 1)
+        y = _clip(action[1], -1, 1)
+        self.x = _clip(self.x + x, 0, self.N - 1)
+        self.y = _clip(self.y + y, 0, self.N - 1)
         reward = self.map[int(self.x), int(self.y)]
         self.step_num += 1
-        # done = (0 >= self.x) or (self.x >= self.N - 1) or (self.y <= 0) or (
-        #             self.y >= self.N - 1) or (self.step_num >= 2 * self.N)
-        done = (self.step_num >= 2 * self.N)
         self.loc[0], self.loc[1] = self.x, self.y
-        return self.loc, reward, done, {}
+        return self.loc, reward, self.done, {}
 
     def render(self, mode=None):
         pass
@@ -46,7 +47,12 @@ class FourWayGridWorld(gym.Env):
         self.map[0, int((self.N - 1) / 2)] = self.up
         self.map[self.N - 1, int((self.N - 1) / 2)] = self.down
         self.map[int((self.N - 1) / 2), self.N - 1] = self.right
-        self.loc = np.random.randint(0, self.N - 1, size=(2,)).astype(np.float32)
+        if self.int_initialize:
+            self.loc = np.random.randint(0, self.N - 1, size=(2,)).astype(
+                np.float32)
+        else:
+            self.loc = np.random.uniform(0, self.N - 1, size=(2,)).astype(
+                np.float32)
         self.x, self.y = self.loc
         self.step_num = 0
         return self.loc
