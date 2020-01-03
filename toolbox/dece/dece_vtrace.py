@@ -236,22 +236,6 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     mean_kl = make_time_major(
         old_policy_action_dist.multi_kl(action_dist), drop_last=True)
 
-    # assert_list = []
-    # assert_list.append(
-    #     tf.assert_less(
-    #         tf.abs(prev_action_dist.logp(actions) -
-    #                train_batch['other_action_logp']), 0.001
-    #     )
-    # )
-    # assert_list.append(
-    #     tf.assert_less(
-    #         tf.abs(old_policy_action_dist.logp(actions) -
-    #                train_batch['action_logp']), 0.001)
-    # )
-    # assert_list.append(
-    #     tf.check_numerics(model_out, 'model_out')
-    # )
-
     values = model.value_function()
     # with tf.control_dependencies(assert_list):
     policy.loss_obj = VTraceSurrogateLoss(

@@ -2,6 +2,7 @@ import copy
 
 import matplotlib.pyplot as plt
 import numpy as np
+from gym.spaces import Box
 
 
 # 200 points is Solved.
@@ -19,6 +20,8 @@ class FourWayGridWorld:
         self.map[int((N - 1) / 2), N - 1] = self.right
         self.loc = np.asarray([np.random.randint(N), np.random.randint(N)])
         self.step_num = 0
+        self.observation_space = Box(0, self.N - 1, shape=(2,))
+        self.action_space = Box(-1, 1, shape=(2,))
 
     def step(self, action):
         action = np.clip(action, -1, 1)
@@ -27,7 +30,7 @@ class FourWayGridWorld:
         self.loc = new_loc
         reward = self.map[int(self.loc[0]), int(self.loc[1])]
         self.step_num += 1
-        return self.loc, reward, self.ifdone()
+        return self.loc, reward, self.ifdone(), {}
 
     def ifdone(self):
         if self.step_num >= 2 * self.N:
@@ -52,7 +55,6 @@ class FourWayGridWorld:
         )
         self.step_num = 0
         return self.loc
-
 
 # output_i = np.zeros((17, 17))
 # output_j = np.zeros((17, 17))

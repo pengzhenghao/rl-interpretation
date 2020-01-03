@@ -73,6 +73,8 @@ def get_env_maker(name, require_render=False):
         return build_opencv_bipedal_walker
     if require_render and name in ENV_MAKER_LOOKUP:
         return make_build_gym_env(name)
+    if callable(name):
+        return lambda: name()
     # if name in ENV_MAKER_LOOKUP:
     #     return ENV_MAKER_LOOKUP[name]
     else:
