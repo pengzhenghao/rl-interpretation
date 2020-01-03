@@ -56,6 +56,9 @@ class FourWayGridWorld:
         self.step_num = 0
         return self.loc
 
+    def seed(self, s):
+        np.random.seed(s)
+
 # output_i = np.zeros((17, 17))
 # output_j = np.zeros((17, 17))
 # output_i_m = np.zeros((17, 17))
