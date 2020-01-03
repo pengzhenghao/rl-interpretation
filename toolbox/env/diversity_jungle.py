@@ -19,19 +19,19 @@ class FourWayGridWorld(gym.Env):
         self.action_space = Box(-1, 1, shape=(2,))
 
     def step(self, action):
-        self.x = _clip(
-            self.x + action[0],
-            max(self.x - 1.0, 0.0),
-            min(self.x + 1.0, self.N - 1.0)
+        self.loc[0] = _clip(
+            self.loc[0] + action[0],
+            max(self.loc[0] - 1.0, 0.0),
+            min(self.loc[0] + 1.0, self.N - 1.0)
         )
-        self.y = _clip(
-            self.y + action[1],
-            max(self.y - 1.0, 0.0),
-            min(self.y + 1.0, self.N - 1.0)
+        self.loc[1] = _clip(
+            self.loc[1] + action[1],
+            max(self.loc[1] - 1.0, 0.0),
+            min(self.loc[1] + 1.0, self.N - 1.0)
         )
-        reward = self.map[int(self.x), int(self.y)]
+        reward = self.map[int(self.loc[0]), int(self.loc[1])]
         self.step_num += 1
-        return (self.x, self.y), reward, self.step_num >= 2 * self.N, {}
+        return self.loc, reward, self.step_num >= 2 * self.N, {}
 
     def render(self, mode=None):
         raise NotImplementedError()
@@ -42,10 +42,9 @@ class FourWayGridWorld(gym.Env):
         self.map[0, int((self.N - 1) / 2)] = self.up
         self.map[self.N - 1, int((self.N - 1) / 2)] = self.down
         self.map[int((self.N - 1) / 2), self.N - 1] = self.right
-        self.x = float(np.random.randint(self.N))
-        self.y = float(np.random.randint(self.N))
+        self.loc = np.random.randint(self.N, size=(2,)).astype(np.float32)
         self.step_num = 0
-        return (self.x, self.y)
+        return self.loc
 
     def seed(self, s=None):
         if s is not None:
