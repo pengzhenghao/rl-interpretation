@@ -320,6 +320,10 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             batch['other_action_logp'] = np.zeros_like(
                 batch[ACTION_LOGP], dtype=np.float32
             )
+            if policy.config['use_vtrace']:
+                batch['is_ratio'] = np.zeros_like(
+                    batch[ACTION_LOGP], dtype=np.float32
+                )
         return batch
 
     batch = sample_batch

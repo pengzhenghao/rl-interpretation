@@ -1,7 +1,6 @@
 import logging
 
 from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
-from toolbox.dece.dece_vtrace import build_appo_surrogate_loss
 from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, \
     PPOLoss, ppo_surrogate_loss
 from ray.rllib.evaluation.postprocessing import Postprocessing
@@ -18,7 +17,7 @@ def loss_dece(policy, model, dist_class, train_batch):
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
     if policy.config['use_vtrace']:
-        return build_appo_surrogate_loss(policy, model, dist_class, train_batch)
+        return tnb_loss(policy, model, dist_class, train_batch)
     if policy.config[USE_BISECTOR]:
         return tnb_loss(policy, model, dist_class, train_batch)
     else:  # USE_BISECTOR makes difference at computing_gradient!
@@ -91,7 +90,8 @@ class PPOLossTwoSideClip(object):
             vf_clip_param=0.1,
             vf_loss_coeff=1.0,
             use_gae=True,
-            model_config=None
+            model_config=None,
+            is_ratio=None
     ):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
@@ -99,6 +99,8 @@ class PPOLossTwoSideClip(object):
         prev_dist = dist_class(prev_logits, model)
         # Make loss functions.
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
+        if is_ratio is not None:
+            logp_ratio = is_ratio * logp_ratio
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
         curr_entropy = curr_action_dist.entropy()
@@ -167,9 +169,11 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"]
+        model_config=policy.config["model"],
+        is_ratio=train_batch['is_ratio'] if policy.config[
+            'use_vtrace'] else None
     )
-
+    # FIXME we don't prepare to use vtrace in no replay values mode.
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         policy.novelty_loss_obj = loss_cls(
             policy.action_space,
@@ -190,7 +194,9 @@ def tnb_loss(policy, model, dist_class, train_batch):
             vf_clip_param=policy.config["vf_clip_param"],
             vf_loss_coeff=policy.config["vf_loss_coeff"],
             use_gae=policy.config["use_gae"],
-            model_config=policy.config["model"]
+            model_config=policy.config["model"],
+            is_ratio=train_batch['is_ratio'] if policy.config[
+                'use_vtrace'] else None
         )
     else:
         policy.novelty_loss_obj = PPOLossTwoSideNovelty(
