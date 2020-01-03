@@ -147,7 +147,13 @@ dece_default_config = merge_dicts(
             DIVERSITY_REWARD_TYPE: "mse",
             REPLAY_VALUES: True,
             TWO_SIDE_CLIP_LOSS: True,
-            I_AM_CLONE: False
+            I_AM_CLONE: False,
+
+            # vtrace
+            "use_vtrace": False,
+            'use_kl_loss': True,
+            "vtrace_clip_rho_threshold": 1.0,  # TODO
+            "vtrace_clip_pg_rho_threshold": 1.0,  # TODO
         }
     )
 )

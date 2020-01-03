@@ -20,7 +20,7 @@ def wrap_stats_ceppo(policy, train_batch):
 
 
 def grad_stats_fn(policy, batch, grads):
-    if policy.config[USE_BISECTOR]:
+    if policy.config[USE_BISECTOR] and (not policy.config[I_AM_CLONE]):
         ret = {
             "cos_similarity": policy.gradient_cosine_similarity,
             "policy_grad_norm": policy.policy_grad_norm,
@@ -72,6 +72,8 @@ def additional_fetches(policy):
 
 
 def kl_and_loss_stats_modified(policy, train_batch):
+    if policy.config[I_AM_CLONE]:
+        return {}
     ret = kl_and_loss_stats(policy, train_batch)
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ret

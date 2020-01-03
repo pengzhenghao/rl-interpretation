@@ -1,58 +1,57 @@
-import copy
-
-import matplotlib.pyplot as plt
+import gym
 import numpy as np
+from gym.spaces import Box
 
 
-# 200 points is Solved.
-class FourWayGridWorld:
-    def __init__(self, N=17, left=10, right=10, up=10, down=10):
+class FourWayGridWorld(gym.Env):
+    def __init__(self, env_config=None):
         self.N = 17
-        self.left = left
-        self.right = right
-        self.up = up
-        self.down = down
-        self.map = np.ones((N, N)) * (-0.1)
-        self.map[int((N - 1) / 2), 0] = self.left
-        self.map[0, int((N - 1) / 2)] = self.up
-        self.map[N - 1, int((N - 1) / 2)] = self.down
-        self.map[int((N - 1) / 2), N - 1] = self.right
-        self.loc = np.asarray([np.random.randint(N), np.random.randint(N)])
-        self.step_num = 0
-
-    def step(self, action):
-        action = np.clip(action, -1, 1)
-        new_loc = np.clip(self.loc + action, 0, self.N - 1)
-        # if self.map[self.loc[0],self.loc[1]]!=0:
-        self.loc = new_loc
-        reward = self.map[int(self.loc[0]), int(self.loc[1])]
-        self.step_num += 1
-        return self.loc, reward, self.ifdone()
-
-    def ifdone(self):
-        if self.step_num >= 2 * self.N:
-            return True
-        else:
-            return False
-
-    def render(self):
-        map_self = copy.deepcopy(self.map)
-        map_self[int(self.loc[0]), int(self.loc[1])] = -5
-        plt.imshow(map_self)
-
-    def reset(self):
-        self.map = np.ones((self.N, self.N)) * (-0.1)
+        self.left = 10
+        self.right = 10
+        self.up = 10
+        self.down = 10
+        self.observation_space = Box(0, self.N - 1, shape=(2,))
+        self.action_space = Box(-1, 1, shape=(2,))
+        self.early_done = env_config.get('early_done')
+        self.int_initialize = not env_config.get('not_int_initialize')
+        self.map = np.ones((self.N, self.N), dtype=np.float32) * (-0.1)
         self.map[int((self.N - 1) / 2), 0] = self.left
         self.map[0, int((self.N - 1) / 2)] = self.up
         self.map[self.N - 1, int((self.N - 1) / 2)] = self.down
         self.map[int((self.N - 1) / 2), self.N - 1] = self.right
-        self.loc = np.asarray(
-            [np.random.randint(self.N),
-             np.random.randint(self.N)]
-        )
+        self.reset()
+
+    @property
+    def done(self):
+        if self.early_done:
+            return (not (0 <= self.loc[0] <= self.N - 1)) or \
+                   (not (0 <= self.loc[1] <= self.N - 1)) or \
+                   (self.step_num >= 2 * self.N)
+        return self.step_num >= 2 * self.N
+
+    def step(self, action):
+        action = np.clip(action, -1, 1)
+        self.loc = np.clip(self.loc + action, 0, self.N - 1)
+        reward = self.map[int(self.loc[0]), int(self.loc[1])]
+        self.step_num += 1
+        return self.loc, reward, self.done, {}
+
+    def render(self, mode=None):
+        pass
+
+    def reset(self):
+        if self.int_initialize:
+            self.loc = np.random.randint(0, self.N, size=(2,)).astype(
+                np.float32)
+        else:
+            self.loc = np.random.uniform(0, self.N - 1, size=(2,)).astype(
+                np.float32)
         self.step_num = 0
         return self.loc
 
+    def seed(self, s=None):
+        if s is not None:
+            np.random.seed(s)
 
 # output_i = np.zeros((17, 17))
 # output_j = np.zeros((17, 17))

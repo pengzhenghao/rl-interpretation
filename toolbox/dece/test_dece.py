@@ -49,9 +49,20 @@ def test_three_tuning(local_mode=False):
     )
 
 
+def test_vtrace(local_mode=False):
+    _base(
+        trainer=DECETrainer,
+        local_mode=local_mode,
+        extra_config={'use_vtrace': True},
+        env_name="BipedalWalker-v2",
+        t=2000
+    )
+
+
 if __name__ == '__main__':
-    test_dece(local_mode=False)
+    # test_dece(local_mode=False)
     # test_dece_batch0(local_mode=False)
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)
     # test_three_tuning(local_mode=False)
+    test_vtrace(local_mode=False)

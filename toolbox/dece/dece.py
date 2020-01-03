@@ -113,6 +113,8 @@ def setup_policies_pool(trainer):
                     tmp_policy.observation_space, tmp_policy.action_space,
                     tmp_config
                 )
+                wt = policy.get_weights()
+                print("current shape: {}, to set shape: {}".format(wt.shape, agent_weight.shape))
                 policy.set_weights(agent_weight)
             policies_pool[agent_name] = policy
         worker.policies_pool = policies_pool  # add new attribute to worker

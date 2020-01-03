@@ -87,7 +87,7 @@ def _restore(
             cls = PPOAgentWithMask
             change_model = "fc_with_mask"
             use_activation_model = True
-        elif issubclass(agent_type, Trainer):
+        elif (not isinstance(agent_type, str)) and issubclass(agent_type, Trainer):
             cls = agent_type
         else:
             cls = get_agent_class(run_name)

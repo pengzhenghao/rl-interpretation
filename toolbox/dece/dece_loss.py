@@ -1,13 +1,24 @@
-from ray.rllib.agents.ppo.ppo_policy import SampleBatch, BEHAVIOUR_LOGITS, \
+import logging
+
+from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
+from toolbox.dece.dece_vtrace import build_appo_surrogate_loss
+from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, \
     PPOLoss, ppo_surrogate_loss
 from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.policy.sample_batch import SampleBatch
 
 from toolbox.dece.utils import *
 
+logger = logging.getLogger(__name__)
+
 
 def loss_dece(policy, model, dist_class, train_batch):
+    # if policy.config[I_AM_CLONE]:  # the basic loss. useless.
+    #     return tnb_loss(policy, model, dist_class, train_batch)
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
+    if policy.config['use_vtrace']:
+        return build_appo_surrogate_loss(policy, model, dist_class, train_batch)
     if policy.config[USE_BISECTOR]:
         return tnb_loss(policy, model, dist_class, train_batch)
     else:  # USE_BISECTOR makes difference at computing_gradient!
@@ -119,6 +130,9 @@ class PPOLossTwoSideClip(object):
         self.loss = loss
 
 
+# def vtrace_loss(policy, model, dist_class, train_batch):
+
+
 def tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""
     logits, state = model.from_batch(train_batch)
@@ -204,7 +218,9 @@ def _flatten(tensor):
 
 
 def tnb_gradients(policy, optimizer, loss):
-    if not policy.config[USE_BISECTOR]:
+    # if policy.config[I_AM_CLONE]:
+    #     return optimizer.compute_gradients(loss)
+    if (not policy.config[USE_BISECTOR]) or (policy.config[I_AM_CLONE]):
         with tf.control_dependencies([loss[1]]):
             policy_grad = optimizer.compute_gradients(loss[0])
         return policy_grad
