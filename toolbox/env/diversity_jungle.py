@@ -46,7 +46,7 @@ class FourWayGridWorld(gym.Env):
         self.map[0, int((self.N - 1) / 2)] = self.up
         self.map[self.N - 1, int((self.N - 1) / 2)] = self.down
         self.map[int((self.N - 1) / 2), self.N - 1] = self.right
-        self.loc = np.random.uniform(0, self.N - 1, size=(2,)).astype(np.float32)
+        self.loc = np.random.randint(0, self.N - 1, size=(2,)).astype(np.float32)
         self.x, self.y = self.loc
         self.step_num = 0
         return self.loc
