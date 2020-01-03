@@ -29,13 +29,17 @@ class FourWayGridWorld(gym.Env):
         return self.step_num >= 2 * self.N
 
     def step(self, action):
-        x = _clip(action[0], -1, 1)
-        y = _clip(action[1], -1, 1)
-        self.x = _clip(self.x + x, 0, self.N - 1)
-        self.y = _clip(self.y + y, 0, self.N - 1)
-        reward = self.map[int(self.x), int(self.y)]
+        # x = _clip(action[0], -1, 1)
+        # y = _clip(action[1], -1, 1)
+        # self.x = _clip(self.x + x, 0, self.N - 1)
+        # self.y = _clip(self.y + y, 0, self.N - 1)
+        action = np.clip(action, -1, 1)
+        # self.x, self.y = \
+        self.loc = np.clip(self.loc + action, 0, self.N - 1)
+        reward = self.map[int(self.loc[0]), int(self.loc[1])]
+        # reward = self.map[int(self.x), int(self.y)]
         self.step_num += 1
-        self.loc[0], self.loc[1] = self.x, self.y
+        # self.loc[0], self.loc[1] = self.x, self.y
         return self.loc, reward, self.done, {}
 
     def render(self, mode=None):
@@ -53,7 +57,7 @@ class FourWayGridWorld(gym.Env):
         else:
             self.loc = np.random.uniform(0, self.N - 1, size=(2,)).astype(
                 np.float32)
-        self.x, self.y = self.loc
+        # self.x, self.y = self.loc
         self.step_num = 0
         return self.loc
 
