@@ -1,7 +1,4 @@
-import copy
-
 import gym
-import matplotlib.pyplot as plt
 import numpy as np
 from gym.spaces import Box
 
@@ -24,22 +21,20 @@ class FourWayGridWorld(gym.Env):
     def step(self, action):
         self.x = _clip(
             self.x + action[0],
-            max(self.x - 1, 0),
-            min(self.x + 1, self.N - 1)
+            max(self.x - 1.0, 0.0),
+            min(self.x + 1.0, self.N - 1.0)
         )
         self.y = _clip(
             self.y + action[1],
-            max(self.y - 1, 0),
-            min(self.y + 1, self.N - 1)
+            max(self.y - 1.0, 0.0),
+            min(self.y + 1.0, self.N - 1.0)
         )
         reward = self.map[int(self.x), int(self.y)]
         self.step_num += 1
         return (self.x, self.y), reward, self.step_num >= 2 * self.N, {}
 
     def render(self, mode=None):
-        map_self = copy.deepcopy(self.map)
-        map_self[int(self.loc[0]), int(self.loc[1])] = -5
-        plt.imshow(map_self)
+        raise NotImplementedError()
 
     def reset(self):
         self.map = np.ones((self.N, self.N), dtype=np.float32) * (-0.1)
