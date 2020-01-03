@@ -151,15 +151,18 @@ class AgentPoolMixin(object):
         for i, (agent_name, checkpoint_info) in \
                 enumerate(self.checkpoint_dict.items()):
             # build the policy and restore the weights.
-            with tf.variable_scope(agent_name):
+            with tf.variable_scope(agent_name, reuse=tf.AUTO_REUSE):
                 policy = TNBPolicy(
                     self.observation_space, self.action_space, tmp_config
                 )
-                path = os.path.abspath(
-                    os.path.expanduser(checkpoint_info['path'])
-                )
-                state = _restore_state(path)
-                policy.set_weights(state)
+                if checkpoint_info is not None:
+                    path = os.path.abspath(
+                        os.path.expanduser(checkpoint_info['path'])
+                    )
+                    state = _restore_state(path)
+                    policy.set_weights(state)
+                else:  # for test purpose
+                    checkpoint_info = {'path': "N/A", 'reward': float('nan')}
 
             policy_info = {
                 "policy": policy,
@@ -192,7 +195,7 @@ class AgentPoolMixin(object):
 
         self.initialized_policies_pool = True
 
-    def compute_novelty(self, sample_batch, other_batches, episode):
+    def compute_novelty(self, sample_batch, other_batches=None, episode=None):
         state = sample_batch[SampleBatch.CUR_OBS]
         action = sample_batch[SampleBatch.ACTIONS]
         if not self.initialized_policies_pool:

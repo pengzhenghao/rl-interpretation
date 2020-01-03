@@ -13,6 +13,7 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.ipd.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
+
 """
 TNB-ES training basic workflow:
 
@@ -37,10 +38,11 @@ TNB-ES training basic workflow:
 logger = logging.getLogger(__file__)
 
 
-def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
+def train_one_agent(trainer, local_dir, agent_name, config, stop,
+                    test_mode=False):
     assert ray.is_initialized()
     analysis = tune.run(
-        TNBTrainer,
+        trainer,
         name=agent_name,
         local_dir=local_dir,
         verbose=2,
@@ -71,6 +73,7 @@ def train_one_agent(local_dir, agent_name, config, stop, test_mode=False):
 
 
 def train_one_iteration(
+        trainer,
         iteration_id,
         exp_name,
         max_num_agents,
@@ -100,6 +103,7 @@ def train_one_iteration(
     if test_mode:
         common_config['num_gpus'] = 0
         common_config['sample_batch_size'] = 32
+        common_config['sgd_minibatch_size'] = 32
         common_config['train_batch_size'] = 128
         common_config['num_sgd_iter'] = 2
 
@@ -124,6 +128,7 @@ def train_one_iteration(
 
         # train one agent
         analysis, checkpoint, info = train_one_agent(
+            trainer=trainer,
             local_dir=local_dir,
             agent_name=agent_name,
             config=agent_config,
@@ -151,6 +156,12 @@ def train_one_iteration(
         if best_reward < result['current_reward']:
             iteration_info['best_agent'] = agent_name
             best_reward = result['current_reward']
+
+        if stop_flag and disable_early_stop:
+            print("{} Though we choose to STOP here, but we set"
+                  " disable_eary_stop in order to align different "
+                  "expeirments, therefore we CONTINUE this iteration."
+                  "".format(prefix))
 
         if (stop_flag) and (not disable_early_stop):
             break
@@ -191,7 +202,8 @@ def main(
         common_config,
         ray_init,
         test_mode=False,
-        disable_early_stop=False
+        disable_early_stop=False,
+        trainer=TNBTrainer
 ):
     prev_reward = float('-inf')
     prev_agent = None
@@ -218,6 +230,7 @@ def main(
         # train one iteration (at most max_num_agents will be trained)
         result_dict, checkpoint_dict, _, iteration_info = \
             train_one_iteration(
+                trainer=trainer,
                 iteration_id=iteration_id,
                 exp_name=exp_name if not test_mode else "DELETEME-TEST",
                 max_num_agents=max_num_agents if not test_mode else 3,
@@ -373,6 +386,7 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError()
 
+
     def ray_init():
         ray.shutdown()
         initialize_ray(
@@ -381,6 +395,7 @@ if __name__ == '__main__':
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )
+
 
     main(
         exp_name=args.exp_name,

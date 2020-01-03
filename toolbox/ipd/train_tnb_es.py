@@ -1,16 +1,18 @@
 import argparse
 
-from toolbox.ipd.train_tnb import main as train_ipd_tnb, ray_init
+import ray
+
+from toolbox import initialize_ray
+from toolbox.ipd.train_tnb import main
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, default="")
-    parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
+    parser.add_argument("--env-name", type=str, required=True)
     parser.add_argument("--address", type=str, default="")
     parser.add_argument("--disable-tnb", action="store_true")
 
     parser.add_argument("--num-gpus", type=int, default=4)
-    parser.add_argument("--num-iterations", type=int, default=100)
     parser.add_argument("--test-mode", action="store_true")
     args = parser.parse_args()
 
@@ -22,9 +24,10 @@ if __name__ == '__main__':
         "disable_tnb": args.disable_tnb,
         "env": args.env_name,
         "use_tnb_plus": False,
+
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
-        "lr": 0.0001,
+        "lr": 0.0002,
         'sample_batch_size': 256,
         'sgd_minibatch_size': 4096,
         'train_batch_size': 65536,
@@ -55,11 +58,22 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError()
 
-    train_ipd_tnb(
+
+    def ray_init():
+        ray.shutdown()
+        initialize_ray(
+            test_mode=args.test_mode,
+            local_mode=False,
+            num_gpus=args.num_gpus if not args.address else None,
+            redis_address=args.address if args.address else None
+        )
+
+
+    main(
         exp_name=args.exp_name,
-        num_iterations=args.num_iterations,
+        num_iterations=100,
         max_num_agents=10,
-        timesteps_total=int(args.timesteps),
+        timesteps_total=int(timesteps),
         common_config=config,
         max_not_improve_iterations=3,
         ray_init=ray_init,
