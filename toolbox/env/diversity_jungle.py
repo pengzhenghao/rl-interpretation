@@ -31,8 +31,9 @@ class FourWayGridWorld(gym.Env):
         )
         reward = self.map[int(self.x), int(self.y)]
         self.step_num += 1
-        done = (0 >= self.x) or (self.x >= self.N - 1) or (self.y <= 0) or (
-                    self.y >= self.N - 1) or (self.step_num >= 2 * self.N)
+        # done = (0 >= self.x) or (self.x >= self.N - 1) or (self.y <= 0) or (
+        #             self.y >= self.N - 1) or (self.step_num >= 2 * self.N)
+        done = (self.step_num >= 2 * self.N)
         self.loc[0], self.loc[1] = self.x, self.y
         return self.loc, reward, done, {}
 
