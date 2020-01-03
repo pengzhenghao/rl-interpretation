@@ -12,8 +12,8 @@ class FourWayGridWorld(gym.Env):
         self.down = 10
         self.observation_space = Box(0, self.N - 1, shape=(2,))
         self.action_space = Box(-1, 1, shape=(2,))
-        self.early_done = env_config.get('early_done')
-        self.int_initialize = not env_config.get('not_int_initialize')
+        self.early_done = env_config.get('early_done') if env_config is not None else False
+        self.int_initialize = not env_config.get('not_int_initialize') if env_config is not None else True
         self.map = np.ones((self.N, self.N), dtype=np.float32) * (-0.1)
         self.map[int((self.N - 1) / 2), 0] = self.left
         self.map[0, int((self.N - 1) / 2)] = self.up
