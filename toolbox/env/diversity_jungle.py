@@ -24,7 +24,8 @@ class FourWayGridWorld(gym.Env):
     @property
     def done(self):
         if self.early_done:
-            return (not np.all(0 <= self.loc <= self.N - 1)) or \
+            return (not (0 <= self.loc[0] <= self.N - 1)) or \
+                   (not (0 <= self.loc[1] <= self.N - 1)) or \
                    (self.step_num >= 2 * self.N)
         return self.step_num >= 2 * self.N
 
