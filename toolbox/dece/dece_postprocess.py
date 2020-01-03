@@ -89,6 +89,7 @@ def compute_vtrace(
                     traj[SampleBatch.REWARDS] + gamma * vs[1:] - vs[:-1])
 
         traj["abs_advantage"] = np.abs(advantage)
+        traj[Postprocessing.ADVANTAGES] = advantage
 
         # traj[Postprocessing.ADVANTAGES
         # ] = (advantage - advantage.mean()) / max(1e-4, advantage.std())
@@ -338,15 +339,17 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             tmp_batch = postprocess_vtrace(policy, batch)
         else:
             tmp_batch = postprocess_ppo_gae(policy, batch)
+            value = tmp_batch[Postprocessing.ADVANTAGES]
+            standardized = (value - value.mean()) / max(1e-4, value.std())
+            tmp_batch[Postprocessing.ADVANTAGES] = standardized
+
+        tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches)
+
 
         tmp_batch["abs_advantage"] = np.abs(
             tmp_batch[Postprocessing.ADVANTAGES]
         )
 
-        tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches)
-        value = tmp_batch[Postprocessing.ADVANTAGES]
-        standardized = (value - value.mean()) / max(1e-4, value.std())
-        tmp_batch[Postprocessing.ADVANTAGES] = standardized
         batches = [tmp_batch]
     else:
         batch = postprocess_ppo_gae(policy, batch)
