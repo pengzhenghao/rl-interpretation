@@ -75,7 +75,8 @@ def make_policy_optimizer_tnbes(workers, config):
         standardize_fields=["advantages", NOVELTY_ADVANTAGES]
         if not config['use_vtrace'] else [],  # HERE!
         shuffle_sequences=config["shuffle_sequences"]
-        if not config['use_vtrace'] else False
+        if not config['use_vtrace'] else False,
+        use_vtrace=config['use_vtrace']
     )
 
 

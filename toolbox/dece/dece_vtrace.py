@@ -192,7 +192,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     dones = train_batch[SampleBatch.DONES]
     rewards = train_batch[SampleBatch.REWARDS]
 
-    behaviour_logits = train_batch['other_logits']
+    behaviour_logits = train_batch[BEHAVIOUR_LOGITS]
 
     # PENGZH: Compared to APPO, we also have three concepts need to be
     # clarified here:

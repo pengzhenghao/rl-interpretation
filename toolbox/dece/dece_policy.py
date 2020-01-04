@@ -2,7 +2,8 @@ import logging
 
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
     KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch, \
-    BEHAVIOUR_LOGITS, make_tf_callable, kl_and_loss_stats, PPOTFPolicy
+    BEHAVIOUR_LOGITS, make_tf_callable, kl_and_loss_stats, PPOTFPolicy, \
+    Postprocessing
 from ray.rllib.utils.explained_variance import explained_variance
 
 from toolbox.dece.dece_loss import loss_dece, tnb_gradients
@@ -76,7 +77,21 @@ def additional_fetches(policy):
 def kl_and_loss_stats_modified(policy, train_batch):
     if policy.config[I_AM_CLONE]:
         return {}
-    ret = kl_and_loss_stats(policy, train_batch)
+    ret = {
+        "cur_kl_coeff": tf.cast(policy.kl_coeff, tf.float64),
+        "cur_lr": tf.cast(policy.cur_lr, tf.float64),
+        "total_loss": policy.loss_obj.loss,
+        "policy_loss": policy.loss_obj.mean_policy_loss,
+        "vf_loss": policy.loss_obj.mean_vf_loss,
+        "kl": policy.loss_obj.mean_kl,
+        "entropy": policy.loss_obj.mean_entropy,
+        "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
+    }
+    if not policy.config['use_vtrace']:
+        ret["vf_explained_var"] = explained_variance(
+            train_batch[Postprocessing.VALUE_TARGETS],
+            policy.model.value_function()),
+
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ret
     ret.update(
@@ -91,7 +106,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
             "abs_advantage": policy.abs_advantage
         }
     )
-    if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
+    if policy.config[USE_DIVERSITY_VALUE_NETWORK] and not policy.config[
+        'use_vtrace']:
         ret['novelty_vf_explained_var'] = explained_variance(
             train_batch[NOVELTY_VALUE_TARGETS],
             policy.model.novelty_value_function()
