@@ -431,8 +431,7 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                         # permutation = np.random.permutation(num_batches)
                         # for batch_index in range(num_batches):
                     batch_fetches = optimizer.optimize(self.sess, 0)
-                    for k, v in batch_fetches[
-                        LEARNER_STATS_KEY].items():
+                    for k, v in batch_fetches[LEARNER_STATS_KEY].items():
                         iter_extra_fetches[k].append(v)
                     fetches[policy_id] = _averaged(iter_extra_fetches)
                 else:
