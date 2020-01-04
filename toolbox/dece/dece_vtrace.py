@@ -259,7 +259,9 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         unpacked_behaviour_logits, drop_last=True)
     loss_target_logits = make_time_major(unpacked_outputs, drop_last=True)
 
-    old_policy_behaviour_logits = tf.stop_gradient(loss_target_logits)
+    old_policy_behaviour_logits = [
+        tf.stop_gradient(t) for t in loss_target_logits
+    ]
 
     loss_mask = make_time_major(mask, drop_last=True)
 
@@ -270,7 +272,6 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         prev_actions_logp=prev_actions_logp,
         actions_logp=actions_logp,
         old_policy_actions_logp=old_policy_actions_logp,
-        # TODO can be simplify
         action_kl=action_kl,
         actions_entropy=actions_entropy,
         dones=dones,
