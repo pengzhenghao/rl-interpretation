@@ -102,7 +102,7 @@ class VTraceSurrogateLoss(object):
         advantages = self.vtrace_returns.pg_advantages
 
         advantages = (advantages - tf.reduce_mean(advantages)
-                        ) / max(1e-4, tf.math.reduce_std(advantages))
+                        ) / tf.maximum(1e-4, tf.math.reduce_std(advantages))
 
         self.advantage = advantages
         self.debug_ratio = logp_ratio
