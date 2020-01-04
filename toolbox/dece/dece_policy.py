@@ -1,10 +1,17 @@
 import logging
 
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
-    KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch, \
-    BEHAVIOUR_LOGITS, make_tf_callable, kl_and_loss_stats, PPOTFPolicy, \
-    Postprocessing
+from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
+from ray.rllib.agents.ppo.ppo_policy import setup_mixins, \
+    EntropyCoeffSchedule, \
+    BEHAVIOUR_LOGITS, kl_and_loss_stats, PPOTFPolicy, KLCoeffMixin, \
+    ValueNetworkMixin
+from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.models import ModelCatalog
+from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.tf_policy import LearningRateSchedule, TFPolicy
+from ray.rllib.utils.annotations import override
 from ray.rllib.utils.explained_variance import explained_variance
+from ray.rllib.utils.tf_ops import make_tf_callable
 
 from toolbox.dece.dece_loss import loss_dece, tnb_gradients
 from toolbox.dece.dece_postprocess import postprocess_dece
@@ -12,6 +19,9 @@ from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
 
 logger = logging.getLogger(__name__)
+
+POLICY_SCOPE = "func"
+TARGET_POLICY_SCOPE = "target_func"
 
 
 def wrap_stats_ceppo(policy, train_batch):
@@ -190,19 +200,83 @@ def get_batch_divisibility_req(policy):
         return 1
 
 
+class TargetNetworkMixin(object):
+    def __init__(self, config):
+        """Target Network is updated by the master learner every
+        trainer.update_target_frequency steps. All worker batches
+        are importance sampled w.r. to the target network to ensure
+        a more stable pi_old in PPO.
+        """
+        self.model_vars = self.model.variables()
+        self.target_model_vars = self.target_model.variables()
+
+        assert config[I_AM_CLONE], "Only make sense when this policy is clone"
+        self.tau_value = config.get("tau")
+        self.tau = tf.placeholder(tf.float32, (), name="tau")
+        assign_ops = []
+        assert len(self.model_vars) == len(self.target_model_vars)
+        for var, var_target in zip(self.model_vars,
+                                   self.target_model_vars):
+            assign_ops.append(var_target.assign(
+                self.tau * var + (1.0 - self.tau) * var_target
+            ))
+        self.update_target_expr = tf.group(*assign_ops)
+
+    # @override(TFPolicy)
+    # def variables(self):
+    #     # return self.model_vars + self.target_model_vars
+    #     return self.model_vars
+
+    def update_clone_network(self, tau=None):
+        tau = tau or self.tau_value
+        return self.get_session().run(
+            self.update_target_expr, feed_dict={self.tau: tau})
+
+
+def build_appo_model(policy, obs_space, action_space, config):
+    _, logit_dim = ModelCatalog.get_action_dist(action_space, config["model"])
+
+    policy.model = ModelCatalog.get_model_v2(
+        obs_space,
+        action_space,
+        logit_dim,
+        config["model"],
+        name=POLICY_SCOPE,
+        framework="tf")
+
+    if config[I_AM_CLONE]:
+        policy.target_model = ModelCatalog.get_model_v2(
+            obs_space,
+            action_space,
+            logit_dim,
+            config["model"],
+            name=TARGET_POLICY_SCOPE,
+            framework="tf")
+
+    return policy.model
+
+
+def setup_late_mixins(policy, obs_space, action_space, config):
+    if config[I_AM_CLONE]:
+        TargetNetworkMixin.__init__(policy, config)
+
+
 DECEPolicy = PPOTFPolicy.with_updates(
     name="DECEPolicy",
     get_default_config=lambda: dece_default_config,
     postprocess_fn=postprocess_dece,
     loss_fn=loss_dece,
+    make_model=build_appo_model,
     stats_fn=kl_and_loss_stats_modified,
     gradients_fn=tnb_gradients,
     grad_stats_fn=grad_stats_fn,
     extra_action_fetches_fn=additional_fetches,
     before_loss_init=setup_mixins_dece,
+    after_init=setup_late_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin, NoveltyValueNetworkMixin, ComputeNoveltyMixin
+        ValueNetworkMixin, NoveltyValueNetworkMixin, ComputeNoveltyMixin,
+        TargetNetworkMixin
     ],
-    get_batch_divisibility_req=get_batch_divisibility_req
+    get_batch_divisibility_req=get_batch_divisibility_req,
 )
