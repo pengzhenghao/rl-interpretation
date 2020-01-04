@@ -188,12 +188,6 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         return _make_time_major(policy, train_batch.get("seq_lens"), *args,
                                 **kw)
 
-    actions = train_batch[SampleBatch.ACTIONS]
-    dones = train_batch[SampleBatch.DONES]
-    rewards = train_batch[SampleBatch.REWARDS]
-
-    behaviour_logits = train_batch[BEHAVIOUR_LOGITS]
-
     # PENGZH: Compared to APPO, we also have three concepts need to be
     # clarified here:
     #   1. old_policy, which is a target_network at APPO, is 'my policy' in
@@ -211,6 +205,9 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     # target_model_out, _ = policy.target_model.from_batch(train_batch)
     # old_policy_behaviour_logits = tf.stop_gradient(target_model_out)
     # old_policy_behaviour_logits = train_batch["my_policy_logits"]
+    actions = train_batch[SampleBatch.ACTIONS]
+    rewards = train_batch[SampleBatch.REWARDS]
+    behaviour_logits = train_batch[BEHAVIOUR_LOGITS]
 
     unpacked_behaviour_logits = tf.split(
         behaviour_logits, output_hidden_shape, axis=1)
@@ -234,50 +231,57 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     assert policy.config["use_vtrace"]
     logger.debug("Using V-Trace surrogate loss (vtrace=True)")
 
-    # Prepare actions for loss
-    loss_actions = actions if is_multidiscrete else tf.expand_dims(
-        actions, axis=1)
-
     # Prepare KL for Loss
     # compared the updated network and not-updated network's KL.
     mean_kl = make_time_major(
         action_dist.multi_kl(action_dist), drop_last=True)
-    # of course this is 0.
+
+    # Prepare actions for loss
+    loss_actions = actions if is_multidiscrete else tf.expand_dims(
+        actions, axis=1)
+    loss_actions = make_time_major(loss_actions, drop_last=True)
+    prev_actions_logp = make_time_major(
+            prev_action_dist.logp(actions), drop_last=True)
+    actions_logp = make_time_major(action_dist.logp(actions), drop_last=True)
+    action_kl = tf.reduce_mean(mean_kl, axis=0) \
+        if is_multidiscrete else mean_kl
+    actions_entropy = make_time_major(
+            action_dist.multi_entropy(), drop_last=True)
+    dones = make_time_major(train_batch[SampleBatch.DONES], drop_last=True)
+    loss_behaviour_logits = make_time_major(
+        unpacked_behaviour_logits, drop_last=True)
+    loss_target_logits = make_time_major(unpacked_outputs, drop_last=True)
+    loss_mask = make_time_major(mask, drop_last=True)
 
     values = model.value_function()
     # with tf.control_dependencies(assert_list):
     policy.loss_obj = VTraceSurrogateLoss(
-        actions=make_time_major(loss_actions, drop_last=True),
-        prev_actions_logp=make_time_major(
-            prev_action_dist.logp(actions), drop_last=True),
-        # TODO can be simplify
-        actions_logp=make_time_major(
-            action_dist.logp(actions), drop_last=True),
+        actions=loss_actions,
+        prev_actions_logp=prev_actions_logp,
+        actions_logp=actions_logp,
         # old_policy_actions_logp=make_time_major(
         #     old_policy_action_dist.logp(actions), drop_last=True),
         # TODO can be simplify
-        action_kl=tf.reduce_mean(mean_kl, axis=0)
-        if is_multidiscrete else mean_kl,
-        actions_entropy=make_time_major(
-            action_dist.multi_entropy(), drop_last=True),
-        dones=make_time_major(dones, drop_last=True),
-        behaviour_logits=make_time_major(
-            unpacked_behaviour_logits, drop_last=True),
+        action_kl=action_kl,
+        actions_entropy=actions_entropy,
+        dones=dones,
+        behaviour_logits=loss_behaviour_logits,
         # old_policy_behaviour_logits=make_time_major(
         #     unpacked_old_policy_behaviour_logits, drop_last=True),
-        target_logits=make_time_major(unpacked_outputs, drop_last=True),
+        target_logits=loss_target_logits,
         discount=policy.config["gamma"],
+
         rewards=make_time_major(rewards, drop_last=True),
         values=make_time_major(values, drop_last=True),
         bootstrap_value=make_time_major(values)[-1],
+
         dist_class=Categorical if is_multidiscrete else dist_class,
         model=policy.model,
-        valid_mask=make_time_major(mask, drop_last=True),
+        valid_mask=loss_mask,
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         entropy_coeff=policy.config["entropy_coeff"],
         clip_rho_threshold=policy.config["clip_rho_threshold"],
-        clip_pg_rho_threshold=policy.config[
-            "clip_pg_rho_threshold"],
+        clip_pg_rho_threshold=policy.config[ "clip_pg_rho_threshold"],
         clip_param=policy.config["clip_param"],
         cur_kl_coeff=policy.kl_coeff,
         # use_kl_loss=policy.config["use_kl_loss"]
@@ -287,37 +291,31 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     novelty_values = model.novelty_value_function()
     novelty_reward = train_batch[NOVELTY_REWARDS]
     policy.novelty_loss_obj = VTraceSurrogateLoss(
-        actions=make_time_major(loss_actions, drop_last=True),
-        prev_actions_logp=make_time_major(
-            prev_action_dist.logp(actions), drop_last=True),
-        # TODO can be simplify
-        actions_logp=make_time_major(
-            action_dist.logp(actions), drop_last=True),
+        actions=loss_actions,
+        prev_actions_logp=prev_actions_logp,
+        actions_logp=actions_logp,
         # old_policy_actions_logp=make_time_major(
         #     old_policy_action_dist.logp(actions), drop_last=True),
-        # TODO can be simplify
-        action_kl=tf.reduce_mean(mean_kl, axis=0)
-        if is_multidiscrete else mean_kl,
-        actions_entropy=make_time_major(
-            action_dist.multi_entropy(), drop_last=True),
-        dones=make_time_major(dones, drop_last=True),
-        behaviour_logits=make_time_major(
-            unpacked_behaviour_logits, drop_last=True),
+        action_kl=action_kl,
+        actions_entropy=actions_entropy,
+        dones=dones,
+        behaviour_logits=loss_behaviour_logits,
         # old_policy_behaviour_logits=make_time_major(
         #     unpacked_old_policy_behaviour_logits, drop_last=True),
-        target_logits=make_time_major(unpacked_outputs, drop_last=True),
+        target_logits=loss_target_logits,
         discount=policy.config["gamma"],
+
         rewards=make_time_major(novelty_reward, drop_last=True),
         values=make_time_major(novelty_values, drop_last=True),
         bootstrap_value=make_time_major(novelty_values)[-1],
+
         dist_class=Categorical if is_multidiscrete else dist_class,
         model=policy.model,
-        valid_mask=make_time_major(mask, drop_last=True),
+        valid_mask=loss_mask,
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         entropy_coeff=policy.config["entropy_coeff"],
         clip_rho_threshold=policy.config["clip_rho_threshold"],
-        clip_pg_rho_threshold=policy.config[
-            "clip_pg_rho_threshold"],
+        clip_pg_rho_threshold=policy.config["clip_pg_rho_threshold"],
         clip_param=policy.config["clip_param"],
         cur_kl_coeff=policy.kl_coeff,
         # use_kl_loss=policy.config["use_kl_loss"])
