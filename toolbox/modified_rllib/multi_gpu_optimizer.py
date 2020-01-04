@@ -11,6 +11,7 @@ import numpy as np
 import ray
 from ray.rllib.evaluation.metrics import LEARNER_STATS_KEY
 from ray.rllib.optimizers import LocalMultiGPUOptimizer
+from ray.rllib.optimizers.multi_gpu_impl import LocalSyncParallelOptimizer
 from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
 from ray.rllib.optimizers.rollout import collect_samples
 from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, \
@@ -86,7 +87,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
 
         self.policies = dict(
             self.workers.local_worker().
-            foreach_trainable_policy(lambda p, i: (i, p))
+                foreach_trainable_policy(lambda p, i: (i, p))
         )
         logger.debug("Policies to train: {}".format(self.policies))
         for policy_id, policy in self.policies.items():
@@ -115,16 +116,19 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                                 policy._optimizer, self.devices, {
                                     (i, k): v
                                     for i,
-                                    (k, v) in enumerate(policy._loss_inputs)
+                                        (k, v) in
+                                    enumerate(policy._loss_inputs)
                                     if k not in no_split_list
                                 }, {
                                     (i, k): v
                                     for i,
-                                    (k, v) in enumerate(policy._loss_inputs)
+                                        (k, v) in
+                                    enumerate(policy._loss_inputs)
                                     if k in no_split_list
                                 }, [
                                     (i, k) for i,
-                                    (k, _) in enumerate(policy._loss_inputs)
+                                               (k, _) in
+                                    enumerate(policy._loss_inputs)
                                 ], rnn_inputs, self.per_device_batch_size,
                                 policy.copy
                             )
@@ -224,7 +228,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                     for batch_index in range(num_batches):
                         batch_fetches = optimizer.optimize(
                             self.sess, permutation[batch_index] *
-                            self.per_device_batch_size
+                                       self.per_device_batch_size
                         )
                         for k, v in batch_fetches[LEARNER_STATS_KEY].items():
                             iter_extra_fetches[k].append(v)
@@ -267,14 +271,83 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
             train_batch_size=1024,
             num_gpus=0,
             standardize_fields=[],
-            shuffle_sequences=True
+            shuffle_sequences=True,
+            use_vtrace=False,
     ):
-        super().__init__(
-            workers, sgd_batch_size, num_sgd_iter, sample_batch_size,
-            num_envs_per_worker, train_batch_size, num_gpus,
-            standardize_fields, shuffle_sequences
-        )
+
+        PolicyOptimizer.__init__(self, workers)
+
+        self.batch_size = sgd_batch_size
+        self.num_sgd_iter = num_sgd_iter
+        self.num_envs_per_worker = num_envs_per_worker
+        self.sample_batch_size = sample_batch_size
+        self.train_batch_size = train_batch_size
+        self.shuffle_sequences = shuffle_sequences
+        self.use_vtrace = use_vtrace
+        if not num_gpus:
+            self.devices = ["/cpu:0"]
+        else:
+            self.devices = [
+                "/gpu:{}".format(i) for i in
+                range(int(math.ceil(num_gpus)))
+            ]
+        self.batch_size = int(sgd_batch_size / len(self.devices)) * len(
+            self.devices)
+        assert self.batch_size % len(self.devices) == 0
+        assert self.batch_size >= len(self.devices), "batch size too small"
+        self.per_device_batch_size = int(
+            self.batch_size / len(self.devices))
+        self.sample_timer = TimerStat()
+        self.load_timer = TimerStat()
+        self.grad_timer = TimerStat()
+        self.update_weights_timer = TimerStat()
+        self.standardize_fields = standardize_fields
+
+        logger.info(
+            "LocalMultiGPUOptimizer devices {}".format(self.devices))
+
+        self.policies = dict(self.workers.local_worker()
+            .foreach_trainable_policy(
+            lambda p, i: (i, p)))
+        logger.debug("Policies to train: {}".format(self.policies))
+        for policy_id, policy in self.policies.items():
+            if not isinstance(policy, TFPolicy):
+                raise ValueError(
+                    "Only TF graph policies are supported with multi-GPU. "
+                    "Try setting `simple_optimizer=True` instead.")
+
+        # per-GPU graph copies created below must share vars with the
+        # policy
+        # reuse is set to AUTO_REUSE because Adam nodes are created after
+        # all of the device copies are created.
+        self.optimizers = {}
+        with self.workers.local_worker().tf_sess.graph.as_default():
+            with self.workers.local_worker().tf_sess.as_default():
+                for policy_id, policy in self.policies.items():
+                    with tf.variable_scope(policy_id, reuse=tf.AUTO_REUSE):
+                        if policy._state_inputs:
+                            rnn_inputs = policy._state_inputs + [
+                                policy._seq_lens
+                            ]
+                        else:
+                            rnn_inputs = []
+                        self.optimizers[policy_id] = (
+                            LocalSyncParallelOptimizer(
+                                policy._optimizer,
+                                self.devices,
+                                [v for _, v in policy._loss_inputs],
+                                rnn_inputs,
+                                self.per_device_batch_size if not self.use_vtrace else 999999,
+                                policy.copy
+                            )
+                        )
+
+                self.sess = self.workers.local_worker().tf_sess
+                self.sess.run(tf.global_variables_initializer())
+
         self.compute_num_steps_sampled = compute_num_steps_sampled
+        if self.use_vtrace:
+            assert len(self.devices) == 1
 
     def step(self):
         with self.update_weights_timer:
@@ -347,24 +420,36 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
             for policy_id, tuples_per_device in num_loaded_tuples.items():
                 optimizer = self.optimizers[policy_id]
                 num_batches = max(
-                    1,
-                    int(tuples_per_device) // int(self.per_device_batch_size)
+                    1, int(tuples_per_device) // int(self.per_device_batch_size)
                 )
+                # assert num_batches == 1, (tuples_per_device, self.per_device_batch_size, num_batches)
+
                 logger.debug("== sgd epochs for {} ==".format(policy_id))
-                for i in range(self.num_sgd_iter):
+                if self.use_vtrace:
+                    # for i in range(self.num_sgd_iter):
                     iter_extra_fetches = defaultdict(list)
-                    permutation = np.random.permutation(num_batches)
-                    for batch_index in range(num_batches):
-                        batch_fetches = optimizer.optimize(
-                            self.sess, permutation[batch_index] *
-                            self.per_device_batch_size
+                        # permutation = np.random.permutation(num_batches)
+                        # for batch_index in range(num_batches):
+                    batch_fetches = optimizer.optimize(self.sess, 0)
+                    for k, v in batch_fetches[LEARNER_STATS_KEY].items():
+                        iter_extra_fetches[k].append(v)
+                    fetches[policy_id] = _averaged(iter_extra_fetches)
+                else:
+                    for i in range(self.num_sgd_iter):
+                        iter_extra_fetches = defaultdict(list)
+                        permutation = np.random.permutation(num_batches)
+                        for batch_index in range(num_batches):
+                            batch_fetches = optimizer.optimize(
+                                self.sess, permutation[batch_index] *
+                                           self.per_device_batch_size
+                            )
+                            for k, v in batch_fetches[
+                                LEARNER_STATS_KEY].items():
+                                iter_extra_fetches[k].append(v)
+                        logger.debug(
+                            "{} {}".format(i, _averaged(iter_extra_fetches))
                         )
-                        for k, v in batch_fetches[LEARNER_STATS_KEY].items():
-                            iter_extra_fetches[k].append(v)
-                    logger.debug(
-                        "{} {}".format(i, _averaged(iter_extra_fetches))
-                    )
-                fetches[policy_id] = _averaged(iter_extra_fetches)
+                    fetches[policy_id] = _averaged(iter_extra_fetches)
 
         # Here!
         if self.compute_num_steps_sampled:

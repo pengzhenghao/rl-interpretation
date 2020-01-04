@@ -6,6 +6,7 @@ from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, \
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch
 
+from toolbox.dece.dece_vtrace import build_appo_surrogate_loss
 from toolbox.dece.utils import *
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,9 @@ def loss_dece(policy, model, dist_class, train_batch):
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
     if policy.config['use_vtrace']:
-        return tnb_loss(policy, model, dist_class, train_batch)
+        return build_appo_surrogate_loss(policy, model, dist_class,
+                                         train_batch)
+        # return tnb_loss(policy, model, dist_class, train_batch)
     if policy.config[USE_BISECTOR]:
         return tnb_loss(policy, model, dist_class, train_batch)
     else:  # USE_BISECTOR makes difference at computing_gradient!
@@ -134,6 +137,7 @@ class PPOLossTwoSideClip(object):
 
 
 class PPOLossVtrace(object):
+    """Deprecated"""
     def __init__(self,
                  action_space,
                  dist_class,
@@ -155,6 +159,7 @@ class PPOLossVtrace(object):
                  use_gae=True,
                  model_config=None,
                  is_ratio=None):
+        raise ValueError()
         """Constructs the loss for Proximal Policy Objective.
 
         Arguments:
@@ -222,6 +227,7 @@ class PPOLossVtrace(object):
                                      cur_kl_coeff * action_kl -
                                      entropy_coeff * curr_entropy)
         self.loss = loss
+
 
 def tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""
@@ -324,7 +330,9 @@ def tnb_gradients(policy, optimizer, loss):
     policy_grad = optimizer.compute_gradients(loss[0])
     novelty_grad = optimizer.compute_gradients(loss[1])
 
-    return_gradients = []
+    # return_grads_order = []
+
+    return_gradients = {}
     policy_grad_flatten = []
     policy_grad_info = []
     novelty_grad_flatten = []
@@ -333,10 +341,10 @@ def tnb_gradients(policy, optimizer, loss):
     for (pg, var), (ng, var2) in zip(policy_grad, novelty_grad):
         assert var == var2
         if pg is None:
-            return_gradients.append((ng, var))
+            return_gradients[var] = (ng, var2)
             continue
         if ng is None:
-            return_gradients.append((pg, var))
+            return_gradients[var] = (pg, var)
             continue
 
         pg_flat, pg_shape, pg_flat_shape = _flatten(pg)
@@ -375,12 +383,12 @@ def tnb_gradients(policy, optimizer, loss):
     # reshape back the gradients
     count = 0
     for idx, (flat_shape, org_shape, var) in enumerate(policy_grad_info):
-        if flat_shape is None:
-            return_gradients.append((None, var))
-            continue
+        assert flat_shape is not None
+        # return_gradients.append((None, var))
+        #     continue
         size = flat_shape.as_list()[0]
         grad = total_grad[count:count + size]
-        return_gradients.append((tf.reshape(grad, org_shape), var))
+        return_gradients[var] = (tf.reshape(grad, org_shape), var)
         count += size
 
-    return return_gradients
+    return [return_gradients[var] for _, var in policy_grad]
