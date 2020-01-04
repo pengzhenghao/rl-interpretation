@@ -7,18 +7,43 @@ from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
 
 
-def postprocess_vtrace(policy, batch, other_policy=None):
+def postprocess_vtrace_diversity(policy, batch, others_batches, episode=None):
     completed = batch["dones"][-1]
+    batch[NOVELTY_REWARDS] = policy.compute_novelty(
+        batch, others_batches, episode
+    )
+
     if completed:
-        my_last_r = other_last_r = 0.0
+        last_r_novelty = 0.0
     else:
         next_state = []
         for i in range(policy.num_state_tensors()):
             next_state.append([batch["state_out_{}".format(i)][-1]])
-        # other_last_r = other_policy._value(
-        #     batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
-        #     batch[SampleBatch.REWARDS][-1], *next_state
-        # )
+        last_r_novelty = policy._novelty_value(
+            batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
+            batch[NOVELTY_REWARDS][-1], *next_state
+        )
+
+    # compute the advantages of novelty rewards
+    batch = compute_vtrace(
+        batch,
+        last_r_novelty,
+        gamma=policy.config["gamma"],
+        clip_rho_threshold=policy.config['clip_rho_threshold'],
+        clip_pg_rho_threshold=policy.config['clip_pg_rho_threshold'],
+        use_diversity=True
+    )
+    return batch
+
+
+def postprocess_vtrace(policy, batch, other_policy=None):
+    completed = batch["dones"][-1]
+    if completed:
+        my_last_r = 0.0
+    else:
+        next_state = []
+        for i in range(policy.num_state_tensors()):
+            next_state.append([batch["state_out_{}".format(i)][-1]])
         my_last_r = policy._value(
             batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
             batch[SampleBatch.REWARDS][-1], *next_state
@@ -26,10 +51,9 @@ def postprocess_vtrace(policy, batch, other_policy=None):
     batch = compute_vtrace(
         batch,
         my_last_r,
-        other_last_r=None,
         gamma=policy.config["gamma"],
-        lambda_=policy.config["lambda"],
-        use_gae=policy.config["use_gae"]
+        clip_rho_threshold=policy.config['clip_rho_threshold'],
+        clip_pg_rho_threshold=policy.config['clip_pg_rho_threshold']
     )
     return batch
 
@@ -40,83 +64,76 @@ def calculate_vtrace_minus(values, delta, ratio, gamma):
     y_n = np.zeros_like(delta)
     y_n[-1] = delta[-1]
     length = len(delta)
+    # the ratio mean c_i here.
+    # the delta mean v_{s+1} - V(x_{s+1})
     for ind in range(length - 2, -1, -1):
         # ind = 8, 7, 6, ..., 0 if length = 10
-        y_n[ind] = delta[ind] + ratio[ind] * gamma * delta[ind + 1]
+        # y_n[ind] = delta[ind] + ratio[ind] * gamma * delta[ind + 1]
+        y_n[ind] = delta[ind] + ratio[ind] * gamma * y_n[ind + 1]
     return y_n
 
 
 def compute_vtrace(
-        rollout, my_last_r, other_last_r, gamma=0.9, lambda_=1.0, use_gae=True,
-        clip_rho_threshold=1.0, clip_pg_rho_threshold=1.0,
+        rollout,
+        my_last_r,
+        gamma=0.9,
+        clip_rho_threshold=1.0,
+        clip_pg_rho_threshold=1.0,
+        use_diversity=False
 ):
     traj = {}
     trajsize = len(rollout[SampleBatch.ACTIONS])
     for key in rollout:
         traj[key] = np.stack(rollout[key])
 
-    if use_gae:
-        assert SampleBatch.VF_PREDS in rollout, "Values not found!"
-        vpred_t = np.concatenate(
-            [rollout[SampleBatch.VF_PREDS],
-             np.array([my_last_r])]
-        )
-        # delta_t = traj[SampleBatch.REWARDS] + gamma * vpred_t[1:] * (
-        #         1 - lambda_) - vpred_t[:-1]
-        ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
-        clipped_ratio = np.clip(
-            ratio,
-            0.0,
-            clip_rho_threshold  # TODO 没有放进config
-        )
-        delta_t = clipped_ratio * (
-                traj[SampleBatch.REWARDS] + gamma * vpred_t[1:] - vpred_t[:-1])
+    vf_preds = rollout[NOVELTY_VALUES] if use_diversity else rollout[
+        SampleBatch.VF_PREDS]
+    rewards = traj[NOVELTY_REWARDS] if use_diversity else traj[
+        SampleBatch.REWARDS]
 
-        cs = np.clip(ratio, 0.0, 1.0)
+    assert SampleBatch.VF_PREDS in rollout, "Values not found!"
+    vpred_t = np.concatenate(
+        [vf_preds,
+         np.array([my_last_r])]
+    )
+    ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
+    clipped_ratio = np.minimum(ratio,
+                               clip_rho_threshold)  # TODO 没有放进config this
+    # is \bar{pho} !
+    delta_t = clipped_ratio * (
+            rewards + gamma * vpred_t[1:] - vpred_t[:-1])
+    cs = np.minimum(ratio, 1.0)
+    vs = calculate_vtrace_minus(vf_preds, delta_t, cs, gamma) + vf_preds
+    vs = np.concatenate(
+        [vs,
+         np.array([my_last_r])]
+    )
 
-        vs = calculate_vtrace_minus(
-            traj[SampleBatch.VF_PREDS], delta_t, cs, gamma
-        ) + traj[SampleBatch.VF_PREDS]
+    clipped_pg_rhos = np.minimum(ratio, clip_pg_rho_threshold)
+    advantage = clipped_pg_rhos * (rewards + gamma * vs[1:] - vs[:-1])
 
-        vs = np.concatenate(
-            [vs,
-             np.array([my_last_r])]
-        )
-
-        clipped_pg_rhos = np.clip(ratio, 0, clip_pg_rho_threshold)
-
-        advantage = clipped_pg_rhos * (
-                    traj[SampleBatch.REWARDS] + gamma * vs[1:] - vs[:-1])
-
-        traj["abs_advantage"] = np.abs(advantage)
-        traj[Postprocessing.ADVANTAGES] = advantage
-
-        # traj[Postprocessing.ADVANTAGES
-        # ] = (advantage - advantage.mean()) / max(1e-4, advantage.std())
-
-        traj["debug_ratio"] = ratio
-        traj["is_ratio"] = np.clip(ratio, 0, 2.0)
-
-        value_target = vs[:-1]
-
-        # my_vpred_t = np.concatenate(
-        #     [rollout[SampleBatch.VF_PREDS],
-        #      np.array([my_last_r])]
-        # )
-        # assert ratio.shape == traj[SampleBatch.REWARDS].shape
-        # clipped_ratio = np.clip(ratio, 0, 1.0)
-        # value_target = (
-        #         clipped_ratio *
-        #         (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
-        #         (1 - clipped_ratio) * (my_vpred_t[:-1])
-        # )
-        traj[Postprocessing.VALUE_TARGETS] = value_target
+    if use_diversity:
+        traj[NOVELTY_ADVANTAGES] = advantage
+        traj["abs_novelty_advantage"] = np.abs(advantage)
+        # traj["debug_ratio"] = ratio
+        # traj["is_ratio"] = np.clip(
+        #     np.exp(traj["other_action_logp"] - traj["action_logp"]), 0, 2.0)
+        traj[NOVELTY_VALUE_TARGETS] = vs[:-1]
+        traj[NOVELTY_ADVANTAGES] = traj[NOVELTY_ADVANTAGES].copy().astype(
+            np.float32)
     else:
-        raise NotImplementedError()
-    traj[Postprocessing.ADVANTAGES
-    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
-    assert all(val.shape[0] == trajsize for val in traj.values()), \
-        "Rollout stacked incorrectly!"
+        traj[Postprocessing.ADVANTAGES] = advantage
+        traj["abs_advantage"] = np.abs(advantage)
+        traj["debug_ratio"] = ratio
+        traj["is_ratio"] = np.clip(
+            np.exp(traj["action_logp"] - traj["other_action_logp"]), 0, 2.0)
+            # np.exp(traj["other_action_logp"] - traj["action_logp"]), 0, 2.0)
+        traj[Postprocessing.VALUE_TARGETS] = vs[:-1]
+        traj[Postprocessing.ADVANTAGES] = traj[
+            Postprocessing.ADVANTAGES].copy().astype(np.float32)
+
+    # assert all(val.shape[0] == trajsize for val in traj.values()), \
+    #     "Rollout stacked incorrectly!"
     return SampleBatch(traj)
 
 
@@ -337,19 +354,18 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         # concatnation.
         if config['use_vtrace']:
             tmp_batch = postprocess_vtrace(policy, batch)
+            tmp_batch = postprocess_vtrace_diversity(policy, tmp_batch,
+                                                     others_batches)
         else:
             tmp_batch = postprocess_ppo_gae(policy, batch)
             value = tmp_batch[Postprocessing.ADVANTAGES]
             standardized = (value - value.mean()) / max(1e-4, value.std())
             tmp_batch[Postprocessing.ADVANTAGES] = standardized
-
-        tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches)
-
-
-        tmp_batch["abs_advantage"] = np.abs(
-            tmp_batch[Postprocessing.ADVANTAGES]
-        )
-
+            tmp_batch = postprocess_diversity(policy, tmp_batch,
+                                              others_batches)
+            tmp_batch["abs_advantage"] = np.abs(
+                tmp_batch[Postprocessing.ADVANTAGES]
+            )
         batches = [tmp_batch]
     else:
         batch = postprocess_ppo_gae(policy, batch)
@@ -397,12 +413,14 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             )
 
         if policy.config[REPLAY_VALUES]:
-            other_batch = postprocess_diversity(
-                policy, other_batch, others_batches
-            )
             if config['use_vtrace']:
+                other_batch = postprocess_vtrace_diversity(policy, other_batch,
+                                                           others_batches)
                 to_add_batch = postprocess_vtrace(policy, other_batch)
             else:
+                other_batch = postprocess_diversity(
+                    policy, other_batch, others_batches
+                )
                 to_add_batch = postprocess_ppo_gae_replay(
                     policy, other_batch, other_policy
                 )

@@ -152,8 +152,8 @@ dece_default_config = merge_dicts(
             # vtrace
             "use_vtrace": False,
             'use_kl_loss': True,
-            "vtrace_clip_rho_threshold": 1.0,  # TODO
-            "vtrace_clip_pg_rho_threshold": 1.0,  # TODO
+            "clip_rho_threshold": 1.0,  # TODO
+            "clip_pg_rho_threshold": 1.0,  # TODO
         }
     )
 )
