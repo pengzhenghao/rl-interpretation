@@ -6,6 +6,7 @@ from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, \
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch
 
+from toolbox.dece.dece_vtrace import build_appo_surrogate_loss
 from toolbox.dece.utils import *
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,9 @@ def loss_dece(policy, model, dist_class, train_batch):
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
     if policy.config['use_vtrace']:
-        return tnb_loss(policy, model, dist_class, train_batch)
+        return build_appo_surrogate_loss(policy, model, dist_class,
+                                         train_batch)
+        # return tnb_loss(policy, model, dist_class, train_batch)
     if policy.config[USE_BISECTOR]:
         return tnb_loss(policy, model, dist_class, train_batch)
     else:  # USE_BISECTOR makes difference at computing_gradient!
@@ -222,6 +225,7 @@ class PPOLossVtrace(object):
                                      cur_kl_coeff * action_kl -
                                      entropy_coeff * curr_entropy)
         self.loss = loss
+
 
 def tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""

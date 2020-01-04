@@ -72,7 +72,8 @@ def make_policy_optimizer_tnbes(workers, config):
         sample_batch_size=config["sample_batch_size"],
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
-        standardize_fields=["advantages", NOVELTY_ADVANTAGES],  # HERE!
+        standardize_fields=["advantages", NOVELTY_ADVANTAGES]
+        if not config['use_vtrace'] else [],  # HERE!
         shuffle_sequences=config["shuffle_sequences"]
         if not config['use_vtrace'] else False
     )
@@ -83,7 +84,7 @@ def setup_policies_pool(trainer):
         return
     assert not trainer.get_policy('agent0').initialized_policies_pool
     weights = {
-        k: p.get_weights()
+        k: p._variables.get_flat()
         for k, p in trainer.workers.local_worker().policy_map.items()
     }
     weights = ray.put(weights)
@@ -114,10 +115,7 @@ def setup_policies_pool(trainer):
                     tmp_policy.observation_space, tmp_policy.action_space,
                     tmp_config
                 )
-                wt = policy.get_weights()
-                print("current shape: {}, to set shape: {}".format(wt.shape,
-                                                                   agent_weight.shape))
-                policy.set_weights(agent_weight)
+                policy._variables.set_flat(agent_weight)
             policies_pool[agent_name] = policy
         worker.policies_pool = policies_pool  # add new attribute to worker
 
@@ -138,12 +136,10 @@ def after_optimizer_iteration(trainer, fetches):
         tau = trainer.config['tau']
         weights = {}
         for policy_name, policy in local_worker.policy_map.items():
-            weight = policy.get_weights()
-            new_weight = (
-                    weight * tau +
-                    local_worker.policies_pool[policy_name].get_weights() *
-                    (1 - tau)
-            )
+            weight = policy._variables.get_flat()
+            latest_weight = \
+                local_worker.policies_pool[policy_name]._variables.get_flat()
+            new_weight = weight * (1 - tau) + latest_weight * tau
             weights[policy_name] = new_weight
             logger.debug(
                 "Successfully calculate the <{}> policy in local worker "
@@ -154,7 +150,8 @@ def after_optimizer_iteration(trainer, fetches):
         def _delay_update_for_worker(worker, worker_index):
             local_weights = ray.get(weights)
             for policy_name, tmp_weight in local_weights.items():
-                worker.policies_pool[policy_name].set_weights(tmp_weight)
+                worker.policies_pool[policy_name]._variables.set_flat(
+                    tmp_weight)
                 logger.debug(
                     "Successfully update the <{}> policy in worker "
                     "<{}> policies pool. Current tau: {}".format(
@@ -174,5 +171,5 @@ DECETrainer = PPOTrainer.with_updates(
     validate_config=validate_config,
     make_policy_optimizer=make_policy_optimizer_tnbes,
     after_init=setup_policies_pool,
-    after_optimizer_step=after_optimizer_iteration
+    after_optimizer_step=after_optimizer_iteration,
 )

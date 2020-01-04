@@ -1,6 +1,8 @@
 import logging
 
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch, BEHAVIOUR_LOGITS, make_tf_callable, kl_and_loss_stats, PPOTFPolicy
+from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
+    KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch, \
+    BEHAVIOUR_LOGITS, make_tf_callable, kl_and_loss_stats, PPOTFPolicy
 from ray.rllib.utils.explained_variance import explained_variance
 
 from toolbox.dece.dece_loss import loss_dece, tnb_gradients
@@ -165,6 +167,13 @@ def setup_mixins_dece(policy, action_space, obs_space, config):
     ComputeNoveltyMixin.__init__(policy)
 
 
+def get_batch_divisibility_req(policy):
+    if policy.config['use_vtrace']:
+        return policy.config['sample_batch_size']
+    else:
+        return 1
+
+
 DECEPolicy = PPOTFPolicy.with_updates(
     name="DECEPolicy",
     get_default_config=lambda: dece_default_config,
@@ -178,5 +187,6 @@ DECEPolicy = PPOTFPolicy.with_updates(
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
         ValueNetworkMixin, NoveltyValueNetworkMixin, ComputeNoveltyMixin
-    ]
+    ],
+    get_batch_divisibility_req=get_batch_divisibility_req
 )

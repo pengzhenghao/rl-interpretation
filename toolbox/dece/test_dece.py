@@ -53,7 +53,12 @@ def test_vtrace(local_mode=False):
     _base(
         trainer=DECETrainer,
         local_mode=local_mode,
-        extra_config={'use_vtrace': True},
+        extra_config={
+            'use_vtrace': True,
+            'sample_batch_size': 50,
+            'train_batch_size': 200,
+            'num_sgd_iter': 1
+        },
         env_name="BipedalWalker-v2",
         t=2000
     )

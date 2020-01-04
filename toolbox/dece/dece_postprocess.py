@@ -347,16 +347,19 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     batch = sample_batch
     if policy.config[REPLAY_VALUES]:
 
-        batch["other_logits"] = batch[BEHAVIOUR_LOGITS].copy()
-        batch["other_action_logp"] = batch[ACTION_LOGP].copy()
-
         # a little workaround. We normalize advantage for all batch before
         # concatnation.
         if config['use_vtrace']:
-            tmp_batch = postprocess_vtrace(policy, batch)
-            tmp_batch = postprocess_vtrace_diversity(policy, tmp_batch,
-                                                     others_batches)
+            # tmp_batch = batch
+            batch[NOVELTY_REWARDS] = policy.compute_novelty(
+                batch, others_batches, episode
+            )
+            # tmp_batch = postprocess_vtrace(policy, batch)
+            tmp_batch = batch
         else:
+            batch["other_logits"] = batch[BEHAVIOUR_LOGITS].copy()
+            batch["other_action_logp"] = batch[ACTION_LOGP].copy()
+
             tmp_batch = postprocess_ppo_gae(policy, batch)
             value = tmp_batch[Postprocessing.ADVANTAGES]
             standardized = (value - value.mean()) / max(1e-4, value.std())
@@ -414,9 +417,12 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
         if policy.config[REPLAY_VALUES]:
             if config['use_vtrace']:
-                other_batch = postprocess_vtrace_diversity(policy, other_batch,
-                                                           others_batches)
-                to_add_batch = postprocess_vtrace(policy, other_batch)
+                # to_add_batch = other_batch_raw  # We don't modify anything.
+                other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
+                    other_batch_raw, others_batches, episode
+                )
+                to_add_batch = other_batch_raw
+                # to_add_batch = postprocess_vtrace(policy, other_batch)
             else:
                 other_batch = postprocess_diversity(
                     policy, other_batch, others_batches
@@ -439,7 +445,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     for batch in batches:
         # batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
         #     Postprocessing.ADVANTAGES].copy().astype(np.float32)
-        if "debug_ratio" not in batch:
+        if ("debug_ratio" not in batch) and (not config['use_vtrace']):
             # assert "debug_fake_adv" not in batch
             batch['debug_ratio'] = np.zeros_like(
                 batch['advantages'], dtype=np.float32
