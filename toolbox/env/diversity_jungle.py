@@ -12,8 +12,10 @@ class FourWayGridWorld(gym.Env):
         self.down = 10
         self.observation_space = Box(0, self.N - 1, shape=(2,))
         self.action_space = Box(-1, 1, shape=(2,))
-        self.early_done = env_config.get('early_done') if env_config is not None else False
-        self.int_initialize = not env_config.get('not_int_initialize') if env_config is not None else True
+        self.early_done = env_config.get(
+            'early_done') if env_config is not None else False
+        self.int_initialize = not env_config.get(
+            'not_int_initialize') if env_config is not None else True
         self.map = np.ones((self.N, self.N), dtype=np.float32) * (-0.1)
         self.map[int((self.N - 1) / 2), 0] = self.left
         self.map[0, int((self.N - 1) / 2)] = self.up
@@ -52,6 +54,20 @@ class FourWayGridWorld(gym.Env):
     def seed(self, s=None):
         if s is not None:
             np.random.seed(s)
+
+
+def draw(compute_action):
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(10, 10))
+    np.arange(17)
+    for i in range(17):
+        for j in range(17):
+            action = compute_action([i, j])
+            plt.arrow(j, -i, action[1], -action[0], head_width=0.2,
+                      shape='left')
+    plt.xlim(-1, 17)
+    plt.ylim(-17, 1)
+    plt.axis('equal')
 
 # output_i = np.zeros((17, 17))
 # output_j = np.zeros((17, 17))
