@@ -100,6 +100,10 @@ class VTraceSurrogateLoss(object):
         logp_ratio = self.is_ratio * tf.exp(actions_logp - prev_actions_logp)
 
         advantages = self.vtrace_returns.pg_advantages
+
+        advantages = (advantages - tf.reduce_mean(advantages)
+                        ) / max(1e-4, tf.math.reduce_std(advantages))
+
         self.advantage = advantages
         self.debug_ratio = logp_ratio
         surrogate_loss = tf.minimum(

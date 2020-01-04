@@ -387,6 +387,16 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             continue
 
         other_batch_raw = other_batch_raw.copy()
+
+        if config['use_vtrace']:
+            # to_add_batch = other_batch_raw  # We don't modify anything.
+            other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
+                other_batch_raw, others_batches, episode
+            )
+            to_add_batch = other_batch_raw
+            batches.append(to_add_batch)
+            continue
+
         other_batch = other_batch_raw.copy()
 
         # four fields that we will overwrite.
@@ -416,20 +426,12 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             )
 
         if policy.config[REPLAY_VALUES]:
-            if config['use_vtrace']:
-                # to_add_batch = other_batch_raw  # We don't modify anything.
-                other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
-                    other_batch_raw, others_batches, episode
-                )
-                to_add_batch = other_batch_raw
-                # to_add_batch = postprocess_vtrace(policy, other_batch)
-            else:
-                other_batch = postprocess_diversity(
-                    policy, other_batch, others_batches
-                )
-                to_add_batch = postprocess_ppo_gae_replay(
-                    policy, other_batch, other_policy
-                )
+            other_batch = postprocess_diversity(
+                policy, other_batch, others_batches
+            )
+            to_add_batch = postprocess_ppo_gae_replay(
+                policy, other_batch, other_policy
+            )
         else:
             other_batch_raw = postprocess_diversity(
                 policy, other_batch_raw, others_batches

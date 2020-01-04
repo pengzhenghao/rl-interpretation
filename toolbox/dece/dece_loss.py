@@ -137,6 +137,7 @@ class PPOLossTwoSideClip(object):
 
 
 class PPOLossVtrace(object):
+    """Deprecated"""
     def __init__(self,
                  action_space,
                  dist_class,
@@ -158,6 +159,7 @@ class PPOLossVtrace(object):
                  use_gae=True,
                  model_config=None,
                  is_ratio=None):
+        raise ValueError()
         """Constructs the loss for Proximal Policy Objective.
 
         Arguments:
