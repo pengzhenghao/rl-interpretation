@@ -74,6 +74,7 @@ def make_policy_optimizer_tnbes(workers, config):
         train_batch_size=config["train_batch_size"],
         standardize_fields=["advantages", NOVELTY_ADVANTAGES],  # HERE!
         shuffle_sequences=config["shuffle_sequences"]
+        if not config['use_vtrace'] else False
     )
 
 
@@ -114,7 +115,8 @@ def setup_policies_pool(trainer):
                     tmp_config
                 )
                 wt = policy.get_weights()
-                print("current shape: {}, to set shape: {}".format(wt.shape, agent_weight.shape))
+                print("current shape: {}, to set shape: {}".format(wt.shape,
+                                                                   agent_weight.shape))
                 policy.set_weights(agent_weight)
             policies_pool[agent_name] = policy
         worker.policies_pool = policies_pool  # add new attribute to worker
@@ -138,9 +140,9 @@ def after_optimizer_iteration(trainer, fetches):
         for policy_name, policy in local_worker.policy_map.items():
             weight = policy.get_weights()
             new_weight = (
-                weight * tau +
-                local_worker.policies_pool[policy_name].get_weights() *
-                (1 - tau)
+                    weight * tau +
+                    local_worker.policies_pool[policy_name].get_weights() *
+                    (1 - tau)
             )
             weights[policy_name] = new_weight
             logger.debug(
