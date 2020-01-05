@@ -124,20 +124,25 @@ class VTraceSurrogateLoss(object):
         # The baseline loss
         delta = values - self.vtrace_returns.vs
         self.value_targets = self.vtrace_returns.vs
-        self.mean_vf_loss = 0.5 * reduce_mean_valid(tf.square(delta))
+        vf_loss = tf.square(delta)
+        self.mean_vf_loss = reduce_mean_valid(vf_loss)
 
         # The entropy loss
         self.mean_entropy = reduce_mean_valid(actions_entropy)
 
         # The summed weighted loss
-        self.loss = (
-            self.mean_policy_loss + self.mean_vf_loss * vf_loss_coeff -
-            self.mean_entropy * entropy_coeff
-        )
+        # self.loss = (
+        #     self.mean_policy_loss + self.mean_vf_loss * vf_loss_coeff -
+        #     self.mean_entropy * entropy_coeff
+        # )
+        # turn the reduce mean to the outer of many terms.
+        self.loss = reduce_mean_valid(
+            -surrogate_loss + cur_kl_coeff * action_kl
+            + vf_loss_coeff * vf_loss - entropy_coeff * actions_entropy)
 
         # Optional additional KL Loss
-        if use_kl_loss:
-            self.loss += cur_kl_coeff * self.mean_kl
+        # if use_kl_loss:
+        #     self.loss += cur_kl_coeff * self.mean_kl
 
 
 def _make_time_major(policy, seq_lens, tensor, drop_last=False):
