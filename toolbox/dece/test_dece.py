@@ -106,12 +106,21 @@ def regression_test(local_mode=False):
     )
 
 
+def only_tnb(local_mode=False):
+    test_dece({
+        DELAY_UPDATE: tune.grid_search([True, False]),
+        ONLY_TNB: True,
+        REPLAY_VALUES: False
+    }, local_mode)
+
+
 if __name__ == '__main__':
     # test_dece(local_mode=False)
     # test_dece_batch0(local_mode=False)
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)
     # test_three_tuning(local_mode=False)
-    regression_test(local_mode=False)
+    only_tnb()
+    # regression_test(local_mode=False)
     # test_vtrace(local_mode=False)
     # test_vtrace_single_agent(local_mode=False)

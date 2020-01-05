@@ -425,6 +425,14 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         batch = postprocess_diversity(policy, batch, others_batches)
         batches = [batch]
 
+    if config[ONLY_TNB]:
+        if ("debug_ratio" not in batch) and (not config['use_vtrace']):
+            # assert "debug_fake_adv" not in batch
+            batch['debug_ratio'] = np.zeros_like(
+                batch['advantages'], dtype=np.float32
+            )
+        return batch
+
     for pid, (other_policy, other_batch_raw) in others_batches.items():
         # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
         # but we still want to take a look of those statics.
