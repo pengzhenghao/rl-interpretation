@@ -103,11 +103,11 @@ class VTraceSurrogateLoss(object):
                 )
             )
 
-        # self.is_ratio = tf.clip_by_value(
-        #     tf.exp(prev_actions_logp - old_policy_actions_logp), 0.0, 2.0
-        # )
-        # logp_ratio = self.is_ratio * tf.exp(actions_logp - prev_actions_logp)
-        logp_ratio = tf.exp(actions_logp - prev_actions_logp)
+        self.is_ratio = tf.clip_by_value(
+            tf.exp(prev_actions_logp - behaviour_action_log_probs), 0.0, 2.0
+        )
+        logp_ratio = self.is_ratio * tf.exp(actions_logp - prev_actions_logp)
+        # logp_ratio = tf.exp(actions_logp - prev_actions_logp)
 
         advantages = self.vtrace_returns.pg_advantages
         if normalize_advantage:
@@ -239,7 +239,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     #     old_policy_behaviour_logits, output_hidden_shape, axis=1)
     unpacked_outputs = tf.split(model_out, output_hidden_shape, axis=1)
     # old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
-    prev_action_dist = dist_class(behaviour_logits, policy.model)
+    prev_action_dist = dist_class(behaviour_logits, policy.model)    # do not change in SGD updating.
     # values = policy.model.value_function()
 
     # policy.model_vars = policy.model.variables()
@@ -264,11 +264,11 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     # Prepare actions for loss
     loss_actions = actions if is_multidiscrete else tf.expand_dims(
         actions, axis=1
-    )
+    )  # do not change in SGD updating.
     loss_actions = make_time_major(loss_actions, drop_last=True)
     prev_actions_logp = make_time_major(
         prev_action_dist.logp(actions), drop_last=True
-    )
+    )  # do not change in SGD updating.
     actions_logp = make_time_major(action_dist.logp(actions), drop_last=True)
 
     # old_policy_actions_logp = make_time_major(
@@ -283,10 +283,10 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     dones = make_time_major(train_batch[SampleBatch.DONES], drop_last=True)
     loss_behaviour_logits = make_time_major(
         unpacked_behaviour_logits, drop_last=True
-    )
+    )  # do not change in SGD updating.
     loss_target_logits = make_time_major(unpacked_outputs, drop_last=True)
     behaviour_action_log_probs = make_time_major(train_batch[ACTION_LOGP],
-                                                 drop_last=True)
+                                                 drop_last=True)  # do not change in SGD updating.
 
     # old_policy_behaviour_logits = make_time_major(
     #     [tf.stop_gradient(t) for t in unpacked_outputs], drop_last=True
