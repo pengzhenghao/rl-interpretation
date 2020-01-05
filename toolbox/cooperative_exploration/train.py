@@ -17,9 +17,9 @@ def train(
         num_agents,
         num_seeds,
         num_gpus,
-        verbose=2,
         test_mode=False,
-        address=None
+        address=None,
+        **kwargs
 ):
     # assert isinstance(stop, int)
     if address is not None:
@@ -52,7 +52,7 @@ def train(
         config=config,
         max_failures=20,
         reuse_actors=False,
-        verbose=verbose
+        **kwargs
     )
 
     path = "{}-{}-{}ts-{}agents.pkl".format(
