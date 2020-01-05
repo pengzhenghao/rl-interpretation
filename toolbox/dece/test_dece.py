@@ -58,7 +58,7 @@ def test_vtrace(local_mode=False):
             'use_vtrace': True,
             'sample_batch_size': 50,
             'train_batch_size': 200,
-            'num_sgd_iter': 1
+            'num_sgd_iter': 2
         },
         env_name=FourWayGridWorld,
         t=100000

@@ -421,13 +421,13 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
 
                 logger.debug("== sgd epochs for {} ==".format(policy_id))
                 if self.use_vtrace:
-                    # for i in range(self.num_sgd_iter):
-                    iter_extra_fetches = defaultdict(list)
-                    # permutation = np.random.permutation(num_batches)
-                    # for batch_index in range(num_batches):
-                    batch_fetches = optimizer.optimize(self.sess, 0)
-                    for k, v in batch_fetches[LEARNER_STATS_KEY].items():
-                        iter_extra_fetches[k].append(v)
+                    for i in range(self.num_sgd_iter):
+                        iter_extra_fetches = defaultdict(list)
+                        # permutation = np.random.permutation(num_batches)
+                        # for batch_index in range(num_batches):
+                        batch_fetches = optimizer.optimize(self.sess, 0)
+                        for k, v in batch_fetches[LEARNER_STATS_KEY].items():
+                            iter_extra_fetches[k].append(v)
                     fetches[policy_id] = _averaged(iter_extra_fetches)
                 else:
                     for i in range(self.num_sgd_iter):
