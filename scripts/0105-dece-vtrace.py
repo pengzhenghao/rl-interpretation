@@ -33,7 +33,7 @@ if __name__ == '__main__':
         'sample_batch_size': 128,
         'sgd_minibatch_size': 4096,
         'train_batch_size': 65536,
-        "num_gpus": 2,
+        "num_gpus": 1,
         "num_cpus_per_worker": 1,
         "num_cpus_for_driver": 1,
         "num_envs_per_worker": 8,
