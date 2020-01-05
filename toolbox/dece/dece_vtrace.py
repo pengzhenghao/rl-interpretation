@@ -248,7 +248,9 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
             prev_action_dist.logp(actions), drop_last=True)
     actions_logp = make_time_major(action_dist.logp(actions), drop_last=True)
 
-    old_policy_actions_logp = tf.stop_gradient(actions_logp)
+    old_policy_actions_logp = make_time_major(
+        tf.stop_gradient(action_dist.logp(actions)), drop_last=True
+    )
 
     action_kl = tf.reduce_mean(mean_kl, axis=0) \
         if is_multidiscrete else mean_kl
@@ -259,9 +261,9 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         unpacked_behaviour_logits, drop_last=True)
     loss_target_logits = make_time_major(unpacked_outputs, drop_last=True)
 
-    old_policy_behaviour_logits = [
-        tf.stop_gradient(t) for t in loss_target_logits
-    ]
+    old_policy_behaviour_logits = make_time_major([
+        tf.stop_gradient(t) for t in unpacked_outputs
+    ], drop_last=True)
 
     loss_mask = make_time_major(mask, drop_last=True)
 
