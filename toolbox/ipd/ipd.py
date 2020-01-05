@@ -24,9 +24,12 @@ def on_episode_end(info):
     envs = info['env'].get_unwrapped()
     novelty_sum = np.mean([env.novelty_sum for env in envs])
     info['episode'].custom_metrics['novelty_sum'] = novelty_sum
-    info['episode'].custom_metrics['early_stop_ratio'] = np.mean([
-        i['early_stop'] for i in info['episode']._agent_to_last_info.values()
-    ])
+    info['episode'].custom_metrics['early_stop_ratio'] = np.mean(
+        [
+            i['early_stop']
+            for i in info['episode']._agent_to_last_info.values()
+        ]
+    )
 
 
 ipd_default_config = merge_dicts(
@@ -95,8 +98,9 @@ class IPDEnv(gym.Env):
         self.novelty_recorder_count += 1
         if self.novelty_recorder_count < T_START:
             return False
-        min_novelty = min(self.novelty_recorder.values()
-                          ) / self.novelty_recorder_count
+        min_novelty = min(
+            self.novelty_recorder.values()
+        ) / self.novelty_recorder_count
         min_novelty = min_novelty - self.threshold
         self.novelty_sum += min_novelty
         if self.novelty_sum <= LOWER_NOVEL_BOUND:
@@ -188,12 +192,15 @@ if __name__ == '__main__':
 
     initialize_ray(test_mode=True, local_mode=False)
     env_name = "CartPole-v0"
-    config = {"num_sgd_iter": 2, "env": IPDEnv,
-              "env_config": {
-                  "env_name": env_name,
-                  "novelty_threshold": 0.0,
-              },
-              'checkpoint_dict': '{"test": null}'}
+    config = {
+        "num_sgd_iter": 2,
+        "env": IPDEnv,
+        "env_config": {
+            "env_name": env_name,
+            "novelty_threshold": 0.0,
+        },
+        'checkpoint_dict': '{"test": null}'
+    }
     tune.run(
         IPDTrainer,
         name="DELETEME_TEST",

@@ -10,12 +10,14 @@ class FourWayGridWorld(gym.Env):
         self.right = 10
         self.up = 10
         self.down = 10
-        self.observation_space = Box(0, self.N - 1, shape=(2,))
-        self.action_space = Box(-1, 1, shape=(2,))
+        self.observation_space = Box(0, self.N - 1, shape=(2, ))
+        self.action_space = Box(-1, 1, shape=(2, ))
         self.early_done = env_config.get(
-            'early_done') if env_config is not None else False
+            'early_done'
+        ) if env_config is not None else False
         self.int_initialize = not env_config.get(
-            'not_int_initialize') if env_config is not None else True
+            'not_int_initialize'
+        ) if env_config is not None else True
         self.map = np.ones((self.N, self.N), dtype=np.float32) * (-0.1)
         self.map[int((self.N - 1) / 2), 0] = self.left
         self.map[0, int((self.N - 1) / 2)] = self.up
@@ -43,11 +45,13 @@ class FourWayGridWorld(gym.Env):
 
     def reset(self):
         if self.int_initialize:
-            self.loc = np.random.randint(0, self.N, size=(2,)).astype(
-                np.float32)
+            self.loc = np.random.randint(
+                0, self.N, size=(2, )
+            ).astype(np.float32)
         else:
-            self.loc = np.random.uniform(0, self.N - 1, size=(2,)).astype(
-                np.float32)
+            self.loc = np.random.uniform(
+                0, self.N - 1, size=(2, )
+            ).astype(np.float32)
         self.step_num = 0
         return self.loc
 
@@ -63,11 +67,13 @@ def draw(compute_action):
     for i in range(17):
         for j in range(17):
             action = compute_action([i, j])
-            plt.arrow(j, -i, action[1], -action[0], head_width=0.2,
-                      shape='left')
+            plt.arrow(
+                j, -i, action[1], -action[0], head_width=0.2, shape='left'
+            )
     plt.xlim(-1, 17)
     plt.ylim(-17, 1)
     plt.axis('equal')
+
 
 # output_i = np.zeros((17, 17))
 # output_j = np.zeros((17, 17))

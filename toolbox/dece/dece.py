@@ -1,4 +1,3 @@
-import copy
 import logging
 
 import ray
@@ -81,88 +80,50 @@ def make_policy_optimizer_tnbes(workers, config):
 
 
 def setup_policies_pool(trainer):
+    """
+    Three steps to initialize policies pool.
+    First, sync weights of policies in local_worker.policy_map to remote
+    workers.
+    Second, build polices in each worker, based on the policy_map in them.
+    Third, build the target model in each policy in policy_map, by syncing
+    the weights of policy.model.
+
+
+
+    """
     if (not trainer.config[DELAY_UPDATE]) or (trainer.config[I_AM_CLONE]):
         return
     assert not trainer.get_policy('agent0').initialized_policies_pool
-    weights = {
-        k: p._variables.get_flat()
-        for k, p in trainer.workers.local_worker().policy_map.items()
-    }
-    weights = ray.put(weights)
+    # first step, broadcast local weights to remote worker.
+    if trainer.workers.remote_workers():
+        weights = ray.put(trainer.workers.local_worker().get_weights())
+        for e in trainer.workers.remote_workers():
+            e.set_weights.remote(weights)
+        # by doing these, we sync the worker.polices for all workers.
 
-    def _init_pool(worker):
-        """We load the policies pool at each worker, instead of each policy,
-        to save memory."""
-        local_weights = ray.get(weights)
-        tmp_policy = next(iter(worker.policy_map.values()))
-        policies_pool = {}
-        for agent_name, agent_weight in local_weights.items():
-            tmp_config = copy.deepcopy(tmp_policy.config)
-            # disable the private worker of each policy, to save resource.
-            tmp_config.update(
-                {
-                    "num_workers": 0,
-                    "num_cpus_per_worker": 0,
-                    "num_cpus_for_driver": 0.2,
-                    "num_gpus": 0.1,
-                    DELAY_UPDATE: False,
-                    I_AM_CLONE: True
-                }
-            )
-            # build the policy and restore the weights.
-            with tf.variable_scope("polices_pool/" + agent_name,
-                                   reuse=tf.AUTO_REUSE):
-                policy = DECEPolicy(
-                    tmp_policy.observation_space, tmp_policy.action_space,
-                    tmp_config
-                )
-                policy._variables.set_flat(agent_weight)
-            policies_pool[agent_name] = policy
-        worker.policies_pool = policies_pool  # add new attribute to worker
-
+    def _init_pool(worker, worker_index):
         def _init_novelty_policy(policy, my_policy_name):
-            policy._lazy_initialize(worker.policies_pool, my_policy_name)
+            policy.update_clone_network(tau=1.0)
+            policy._lazy_initialize(worker.policy_map, my_policy_name)
 
         worker.foreach_policy(_init_novelty_policy)
 
-    trainer.workers.foreach_worker(_init_pool)
-    # ray.internal.free([weights])
+    trainer.workers.foreach_worker_with_index(_init_pool)
 
 
 def after_optimizer_iteration(trainer, fetches):
     """Update the policies pool in each policy."""
     update_kl(trainer, fetches)
     if trainer.config[DELAY_UPDATE] and (not trainer.config[I_AM_CLONE]):
-        local_worker = trainer.workers.local_worker()
-        tau = trainer.config['tau']
-        weights = {}
-        for policy_name, policy in local_worker.policy_map.items():
-            weight = policy._variables.get_flat()
-            latest_weight = \
-                local_worker.policies_pool[policy_name]._variables.get_flat()
-            new_weight = weight * (1 - tau) + latest_weight * tau
-            weights[policy_name] = new_weight
-            logger.debug(
-                "Successfully calculate the <{}> policy in local worker "
-                "policies pool. Current tau: {}".format(policy_name, tau)
-            )
-        weights = ray.put(weights)
+        if trainer.workers.remote_workers():
+            weights = ray.put(trainer.workers.local_worker().get_weights())
+            for e in trainer.workers.remote_workers():
+                e.set_weights.remote(weights)
 
-        def _delay_update_for_worker(worker, worker_index):
-            local_weights = ray.get(weights)
-            for policy_name, tmp_weight in local_weights.items():
-                worker.policies_pool[policy_name]._variables.set_flat(
-                    tmp_weight)
-                logger.debug(
-                    "Successfully update the <{}> policy in worker "
-                    "<{}> policies pool. Current tau: {}".format(
-                        policy_name, "local0" if not worker_index else
-                        "remote{}".format(worker_index), tau
-                    )
-                )
+            def _delay_update_for_worker(worker, worker_index):
+                worker.foreach_policy(lambda p, _: p.update_clone_network())
 
-        trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
-        # ray.internal.free([weights])
+            trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 
 
 DECETrainer = PPOTrainer.with_updates(

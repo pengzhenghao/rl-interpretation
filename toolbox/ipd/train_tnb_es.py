@@ -24,7 +24,6 @@ if __name__ == '__main__':
         "disable_tnb": args.disable_tnb,
         "env": args.env_name,
         "use_tnb_plus": False,
-
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
         "lr": 0.0002,
@@ -45,19 +44,20 @@ if __name__ == '__main__':
         timesteps = int(2e7)
     elif args.env_name == "HalfCheetah-v3":
         timesteps = int(5e7)
-        config.update({
-            "gamma": 0.99,
-            "lambda": 0.95,
-            "kl_coeff": 1.0,
-            'num_sgd_iter': 32,
-            'lr': 0.0003,
-            'vf_loss_coeff': 0.5,
-            'clip_param': 0.2,
-            "grad_clip": 0.5,
-        })
+        config.update(
+            {
+                "gamma": 0.99,
+                "lambda": 0.95,
+                "kl_coeff": 1.0,
+                'num_sgd_iter': 32,
+                'lr': 0.0003,
+                'vf_loss_coeff': 0.5,
+                'clip_param': 0.2,
+                "grad_clip": 0.5,
+            }
+        )
     else:
         raise NotImplementedError()
-
 
     def ray_init():
         ray.shutdown()
@@ -67,7 +67,6 @@ if __name__ == '__main__':
             num_gpus=args.num_gpus if not args.address else None,
             redis_address=args.address if args.address else None
         )
-
 
     main(
         exp_name=args.exp_name,

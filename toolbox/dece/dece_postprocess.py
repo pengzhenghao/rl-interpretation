@@ -92,22 +92,16 @@ def compute_vtrace(
         SampleBatch.REWARDS]
 
     assert SampleBatch.VF_PREDS in rollout, "Values not found!"
-    vpred_t = np.concatenate(
-        [vf_preds,
-         np.array([my_last_r])]
-    )
+    vpred_t = np.concatenate([vf_preds, np.array([my_last_r])])
     ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
-    clipped_ratio = np.minimum(ratio,
-                               clip_rho_threshold)  # TODO 没有放进config this
+    clipped_ratio = np.minimum(
+        ratio, clip_rho_threshold
+    )  # TODO 没有放进config this
     # is \bar{pho} !
-    delta_t = clipped_ratio * (
-            rewards + gamma * vpred_t[1:] - vpred_t[:-1])
+    delta_t = clipped_ratio * (rewards + gamma * vpred_t[1:] - vpred_t[:-1])
     cs = np.minimum(ratio, 1.0)
     vs = calculate_vtrace_minus(vf_preds, delta_t, cs, gamma) + vf_preds
-    vs = np.concatenate(
-        [vs,
-         np.array([my_last_r])]
-    )
+    vs = np.concatenate([vs, np.array([my_last_r])])
 
     clipped_pg_rhos = np.minimum(ratio, clip_pg_rho_threshold)
     advantage = clipped_pg_rhos * (rewards + gamma * vs[1:] - vs[:-1])
@@ -120,17 +114,19 @@ def compute_vtrace(
         #     np.exp(traj["other_action_logp"] - traj["action_logp"]), 0, 2.0)
         traj[NOVELTY_VALUE_TARGETS] = vs[:-1]
         traj[NOVELTY_ADVANTAGES] = traj[NOVELTY_ADVANTAGES].copy().astype(
-            np.float32)
+            np.float32
+        )
     else:
         traj[Postprocessing.ADVANTAGES] = advantage
         traj["abs_advantage"] = np.abs(advantage)
         traj["debug_ratio"] = ratio
         traj["is_ratio"] = np.clip(
-            np.exp(traj["action_logp"] - traj["other_action_logp"]), 0, 2.0)
-            # np.exp(traj["other_action_logp"] - traj["action_logp"]), 0, 2.0)
+            np.exp(traj["action_logp"] - traj["other_action_logp"]), 0, 2.0
+        )
+        # np.exp(traj["other_action_logp"] - traj["action_logp"]), 0, 2.0)
         traj[Postprocessing.VALUE_TARGETS] = vs[:-1]
-        traj[Postprocessing.ADVANTAGES] = traj[
-            Postprocessing.ADVANTAGES].copy().astype(np.float32)
+        traj[Postprocessing.ADVANTAGES
+             ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     # assert all(val.shape[0] == trajsize for val in traj.values()), \
     #     "Rollout stacked incorrectly!"
@@ -193,7 +189,7 @@ def compute_advantages_replay(
              np.array([my_last_r])]
         )
         delta_t = traj[SampleBatch.REWARDS
-                  ] + gamma * vpred_t[1:] * (1 - lambda_) - vpred_t[:-1]
+                       ] + gamma * vpred_t[1:] * (1 - lambda_) - vpred_t[:-1]
         # other_vpred_t = np.concatenate(
         #     [rollout["other_vf_preds"],
         #      np.array([other_last_r])]
@@ -222,7 +218,7 @@ def compute_advantages_replay(
 
         traj["abs_advantage"] = np.abs(advantage)
         traj[Postprocessing.ADVANTAGES
-        ] = (advantage - advantage.mean()) / max(1e-4, advantage.std())
+             ] = (advantage - advantage.mean()) / max(1e-4, advantage.std())
         traj["debug_ratio"] = ratio
 
         my_vpred_t = np.concatenate(
@@ -233,9 +229,9 @@ def compute_advantages_replay(
 
         clipped_ratio = np.clip(ratio, 0, 1.0)
         value_target = (
-                clipped_ratio *
-                (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
-                (1 - clipped_ratio) * (my_vpred_t[:-1])
+            clipped_ratio *
+            (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
+            (1 - clipped_ratio) * (my_vpred_t[:-1])
         )
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
@@ -257,7 +253,7 @@ def compute_advantages_replay(
         #     traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES
-    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
@@ -272,8 +268,8 @@ def calculate_gae_advantage(values, delta, ratio, lambda_, gamma):
     length = len(delta)
     for ind in range(length - 2, -1, -1):
         # ind = 8, 7, 6, ..., 0 if length = 10
-        y_n[ind] = delta[ind] + ratio[ind + 1] * gamma * lambda_ * (
-                y_n[ind + 1] + values[ind + 1])
+        y_n[ind] = delta[ind] + ratio[
+            ind + 1] * gamma * lambda_ * (y_n[ind + 1] + values[ind + 1])
     return y_n
 
 
@@ -283,8 +279,8 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     p = np.exp(logp)
     return logp, p
@@ -364,8 +360,9 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             value = tmp_batch[Postprocessing.ADVANTAGES]
             standardized = (value - value.mean()) / max(1e-4, value.std())
             tmp_batch[Postprocessing.ADVANTAGES] = standardized
-            tmp_batch = postprocess_diversity(policy, tmp_batch,
-                                              others_batches)
+            tmp_batch = postprocess_diversity(
+                policy, tmp_batch, others_batches
+            )
             tmp_batch["abs_advantage"] = np.abs(
                 tmp_batch[Postprocessing.ADVANTAGES]
             )
@@ -405,7 +402,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
         other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
-        ].copy()
+                                                    ].copy()
 
         # use my policy to evaluate the values and other relative data
         # of other's samples.
