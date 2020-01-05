@@ -18,8 +18,9 @@ def loss_dece(policy, model, dist_class, train_batch):
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
     if policy.config['use_vtrace']:
-        return build_appo_surrogate_loss(policy, model, dist_class,
-                                         train_batch)
+        return build_appo_surrogate_loss(
+            policy, model, dist_class, train_batch
+        )
         # return tnb_loss(policy, model, dist_class, train_batch)
     if policy.config[USE_BISECTOR]:
         return tnb_loss(policy, model, dist_class, train_batch)
@@ -138,27 +139,30 @@ class PPOLossTwoSideClip(object):
 
 class PPOLossVtrace(object):
     """Deprecated"""
-    def __init__(self,
-                 action_space,
-                 dist_class,
-                 model,
-                 value_targets,
-                 advantages,
-                 actions,
-                 prev_logits,
-                 prev_actions_logp,
-                 vf_preds,
-                 curr_action_dist,
-                 value_fn,
-                 cur_kl_coeff,
-                 valid_mask,
-                 entropy_coeff=0,
-                 clip_param=0.1,
-                 vf_clip_param=0.1,
-                 vf_loss_coeff=1.0,
-                 use_gae=True,
-                 model_config=None,
-                 is_ratio=None):
+
+    def __init__(
+            self,
+            action_space,
+            dist_class,
+            model,
+            value_targets,
+            advantages,
+            actions,
+            prev_logits,
+            prev_actions_logp,
+            vf_preds,
+            curr_action_dist,
+            value_fn,
+            cur_kl_coeff,
+            valid_mask,
+            entropy_coeff=0,
+            clip_param=0.1,
+            vf_clip_param=0.1,
+            vf_loss_coeff=1.0,
+            use_gae=True,
+            model_config=None,
+            is_ratio=None
+    ):
         raise ValueError()
         """Constructs the loss for Proximal Policy Objective.
 
@@ -207,25 +211,29 @@ class PPOLossVtrace(object):
 
         surrogate_loss = tf.minimum(
             advantages * logp_ratio,
-            advantages * tf.clip_by_value(logp_ratio, 1 - clip_param,
-                                          1 + clip_param))
+            advantages *
+            tf.clip_by_value(logp_ratio, 1 - clip_param, 1 + clip_param)
+        )
         self.mean_policy_loss = reduce_mean_valid(-surrogate_loss)
 
         if use_gae:
             vf_loss1 = tf.square(value_fn - value_targets)
             vf_clipped = vf_preds + tf.clip_by_value(
-                value_fn - vf_preds, -vf_clip_param, vf_clip_param)
+                value_fn - vf_preds, -vf_clip_param, vf_clip_param
+            )
             vf_loss2 = tf.square(vf_clipped - value_targets)
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
             self.mean_vf_loss = reduce_mean_valid(vf_loss)
             loss = reduce_mean_valid(
                 -surrogate_loss + cur_kl_coeff * action_kl +
-                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy)
+                vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
+            )
         else:
             self.mean_vf_loss = tf.constant(0.0)
-            loss = reduce_mean_valid(-surrogate_loss +
-                                     cur_kl_coeff * action_kl -
-                                     entropy_coeff * curr_entropy)
+            loss = reduce_mean_valid(
+                -surrogate_loss + cur_kl_coeff * action_kl -
+                entropy_coeff * curr_entropy
+            )
         self.loss = loss
 
 
@@ -266,8 +274,8 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
         model_config=policy.config["model"],
-        is_ratio=train_batch['is_ratio'] if policy.config[
-            'use_vtrace'] else None
+        is_ratio=train_batch['is_ratio']
+        if policy.config['use_vtrace'] else None
     )
     # FIXME we don't prepare to use vtrace in no replay values mode.
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
@@ -291,8 +299,8 @@ def tnb_loss(policy, model, dist_class, train_batch):
             vf_loss_coeff=policy.config["vf_loss_coeff"],
             use_gae=policy.config["use_gae"],
             model_config=policy.config["model"],
-            is_ratio=train_batch['is_ratio'] if policy.config[
-                'use_vtrace'] else None
+            is_ratio=train_batch['is_ratio']
+            if policy.config['use_vtrace'] else None
         )
     else:
         policy.novelty_loss_obj = PPOLossTwoSideNovelty(

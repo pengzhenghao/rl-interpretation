@@ -62,6 +62,9 @@ def on_train_result(info):
     trainer = info['trainer']
     worker = trainer.workers.local_worker()
 
+    if len(worker.policy_map) < 2:
+        return  # single agent case
+
     try:
         joint_obs = _collect_joint_dataset(trainer, worker, sample_size)
     except Exception as e:

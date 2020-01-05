@@ -94,7 +94,6 @@ def setup_policies_pool(trainer):
     if (not trainer.config[DELAY_UPDATE]) or (trainer.config[I_AM_CLONE]):
         return
     assert not trainer.get_policy('agent0').initialized_policies_pool
-
     # first step, broadcast local weights to remote worker.
     if trainer.workers.remote_workers():
         weights = ray.put(trainer.workers.local_worker().get_weights())
@@ -111,10 +110,6 @@ def setup_policies_pool(trainer):
 
     trainer.workers.foreach_worker_with_index(_init_pool)
 
-    print('This is a good time to check whether all worker have the same '
-          'policy and the target policy.')
-    # ray.internal.free([weights])
-
 
 def after_optimizer_iteration(trainer, fetches):
     """Update the policies pool in each policy."""
@@ -129,8 +124,6 @@ def after_optimizer_iteration(trainer, fetches):
                 worker.foreach_policy(lambda p, _: p.update_clone_network())
 
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
-
-    print('This is the good time to check')
 
 
 DECETrainer = PPOTrainer.with_updates(

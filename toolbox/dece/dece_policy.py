@@ -99,7 +99,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
     if not policy.config['use_vtrace']:
         ret["vf_explained_var"] = explained_variance(
             train_batch[Postprocessing.VALUE_TARGETS],
-            policy.model.value_function()),
+            policy.model.value_function()
+        ),
 
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ret
@@ -115,8 +116,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
             "abs_advantage": policy.abs_advantage
         }
     )
-    if policy.config[USE_DIVERSITY_VALUE_NETWORK] and not policy.config[
-        'use_vtrace']:
+    if policy.config[USE_DIVERSITY_VALUE_NETWORK
+                     ] and not policy.config['use_vtrace']:
         ret['novelty_vf_explained_var'] = explained_variance(
             train_batch[NOVELTY_VALUE_TARGETS],
             policy.model.novelty_value_function()
@@ -212,14 +213,16 @@ class TargetNetworkMixin(object):
         """
         assert config[DELAY_UPDATE]
         _, logit_dim = ModelCatalog.get_action_dist(
-            action_space, config["model"])
+            action_space, config["model"]
+        )
         self.target_model = ModelCatalog.get_model_v2(
             obs_space,
             action_space,
             logit_dim,
             config["model"],
             name=TARGET_POLICY_SCOPE,
-            framework="tf")
+            framework="tf"
+        )
         self._sess.run(tf.global_variables_initializer())
 
         self.model_vars = self.model.variables()
@@ -228,11 +231,11 @@ class TargetNetworkMixin(object):
         self.tau = tf.placeholder(tf.float32, (), name="tau")
         assign_ops = []
         assert len(self.model_vars) == len(self.target_model_vars)
-        for var, var_target in zip(self.model_vars,
-                                   self.target_model_vars):
-            assign_ops.append(var_target.assign(
-                self.tau * var + (1.0 - self.tau) * var_target
-            ))
+        for var, var_target in zip(self.model_vars, self.target_model_vars):
+            assign_ops.append(
+                var_target.
+                assign(self.tau * var + (1.0 - self.tau) * var_target)
+            )
         self.update_target_expr = tf.group(*assign_ops)
 
         @make_tf_callable(self.get_session(), True)
@@ -256,7 +259,8 @@ class TargetNetworkMixin(object):
     def update_clone_network(self, tau=None):
         tau = tau or self.tau_value
         return self.get_session().run(
-            self.update_target_expr, feed_dict={self.tau: tau})
+            self.update_target_expr, feed_dict={self.tau: tau}
+        )
 
 
 def setup_late_mixins(policy, obs_space, action_space, config):
