@@ -42,12 +42,12 @@ def _base(
     config = _get_default_test_config(num_agents, env_name, num_gpus)
     if extra_config:
         config.update(extra_config)
-
+    stop = {"timesteps_total": t} if not isinstance(t, dict) else t
     return tune.run(
         trainer,
         local_dir=get_local_dir(),
         name="DELETEME_TEST_extra_loss_ppo_trainer",
-        stop={"timesteps_total": t},
+        stop=stop,
         config=config
     )
 

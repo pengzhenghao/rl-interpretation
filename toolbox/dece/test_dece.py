@@ -93,11 +93,12 @@ def regression_test(local_mode=False):
             'train_batch_size': 4000,
             'num_sgd_iter': 10,
             USE_BISECTOR: False,
+            REPLAY_VALUES: False
             # 'seed': tune.grid_search([0, 100])
             # 'lr': 5e-3,
         },
         env_name=FourWayGridWorld,
-        t=1000000,
+        t={'time_total_s': 300},
         num_agents=1
     )
 
