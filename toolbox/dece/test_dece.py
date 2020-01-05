@@ -59,7 +59,8 @@ def test_vtrace(local_mode=False):
             'sample_batch_size': 50,
             'train_batch_size': 200,
             'num_sgd_iter': 10,
-            'lr': 5e-3,
+            'seed': tune.grid_search([0, 100])
+            # 'lr': 5e-3,
         },
         env_name=FourWayGridWorld,
         t=100000

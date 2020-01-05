@@ -43,6 +43,7 @@ class VTraceSurrogateLoss(object):
             clip_pg_rho_threshold=1.0,
             clip_param=0.3,
             cur_kl_coeff=None,
+            normalize_advantage=True
             # use_kl_loss=False
     ):
         """APPO Loss, with IS modifications and V-trace for Advantage
@@ -106,9 +107,9 @@ class VTraceSurrogateLoss(object):
         logp_ratio = tf.exp(actions_logp - prev_actions_logp)
 
         advantages = self.vtrace_returns.pg_advantages
-
-        advantages = (advantages - tf.reduce_mean(advantages)
-                      ) / tf.maximum(1e-4, tf.math.reduce_std(advantages))
+        if normalize_advantage:
+            advantages = (advantages - tf.reduce_mean(advantages)
+                          ) / tf.maximum(1e-4, tf.math.reduce_std(advantages))
 
         self.advantage = advantages
         self.debug_ratio = logp_ratio
@@ -316,6 +317,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         cur_kl_coeff=policy.kl_coeff,
         # use_kl_loss=policy.config["use_kl_loss"]
         # use_kl_loss=False
+        normalize_advantage=policy.config['normalize_advantage']
     )
 
     novelty_values = model.novelty_value_function()
@@ -346,6 +348,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         cur_kl_coeff=policy.kl_coeff,
         # use_kl_loss=policy.config["use_kl_loss"])
         # use_kl_loss=False
+        normalize_advantage=policy.config['normalize_advantage']
     )
 
     policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])

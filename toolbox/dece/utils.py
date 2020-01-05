@@ -154,6 +154,7 @@ dece_default_config = merge_dicts(
             'use_kl_loss': True,
             "clip_rho_threshold": 1.0,  # TODO
             "clip_pg_rho_threshold": 1.0,  # TODO
+            "normalize_advantage": True
         }
     )
 )
