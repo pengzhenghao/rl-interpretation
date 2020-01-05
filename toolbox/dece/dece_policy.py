@@ -8,8 +8,7 @@ from ray.rllib.agents.ppo.ppo_policy import setup_mixins, \
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.sample_batch import SampleBatch
-from ray.rllib.policy.tf_policy import LearningRateSchedule, TFPolicy
-from ray.rllib.utils.annotations import override
+from ray.rllib.policy.tf_policy import LearningRateSchedule
 from ray.rllib.utils.explained_variance import explained_variance
 from ray.rllib.utils.tf_ops import make_tf_callable
 
@@ -153,14 +152,18 @@ class ComputeNoveltyMixin(object):
             )
         replays = {}
         if self.config[DELAY_UPDATE]:
-            policies_dict = self.policies_pool
+            for other_name, other_policy in self.policies_pool.items():
+                logits = other_policy._compute_clone_network_logits(
+                    my_batch[SampleBatch.CUR_OBS]
+                )
+                replays[other_name] = logits
         else:
-            policies_dict = {k: p for k, (p, _) in others_batches.items()}
-        for other_name, other_policy in policies_dict.items():
-            _, _, info = other_policy.compute_actions(
-                my_batch[SampleBatch.CUR_OBS]
-            )
-            replays[other_name] = info[BEHAVIOUR_LOGITS]
+            for other_name, (other_policy, _) in others_batches.items():
+                _, _, info = other_policy.compute_actions(
+                    my_batch[SampleBatch.CUR_OBS]
+                )
+                replays[other_name] = info[BEHAVIOUR_LOGITS]
+
         if self.config[DIVERSITY_REWARD_TYPE] == "kl":
             return np.mean(
                 [
@@ -201,16 +204,26 @@ def get_batch_divisibility_req(policy):
 
 
 class TargetNetworkMixin(object):
-    def __init__(self, config):
+    def __init__(self, obs_space, action_space, config):
         """Target Network is updated by the master learner every
         trainer.update_target_frequency steps. All worker batches
         are importance sampled w.r. to the target network to ensure
         a more stable pi_old in PPO.
         """
+        assert config[DELAY_UPDATE]
+        _, logit_dim = ModelCatalog.get_action_dist(
+            action_space, config["model"])
+        self.target_model = ModelCatalog.get_model_v2(
+            obs_space,
+            action_space,
+            logit_dim,
+            config["model"],
+            name=TARGET_POLICY_SCOPE,
+            framework="tf")
+        self._sess.run(tf.global_variables_initializer())
+
         self.model_vars = self.model.variables()
         self.target_model_vars = self.target_model.variables()
-
-        assert config[I_AM_CLONE], "Only make sense when this policy is clone"
         self.tau_value = config.get("tau")
         self.tau = tf.placeholder(tf.float32, (), name="tau")
         assign_ops = []
@@ -222,10 +235,23 @@ class TargetNetworkMixin(object):
             ))
         self.update_target_expr = tf.group(*assign_ops)
 
-    # @override(TFPolicy)
-    # def variables(self):
-    #     # return self.model_vars + self.target_model_vars
-    #     return self.model_vars
+        @make_tf_callable(self.get_session(), True)
+        def compute_clone_network_logits(ob):
+            # def compute_clone_network_logits(ob, prev_action, prev_reward):
+            # We do not support recurrent network now.
+            feed_dict = {
+                SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
+                # SampleBatch.PREV_REWARDS: tf.convert_to_tensor(
+                #     prev_reward),
+                "is_training": tf.convert_to_tensor(False)
+            }
+            # if prev_action is not None:
+            #     feed_dict[SampleBatch.PREV_ACTIONS] = tf.convert_to_tensor(
+            #         prev_action)
+            model_out, _ = self.target_model(feed_dict)
+            return model_out
+
+        self._compute_clone_network_logits = compute_clone_network_logits
 
     def update_clone_network(self, tau=None):
         tau = tau or self.tau_value
@@ -233,32 +259,9 @@ class TargetNetworkMixin(object):
             self.update_target_expr, feed_dict={self.tau: tau})
 
 
-def build_appo_model(policy, obs_space, action_space, config):
-    _, logit_dim = ModelCatalog.get_action_dist(action_space, config["model"])
-
-    policy.model = ModelCatalog.get_model_v2(
-        obs_space,
-        action_space,
-        logit_dim,
-        config["model"],
-        name=POLICY_SCOPE,
-        framework="tf")
-
-    if config[I_AM_CLONE]:
-        policy.target_model = ModelCatalog.get_model_v2(
-            obs_space,
-            action_space,
-            logit_dim,
-            config["model"],
-            name=TARGET_POLICY_SCOPE,
-            framework="tf")
-
-    return policy.model
-
-
 def setup_late_mixins(policy, obs_space, action_space, config):
-    if config[I_AM_CLONE]:
-        TargetNetworkMixin.__init__(policy, config)
+    if config[DELAY_UPDATE]:
+        TargetNetworkMixin.__init__(policy, obs_space, action_space, config)
 
 
 DECEPolicy = PPOTFPolicy.with_updates(
@@ -266,7 +269,6 @@ DECEPolicy = PPOTFPolicy.with_updates(
     get_default_config=lambda: dece_default_config,
     postprocess_fn=postprocess_dece,
     loss_fn=loss_dece,
-    make_model=build_appo_model,
     stats_fn=kl_and_loss_stats_modified,
     gradients_fn=tnb_gradients,
     grad_stats_fn=grad_stats_fn,
