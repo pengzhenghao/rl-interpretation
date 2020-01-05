@@ -310,6 +310,31 @@ def _clip_batch(other_batch, clip_action_prob_kl):
 
 def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     config = policy.config
+
+    if config['use_vtrace']:
+        batch = sample_batch.copy()
+        if not policy.loss_initialized():
+            batch[NOVELTY_REWARDS] = np.zeros_like(
+                batch[SampleBatch.REWARDS], dtype=np.float32
+            )
+            return batch
+
+        batch[NOVELTY_REWARDS] = policy.compute_novelty(
+            batch, others_batches, episode
+        )
+        batches = [batch]
+        for pid, (other_policy, other_batch_raw) in others_batches.items():
+            if other_batch_raw is None:
+                continue
+            other_batch_raw = other_batch_raw.copy()
+            other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
+                other_batch_raw, others_batches, episode
+            )
+            batches.append(other_batch_raw)
+        return SampleBatch.concat_samples(batches) if len(batches) != 1 \
+            else batches[0]
+
+
     if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
         batch["abs_advantage"] = np.zeros_like(
@@ -340,32 +365,32 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             #     )
         return batch
 
-    batch = sample_batch
+    batch = sample_batch.copy()
     if policy.config[REPLAY_VALUES]:
 
         # a little workaround. We normalize advantage for all batch before
         # concatnation.
-        if config['use_vtrace']:
-            # tmp_batch = batch
-            batch[NOVELTY_REWARDS] = policy.compute_novelty(
-                batch, others_batches, episode
-            )
-            # tmp_batch = postprocess_vtrace(policy, batch)
-            tmp_batch = batch
-        else:
-            batch["other_logits"] = batch[BEHAVIOUR_LOGITS].copy()
-            batch["other_action_logp"] = batch[ACTION_LOGP].copy()
+        # if config['use_vtrace']:
+        #     # tmp_batch = batch
+        #     batch[NOVELTY_REWARDS] = policy.compute_novelty(
+        #         batch, others_batches, episode
+        #     )
+        #     # tmp_batch = postprocess_vtrace(policy, batch)
+        #     tmp_batch = batch
+        # else:
+        batch["other_logits"] = batch[BEHAVIOUR_LOGITS].copy()
+        batch["other_action_logp"] = batch[ACTION_LOGP].copy()
 
-            tmp_batch = postprocess_ppo_gae(policy, batch)
-            value = tmp_batch[Postprocessing.ADVANTAGES]
-            standardized = (value - value.mean()) / max(1e-4, value.std())
-            tmp_batch[Postprocessing.ADVANTAGES] = standardized
-            tmp_batch = postprocess_diversity(
-                policy, tmp_batch, others_batches
-            )
-            tmp_batch["abs_advantage"] = np.abs(
-                tmp_batch[Postprocessing.ADVANTAGES]
-            )
+        tmp_batch = postprocess_ppo_gae(policy, batch)
+        value = tmp_batch[Postprocessing.ADVANTAGES]
+        standardized = (value - value.mean()) / max(1e-4, value.std())
+        tmp_batch[Postprocessing.ADVANTAGES] = standardized
+        tmp_batch = postprocess_diversity(
+            policy, tmp_batch, others_batches
+        )
+        tmp_batch["abs_advantage"] = np.abs(
+            tmp_batch[Postprocessing.ADVANTAGES]
+        )
         batches = [tmp_batch]
     else:
         batch = postprocess_ppo_gae(policy, batch)
@@ -385,14 +410,14 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
         other_batch_raw = other_batch_raw.copy()
 
-        if config['use_vtrace']:
-            # to_add_batch = other_batch_raw  # We don't modify anything.
-            other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
-                other_batch_raw, others_batches, episode
-            )
-            to_add_batch = other_batch_raw
-            batches.append(to_add_batch)
-            continue
+        # if config['use_vtrace']:
+        #     # to_add_batch = other_batch_raw  # We don't modify anything.
+        #     other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
+        #         other_batch_raw, others_batches, episode
+        #     )
+        #     to_add_batch = other_batch_raw
+        #     batches.append(to_add_batch)
+        #     continue
 
         other_batch = other_batch_raw.copy()
 
@@ -421,7 +446,8 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
                 other_batch[BEHAVIOUR_LOGITS],
                 other_batch[SampleBatch.ACTIONS]
             )
-
+        # TODO a bug, that when use diversity without DELAY_UPDATE,
+        #  the other_batches contain wrong polices.
         if policy.config[REPLAY_VALUES]:
             other_batch = postprocess_diversity(
                 policy, other_batch, others_batches

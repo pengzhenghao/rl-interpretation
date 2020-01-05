@@ -13,7 +13,8 @@ tf = try_import_tf()
 
 POLICY_SCOPE = "func"
 TARGET_POLICY_SCOPE = "target_func"
-
+ACTION_PROB = "action_prob"
+ACTION_LOGP = "action_logp"
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +28,7 @@ class VTraceSurrogateLoss(object):
             action_kl,
             actions_entropy,
             dones,
+            behaviour_action_log_probs,
             behaviour_logits,
             # old_policy_behaviour_logits,
             target_logits,
@@ -85,8 +87,9 @@ class VTraceSurrogateLoss(object):
         # Compute vtrace on the CPU for better perf.
         with tf.device("/cpu:0"):
             self.vtrace_returns = vtrace.multi_from_logits(
-                behaviour_policy_logits=behaviour_logits,
-                target_policy_logits=target_logits,
+                behaviour_action_log_probs=behaviour_action_log_probs,  # V
+                behaviour_policy_logits=behaviour_logits,  # V
+                target_policy_logits=target_logits,  # V
                 actions=tf.unstack(actions, axis=2),
                 discounts=tf.to_float(~dones) * discount,
                 rewards=rewards,
@@ -282,6 +285,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         unpacked_behaviour_logits, drop_last=True
     )
     loss_target_logits = make_time_major(unpacked_outputs, drop_last=True)
+    behaviour_action_log_probs = make_time_major(train_batch[ACTION_LOGP],
+                                                 drop_last=True)
 
     # old_policy_behaviour_logits = make_time_major(
     #     [tf.stop_gradient(t) for t in unpacked_outputs], drop_last=True
@@ -300,12 +305,15 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         actions_entropy=actions_entropy,
         dones=dones,
         behaviour_logits=loss_behaviour_logits,
+        behaviour_action_log_probs=behaviour_action_log_probs,
         # old_policy_behaviour_logits=old_policy_behaviour_logits,
         target_logits=loss_target_logits,
         discount=policy.config["gamma"],
+
         rewards=make_time_major(rewards, drop_last=True),
         values=make_time_major(values, drop_last=True),
         bootstrap_value=make_time_major(values)[-1],
+
         dist_class=Categorical if is_multidiscrete else dist_class,
         model=policy.model,
         valid_mask=loss_mask,
@@ -331,12 +339,15 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         actions_entropy=actions_entropy,
         dones=dones,
         behaviour_logits=loss_behaviour_logits,
+        behaviour_action_log_probs=behaviour_action_log_probs,
         # old_policy_behaviour_logits=old_policy_behaviour_logits,
         target_logits=loss_target_logits,
         discount=policy.config["gamma"],
+
         rewards=make_time_major(novelty_reward, drop_last=True),
         values=make_time_major(novelty_values, drop_last=True),
         bootstrap_value=make_time_major(novelty_values)[-1],
+
         dist_class=Categorical if is_multidiscrete else dist_class,
         model=policy.model,
         valid_mask=loss_mask,

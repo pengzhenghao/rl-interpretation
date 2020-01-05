@@ -75,9 +75,10 @@ class NoveltyValueNetworkMixin(object):
 def additional_fetches(policy):
     """Adds value function and logits outputs to experience train_batches."""
     ret = {
-        SampleBatch.VF_PREDS: policy.model.value_function(),
         BEHAVIOUR_LOGITS: policy.model.last_output()
     }
+    if not policy.config['use_vtrace']:
+        ret[SampleBatch.VF_PREDS] = policy.model.value_function()
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret[NOVELTY_VALUES] = policy.model.novelty_value_function()
     return ret
@@ -117,7 +118,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
         }
     )
     if policy.config[USE_DIVERSITY_VALUE_NETWORK
-                     ] and not policy.config['use_vtrace']:
+    ] and not policy.config['use_vtrace']:
         ret['novelty_vf_explained_var'] = explained_variance(
             train_batch[NOVELTY_VALUE_TARGETS],
             policy.model.novelty_value_function()
@@ -234,7 +235,7 @@ class TargetNetworkMixin(object):
         for var, var_target in zip(self.model_vars, self.target_model_vars):
             assign_ops.append(
                 var_target.
-                assign(self.tau * var + (1.0 - self.tau) * var_target)
+                    assign(self.tau * var + (1.0 - self.tau) * var_target)
             )
         self.update_target_expr = tf.group(*assign_ops)
 

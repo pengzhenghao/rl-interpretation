@@ -2,8 +2,8 @@ from ray import tune
 
 from toolbox.dece.dece import DECETrainer
 from toolbox.dece.utils import *
-from toolbox.marl.test_extra_loss import _base
 from toolbox.env import FourWayGridWorld
+from toolbox.marl.test_extra_loss import _base
 
 
 def test_dece(config={}, local_mode=False):
@@ -83,11 +83,31 @@ def test_vtrace_single_agent(local_mode=False):
     )
 
 
+def regression_test(local_mode=False):
+    _base(
+        trainer=DECETrainer,
+        local_mode=local_mode,
+        extra_config={
+            'use_vtrace': tune.grid_search([True, False]),
+            'sample_batch_size': 200,
+            'train_batch_size': 4000,
+            'num_sgd_iter': 10,
+            USE_BISECTOR: False,
+            # 'seed': tune.grid_search([0, 100])
+            # 'lr': 5e-3,
+        },
+        env_name=FourWayGridWorld,
+        t=1000000,
+        num_agents=1
+    )
+
+
 if __name__ == '__main__':
     # test_dece(local_mode=False)
     # test_dece_batch0(local_mode=False)
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)
     # test_three_tuning(local_mode=False)
-    test_vtrace(local_mode=False)
+    regression_test(local_mode=False)
+    # test_vtrace(local_mode=False)
     # test_vtrace_single_agent(local_mode=False)
