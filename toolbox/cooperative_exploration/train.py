@@ -17,6 +17,7 @@ def train(
         num_agents,
         num_seeds,
         num_gpus,
+        verbose=2,
         test_mode=False,
         address=None
 ):
@@ -50,7 +51,8 @@ def train(
         if isinstance(stop, int) else stop,
         config=config,
         max_failures=20,
-        reuse_actors=False
+        reuse_actors=False,
+        verbose=verbose
     )
 
     path = "{}-{}-{}ts-{}agents.pkl".format(
