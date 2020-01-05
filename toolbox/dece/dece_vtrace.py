@@ -24,7 +24,7 @@ class VTraceSurrogateLoss(object):
             actions,
             prev_actions_logp,
             actions_logp,
-            # old_policy_actions_logp,
+            old_policy_actions_logp,
             action_kl,
             actions_entropy,
             dones,
@@ -104,8 +104,10 @@ class VTraceSurrogateLoss(object):
             )
 
         self.is_ratio = tf.clip_by_value(
-            tf.exp(prev_actions_logp - behaviour_action_log_probs), 0.0, 2.0
+            tf.exp(prev_actions_logp - old_policy_actions_logp), 0.0, 2.0
         )
+        # with tf.control_dependencies([
+        #     tf.print("IS ratio: ", tf.reduce_mean(self.is_ratio))]):
         logp_ratio = self.is_ratio * tf.exp(actions_logp - prev_actions_logp)
         # logp_ratio = tf.exp(actions_logp - prev_actions_logp)
 
@@ -227,7 +229,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
 
     # target_model_out, _ = policy.target_model.from_batch(train_batch)
     # old_policy_behaviour_logits = tf.stop_gradient(target_model_out)
-    # old_policy_behaviour_logits = train_batch["my_policy_logits"]
+    old_policy_behaviour_logits = train_batch["my_policy_logits"]
+
     actions = train_batch[SampleBatch.ACTIONS]
     rewards = train_batch[SampleBatch.REWARDS]
     behaviour_logits = train_batch[BEHAVIOUR_LOGITS]
@@ -238,7 +241,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     # unpacked_old_policy_behaviour_logits = tf.split(
     #     old_policy_behaviour_logits, output_hidden_shape, axis=1)
     unpacked_outputs = tf.split(model_out, output_hidden_shape, axis=1)
-    # old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
+    old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
     prev_action_dist = dist_class(behaviour_logits, policy.model)    # do not change in SGD updating.
     # values = policy.model.value_function()
 
@@ -258,7 +261,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     # Prepare KL for Loss
     # compared the updated network and not-updated network's KL.
     mean_kl = make_time_major(
-        action_dist.multi_kl(action_dist), drop_last=True
+        old_policy_action_dist.multi_kl(action_dist), drop_last=True
     )
 
     # Prepare actions for loss
@@ -287,7 +290,10 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     loss_target_logits = make_time_major(unpacked_outputs, drop_last=True)
     behaviour_action_log_probs = make_time_major(train_batch[ACTION_LOGP],
                                                  drop_last=True)  # do not change in SGD updating.
-
+    old_policy_actions_logp = make_time_major(
+        train_batch['my_action_logp'],
+        drop_last=True
+    )  # do not change in SGD updating.
     # old_policy_behaviour_logits = make_time_major(
     #     [tf.stop_gradient(t) for t in unpacked_outputs], drop_last=True
     # )
@@ -300,7 +306,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         actions=loss_actions,
         prev_actions_logp=prev_actions_logp,
         actions_logp=actions_logp,
-        # old_policy_actions_logp=old_policy_actions_logp,
+        old_policy_actions_logp=old_policy_actions_logp,
         action_kl=action_kl,
         actions_entropy=actions_entropy,
         dones=dones,
@@ -334,7 +340,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         actions=loss_actions,
         prev_actions_logp=prev_actions_logp,
         actions_logp=actions_logp,
-        # old_policy_actions_logp=old_policy_actions_logp,
+        old_policy_actions_logp=old_policy_actions_logp,
         action_kl=action_kl,
         actions_entropy=actions_entropy,
         dones=dones,

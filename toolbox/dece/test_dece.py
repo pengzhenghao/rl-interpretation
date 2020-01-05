@@ -89,16 +89,19 @@ def regression_test(local_mode=False):
         local_mode=local_mode,
         extra_config={
             'use_vtrace': tune.grid_search([True, False]),
-            'sample_batch_size': 200,
-            'train_batch_size': 4000,
+            # 'use_vtrace': tune.grid_search([True]),
+            'sample_batch_size': 128,
+            'train_batch_size': 512,
+            'sgd_minibatch_size': 32,
             'num_sgd_iter': 10,
             USE_BISECTOR: False,
-            REPLAY_VALUES: False
+            REPLAY_VALUES: False,
+            'seed': 300
             # 'seed': tune.grid_search([0, 100])
             # 'lr': 5e-3,
         },
         env_name=FourWayGridWorld,
-        t={'time_total_s': 300},
+        t={'time_total_s': 360},
         num_agents=1
     )
 

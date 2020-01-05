@@ -317,11 +317,19 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             batch[NOVELTY_REWARDS] = np.zeros_like(
                 batch[SampleBatch.REWARDS], dtype=np.float32
             )
+            batch['my_action_logp'] = np.zeros_like(
+                batch[SampleBatch.REWARDS], dtype=np.float32
+            )
+            batch['my_policy_logits'] = np.zeros_like(
+                batch[BEHAVIOUR_LOGITS], dtype=np.float32
+            )
             return batch
 
         batch[NOVELTY_REWARDS] = policy.compute_novelty(
             batch, others_batches, episode
         )
+        batch['my_action_logp'] = batch[ACTION_LOGP].copy()
+        batch['my_policy_logits'] = batch[BEHAVIOUR_LOGITS].copy()
         batches = [batch]
         for pid, (other_policy, other_batch_raw) in others_batches.items():
             if other_batch_raw is None:
@@ -330,6 +338,24 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
                 other_batch_raw, others_batches, episode
             )
+            # add action_logp
+            replay_result = policy.compute_actions(
+                other_batch_raw[SampleBatch.CUR_OBS]
+            )[2]
+
+            # other_batch[SampleBatch.VF_PREDS] = replay_result[
+            #     SampleBatch.VF_PREDS]
+            # other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
+
+            # if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
+            #     other_batch[NOVELTY_VALUES] = replay_result[NOVELTY_VALUES]
+            other_batch_raw['my_policy_logits'] = replay_result[BEHAVIOUR_LOGITS]
+            other_batch_raw["my_action_logp"], _ = \
+                _compute_logp(
+                    replay_result[BEHAVIOUR_LOGITS],
+                    other_batch_raw[SampleBatch.ACTIONS]
+                )
+
             batches.append(other_batch_raw)
         return SampleBatch.concat_samples(batches) if len(batches) != 1 \
             else batches[0]
