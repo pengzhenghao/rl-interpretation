@@ -311,7 +311,7 @@ def _clip_batch(other_batch, clip_action_prob_kl):
 def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     config = policy.config
 
-    if config['use_vtrace']:
+    if config[USE_VTRACE]:
         batch = sample_batch.copy()
         if not policy.loss_initialized():
             batch[NOVELTY_REWARDS] = np.zeros_like(
@@ -371,7 +371,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         batch[NOVELTY_REWARDS] = np.zeros_like(
             batch["advantages"], dtype=np.float32
         )
-        if policy.config[DIVERSITY_ENCOURAGING] and (not config['use_vtrace']):
+        if policy.config[DIVERSITY_ENCOURAGING] and (not config[USE_VTRACE]):
             batch[NOVELTY_VALUE_TARGETS] = np.zeros_like(
                 batch["advantages"], dtype=np.float32
             )
@@ -426,7 +426,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         batches = [batch]
 
     if config[ONLY_TNB]:
-        if ("debug_ratio" not in batch) and (not config['use_vtrace']):
+        if ("debug_ratio" not in batch) and (not config[USE_VTRACE]):
             # assert "debug_fake_adv" not in batch
             batch['debug_ratio'] = np.zeros_like(
                 batch['advantages'], dtype=np.float32
@@ -503,7 +503,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     for batch in batches:
         # batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
         #     Postprocessing.ADVANTAGES].copy().astype(np.float32)
-        if ("debug_ratio" not in batch) and (not config['use_vtrace']):
+        if ("debug_ratio" not in batch) and (not config[USE_VTRACE]):
             # assert "debug_fake_adv" not in batch
             batch['debug_ratio'] = np.zeros_like(
                 batch['advantages'], dtype=np.float32

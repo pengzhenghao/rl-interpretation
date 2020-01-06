@@ -73,10 +73,10 @@ def make_policy_optimizer_tnbes(workers, config):
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
         standardize_fields=["advantages", NOVELTY_ADVANTAGES]
-        if not config['use_vtrace'] else [],  # HERE!
+        if not config[USE_VTRACE] else [],  # HERE!
         shuffle_sequences=config["shuffle_sequences"]
-        if not config['use_vtrace'] else False,
-        use_vtrace=config['use_vtrace']
+        if not config[USE_VTRACE] else False,
+        use_vtrace=config[USE_VTRACE]
     )
 
 

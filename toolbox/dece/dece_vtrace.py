@@ -255,7 +255,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     else:
         mask = tf.ones_like(rewards)
 
-    assert policy.config["use_vtrace"]
+    assert policy.config[USE_VTRACE]
     logger.debug("Using V-Trace surrogate loss (vtrace=True)")
 
     # Prepare KL for Loss
