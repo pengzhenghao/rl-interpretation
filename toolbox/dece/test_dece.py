@@ -6,13 +6,14 @@ from toolbox.env import FourWayGridWorld
 from toolbox.marl.test_extra_loss import _base
 
 
-def test_dece(config={}, local_mode=False):
+def test_dece(config={}, local_mode=False, **kwargs):
     _base(
         trainer=DECETrainer,
         local_mode=local_mode,
         extra_config=config,
         env_name="Pendulum-v0",
-        t=2000
+        t=2000,
+        **kwargs
     )
 
 
@@ -114,13 +115,26 @@ def only_tnb(local_mode=False):
     }, local_mode)
 
 
+def single_agent_cetnb(lm=False):
+    test_dece(
+        {
+            DELAY_UPDATE: tune.grid_search([True, False]),
+            REPLAY_VALUES: tune.grid_search([False]),
+            USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([True, False]),
+        },
+        lm,
+        num_agents=tune.grid_search([1, 3])
+    )
+
+
 if __name__ == '__main__':
     # test_dece(local_mode=False)
     # test_dece_batch0(local_mode=False)
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)
     # test_three_tuning(local_mode=False)
-    only_tnb()
+    single_agent_cetnb()
+    # only_tnb()
     # regression_test(local_mode=False)
     # test_vtrace(local_mode=False)
     # test_vtrace_single_agent(local_mode=False)
