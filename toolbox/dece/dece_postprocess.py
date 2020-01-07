@@ -378,9 +378,9 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             batch[NOVELTY_ADVANTAGES] = np.zeros_like(
                 batch["advantages"], dtype=np.float32
             )
-            batch['other_logits'] = np.zeros_like(
-                batch[BEHAVIOUR_LOGITS], dtype=np.float32
-            )
+            # batch['other_logits'] = np.zeros_like(
+            #     batch[BEHAVIOUR_LOGITS], dtype=np.float32
+            # )
             batch['other_action_logp'] = np.zeros_like(
                 batch[ACTION_LOGP], dtype=np.float32
             )
@@ -392,20 +392,8 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
     batch = sample_batch.copy()
     if policy.config[REPLAY_VALUES]:
-
-        # a little workaround. We normalize advantage for all batch before
-        # concatnation.
-        # if config['use_vtrace']:
-        #     # tmp_batch = batch
-        #     batch[NOVELTY_REWARDS] = policy.compute_novelty(
-        #         batch, others_batches, episode
-        #     )
-        #     # tmp_batch = postprocess_vtrace(policy, batch)
-        #     tmp_batch = batch
-        # else:
-        batch["other_logits"] = batch[BEHAVIOUR_LOGITS].copy()
+        # batch["other_logits"] = batch[BEHAVIOUR_LOGITS].copy()
         batch["other_action_logp"] = batch[ACTION_LOGP].copy()
-
         tmp_batch = postprocess_ppo_gae(policy, batch)
         value = tmp_batch[Postprocessing.ADVANTAGES]
         standardized = (value - value.mean()) / max(1e-4, value.std())
@@ -419,9 +407,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         batches = [tmp_batch]
     else:
         batch = postprocess_ppo_gae(policy, batch)
-
         batch["abs_advantage"] = np.abs(batch[Postprocessing.ADVANTAGES])
-
         batch = postprocess_diversity(policy, batch, others_batches)
         batches = [batch]
 
@@ -458,7 +444,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         # Two additional: advantages / value target
         other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
-        other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
+        # other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
         other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
         ].copy()
 
