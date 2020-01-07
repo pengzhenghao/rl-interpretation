@@ -67,6 +67,7 @@ class FourWayGridWorld(gym.Env):
         self.map[0, int(self.N / 2)] = up
         self.map[self.N, int(self.N / 2)] = down
         self.map[int(self.N / 2), self.N] = right
+        self.traj = []
 
     @property
     def done(self):
@@ -77,10 +78,15 @@ class FourWayGridWorld(gym.Env):
         return self.step_num >= 2 * self.N
 
     def step(self, action):
-        action = np.clip(action, -1, 1)
-        self.loc = np.clip(self.loc + action, 0, self.N)
-        reward = self.map[round(self.loc[0]), round(self.loc[1])]
+        action = np.clip(action, -1, 1).astype(np.float32)
+        new_loc = np.clip(self.loc + action, 0, self.N)
+        if any(w.intersect(self.loc, new_loc) for w in self.walls):
+            pass
+        else:
+            self.loc = new_loc
+        reward = self.map[int(round(self.loc[0])), int(round(self.loc[1]))]
         self.step_num += 1
+        self.traj.append(self.loc)
         return self.loc, reward, self.done, {}
 
     def render(self, mode=None):
@@ -94,6 +100,9 @@ class FourWayGridWorld(gym.Env):
             x = [w.start[0], w.end[0]]
             y = [w.start[1], w.end[1]]
             ax.plot(x, y, c='orange')
+        if len(self.traj) > 0:
+            traj = np.asarray(self.traj)
+            ax.plot(traj[:, 0], traj[:, 1], c='blue')
         ax.set_xlabel('X-coordinate')
         ax.set_ylabel('Y-coordinate')
         plt.show()
@@ -155,6 +164,9 @@ def _test_line_intersect():
 
 if __name__ == '__main__':
     env = FourWayGridWorld()
+    env.loc = [8, 8]
+    for i in range(1000):
+        env.step(np.random.normal(size=(2,)) * 2 - 1)
     env.render()
     # _debug_plot(env.map)
     # _debug_plot(env.bool_map)
