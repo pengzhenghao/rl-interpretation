@@ -497,6 +497,8 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
     batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
+    del batch.data['new_obs']  # save memory
+    del batch.data['action_prob']
     return batch
 
 
