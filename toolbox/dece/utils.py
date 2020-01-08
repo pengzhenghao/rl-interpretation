@@ -126,6 +126,8 @@ DELAY_UPDATE = "delay_update"
 DIVERSITY_REWARD_TYPE = "diversity_reward_type"
 REPLAY_VALUES = "replay_values"
 TWO_SIDE_CLIP_LOSS = "two_side_clip_loss"
+ONLY_TNB = "only_tnb"
+USE_VTRACE = "use_vtrace"
 
 I_AM_CLONE = "i_am_clone"
 NOVELTY_REWARDS = "novelty_rewards"
@@ -148,12 +150,14 @@ dece_default_config = merge_dicts(
             REPLAY_VALUES: True,
             TWO_SIDE_CLIP_LOSS: True,
             I_AM_CLONE: False,
+            ONLY_TNB: False,
 
             # vtrace
             "use_vtrace": False,
             'use_kl_loss': True,
             "clip_rho_threshold": 1.0,  # TODO
             "clip_pg_rho_threshold": 1.0,  # TODO
+            "normalize_advantage": True
         }
     )
 )

@@ -6,14 +6,14 @@ from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
 from ray.rllib.models.tf.tf_action_dist import Categorical
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils import try_import_tf
-
+from ray.rllib.policy.tf_policy import ACTION_LOGP, ACTION_PROB
 from toolbox.dece.utils import *
+from toolbox.dece.dece_postprocess import MY_LOGP, MY_LOGIT
 
 tf = try_import_tf()
 
 POLICY_SCOPE = "func"
 TARGET_POLICY_SCOPE = "target_func"
-
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +27,7 @@ class VTraceSurrogateLoss(object):
             action_kl,
             actions_entropy,
             dones,
+            behaviour_action_log_probs,
             behaviour_logits,
             old_policy_behaviour_logits,
             target_logits,
@@ -43,7 +44,8 @@ class VTraceSurrogateLoss(object):
             clip_pg_rho_threshold=1.0,
             clip_param=0.3,
             cur_kl_coeff=None,
-            use_kl_loss=False
+            normalize_advantage=True
+            # use_kl_loss=False
     ):
         """APPO Loss, with IS modifications and V-trace for Advantage
         Estimation
@@ -84,8 +86,9 @@ class VTraceSurrogateLoss(object):
         # Compute vtrace on the CPU for better perf.
         with tf.device("/cpu:0"):
             self.vtrace_returns = vtrace.multi_from_logits(
-                behaviour_policy_logits=behaviour_logits,
-                target_policy_logits=old_policy_behaviour_logits,
+                behaviour_action_log_probs=behaviour_action_log_probs,  # V
+                behaviour_policy_logits=behaviour_logits,  # V
+                target_policy_logits=old_policy_behaviour_logits,  # V
                 actions=tf.unstack(actions, axis=2),
                 discounts=tf.to_float(~dones) * discount,
                 rewards=rewards,
@@ -102,12 +105,15 @@ class VTraceSurrogateLoss(object):
         self.is_ratio = tf.clip_by_value(
             tf.exp(prev_actions_logp - old_policy_actions_logp), 0.0, 2.0
         )
+        # with tf.control_dependencies([
+        #     tf.print("IS ratio: ", tf.reduce_mean(self.is_ratio))]):
         logp_ratio = self.is_ratio * tf.exp(actions_logp - prev_actions_logp)
+        # logp_ratio = tf.exp(actions_logp - prev_actions_logp)
 
         advantages = self.vtrace_returns.pg_advantages
-
-        advantages = (advantages - tf.reduce_mean(advantages)
-                      ) / tf.maximum(1e-4, tf.math.reduce_std(advantages))
+        if normalize_advantage:
+            advantages = (advantages - tf.reduce_mean(advantages)
+                          ) / tf.maximum(1e-4, tf.math.reduce_std(advantages))
 
         self.advantage = advantages
         self.debug_ratio = logp_ratio
@@ -123,20 +129,26 @@ class VTraceSurrogateLoss(object):
         # The baseline loss
         delta = values - self.vtrace_returns.vs
         self.value_targets = self.vtrace_returns.vs
-        self.mean_vf_loss = 0.5 * reduce_mean_valid(tf.square(delta))
+        vf_loss = tf.square(delta)
+        self.mean_vf_loss = reduce_mean_valid(vf_loss)
 
         # The entropy loss
         self.mean_entropy = reduce_mean_valid(actions_entropy)
 
         # The summed weighted loss
-        self.loss = (
-            self.mean_policy_loss + self.mean_vf_loss * vf_loss_coeff -
-            self.mean_entropy * entropy_coeff
+        # self.loss = (
+        #     self.mean_policy_loss + self.mean_vf_loss * vf_loss_coeff -
+        #     self.mean_entropy * entropy_coeff
+        # )
+        # turn the reduce mean to the outer of many terms.
+        self.loss = reduce_mean_valid(
+            -surrogate_loss + cur_kl_coeff * action_kl +
+            vf_loss_coeff * vf_loss - entropy_coeff * actions_entropy
         )
 
         # Optional additional KL Loss
-        if use_kl_loss:
-            self.loss += cur_kl_coeff * self.mean_kl
+        # if use_kl_loss:
+        #     self.loss += cur_kl_coeff * self.mean_kl
 
 
 def _make_time_major(policy, seq_lens, tensor, drop_last=False):
@@ -217,7 +229,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
 
     # target_model_out, _ = policy.target_model.from_batch(train_batch)
     # old_policy_behaviour_logits = tf.stop_gradient(target_model_out)
-    # old_policy_behaviour_logits = train_batch["my_policy_logits"]
+    old_policy_behaviour_logits = train_batch[MY_LOGIT]
+
     actions = train_batch[SampleBatch.ACTIONS]
     rewards = train_batch[SampleBatch.REWARDS]
     behaviour_logits = train_batch[BEHAVIOUR_LOGITS]
@@ -225,11 +238,13 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     unpacked_behaviour_logits = tf.split(
         behaviour_logits, output_hidden_shape, axis=1
     )
-    # unpacked_old_policy_behaviour_logits = tf.split(
-    #     old_policy_behaviour_logits, output_hidden_shape, axis=1)
+    unpacked_old_policy_behaviour_logits = tf.split(
+        old_policy_behaviour_logits, output_hidden_shape, axis=1)
     unpacked_outputs = tf.split(model_out, output_hidden_shape, axis=1)
-    # old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
-    prev_action_dist = dist_class(behaviour_logits, policy.model)
+    old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
+    prev_action_dist = dist_class(
+        behaviour_logits, policy.model
+    )  # do not change in SGD updating.
     # values = policy.model.value_function()
 
     # policy.model_vars = policy.model.variables()
@@ -242,28 +257,28 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     else:
         mask = tf.ones_like(rewards)
 
-    assert policy.config["use_vtrace"]
+    assert policy.config[USE_VTRACE]
     logger.debug("Using V-Trace surrogate loss (vtrace=True)")
 
     # Prepare KL for Loss
     # compared the updated network and not-updated network's KL.
     mean_kl = make_time_major(
-        action_dist.multi_kl(action_dist), drop_last=True
+        old_policy_action_dist.multi_kl(action_dist), drop_last=True
     )
 
     # Prepare actions for loss
     loss_actions = actions if is_multidiscrete else tf.expand_dims(
         actions, axis=1
-    )
+    )  # do not change in SGD updating.
     loss_actions = make_time_major(loss_actions, drop_last=True)
     prev_actions_logp = make_time_major(
         prev_action_dist.logp(actions), drop_last=True
-    )
+    )  # do not change in SGD updating.
     actions_logp = make_time_major(action_dist.logp(actions), drop_last=True)
 
-    old_policy_actions_logp = make_time_major(
-        tf.stop_gradient(action_dist.logp(actions)), drop_last=True
-    )
+    # old_policy_actions_logp = make_time_major(
+    #     tf.stop_gradient(action_dist.logp(actions)), drop_last=True
+    # )
 
     action_kl = tf.reduce_mean(mean_kl, axis=0) \
         if is_multidiscrete else mean_kl
@@ -273,12 +288,20 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     dones = make_time_major(train_batch[SampleBatch.DONES], drop_last=True)
     loss_behaviour_logits = make_time_major(
         unpacked_behaviour_logits, drop_last=True
-    )
+    )  # do not change in SGD updating.
     loss_target_logits = make_time_major(unpacked_outputs, drop_last=True)
+    behaviour_action_log_probs = make_time_major(
+        train_batch[ACTION_LOGP], drop_last=True
+    )  # do not change in SGD updating.
+    old_policy_actions_logp = make_time_major(
+        train_batch[MY_LOGP], drop_last=True
+    )  # do not change in SGD updating.
+    # old_policy_behaviour_logits = make_time_major(
+    #     [tf.stop_gradient(t) for t in unpacked_outputs], drop_last=True
+    # )
 
-    old_policy_behaviour_logits = make_time_major(
-        [tf.stop_gradient(t) for t in unpacked_outputs], drop_last=True
-    )
+    loss_old_policy_behaviour_logits = make_time_major(
+        unpacked_old_policy_behaviour_logits, drop_last=True)
 
     loss_mask = make_time_major(mask, drop_last=True)
 
@@ -293,7 +316,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         actions_entropy=actions_entropy,
         dones=dones,
         behaviour_logits=loss_behaviour_logits,
-        old_policy_behaviour_logits=old_policy_behaviour_logits,
+        behaviour_action_log_probs=behaviour_action_log_probs,
+        old_policy_behaviour_logits=loss_old_policy_behaviour_logits,
         target_logits=loss_target_logits,
         discount=policy.config["gamma"],
         rewards=make_time_major(rewards, drop_last=True),
@@ -309,7 +333,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         clip_param=policy.config["clip_param"],
         cur_kl_coeff=policy.kl_coeff,
         # use_kl_loss=policy.config["use_kl_loss"]
-        use_kl_loss=False
+        # use_kl_loss=False
+        normalize_advantage=policy.config['normalize_advantage']
     )
 
     novelty_values = model.novelty_value_function()
@@ -323,7 +348,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         actions_entropy=actions_entropy,
         dones=dones,
         behaviour_logits=loss_behaviour_logits,
-        old_policy_behaviour_logits=old_policy_behaviour_logits,
+        behaviour_action_log_probs=behaviour_action_log_probs,
+        old_policy_behaviour_logits=loss_old_policy_behaviour_logits,
         target_logits=loss_target_logits,
         discount=policy.config["gamma"],
         rewards=make_time_major(novelty_reward, drop_last=True),
@@ -339,7 +365,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         clip_param=policy.config["clip_param"],
         cur_kl_coeff=policy.kl_coeff,
         # use_kl_loss=policy.config["use_kl_loss"])
-        use_kl_loss=False
+        # use_kl_loss=False
+        normalize_advantage=policy.config['normalize_advantage']
     )
 
     policy.novelty_reward_mean = tf.reduce_mean(train_batch[NOVELTY_REWARDS])

@@ -17,7 +17,7 @@ def loss_dece(policy, model, dist_class, train_batch):
     #     return tnb_loss(policy, model, dist_class, train_batch)
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
-    if policy.config['use_vtrace']:
+    if policy.config[USE_VTRACE]:
         return build_appo_surrogate_loss(
             policy, model, dist_class, train_batch
         )
@@ -252,7 +252,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
         )
     loss_cls = PPOLossTwoSideClip \
         if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
-    if policy.config['use_vtrace']:
+    if policy.config[USE_VTRACE]:
         loss_cls = PPOLossVtrace
     policy.loss_obj = loss_cls(
         policy.action_space,
@@ -274,8 +274,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
         model_config=policy.config["model"],
-        is_ratio=train_batch['is_ratio']
-        if policy.config['use_vtrace'] else None
+        is_ratio=train_batch['is_ratio'] if policy.config[USE_VTRACE] else None
     )
     # FIXME we don't prepare to use vtrace in no replay values mode.
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
@@ -300,7 +299,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
             use_gae=policy.config["use_gae"],
             model_config=policy.config["model"],
             is_ratio=train_batch['is_ratio']
-            if policy.config['use_vtrace'] else None
+            if policy.config[USE_VTRACE] else None
         )
     else:
         policy.novelty_loss_obj = PPOLossTwoSideNovelty(

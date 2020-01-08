@@ -13,7 +13,7 @@ from ray.rllib.utils.explained_variance import explained_variance
 from ray.rllib.utils.tf_ops import make_tf_callable
 
 from toolbox.dece.dece_loss import loss_dece, tnb_gradients
-from toolbox.dece.dece_postprocess import postprocess_dece
+from toolbox.dece.dece_postprocess import postprocess_dece, MY_LOGIT
 from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
 
@@ -74,12 +74,11 @@ class NoveltyValueNetworkMixin(object):
 
 def additional_fetches(policy):
     """Adds value function and logits outputs to experience train_batches."""
-    ret = {
-        SampleBatch.VF_PREDS: policy.model.value_function(),
-        BEHAVIOUR_LOGITS: policy.model.last_output()
-    }
-    if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-        ret[NOVELTY_VALUES] = policy.model.novelty_value_function()
+    ret = {BEHAVIOUR_LOGITS: policy.model.last_output()}
+    if not policy.config[USE_VTRACE]:
+        ret[SampleBatch.VF_PREDS] = policy.model.value_function()
+        if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
+            ret[NOVELTY_VALUES] = policy.model.novelty_value_function()
     return ret
 
 
@@ -96,7 +95,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
         "entropy": policy.loss_obj.mean_entropy,
         "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
     }
-    if not policy.config['use_vtrace']:
+    if not policy.config[USE_VTRACE]:
         ret["vf_explained_var"] = explained_variance(
             train_batch[Postprocessing.VALUE_TARGETS],
             policy.model.value_function()
@@ -117,7 +116,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
         }
     )
     if policy.config[USE_DIVERSITY_VALUE_NETWORK
-                     ] and not policy.config['use_vtrace']:
+                     ] and not policy.config[USE_VTRACE]:
         ret['novelty_vf_explained_var'] = explained_variance(
             train_batch[NOVELTY_VALUE_TARGETS],
             policy.model.novelty_value_function()
@@ -141,7 +140,7 @@ class ComputeNoveltyMixin(object):
         self.num_of_policies = len(self.policies_pool)
         self.initialized_policies_pool = True
 
-    def compute_novelty(self, my_batch, others_batches, episode=None):
+    def compute_novelty(self, my_batch, others_batches, use_my_logit):
         """It should be noted that in Cooperative Exploration setting,
         This implementation is inefficient. Since the 'observation' of each
         agent are identical, though may different in order, so we call the
@@ -165,12 +164,13 @@ class ComputeNoveltyMixin(object):
                 )
                 replays[other_name] = info[BEHAVIOUR_LOGITS]
 
+        logit_key = MY_LOGIT if use_my_logit else BEHAVIOUR_LOGITS
+
         if self.config[DIVERSITY_REWARD_TYPE] == "kl":
             return np.mean(
                 [
-                    get_kl_divergence(
-                        my_batch[BEHAVIOUR_LOGITS], logit, mean=False
-                    ) for logit in replays.values()
+                    get_kl_divergence(my_batch[logit_key], logit, mean=False)
+                    for logit in replays.values()
                 ],
                 axis=0
             )
@@ -179,7 +179,7 @@ class ComputeNoveltyMixin(object):
             replays = [
                 np.split(logit, 2, axis=1)[0] for logit in replays.values()
             ]
-            my_act = np.split(my_batch[BEHAVIOUR_LOGITS], 2, axis=1)[0]
+            my_act = np.split(my_batch[logit_key], 2, axis=1)[0]
             return np.mean(
                 [
                     (np.square(my_act - other_act)).mean(1)
@@ -198,7 +198,7 @@ def setup_mixins_dece(policy, action_space, obs_space, config):
 
 
 def get_batch_divisibility_req(policy):
-    if policy.config['use_vtrace']:
+    if policy.config[USE_VTRACE]:
         return policy.config['sample_batch_size']
     else:
         return 1
@@ -223,10 +223,12 @@ class TargetNetworkMixin(object):
             name=TARGET_POLICY_SCOPE,
             framework="tf"
         )
-        self._sess.run(tf.global_variables_initializer())
 
         self.model_vars = self.model.variables()
         self.target_model_vars = self.target_model.variables()
+
+        self.get_session().run(tf.initialize_variables(self.target_model_vars))
+
         self.tau_value = config.get("tau")
         self.tau = tf.placeholder(tf.float32, (), name="tau")
         assign_ops = []

@@ -4,6 +4,7 @@ import ray
 from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, \
     validate_config as validate_config_original
 from ray.rllib.models.catalog import ModelCatalog
+from ray.rllib.utils.memory import ray_get_and_free
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dece.dece_policy import DECEPolicy
@@ -42,9 +43,12 @@ def validate_config(config):
         config['model']['custom_options'] = None
 
     # Reduce the train batch size for each agent
-    num_agents = len(config['multiagent']['policies'])
-    config['train_batch_size'] = int(config['train_batch_size'] // num_agents)
-    assert config['train_batch_size'] >= config["sgd_minibatch_size"]
+    if not config[ONLY_TNB]:
+        num_agents = len(config['multiagent']['policies'])
+        config['train_batch_size'] = int(
+            config['train_batch_size'] // num_agents
+        )
+        assert config['train_batch_size'] >= config["sgd_minibatch_size"]
 
     validate_config_original(config)
 
@@ -72,10 +76,10 @@ def make_policy_optimizer_tnbes(workers, config):
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
         standardize_fields=["advantages", NOVELTY_ADVANTAGES]
-        if not config['use_vtrace'] else [],  # HERE!
+        if not config[USE_VTRACE] else [],  # HERE!
         shuffle_sequences=config["shuffle_sequences"]
-        if not config['use_vtrace'] else False,
-        use_vtrace=config['use_vtrace']
+        if not config[USE_VTRACE] else False,
+        use_vtrace=config[USE_VTRACE]
     )
 
 
@@ -100,6 +104,7 @@ def setup_policies_pool(trainer):
         for e in trainer.workers.remote_workers():
             e.set_weights.remote(weights)
         # by doing these, we sync the worker.polices for all workers.
+        # ray_get_and_free(weights)
 
     def _init_pool(worker, worker_index):
         def _init_novelty_policy(policy, my_policy_name):
@@ -124,6 +129,7 @@ def after_optimizer_iteration(trainer, fetches):
                 worker.foreach_policy(lambda p, _: p.update_clone_network())
 
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
+            ray_get_and_free(weights)
 
 
 DECETrainer = PPOTrainer.with_updates(
