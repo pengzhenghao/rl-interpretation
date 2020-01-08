@@ -35,8 +35,8 @@ class Wall:
 class FourWayGridWorld(gym.Env):
     def __init__(self, env_config=None):
         self.N = 16
-        self.observation_space = Box(0, self.N, shape=(2,))
-        self.action_space = Box(-1, 1, shape=(2,))
+        self.observation_space = Box(0, self.N, shape=(2, ))
+        self.action_space = Box(-1, 1, shape=(2, ))
 
         self.early_done = env_config.get(
             'early_done'
@@ -44,6 +44,9 @@ class FourWayGridWorld(gym.Env):
         self.int_initialize = not env_config.get(
             'not_int_initialize'
         ) if env_config is not None else True
+        self.use_walls = env_config.get(
+            'use_walls'
+        ) if env_config is not None else False
 
         self.map = np.ones((self.N + 1, self.N + 1), dtype=np.float32) * (-0.1)
         self._fill_map()
@@ -54,9 +57,11 @@ class FourWayGridWorld(gym.Env):
 
     def _fill_walls(self):
         """Let suppose you have three walls, two vertical, one horizontal."""
-        self.walls.append(Wall([4, 6], [12, 6]))
-        self.walls.append(Wall([4, 10], [12, 10]))
-        self.walls.append(Wall([12, 6], [12, 10]))
+        if self.use_walls:
+            print('Building Walls!!!')
+            self.walls.append(Wall([4, 6], [12, 6]))
+            self.walls.append(Wall([4, 10], [12, 10]))
+            self.walls.append(Wall([12, 6], [12, 10]))
 
     def _fill_map(self):
         left = 10
@@ -92,8 +97,9 @@ class FourWayGridWorld(gym.Env):
     def render(self, mode=None):
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
-        img = ax.imshow(self.map, aspect=1, extent=[0, 17, 0, 17],
-                        cmap=plt.cm.hot_r)
+        img = ax.imshow(
+            self.map, aspect=1, extent=[-0.5, self.N + 0.5, -0.5, self.N + 0.5], cmap=plt.cm.hot_r
+        )
         fig.colorbar(img)
         ax.set_aspect(1)
         for w in self.walls:
@@ -102,21 +108,24 @@ class FourWayGridWorld(gym.Env):
             ax.plot(x, y, c='orange')
         if len(self.traj) > 0:
             traj = np.asarray(self.traj)
-            ax.plot(traj[:, 0], traj[:, 1], c='blue')
+            ax.plot(traj[:, 0], traj[:, 1], c='blue', alpha=0.75)
         ax.set_xlabel('X-coordinate')
         ax.set_ylabel('Y-coordinate')
+        ax.set_xlim(0, self.N)
+        ax.set_ylim(0, self.N)
         plt.show()
 
     def reset(self):
         if self.int_initialize:
             self.loc = np.random.randint(
-                0, self.N + 1, size=(2,)
+                0, self.N + 1, size=(2, )
             ).astype(np.float32)
         else:
             self.loc = np.random.uniform(
-                0, self.N, size=(2,)
+                0, self.N, size=(2, )
             ).astype(np.float32)
         self.step_num = 0
+        self.traj = []
         return self.loc
 
     def seed(self, s=None):
@@ -155,18 +164,20 @@ def _test_line_intersect():
     assert wall.intersect([-10, 10], [10, -10])
     assert not wall.intersect([-10, 10], [10, -11])
     for i in range(10):
-        Wall(np.random.randint(-10000, 10000, size=(2,)),
-             np.random.randint(-10000, 10000, size=(2,))).intersect(
-            np.random.randint(-10000, 10000, size=(2,)),
-            np.random.randint(-10000, 10000, size=(2,))
+        Wall(
+            np.random.randint(-10000, 10000, size=(2, )),
+            np.random.randint(-10000, 10000, size=(2, ))
+        ).intersect(
+            np.random.randint(-10000, 10000, size=(2, )),
+            np.random.randint(-10000, 10000, size=(2, ))
         )
 
 
 if __name__ == '__main__':
-    env = FourWayGridWorld()
+    env = FourWayGridWorld({'use_walls': True})
     env.loc = [8, 8]
-    for i in range(1000):
-        env.step(np.random.normal(size=(2,)) * 2 - 1)
+    for i in range(10000):
+        env.step(np.random.uniform(size=(2, )) * 2 - 1)
     env.render()
     # _debug_plot(env.map)
     # _debug_plot(env.bool_map)
