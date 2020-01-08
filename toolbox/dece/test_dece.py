@@ -93,6 +93,7 @@ def regression_test(local_mode=False):
         local_mode=local_mode,
         extra_config={
             USE_VTRACE: tune.grid_search([True, False]),
+            "normalize_advantage": tune.grid_search([True, False]),
             # 'use_vtrace': tune.grid_search([True]),
             'sample_batch_size': 128,
             'train_batch_size': 512,
@@ -100,12 +101,13 @@ def regression_test(local_mode=False):
             'num_sgd_iter': 10,
             USE_BISECTOR: False,
             REPLAY_VALUES: False,
-            'seed': 300
+            'seed': 100
             # 'seed': tune.grid_search([0, 100])
             # 'lr': 5e-3,
         },
-        env_name=FourWayGridWorld,
-        t={'time_total_s': 360},
+        env_name="CartPole-v0",
+        # env_name=FourWayGridWorld,
+        t={'time_total_s': 120},
         num_agents=1
     )
 
