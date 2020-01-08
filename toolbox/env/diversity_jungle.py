@@ -2,6 +2,18 @@ import gym
 import numpy as np
 from gym.spaces import Box
 
+default_config = dict(
+    down=10,
+    up=10,
+    left=10,
+    right=10,
+    early_done=False,
+    int_initialize=False,
+    use_walls=False,
+    init_loc=None,  # None for random location
+    _show=True
+)
+
 
 class Wall:
     def __init__(self, p1, p2):
@@ -38,16 +50,9 @@ class FourWayGridWorld(gym.Env):
         self.observation_space = Box(0, self.N, shape=(2,))
         self.action_space = Box(-1, 1, shape=(2,))
 
-        self.config = env_config
-        self.early_done = env_config.get(
-            'early_done'
-        ) if env_config is not None else False
-        self.int_initialize = not env_config.get(
-            'not_int_initialize'
-        ) if env_config is not None else True
-        self.use_walls = env_config.get(
-            'use_walls'
-        ) if env_config is not None else False
+        self.config = default_config
+        if isinstance(env_config, dict):
+            self.config.update(env_config)
 
         self.map = np.ones((self.N + 1, self.N + 1), dtype=np.float32) * (-0.1)
         self._fill_map()
@@ -58,26 +63,22 @@ class FourWayGridWorld(gym.Env):
 
     def _fill_walls(self):
         """Let suppose you have three walls, two vertical, one horizontal."""
-        if self.use_walls:
+        if self.config['use_walls']:
             print('Building Walls!!!')
             self.walls.append(Wall([4, 6], [12, 6]))
             self.walls.append(Wall([4, 10], [12, 10]))
             self.walls.append(Wall([12, 6], [12, 10]))
 
     def _fill_map(self):
-        left = 10
-        right = 10
-        up = 10
-        down = 10
-        self.map[int(self.N / 2), 0] = left
-        self.map[0, int(self.N / 2)] = up
-        self.map[self.N, int(self.N / 2)] = down
-        self.map[int(self.N / 2), self.N] = right
+        self.map[int(self.N / 2), 0] = self.config['down']
+        self.map[0, int(self.N / 2)] = self.config['left']
+        self.map[self.N, int(self.N / 2)] = self.config['right']
+        self.map[int(self.N / 2), self.N] = self.config['up']
         self.traj = []
 
     @property
     def done(self):
-        if self.early_done:
+        if self.config['early_done']:
             return (not (0 <= self.loc[0] <= self.N - 1)) or \
                    (not (0 <= self.loc[1] <= self.N - 1)) or \
                    (self.step_num >= 2 * self.N)
@@ -120,14 +121,18 @@ class FourWayGridWorld(gym.Env):
         return fig, ax
 
     def reset(self):
-        if self.int_initialize:
-            self.loc = np.random.randint(
-                0, self.N + 1, size=(2,)
-            ).astype(np.float32)
+        if self.config['init_loc'] is not None:
+            self.loc = np.asarray(self.config['init_loc'])
+            assert self.observation_space.contains(self.loc)
         else:
-            self.loc = np.random.uniform(
-                0, self.N, size=(2,)
-            ).astype(np.float32)
+            if self.config['int_initialize']:
+                self.loc = np.random.randint(
+                    0, self.N + 1, size=(2,)
+                ).astype(np.float32)
+            else:
+                self.loc = np.random.uniform(
+                    0, self.N, size=(2,)
+                ).astype(np.float32)
         self.step_num = 0
         self.traj = []
         return self.loc
@@ -151,40 +156,19 @@ def draw(compute_action, env_config):
     plt.show()
 
 
-def _test_draw():
-    compute_action = lambda _: (1, 0.5)
-    draw(compute_action, {})
-
-
-def _debug_plot(map):
-    """map is an 2D array."""
-    import matplotlib.pyplot as plt
-    plt.imshow(map, cmap=plt.cm.hot_r)
-    plt.show()
-
-
-def _test_line_intersect():
-    wall = Wall([0, 0], [10, 10])
-    assert wall.intersect([0, 10], [10, 0])
-    assert wall.intersect([0, 10], [0, 0])
-    assert wall.intersect([-10, 10], [10, -10])
-    assert not wall.intersect([-10, 10], [10, -11])
-    for i in range(10):
-        Wall(
-            np.random.randint(-10000, 10000, size=(2,)),
-            np.random.randint(-10000, 10000, size=(2,))
-        ).intersect(
-            np.random.randint(-10000, 10000, size=(2,)),
-            np.random.randint(-10000, 10000, size=(2,))
-        )
-
-
 if __name__ == '__main__':
-    env = FourWayGridWorld({'use_walls': True})
+    test_env_config = dict(
+        down=10,
+        up=5,
+        left=20,
+        right=13,
+        use_walls=True,
+        init_loc=[8, 8]
+    )
+    env = FourWayGridWorld(test_env_config)
     env.loc = [8, 8]
-    for i in range(10000):
+    for i in range(1000):
         env.step(np.random.uniform(size=(2,)) * 2 - 1)
     env.render()
-    # _debug_plot(env.map)
-    # _debug_plot(env.bool_map)
-    # _test_line_intersect()
+    compute_action = lambda _: [1, 0.5]
+    draw(compute_action, test_env_config)
