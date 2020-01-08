@@ -101,13 +101,14 @@ def regression_test(local_mode=False):
             'num_sgd_iter': 10,
             USE_BISECTOR: False,
             REPLAY_VALUES: False,
-            'seed': 100
+            'seed': tune.grid_search([432, 1920]),
             # 'seed': tune.grid_search([0, 100])
             # 'lr': 5e-3,
         },
-        env_name="CartPole-v0",
+        env_name="Pendulum-v0",
+        # env_name="CartPole-v0",
         # env_name=FourWayGridWorld,
-        t={'time_total_s': 120},
+        t={'timesteps_total': 300000},
         num_agents=1
     )
 

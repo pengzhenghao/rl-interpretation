@@ -29,7 +29,7 @@ class VTraceSurrogateLoss(object):
             dones,
             behaviour_action_log_probs,
             behaviour_logits,
-            # old_policy_behaviour_logits,
+            old_policy_behaviour_logits,
             target_logits,
             discount,
             rewards,
@@ -88,7 +88,7 @@ class VTraceSurrogateLoss(object):
             self.vtrace_returns = vtrace.multi_from_logits(
                 behaviour_action_log_probs=behaviour_action_log_probs,  # V
                 behaviour_policy_logits=behaviour_logits,  # V
-                target_policy_logits=target_logits,  # V
+                target_policy_logits=old_policy_behaviour_logits,  # V
                 actions=tf.unstack(actions, axis=2),
                 discounts=tf.to_float(~dones) * discount,
                 rewards=rewards,
@@ -238,8 +238,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     unpacked_behaviour_logits = tf.split(
         behaviour_logits, output_hidden_shape, axis=1
     )
-    # unpacked_old_policy_behaviour_logits = tf.split(
-    #     old_policy_behaviour_logits, output_hidden_shape, axis=1)
+    unpacked_old_policy_behaviour_logits = tf.split(
+        old_policy_behaviour_logits, output_hidden_shape, axis=1)
     unpacked_outputs = tf.split(model_out, output_hidden_shape, axis=1)
     old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
     prev_action_dist = dist_class(
@@ -300,6 +300,9 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     #     [tf.stop_gradient(t) for t in unpacked_outputs], drop_last=True
     # )
 
+    loss_old_policy_behaviour_logits = make_time_major(
+        unpacked_old_policy_behaviour_logits, drop_last=True)
+
     loss_mask = make_time_major(mask, drop_last=True)
 
     values = model.value_function()
@@ -314,7 +317,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         dones=dones,
         behaviour_logits=loss_behaviour_logits,
         behaviour_action_log_probs=behaviour_action_log_probs,
-        # old_policy_behaviour_logits=old_policy_behaviour_logits,
+        old_policy_behaviour_logits=loss_old_policy_behaviour_logits,
         target_logits=loss_target_logits,
         discount=policy.config["gamma"],
         rewards=make_time_major(rewards, drop_last=True),
@@ -346,7 +349,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         dones=dones,
         behaviour_logits=loss_behaviour_logits,
         behaviour_action_log_probs=behaviour_action_log_probs,
-        # old_policy_behaviour_logits=old_policy_behaviour_logits,
+        old_policy_behaviour_logits=loss_old_policy_behaviour_logits,
         target_logits=loss_target_logits,
         discount=policy.config["gamma"],
         rewards=make_time_major(novelty_reward, drop_last=True),
