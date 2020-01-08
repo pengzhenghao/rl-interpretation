@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 def validate_config(config):
+
+    assert USE_VTRACE not in config
+    config[USE_VTRACE] = config[REPLAY_VALUES]
+
     # create multi-agent environment
     assert _global_registry.contains(ENV_CREATOR, config["env"])
     env_creator = _global_registry.get(ENV_CREATOR, config["env"])

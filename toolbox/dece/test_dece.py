@@ -135,6 +135,18 @@ def single_agent_cetnb(lm=False):
     )
 
 
+def replay_values_or_not_test(lm=False):
+    test_dece(
+        {
+            # DELAY_UPDATE: tune.grid_search([True, False]),
+            REPLAY_VALUES: tune.grid_search([True, False]),
+            # USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([True, False]),
+        },
+        lm,
+        num_agents=tune.grid_search([1, 3])
+    )
+
+
 if __name__ == '__main__':
     # test_dece(local_mode=False)
     # test_dece_batch0(local_mode=False)
@@ -143,6 +155,7 @@ if __name__ == '__main__':
     # test_three_tuning(local_mode=False)
     # single_agent_cetnb()
     # only_tnb()
-    regression_test(local_mode=False)
+    # regression_test(local_mode=False)
     # test_vtrace(local_mode=True)
     # test_vtrace_single_agent(local_mode=False)
+    replay_values_or_not_test(False)

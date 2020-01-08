@@ -17,13 +17,13 @@ def loss_dece(policy, model, dist_class, train_batch):
     #     return tnb_loss(policy, model, dist_class, train_batch)
     if not policy.config[DIVERSITY_ENCOURAGING]:
         return ppo_surrogate_loss(policy, model, dist_class, train_batch)
-    if policy.config[USE_VTRACE]:
+    if policy.config[REPLAY_VALUES]:
         return build_appo_surrogate_loss(
             policy, model, dist_class, train_batch
         )
         # return tnb_loss(policy, model, dist_class, train_batch)
-    if policy.config[USE_BISECTOR]:
-        return tnb_loss(policy, model, dist_class, train_batch)
+    # if policy.config[USE_BISECTOR]:
+    #     return tnb_loss(policy, model, dist_class, train_batch)
     else:  # USE_BISECTOR makes difference at computing_gradient!
         # So here are same either.
         return tnb_loss(policy, model, dist_class, train_batch)
