@@ -35,9 +35,10 @@ class Wall:
 class FourWayGridWorld(gym.Env):
     def __init__(self, env_config=None):
         self.N = 16
-        self.observation_space = Box(0, self.N, shape=(2, ))
-        self.action_space = Box(-1, 1, shape=(2, ))
+        self.observation_space = Box(0, self.N, shape=(2,))
+        self.action_space = Box(-1, 1, shape=(2,))
 
+        self.config = env_config
         self.early_done = env_config.get(
             'early_done'
         ) if env_config is not None else False
@@ -98,7 +99,8 @@ class FourWayGridWorld(gym.Env):
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         img = ax.imshow(
-            self.map, aspect=1, extent=[-0.5, self.N + 0.5, -0.5, self.N + 0.5], cmap=plt.cm.hot_r
+            self.map, aspect=1,
+            extent=[-0.5, self.N + 0.5, -0.5, self.N + 0.5], cmap=plt.cm.hot_r
         )
         fig.colorbar(img)
         ax.set_aspect(1)
@@ -113,16 +115,18 @@ class FourWayGridWorld(gym.Env):
         ax.set_ylabel('Y-coordinate')
         ax.set_xlim(0, self.N)
         ax.set_ylim(0, self.N)
-        plt.show()
+        if self.config["_show"]:
+            plt.show()
+        return fig, ax
 
     def reset(self):
         if self.int_initialize:
             self.loc = np.random.randint(
-                0, self.N + 1, size=(2, )
+                0, self.N + 1, size=(2,)
             ).astype(np.float32)
         else:
             self.loc = np.random.uniform(
-                0, self.N, size=(2, )
+                0, self.N, size=(2,)
             ).astype(np.float32)
         self.step_num = 0
         self.traj = []
@@ -133,21 +137,23 @@ class FourWayGridWorld(gym.Env):
             np.random.seed(s)
 
 
-def draw(compute_action):
+def draw(compute_action, env_config):
     """compute_action is a function that take current obs (array with shape
     (2,)) as input and return the action: array with shape (2,)."""
     import matplotlib.pyplot as plt
-    plt.figure(figsize=(10, 10))
-    np.arange(17)
+    env_config['_show'] = False
+    env = FourWayGridWorld(env_config)
+    fig, ax = env.render()
     for i in range(17):
         for j in range(17):
             action = compute_action([i, j])
-            plt.arrow(
-                j, -i, action[1], -action[0], head_width=0.2, shape='left'
-            )
-    plt.xlim(-1, 17)
-    plt.ylim(-17, 1)
-    plt.axis('equal')
+            ax.arrow(i, j, action[0], action[1], head_width=0.2, shape='left')
+    plt.show()
+
+
+def _test_draw():
+    compute_action = lambda _: (1, 0.5)
+    draw(compute_action, {})
 
 
 def _debug_plot(map):
@@ -165,11 +171,11 @@ def _test_line_intersect():
     assert not wall.intersect([-10, 10], [10, -11])
     for i in range(10):
         Wall(
-            np.random.randint(-10000, 10000, size=(2, )),
-            np.random.randint(-10000, 10000, size=(2, ))
+            np.random.randint(-10000, 10000, size=(2,)),
+            np.random.randint(-10000, 10000, size=(2,))
         ).intersect(
-            np.random.randint(-10000, 10000, size=(2, )),
-            np.random.randint(-10000, 10000, size=(2, ))
+            np.random.randint(-10000, 10000, size=(2,)),
+            np.random.randint(-10000, 10000, size=(2,))
         )
 
 
@@ -177,7 +183,7 @@ if __name__ == '__main__':
     env = FourWayGridWorld({'use_walls': True})
     env.loc = [8, 8]
     for i in range(10000):
-        env.step(np.random.uniform(size=(2, )) * 2 - 1)
+        env.step(np.random.uniform(size=(2,)) * 2 - 1)
     env.render()
     # _debug_plot(env.map)
     # _debug_plot(env.bool_map)
