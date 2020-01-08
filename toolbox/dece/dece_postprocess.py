@@ -7,33 +7,36 @@ from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
 
 
+MY_LOGIT = "my_policy_logits"
+
 def postprocess_vtrace_diversity(policy, batch, others_batches, episode=None):
-    completed = batch["dones"][-1]
-    batch[NOVELTY_REWARDS] = policy.compute_novelty(
-        batch, others_batches, episode
-    )
-
-    if completed:
-        last_r_novelty = 0.0
-    else:
-        next_state = []
-        for i in range(policy.num_state_tensors()):
-            next_state.append([batch["state_out_{}".format(i)][-1]])
-        last_r_novelty = policy._novelty_value(
-            batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
-            batch[NOVELTY_REWARDS][-1], *next_state
-        )
-
-    # compute the advantages of novelty rewards
-    batch = compute_vtrace(
-        batch,
-        last_r_novelty,
-        gamma=policy.config["gamma"],
-        clip_rho_threshold=policy.config['clip_rho_threshold'],
-        clip_pg_rho_threshold=policy.config['clip_pg_rho_threshold'],
-        use_diversity=True
-    )
-    return batch
+    raise ValueError()
+    # completed = batch["dones"][-1]
+    # batch[NOVELTY_REWARDS] = policy.compute_novelty(
+    #     batch, others_batches, episode
+    # )
+    #
+    # if completed:
+    #     last_r_novelty = 0.0
+    # else:
+    #     next_state = []
+    #     for i in range(policy.num_state_tensors()):
+    #         next_state.append([batch["state_out_{}".format(i)][-1]])
+    #     last_r_novelty = policy._novelty_value(
+    #         batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
+    #         batch[NOVELTY_REWARDS][-1], *next_state
+    #     )
+    #
+    # # compute the advantages of novelty rewards
+    # batch = compute_vtrace(
+    #     batch,
+    #     last_r_novelty,
+    #     gamma=policy.config["gamma"],
+    #     clip_rho_threshold=policy.config['clip_rho_threshold'],
+    #     clip_pg_rho_threshold=policy.config['clip_pg_rho_threshold'],
+    #     use_diversity=True
+    # )
+    # return batch
 
 
 def postprocess_vtrace(policy, batch, other_policy=None):
@@ -320,24 +323,22 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
             batch['my_action_logp'] = np.zeros_like(
                 batch[SampleBatch.REWARDS], dtype=np.float32
             )
-            batch['my_policy_logits'] = np.zeros_like(
+            batch[MY_LOGIT] = np.zeros_like(
                 batch[BEHAVIOUR_LOGITS], dtype=np.float32
             )
             return batch
 
-        batch[NOVELTY_REWARDS] = policy.compute_novelty(
-            batch, others_batches, episode
-        )
         batch['my_action_logp'] = batch[ACTION_LOGP].copy()
-        batch['my_policy_logits'] = batch[BEHAVIOUR_LOGITS].copy()
+        batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS].copy()
+        batch[NOVELTY_REWARDS] = policy.compute_novelty(
+            batch, others_batches, use_my_logit=True
+        )
         batches = [batch]
         for pid, (other_policy, other_batch_raw) in others_batches.items():
             if other_batch_raw is None:
                 continue
             other_batch_raw = other_batch_raw.copy()
-            other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
-                other_batch_raw, others_batches, episode
-            )
+
             # add action_logp
             replay_result = policy.compute_actions(
                 other_batch_raw[SampleBatch.CUR_OBS]
@@ -349,13 +350,17 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
             # if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
             #     other_batch[NOVELTY_VALUES] = replay_result[NOVELTY_VALUES]
-            other_batch_raw['my_policy_logits'
-                            ] = replay_result[BEHAVIOUR_LOGITS]
+            other_batch_raw[MY_LOGIT] = \
+                replay_result[BEHAVIOUR_LOGITS]
             other_batch_raw["my_action_logp"], _ = \
                 _compute_logp(
                     replay_result[BEHAVIOUR_LOGITS],
                     other_batch_raw[SampleBatch.ACTIONS]
                 )
+
+            other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
+                other_batch_raw, others_batches, use_my_logit=True
+            )
 
             batches.append(other_batch_raw)
         return SampleBatch.concat_samples(batches) if len(batches) != 1 \
@@ -399,7 +404,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         value = tmp_batch[Postprocessing.ADVANTAGES]
         standardized = (value - value.mean()) / max(1e-4, value.std())
         tmp_batch[Postprocessing.ADVANTAGES] = standardized
-        tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches)
+        tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches, use_my_logit=False)
         tmp_batch["abs_advantage"] = np.abs(
             tmp_batch[Postprocessing.ADVANTAGES]
         )
@@ -407,7 +412,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     else:
         batch = postprocess_ppo_gae(policy, batch)
         batch["abs_advantage"] = np.abs(batch[Postprocessing.ADVANTAGES])
-        batch = postprocess_diversity(policy, batch, others_batches)
+        batch = postprocess_diversity(policy, batch, others_batches, use_my_logit=False)
         batches = [batch]
 
     if config[ONLY_TNB]:
@@ -501,10 +506,10 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
     return batch
 
 
-def postprocess_diversity(policy, batch, others_batches, episode=None):
+def postprocess_diversity(policy, batch, others_batches, use_my_logit=False):
     completed = batch["dones"][-1]
     batch[NOVELTY_REWARDS] = policy.compute_novelty(
-        batch, others_batches, episode
+        batch, others_batches, use_my_logit=use_my_logit
     )
 
     if completed:

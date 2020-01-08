@@ -13,7 +13,7 @@ from ray.rllib.utils.explained_variance import explained_variance
 from ray.rllib.utils.tf_ops import make_tf_callable
 
 from toolbox.dece.dece_loss import loss_dece, tnb_gradients
-from toolbox.dece.dece_postprocess import postprocess_dece
+from toolbox.dece.dece_postprocess import postprocess_dece, MY_LOGIT
 from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
 
@@ -140,7 +140,7 @@ class ComputeNoveltyMixin(object):
         self.num_of_policies = len(self.policies_pool)
         self.initialized_policies_pool = True
 
-    def compute_novelty(self, my_batch, others_batches, episode=None):
+    def compute_novelty(self, my_batch, others_batches, use_my_logits):
         """It should be noted that in Cooperative Exploration setting,
         This implementation is inefficient. Since the 'observation' of each
         agent are identical, though may different in order, so we call the
