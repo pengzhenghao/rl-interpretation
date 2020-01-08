@@ -11,6 +11,7 @@ default_config = dict(
     int_initialize=False,
     use_walls=False,
     init_loc=None,  # None for random location
+    record_trajectory=False,
     _show=True
 )
 
@@ -94,7 +95,8 @@ class FourWayGridWorld(gym.Env):
             self.loc = new_loc
         reward = self.map[int(round(self.loc[0])), int(round(self.loc[1]))]
         self.step_num += 1
-        self.traj.append(self.loc)
+        if self.config['record_trajectory']:
+            self.traj.append(self.loc)
         return self.loc, reward, self.done, {}
 
     def render(self, mode=None):
@@ -164,7 +166,8 @@ if __name__ == '__main__':
         left=20,
         right=13,
         use_walls=True,
-        init_loc=[8, 8]
+        init_loc=[8, 8],
+        record_trajectory=True
     )
     env = FourWayGridWorld(test_env_config)
     env.loc = [8, 8]
