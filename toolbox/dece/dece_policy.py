@@ -77,8 +77,8 @@ def additional_fetches(policy):
     ret = {BEHAVIOUR_LOGITS: policy.model.last_output()}
     if not policy.config[USE_VTRACE]:
         ret[SampleBatch.VF_PREDS] = policy.model.value_function()
-    if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-        ret[NOVELTY_VALUES] = policy.model.novelty_value_function()
+        if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
+            ret[NOVELTY_VALUES] = policy.model.novelty_value_function()
     return ret
 
 
@@ -140,7 +140,7 @@ class ComputeNoveltyMixin(object):
         self.num_of_policies = len(self.policies_pool)
         self.initialized_policies_pool = True
 
-    def compute_novelty(self, my_batch, others_batches, use_my_logits):
+    def compute_novelty(self, my_batch, others_batches, use_my_logit):
         """It should be noted that in Cooperative Exploration setting,
         This implementation is inefficient. Since the 'observation' of each
         agent are identical, though may different in order, so we call the
@@ -164,12 +164,13 @@ class ComputeNoveltyMixin(object):
                 )
                 replays[other_name] = info[BEHAVIOUR_LOGITS]
 
+        logit_key = MY_LOGIT if use_my_logit else BEHAVIOUR_LOGITS
+
         if self.config[DIVERSITY_REWARD_TYPE] == "kl":
             return np.mean(
                 [
-                    get_kl_divergence(
-                        my_batch[BEHAVIOUR_LOGITS], logit, mean=False
-                    ) for logit in replays.values()
+                    get_kl_divergence(my_batch[logit_key], logit, mean=False)
+                    for logit in replays.values()
                 ],
                 axis=0
             )
@@ -178,7 +179,7 @@ class ComputeNoveltyMixin(object):
             replays = [
                 np.split(logit, 2, axis=1)[0] for logit in replays.values()
             ]
-            my_act = np.split(my_batch[BEHAVIOUR_LOGITS], 2, axis=1)[0]
+            my_act = np.split(my_batch[logit_key], 2, axis=1)[0]
             return np.mean(
                 [
                     (np.square(my_act - other_act)).mean(1)

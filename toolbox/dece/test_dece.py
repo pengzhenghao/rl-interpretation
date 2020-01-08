@@ -51,16 +51,19 @@ def test_three_tuning(local_mode=False):
     )
 
 
-def test_vtrace(local_mode=False):
+def test_vtrace(local_mode=False, hard=False):
     _base(
         trainer=DECETrainer,
         local_mode=local_mode,
         extra_config={
             USE_VTRACE: True,
-            'sample_batch_size': 50,
-            'train_batch_size': 200,
-            'num_sgd_iter': 10,
-            'seed': tune.grid_search([0, 100])
+            'sample_batch_size': 50 if hard else 8,
+            'train_batch_size': 200 if hard else 32,
+            'num_sgd_iter': 10 if hard else 2,
+            'model': {
+                'fcnet_hiddens': [16, 16]
+            },
+            'seed': tune.grid_search([0, 100]) if hard else 0
             # 'lr': 5e-3,
         },
         env_name=FourWayGridWorld,
@@ -138,5 +141,5 @@ if __name__ == '__main__':
     # single_agent_cetnb()
     # only_tnb()
     regression_test(local_mode=False)
-    # test_vtrace(local_mode=False)
+    # test_vtrace(local_mode=True)
     # test_vtrace_single_agent(local_mode=False)

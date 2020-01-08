@@ -6,8 +6,8 @@ from ray.rllib.policy.tf_policy import ACTION_PROB
 from toolbox.dece.utils import *
 from toolbox.distance import get_kl_divergence
 
-MY_LOGIT = "my_policy_logits"
-
+MY_LOGIT = "my_logits"
+MY_LOGP = "my_logp"
 
 # def postprocess_vtrace_diversity(policy, batch, others_batches,
 # episode=None):
@@ -38,7 +38,6 @@ MY_LOGIT = "my_policy_logits"
 #     use_diversity=True
 # )
 # return batch
-
 
 # def postprocess_vtrace(policy, batch, other_policy=None):
 #     completed = batch["dones"][-1]
@@ -130,7 +129,7 @@ def compute_vtrace(
         # np.exp(traj["other_action_logp"] - traj["action_logp"]), 0, 2.0)
         traj[Postprocessing.VALUE_TARGETS] = vs[:-1]
         traj[Postprocessing.ADVANTAGES
-        ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+             ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     # assert all(val.shape[0] == trajsize for val in traj.values()), \
     #     "Rollout stacked incorrectly!"
@@ -193,7 +192,7 @@ def compute_advantages_replay(
              np.array([my_last_r])]
         )
         delta_t = traj[SampleBatch.REWARDS
-                  ] + gamma * vpred_t[1:] * (1 - lambda_) - vpred_t[:-1]
+                       ] + gamma * vpred_t[1:] * (1 - lambda_) - vpred_t[:-1]
         # other_vpred_t = np.concatenate(
         #     [rollout["other_vf_preds"],
         #      np.array([other_last_r])]
@@ -222,7 +221,7 @@ def compute_advantages_replay(
 
         traj["abs_advantage"] = np.abs(advantage)
         traj[Postprocessing.ADVANTAGES
-        ] = (advantage - advantage.mean()) / max(1e-4, advantage.std())
+             ] = (advantage - advantage.mean()) / max(1e-4, advantage.std())
         traj["debug_ratio"] = ratio
 
         my_vpred_t = np.concatenate(
@@ -233,9 +232,9 @@ def compute_advantages_replay(
 
         clipped_ratio = np.clip(ratio, 0, 1.0)
         value_target = (
-                clipped_ratio *
-                (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
-                (1 - clipped_ratio) * (my_vpred_t[:-1])
+            clipped_ratio *
+            (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
+            (1 - clipped_ratio) * (my_vpred_t[:-1])
         )
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
@@ -257,7 +256,7 @@ def compute_advantages_replay(
         #     traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES
-    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
@@ -283,8 +282,8 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     p = np.exp(logp)
     return logp, p
@@ -314,60 +313,49 @@ def _clip_batch(other_batch, clip_action_prob_kl):
 
 def postprocess_vtrace(policy, sample_batch, others_batches, episode):
     """Add novelty and MY_LOGIT into batches."""
-    config = policy.config
-    if config[USE_VTRACE]:
-        batch = sample_batch.copy()
-        if not policy.loss_initialized():
-            batch[NOVELTY_REWARDS] = np.zeros_like(
-                batch[SampleBatch.REWARDS], dtype=np.float32
-            )
-            # batch['my_action_logp'] = np.zeros_like(
-            #     batch[SampleBatch.REWARDS], dtype=np.float32
-            # )
-            batch[MY_LOGIT] = np.zeros_like(
-                batch[BEHAVIOUR_LOGITS], dtype=np.float32
-            )
-            return batch
-
-        # batch['my_action_logp'] = batch[ACTION_LOGP].copy()
-        batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS].copy()
-        batch[NOVELTY_REWARDS] = policy.compute_novelty(
-            batch, others_batches, use_my_logit=True
+    batch = sample_batch.copy()
+    if not policy.loss_initialized():
+        batch[NOVELTY_REWARDS] = np.zeros_like(
+            batch[SampleBatch.REWARDS], dtype=np.float32
         )
-        batches = [batch]
-        for pid, (other_policy, other_batch_raw) in others_batches.items():
-            if other_batch_raw is None:
-                continue
-            other_batch_raw = other_batch_raw.copy()
+        batch[MY_LOGP] = np.zeros_like(batch[ACTION_LOGP], dtype=np.float32)
+        batch[MY_LOGIT] = np.zeros_like(
+            batch[BEHAVIOUR_LOGITS], dtype=np.float32
+        )
+        return batch
 
-            # add action_logp
-            replay_result = policy.compute_actions(
-                other_batch_raw[SampleBatch.CUR_OBS]
-            )[2]
+    batch[MY_LOGP] = batch[ACTION_LOGP].copy()
+    batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS].copy()
+    batch[NOVELTY_REWARDS] = policy.compute_novelty(
+        batch, others_batches, use_my_logit=True
+    )
+    batches = [batch]
+    for pid, (other_policy, other_batch_raw) in others_batches.items():
+        if other_batch_raw is None:
+            continue
+        other_batch_raw = other_batch_raw.copy()
 
-            # other_batch[SampleBatch.VF_PREDS] = replay_result[
-            #     SampleBatch.VF_PREDS]
-            # other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
+        # add action_logp
+        replay_result = policy.compute_actions(
+            other_batch_raw[SampleBatch.CUR_OBS]
+        )[2]
 
-            # if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-            #     other_batch[NOVELTY_VALUES] = replay_result[NOVELTY_VALUES]
-            other_batch_raw[MY_LOGIT] = \
-                replay_result[BEHAVIOUR_LOGITS]
-            # other_batch_raw["my_action_logp"], _ = \
-            #     _compute_logp(
-            #         replay_result[BEHAVIOUR_LOGITS],
-            #         other_batch_raw[SampleBatch.ACTIONS]
-            #     )
-
-            other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
-                other_batch_raw, others_batches, use_my_logit=True
+        other_batch_raw[MY_LOGP], _ = \
+            _compute_logp(
+                replay_result[BEHAVIOUR_LOGITS],
+                other_batch_raw[SampleBatch.ACTIONS]
             )
 
-            batches.append(other_batch_raw)
-            # FIXME we need to make sure the values, advantage, vtarget, is
-            #  not used by vtrace.
-        return SampleBatch.concat_samples(batches) if len(batches) != 1 \
-            else batches[0]
+        other_batch_raw[MY_LOGIT] = \
+            replay_result[BEHAVIOUR_LOGITS]
+
+        other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
+            other_batch_raw, others_batches, use_my_logit=True
+        )
+
+        batches.append(other_batch_raw)
+    return SampleBatch.concat_samples(batches) if len(batches) != 1 \
+        else batches[0]
 
 
 def postprocess_replay_values(policy, sample_batch, others_batches, episode):
@@ -407,11 +395,10 @@ def postprocess_replay_values(policy, sample_batch, others_batches, episode):
     value = tmp_batch[Postprocessing.ADVANTAGES]
     standardized = (value - value.mean()) / max(1e-4, value.std())
     tmp_batch[Postprocessing.ADVANTAGES] = standardized
-    tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches,
-                                      use_my_logit=False)
-    tmp_batch["abs_advantage"] = np.abs(
-        tmp_batch[Postprocessing.ADVANTAGES]
+    tmp_batch = postprocess_diversity(
+        policy, tmp_batch, others_batches, use_my_logit=False
     )
+    tmp_batch["abs_advantage"] = np.abs(tmp_batch[Postprocessing.ADVANTAGES])
     batches = [tmp_batch]
 
     if config[ONLY_TNB]:
@@ -439,7 +426,7 @@ def postprocess_replay_values(policy, sample_batch, others_batches, episode):
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         # other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
         other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
-        ].copy()
+                                                    ].copy()
 
         # use my policy to evaluate the values and other relative data
         # of other's samples.
@@ -481,8 +468,9 @@ def postprocess_replay_values(policy, sample_batch, others_batches, episode):
         else batches[0]
 
 
-def postprocess_no_replay_values(policy, sample_batch, others_batches,
-                                 episode):
+def postprocess_no_replay_values(
+        policy, sample_batch, others_batches, episode
+):
     """Replay to collect logits. Pretend """
     config = policy.config
     if not policy.loss_initialized():
@@ -519,8 +507,9 @@ def postprocess_no_replay_values(policy, sample_batch, others_batches,
 
     batch = postprocess_ppo_gae(policy, batch)
     batch["abs_advantage"] = np.abs(batch[Postprocessing.ADVANTAGES])
-    batch = postprocess_diversity(policy, batch, others_batches,
-                                  use_my_logit=False)
+    batch = postprocess_diversity(
+        policy, batch, others_batches, use_my_logit=False
+    )
     batches = [batch]
 
     if config[ONLY_TNB]:
@@ -548,7 +537,7 @@ def postprocess_no_replay_values(policy, sample_batch, others_batches,
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         # other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
         other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
-        ].copy()
+                                                    ].copy()
 
         # use my policy to evaluate the values and other relative data
         # of other's samples.

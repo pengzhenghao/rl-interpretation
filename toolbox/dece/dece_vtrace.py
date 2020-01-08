@@ -6,15 +6,14 @@ from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
 from ray.rllib.models.tf.tf_action_dist import Categorical
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils import try_import_tf
-
+from ray.rllib.policy.tf_policy import ACTION_LOGP, ACTION_PROB
 from toolbox.dece.utils import *
+from toolbox.dece.dece_postprocess import MY_LOGP, MY_LOGIT
 
 tf = try_import_tf()
 
 POLICY_SCOPE = "func"
 TARGET_POLICY_SCOPE = "target_func"
-ACTION_PROB = "action_prob"
-ACTION_LOGP = "action_logp"
 logger = logging.getLogger(__name__)
 
 
@@ -230,7 +229,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
 
     # target_model_out, _ = policy.target_model.from_batch(train_batch)
     # old_policy_behaviour_logits = tf.stop_gradient(target_model_out)
-    old_policy_behaviour_logits = train_batch["my_policy_logits"]
+    old_policy_behaviour_logits = train_batch[MY_LOGIT]
 
     actions = train_batch[SampleBatch.ACTIONS]
     rewards = train_batch[SampleBatch.REWARDS]
@@ -295,7 +294,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         train_batch[ACTION_LOGP], drop_last=True
     )  # do not change in SGD updating.
     old_policy_actions_logp = make_time_major(
-        train_batch['my_action_logp'], drop_last=True
+        train_batch[MY_LOGP], drop_last=True
     )  # do not change in SGD updating.
     # old_policy_behaviour_logits = make_time_major(
     #     [tf.stop_gradient(t) for t in unpacked_outputs], drop_last=True
