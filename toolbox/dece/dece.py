@@ -104,7 +104,7 @@ def setup_policies_pool(trainer):
         for e in trainer.workers.remote_workers():
             e.set_weights.remote(weights)
         # by doing these, we sync the worker.polices for all workers.
-        ray_get_and_free(weights)
+        # ray_get_and_free(weights)
 
     def _init_pool(worker, worker_index):
         def _init_novelty_policy(policy, my_policy_name):
