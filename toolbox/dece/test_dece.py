@@ -56,7 +56,7 @@ def test_vtrace(local_mode=False, hard=False):
         trainer=DECETrainer,
         local_mode=local_mode,
         extra_config={
-            USE_VTRACE: True,
+            REPLAY_VALUES: True,
             'sample_batch_size': 50 if hard else 8,
             'train_batch_size': 200 if hard else 32,
             'num_sgd_iter': 10 if hard else 2,
@@ -76,7 +76,7 @@ def test_vtrace_single_agent(local_mode=False):
         trainer=DECETrainer,
         local_mode=local_mode,
         extra_config={
-            USE_VTRACE: True,
+            REPLAY_VALUES: True,
             'sample_batch_size': 50,
             'train_batch_size': 200,
             'num_sgd_iter': 10
@@ -92,7 +92,7 @@ def regression_test(local_mode=False):
         trainer=DECETrainer,
         local_mode=local_mode,
         extra_config={
-            USE_VTRACE: tune.grid_search([True, False]),
+            REPLAY_VALUES: tune.grid_search([True, False]),
             "normalize_advantage": tune.grid_search([True, False]),
             # 'use_vtrace': tune.grid_search([True]),
             'sample_batch_size': 128,

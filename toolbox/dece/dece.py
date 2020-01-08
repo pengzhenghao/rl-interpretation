@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 def validate_config(config):
 
-    assert USE_VTRACE not in config
-    config[USE_VTRACE] = config[REPLAY_VALUES]
+    # assert REPLAY_VALUES not in config
+    # config[REPLAY_VALUES] = config[REPLAY_VALUES]
 
     # create multi-agent environment
     assert _global_registry.contains(ENV_CREATOR, config["env"])
@@ -80,10 +80,10 @@ def make_policy_optimizer_tnbes(workers, config):
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
         standardize_fields=["advantages", NOVELTY_ADVANTAGES]
-        if not config[USE_VTRACE] else [],  # HERE!
+        if not config[REPLAY_VALUES] else [],  # HERE!
         shuffle_sequences=config["shuffle_sequences"]
-        if not config[USE_VTRACE] else False,
-        use_vtrace=config[USE_VTRACE]
+        if not config[REPLAY_VALUES] else False,
+        use_vtrace=config[REPLAY_VALUES]
     )
 
 

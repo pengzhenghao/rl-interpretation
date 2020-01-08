@@ -239,6 +239,7 @@ class PPOLossVtrace(object):
 
 def tnb_loss(policy, model, dist_class, train_batch):
     """Add novelty loss with original ppo loss using TNB method"""
+    assert not policy.config[REPLAY_VALUES]
     logits, state = model.from_batch(train_batch)
     action_dist = dist_class(logits, model)
 
@@ -252,8 +253,8 @@ def tnb_loss(policy, model, dist_class, train_batch):
         )
     loss_cls = PPOLossTwoSideClip \
         if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
-    if policy.config[USE_VTRACE]:
-        loss_cls = PPOLossVtrace
+    # if policy.config[REPLAY_VALUES]:
+    #     loss_cls = PPOLossVtrace
     policy.loss_obj = loss_cls(
         policy.action_space,
         dist_class,
@@ -274,7 +275,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
         model_config=policy.config["model"],
-        is_ratio=train_batch['is_ratio'] if policy.config[USE_VTRACE] else None
+        # is_ratio=train_batch['is_ratio'] if policy.config[REPLAY_VALUES] else None
     )
     # FIXME we don't prepare to use vtrace in no replay values mode.
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
@@ -299,7 +300,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
             use_gae=policy.config["use_gae"],
             model_config=policy.config["model"],
             is_ratio=train_batch['is_ratio']
-            if policy.config[USE_VTRACE] else None
+            if policy.config[REPLAY_VALUES] else None
         )
     else:
         policy.novelty_loss_obj = PPOLossTwoSideNovelty(

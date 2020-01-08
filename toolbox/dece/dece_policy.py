@@ -75,7 +75,7 @@ class NoveltyValueNetworkMixin(object):
 def additional_fetches(policy):
     """Adds value function and logits outputs to experience train_batches."""
     ret = {BEHAVIOUR_LOGITS: policy.model.last_output()}
-    if not policy.config[USE_VTRACE]:
+    if not policy.config[REPLAY_VALUES]:
         ret[SampleBatch.VF_PREDS] = policy.model.value_function()
         if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
             ret[NOVELTY_VALUES] = policy.model.novelty_value_function()
@@ -95,7 +95,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
         "entropy": policy.loss_obj.mean_entropy,
         "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
     }
-    if not policy.config[USE_VTRACE]:
+    if not policy.config[REPLAY_VALUES]:
         ret["vf_explained_var"] = explained_variance(
             train_batch[Postprocessing.VALUE_TARGETS],
             policy.model.value_function()
@@ -116,7 +116,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
         }
     )
     if policy.config[USE_DIVERSITY_VALUE_NETWORK
-                     ] and not policy.config[USE_VTRACE]:
+                     ] and not policy.config[REPLAY_VALUES]:
         ret['novelty_vf_explained_var'] = explained_variance(
             train_batch[NOVELTY_VALUE_TARGETS],
             policy.model.novelty_value_function()
@@ -198,7 +198,7 @@ def setup_mixins_dece(policy, action_space, obs_space, config):
 
 
 def get_batch_divisibility_req(policy):
-    if policy.config[USE_VTRACE]:
+    if policy.config[REPLAY_VALUES]:
         return policy.config['sample_batch_size']
     else:
         return 1

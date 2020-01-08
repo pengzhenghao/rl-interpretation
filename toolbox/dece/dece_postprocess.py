@@ -373,7 +373,7 @@ def postprocess_vtrace(policy, sample_batch, others_batches, episode):
 #         batch[NOVELTY_REWARDS] = np.zeros_like(
 #             batch["advantages"], dtype=np.float32
 #         )
-#         if policy.config[DIVERSITY_ENCOURAGING] and (not config[USE_VTRACE]):
+#         if policy.config[DIVERSITY_ENCOURAGING] and (not config[REPLAY_VALUES]):
 #             batch[NOVELTY_VALUE_TARGETS] = np.zeros_like(
 #                 batch["advantages"], dtype=np.float32
 #             )
@@ -402,7 +402,7 @@ def postprocess_vtrace(policy, sample_batch, others_batches, episode):
 #     batches = [tmp_batch]
 #
 #     if config[ONLY_TNB]:
-#         if ("debug_ratio" not in batch) and (not config[USE_VTRACE]):
+#         if ("debug_ratio" not in batch) and (not config[REPLAY_VALUES]):
 #             # assert "debug_fake_adv" not in batch
 #             batch['debug_ratio'] = np.zeros_like(
 #                 batch['advantages'], dtype=np.float32
@@ -458,7 +458,7 @@ def postprocess_vtrace(policy, sample_batch, others_batches, episode):
 #     for batch in batches:
 #         # batch[Postprocessing.ADVANTAGES + "_unnormalized"] = batch[
 #         #     Postprocessing.ADVANTAGES].copy().astype(np.float32)
-#         if ("debug_ratio" not in batch) and (not config[USE_VTRACE]):
+#         if ("debug_ratio" not in batch) and (not config[REPLAY_VALUES]):
 #             # assert "debug_fake_adv" not in batch
 #             batch['debug_ratio'] = np.zeros_like(
 #                 batch['advantages'], dtype=np.float32
@@ -484,7 +484,7 @@ def postprocess_no_replay_values(
         batch[NOVELTY_REWARDS] = np.zeros_like(
             batch["advantages"], dtype=np.float32
         )
-        if policy.config[DIVERSITY_ENCOURAGING] and (not config[USE_VTRACE]):
+        if policy.config[DIVERSITY_ENCOURAGING] and (not config[REPLAY_VALUES]):
             batch[NOVELTY_VALUE_TARGETS] = np.zeros_like(
                 batch["advantages"], dtype=np.float32
             )
@@ -513,7 +513,7 @@ def postprocess_no_replay_values(
     batches = [batch]
 
     if config[ONLY_TNB]:
-        if ("debug_ratio" not in batch) and (not config[USE_VTRACE]):
+        if ("debug_ratio" not in batch) and (not config[REPLAY_VALUES]):
             # assert "debug_fake_adv" not in batch
             batch['debug_ratio'] = np.zeros_like(
                 batch['advantages'], dtype=np.float32
@@ -571,7 +571,7 @@ def postprocess_no_replay_values(
         batches.append(to_add_batch)
 
     for batch in batches:
-        if ("debug_ratio" not in batch) and (not config[USE_VTRACE]):
+        if ("debug_ratio" not in batch) and (not config[REPLAY_VALUES]):
             # assert "debug_fake_adv" not in batch
             batch['debug_ratio'] = np.zeros_like(
                 batch['advantages'], dtype=np.float32
