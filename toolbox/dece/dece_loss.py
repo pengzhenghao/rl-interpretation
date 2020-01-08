@@ -274,8 +274,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
         model_config=policy.config["model"],
-        is_ratio=train_batch['is_ratio']
-        if policy.config[USE_VTRACE] else None
+        is_ratio=train_batch['is_ratio'] if policy.config[USE_VTRACE] else None
     )
     # FIXME we don't prepare to use vtrace in no replay values mode.
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:

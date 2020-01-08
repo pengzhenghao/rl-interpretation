@@ -108,11 +108,13 @@ def regression_test(local_mode=False):
 
 
 def only_tnb(local_mode=False):
-    test_dece({
-        DELAY_UPDATE: tune.grid_search([True, False]),
-        ONLY_TNB: True,
-        REPLAY_VALUES: False
-    }, local_mode)
+    test_dece(
+        {
+            DELAY_UPDATE: tune.grid_search([True, False]),
+            ONLY_TNB: True,
+            REPLAY_VALUES: False
+        }, local_mode
+    )
 
 
 def single_agent_cetnb(lm=False):

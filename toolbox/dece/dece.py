@@ -45,7 +45,8 @@ def validate_config(config):
     if not config[ONLY_TNB]:
         num_agents = len(config['multiagent']['policies'])
         config['train_batch_size'] = int(
-            config['train_batch_size'] // num_agents)
+            config['train_batch_size'] // num_agents
+        )
         assert config['train_batch_size'] >= config["sgd_minibatch_size"]
 
     validate_config_original(config)

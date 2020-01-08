@@ -143,8 +143,9 @@ class VTraceSurrogateLoss(object):
         # )
         # turn the reduce mean to the outer of many terms.
         self.loss = reduce_mean_valid(
-            -surrogate_loss + cur_kl_coeff * action_kl
-            + vf_loss_coeff * vf_loss - entropy_coeff * actions_entropy)
+            -surrogate_loss + cur_kl_coeff * action_kl +
+            vf_loss_coeff * vf_loss - entropy_coeff * actions_entropy
+        )
 
         # Optional additional KL Loss
         # if use_kl_loss:
@@ -242,7 +243,9 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     #     old_policy_behaviour_logits, output_hidden_shape, axis=1)
     unpacked_outputs = tf.split(model_out, output_hidden_shape, axis=1)
     old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
-    prev_action_dist = dist_class(behaviour_logits, policy.model)    # do not change in SGD updating.
+    prev_action_dist = dist_class(
+        behaviour_logits, policy.model
+    )  # do not change in SGD updating.
     # values = policy.model.value_function()
 
     # policy.model_vars = policy.model.variables()
@@ -288,11 +291,11 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         unpacked_behaviour_logits, drop_last=True
     )  # do not change in SGD updating.
     loss_target_logits = make_time_major(unpacked_outputs, drop_last=True)
-    behaviour_action_log_probs = make_time_major(train_batch[ACTION_LOGP],
-                                                 drop_last=True)  # do not change in SGD updating.
+    behaviour_action_log_probs = make_time_major(
+        train_batch[ACTION_LOGP], drop_last=True
+    )  # do not change in SGD updating.
     old_policy_actions_logp = make_time_major(
-        train_batch['my_action_logp'],
-        drop_last=True
+        train_batch['my_action_logp'], drop_last=True
     )  # do not change in SGD updating.
     # old_policy_behaviour_logits = make_time_major(
     #     [tf.stop_gradient(t) for t in unpacked_outputs], drop_last=True
@@ -315,11 +318,9 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         # old_policy_behaviour_logits=old_policy_behaviour_logits,
         target_logits=loss_target_logits,
         discount=policy.config["gamma"],
-
         rewards=make_time_major(rewards, drop_last=True),
         values=make_time_major(values, drop_last=True),
         bootstrap_value=make_time_major(values)[-1],
-
         dist_class=Categorical if is_multidiscrete else dist_class,
         model=policy.model,
         valid_mask=loss_mask,
@@ -349,11 +350,9 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         # old_policy_behaviour_logits=old_policy_behaviour_logits,
         target_logits=loss_target_logits,
         discount=policy.config["gamma"],
-
         rewards=make_time_major(novelty_reward, drop_last=True),
         values=make_time_major(novelty_values, drop_last=True),
         bootstrap_value=make_time_major(novelty_values)[-1],
-
         dist_class=Categorical if is_multidiscrete else dist_class,
         model=policy.model,
         valid_mask=loss_mask,

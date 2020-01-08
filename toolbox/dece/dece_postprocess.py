@@ -126,7 +126,7 @@ def compute_vtrace(
         # np.exp(traj["other_action_logp"] - traj["action_logp"]), 0, 2.0)
         traj[Postprocessing.VALUE_TARGETS] = vs[:-1]
         traj[Postprocessing.ADVANTAGES
-        ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+             ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     # assert all(val.shape[0] == trajsize for val in traj.values()), \
     #     "Rollout stacked incorrectly!"
@@ -189,7 +189,7 @@ def compute_advantages_replay(
              np.array([my_last_r])]
         )
         delta_t = traj[SampleBatch.REWARDS
-                  ] + gamma * vpred_t[1:] * (1 - lambda_) - vpred_t[:-1]
+                       ] + gamma * vpred_t[1:] * (1 - lambda_) - vpred_t[:-1]
         # other_vpred_t = np.concatenate(
         #     [rollout["other_vf_preds"],
         #      np.array([other_last_r])]
@@ -218,7 +218,7 @@ def compute_advantages_replay(
 
         traj["abs_advantage"] = np.abs(advantage)
         traj[Postprocessing.ADVANTAGES
-        ] = (advantage - advantage.mean()) / max(1e-4, advantage.std())
+             ] = (advantage - advantage.mean()) / max(1e-4, advantage.std())
         traj["debug_ratio"] = ratio
 
         my_vpred_t = np.concatenate(
@@ -229,9 +229,9 @@ def compute_advantages_replay(
 
         clipped_ratio = np.clip(ratio, 0, 1.0)
         value_target = (
-                clipped_ratio *
-                (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
-                (1 - clipped_ratio) * (my_vpred_t[:-1])
+            clipped_ratio *
+            (traj[SampleBatch.REWARDS] + gamma * my_vpred_t[1:]) +
+            (1 - clipped_ratio) * (my_vpred_t[:-1])
         )
 
         traj[Postprocessing.VALUE_TARGETS] = value_target
@@ -253,7 +253,7 @@ def compute_advantages_replay(
         #     traj[Postprocessing.ADVANTAGES])
 
     traj[Postprocessing.ADVANTAGES
-    ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
+         ] = traj[Postprocessing.ADVANTAGES].copy().astype(np.float32)
 
     assert all(val.shape[0] == trajsize for val in traj.values()), \
         "Rollout stacked incorrectly!"
@@ -279,8 +279,8 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     p = np.exp(logp)
     return logp, p
@@ -349,7 +349,8 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
 
             # if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
             #     other_batch[NOVELTY_VALUES] = replay_result[NOVELTY_VALUES]
-            other_batch_raw['my_policy_logits'] = replay_result[BEHAVIOUR_LOGITS]
+            other_batch_raw['my_policy_logits'
+                            ] = replay_result[BEHAVIOUR_LOGITS]
             other_batch_raw["my_action_logp"], _ = \
                 _compute_logp(
                     replay_result[BEHAVIOUR_LOGITS],
@@ -398,9 +399,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         value = tmp_batch[Postprocessing.ADVANTAGES]
         standardized = (value - value.mean()) / max(1e-4, value.std())
         tmp_batch[Postprocessing.ADVANTAGES] = standardized
-        tmp_batch = postprocess_diversity(
-            policy, tmp_batch, others_batches
-        )
+        tmp_batch = postprocess_diversity(policy, tmp_batch, others_batches)
         tmp_batch["abs_advantage"] = np.abs(
             tmp_batch[Postprocessing.ADVANTAGES]
         )
@@ -446,7 +445,7 @@ def postprocess_dece(policy, sample_batch, others_batches=None, episode=None):
         other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
         # other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
         other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
-        ].copy()
+                                                    ].copy()
 
         # use my policy to evaluate the values and other relative data
         # of other's samples.

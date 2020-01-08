@@ -35,8 +35,8 @@ class Wall:
 class FourWayGridWorld(gym.Env):
     def __init__(self, env_config=None):
         self.N = 16
-        self.observation_space = Box(0, self.N, shape=(2,))
-        self.action_space = Box(-1, 1, shape=(2,))
+        self.observation_space = Box(0, self.N, shape=(2, ))
+        self.action_space = Box(-1, 1, shape=(2, ))
 
         self.early_done = env_config.get(
             'early_done'
@@ -92,8 +92,9 @@ class FourWayGridWorld(gym.Env):
     def render(self, mode=None):
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
-        img = ax.imshow(self.map, aspect=1, extent=[0, 17, 0, 17],
-                        cmap=plt.cm.hot_r)
+        img = ax.imshow(
+            self.map, aspect=1, extent=[0, 17, 0, 17], cmap=plt.cm.hot_r
+        )
         fig.colorbar(img)
         ax.set_aspect(1)
         for w in self.walls:
@@ -110,11 +111,11 @@ class FourWayGridWorld(gym.Env):
     def reset(self):
         if self.int_initialize:
             self.loc = np.random.randint(
-                0, self.N + 1, size=(2,)
+                0, self.N + 1, size=(2, )
             ).astype(np.float32)
         else:
             self.loc = np.random.uniform(
-                0, self.N, size=(2,)
+                0, self.N, size=(2, )
             ).astype(np.float32)
         self.step_num = 0
         return self.loc
@@ -155,10 +156,12 @@ def _test_line_intersect():
     assert wall.intersect([-10, 10], [10, -10])
     assert not wall.intersect([-10, 10], [10, -11])
     for i in range(10):
-        Wall(np.random.randint(-10000, 10000, size=(2,)),
-             np.random.randint(-10000, 10000, size=(2,))).intersect(
-            np.random.randint(-10000, 10000, size=(2,)),
-            np.random.randint(-10000, 10000, size=(2,))
+        Wall(
+            np.random.randint(-10000, 10000, size=(2, )),
+            np.random.randint(-10000, 10000, size=(2, ))
+        ).intersect(
+            np.random.randint(-10000, 10000, size=(2, )),
+            np.random.randint(-10000, 10000, size=(2, ))
         )
 
 
@@ -166,7 +169,7 @@ if __name__ == '__main__':
     env = FourWayGridWorld()
     env.loc = [8, 8]
     for i in range(1000):
-        env.step(np.random.normal(size=(2,)) * 2 - 1)
+        env.step(np.random.normal(size=(2, )) * 2 - 1)
     env.render()
     # _debug_plot(env.map)
     # _debug_plot(env.bool_map)

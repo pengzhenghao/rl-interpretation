@@ -152,7 +152,6 @@ dece_default_config = merge_dicts(
             I_AM_CLONE: False,
             ONLY_TNB: False,
 
-
             # vtrace
             "use_vtrace": False,
             'use_kl_loss': True,
