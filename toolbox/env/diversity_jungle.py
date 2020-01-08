@@ -54,7 +54,8 @@ class FourWayGridWorld(gym.Env):
         if isinstance(env_config, dict):
             self.config.update(env_config)
 
-        self.map = np.ones((self.N + 1, self.N + 1), dtype=np.float32) * (-0.1)
+        self.map = np.ones((self.N + 1, self.N + 1), dtype=np.float32)
+        self.map.fill(-0.1)
         self._fill_map()
 
         self.walls = []
@@ -100,7 +101,7 @@ class FourWayGridWorld(gym.Env):
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         img = ax.imshow(
-            self.map, aspect=1,
+            np.transpose(self.map)[::-1, :], aspect=1,
             extent=[-0.5, self.N + 0.5, -0.5, self.N + 0.5], cmap=plt.cm.hot_r
         )
         fig.colorbar(img)
@@ -172,3 +173,29 @@ if __name__ == '__main__':
     env.render()
     compute_action = lambda _: [1, 0.5]
     draw(compute_action, test_env_config)
+
+    # test reward
+    # left
+    env.reset()
+    env.loc = [0, 8]
+    assert env.step([0, 0])[1] == 20
+
+    # right
+    env.reset()
+    env.loc = [16, 8]
+    assert env.step([0, 0])[1] == 13
+
+    # down
+    env.reset()
+    env.loc = [8, 0]
+    assert env.step([0, 0])[1] == 10
+
+    # up
+    env.reset()
+    env.loc = [8, 16]
+    assert env.step([0, 0])[1] == 5
+
+    # center
+    env.reset()
+    env.loc = [8, 8]
+    np.testing.assert_almost_equal(env.step([0, 0])[1], -0.1)
