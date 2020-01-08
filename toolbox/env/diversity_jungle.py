@@ -44,6 +44,9 @@ class FourWayGridWorld(gym.Env):
         self.int_initialize = not env_config.get(
             'not_int_initialize'
         ) if env_config is not None else True
+        self.use_walls = env_config.get(
+            'use_walls'
+        ) if env_config is not None else False
 
         self.map = np.ones((self.N + 1, self.N + 1), dtype=np.float32) * (-0.1)
         self._fill_map()
@@ -54,9 +57,11 @@ class FourWayGridWorld(gym.Env):
 
     def _fill_walls(self):
         """Let suppose you have three walls, two vertical, one horizontal."""
-        self.walls.append(Wall([4, 6], [12, 6]))
-        self.walls.append(Wall([4, 10], [12, 10]))
-        self.walls.append(Wall([12, 6], [12, 10]))
+        if self.use_walls:
+            print('Building Walls!!!')
+            self.walls.append(Wall([4, 6], [12, 6]))
+            self.walls.append(Wall([4, 10], [12, 10]))
+            self.walls.append(Wall([12, 6], [12, 10]))
 
     def _fill_map(self):
         left = 10
