@@ -222,10 +222,12 @@ class TargetNetworkMixin(object):
             name=TARGET_POLICY_SCOPE,
             framework="tf"
         )
-        self._sess.run(tf.global_variables_initializer())
 
         self.model_vars = self.model.variables()
         self.target_model_vars = self.target_model.variables()
+
+        self.get_session().run(tf.initialize_variables(self.target_model_vars))
+
         self.tau_value = config.get("tau")
         self.tau = tf.placeholder(tf.float32, (), name="tau")
         assign_ops = []

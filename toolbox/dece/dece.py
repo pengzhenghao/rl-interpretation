@@ -4,6 +4,7 @@ import ray
 from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, \
     validate_config as validate_config_original
 from ray.rllib.models.catalog import ModelCatalog
+from ray.rllib.utils.memory import ray_get_and_free
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dece.dece_policy import DECEPolicy
@@ -103,7 +104,7 @@ def setup_policies_pool(trainer):
         for e in trainer.workers.remote_workers():
             e.set_weights.remote(weights)
         # by doing these, we sync the worker.polices for all workers.
-        ray.internal.free([weights])
+        ray_get_and_free(weights)
 
     def _init_pool(worker, worker_index):
         def _init_novelty_policy(policy, my_policy_name):
@@ -128,7 +129,7 @@ def after_optimizer_iteration(trainer, fetches):
                 worker.foreach_policy(lambda p, _: p.update_clone_network())
 
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
-            ray.internal.free([weights])
+            ray_get_and_free(weights)
 
 
 DECETrainer = PPOTrainer.with_updates(
