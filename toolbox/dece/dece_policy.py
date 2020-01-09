@@ -146,10 +146,6 @@ class ComputeNoveltyMixin(object):
         agent are identical, though may different in order, so we call the
         compute_actions for num_agents * num_agents * batch_size times overall.
         """
-        if not others_batches:
-            return np.zeros_like(
-                my_batch[SampleBatch.REWARDS], dtype=np.float32
-            )
         replays = {}
         if self.config[DELAY_UPDATE]:
             for other_name, other_policy in self.policies_pool.items():
@@ -158,6 +154,10 @@ class ComputeNoveltyMixin(object):
                 )
                 replays[other_name] = logits
         else:
+            if not others_batches:
+                return np.zeros_like(
+                    my_batch[SampleBatch.REWARDS], dtype=np.float32
+                )
             for other_name, (other_policy, _) in others_batches.items():
                 _, _, info = other_policy.compute_actions(
                     my_batch[SampleBatch.CUR_OBS]
