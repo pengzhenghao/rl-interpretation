@@ -13,11 +13,13 @@ if __name__ == '__main__':
     parser.add_argument("--exp-name", type=str, default="0109-dece-vtrace")
     parser.add_argument("--num-gpus", type=int, default=4)  # run using 4 gpu
     parser.add_argument("--num-seeds", type=int, default=3)
+    parser.add_argument("--env-name", type=str, default="Walker2d-v3")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
     exp_name = args.exp_name
 
     assert os.getenv("OMP_NUM_THREADS") == '1'
+    assert args.env_name in ['Walker2d-v3', 'Hopper-v3', 'HalfCheetah-v3']
 
     test = args.test
 
@@ -30,7 +32,7 @@ if __name__ == '__main__':
 
         "env": MultiAgentEnvWrapper,
         "env_config": {
-            "env_name": "Walker2d-v3",
+            "env_name": args.env_name,
             "num_agents": tune.grid_search([5, 1])
         },
 
