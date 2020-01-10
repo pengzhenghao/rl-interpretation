@@ -7,13 +7,14 @@ from toolbox.dece.utils import *
 from toolbox.marl import MultiAgentEnvWrapper
 
 os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2,4,5,7'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--exp-name", type=str, default="0110-dece-vtrace")
+    parser.add_argument("--exp-name", type=str, default="0111-dece-vtrace")
     parser.add_argument("--num-gpus", type=int, default=4)  # run using 4 gpu
     parser.add_argument("--num-seeds", type=int, default=3)
-    parser.add_argument("--env-name", type=str, default="Hopper-v3")
+    parser.add_argument("--env-name", type=str, default="Walker2d-v3")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
     exp_name = args.exp_name
@@ -39,13 +40,13 @@ if __name__ == '__main__':
         # should be fixed
         "kl_coeff": 1.0,
         "num_sgd_iter": 20,
-        "lr": 0.0001,
+        "lr": 0.0002,
         'sample_batch_size': 200 if not test else 40,
         'sgd_minibatch_size': 1000 if not test else 200,
         'train_batch_size': 20000 if not test else 400,
-        "num_gpus": 0.45,
-        "num_cpus_per_worker": 0.45,
-        "num_cpus_for_driver": 0.4,
+        "num_gpus": 1,
+        "num_cpus_per_worker": 1,
+        "num_cpus_for_driver": 1,
         "num_envs_per_worker": 8 if not test else 1,
         'num_workers': 8 if not test else 1,
     }
