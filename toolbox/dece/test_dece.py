@@ -93,16 +93,14 @@ def regression_test(local_mode=False):
         local_mode=local_mode,
         extra_config={
             REPLAY_VALUES: tune.grid_search([True, False]),
-            "normalize_advantage": tune.grid_search([True, False]),
+            # "normalize_advantage": tune.grid_search([True, False]),
             # 'use_vtrace': tune.grid_search([True]),
             'sample_batch_size': 128,
             'train_batch_size': 512,
             'sgd_minibatch_size': 32,
             'num_sgd_iter': 10,
             USE_BISECTOR: False,
-            REPLAY_VALUES: False,
             'seed': tune.grid_search([432, 1920]),
-            # 'seed': tune.grid_search([0, 100])
             # 'lr': 5e-3,
         },
         env_name="Pendulum-v0",
@@ -155,7 +153,7 @@ if __name__ == '__main__':
     # test_three_tuning(local_mode=False)
     # single_agent_cetnb()
     # only_tnb()
-    # regression_test(local_mode=s)
+    regression_test(local_mode=False)
     # test_vtrace(local_mode=True)
-    test_vtrace_single_agent(local_mode=True)
+    # test_vtrace_single_agent(local_mode=True)
     # replay_values_or_not_test(False)

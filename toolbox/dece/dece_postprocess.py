@@ -471,8 +471,10 @@ def postprocess_vtrace(policy, sample_batch, others_batches, episode):
 def postprocess_no_replay_values(
         policy, sample_batch, others_batches, episode
 ):
-    """Replay to collect logits. Pretend """
+    """Replay to collect logits. Pretend the samples from other agent is
+    exactly my samples (no change values, advantages, value target)."""
     config = policy.config
+    assert not config[REPLAY_VALUES]
     if not policy.loss_initialized():
         batch = postprocess_ppo_gae(policy, sample_batch)
         batch["abs_advantage"] = np.zeros_like(
@@ -484,27 +486,18 @@ def postprocess_no_replay_values(
         batch[NOVELTY_REWARDS] = np.zeros_like(
             batch["advantages"], dtype=np.float32
         )
-        if policy.config[DIVERSITY_ENCOURAGING] and (not config[REPLAY_VALUES]):
-            batch[NOVELTY_VALUE_TARGETS] = np.zeros_like(
-                batch["advantages"], dtype=np.float32
-            )
-            batch[NOVELTY_ADVANTAGES] = np.zeros_like(
-                batch["advantages"], dtype=np.float32
-            )
-            # batch['other_logits'] = np.zeros_like(
-            #     batch[BEHAVIOUR_LOGITS], dtype=np.float32
-            # )
-            batch['other_action_logp'] = np.zeros_like(
-                batch[ACTION_LOGP], dtype=np.float32
-            )
-            # if policy.config['use_vtrace']:
-            #     batch['is_ratio'] = np.zeros_like(
-            #         batch[ACTION_LOGP], dtype=np.float32
-            #     )
+        batch[NOVELTY_VALUE_TARGETS] = np.zeros_like(
+            batch["advantages"], dtype=np.float32
+        )
+        batch[NOVELTY_ADVANTAGES] = np.zeros_like(
+            batch["advantages"], dtype=np.float32
+        )
+        batch['other_action_logp'] = np.zeros_like(
+            batch[ACTION_LOGP], dtype=np.float32
+        )
         return batch
 
     batch = sample_batch.copy()
-
     batch = postprocess_ppo_gae(policy, batch)
     batch["abs_advantage"] = np.abs(batch[Postprocessing.ADVANTAGES])
     batch = postprocess_diversity(
@@ -512,13 +505,13 @@ def postprocess_no_replay_values(
     )
     batches = [batch]
 
-    if config[ONLY_TNB]:
-        if ("debug_ratio" not in batch) and (not config[REPLAY_VALUES]):
-            # assert "debug_fake_adv" not in batch
-            batch['debug_ratio'] = np.zeros_like(
-                batch['advantages'], dtype=np.float32
-            )
-        return batch
+    # if config[ONLY_TNB]:
+    #     if ("debug_ratio" not in batch) and (not config[REPLAY_VALUES]):
+    #         # assert "debug_fake_adv" not in batch
+    #         batch['debug_ratio'] = np.zeros_like(
+    #             batch['advantages'], dtype=np.float32
+    #         )
+    #     return batch
 
     for pid, (other_policy, other_batch_raw) in others_batches.items():
         # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
@@ -529,38 +522,22 @@ def postprocess_no_replay_values(
             continue
 
         other_batch_raw = other_batch_raw.copy()
-        other_batch = other_batch_raw.copy()
 
-        # four fields that we will overwrite.
-        # Two additional: advantages / value target
-        other_batch["other_action_logp"] = other_batch[ACTION_LOGP].copy()
-        other_batch["other_action_prob"] = other_batch[ACTION_PROB].copy()
-        # other_batch["other_logits"] = other_batch[BEHAVIOUR_LOGITS].copy()
-        other_batch["other_vf_preds"] = other_batch[SampleBatch.VF_PREDS
-                                                    ].copy()
-
-        # use my policy to evaluate the values and other relative data
-        # of other's samples.
         replay_result = policy.compute_actions(
-            other_batch[SampleBatch.CUR_OBS]
+            other_batch_raw[SampleBatch.CUR_OBS]
         )[2]
 
-        other_batch[SampleBatch.VF_PREDS] = replay_result[SampleBatch.VF_PREDS]
-        other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
+        other_batch_raw[MY_LOGIT] = replay_result[BEHAVIOUR_LOGITS]
 
-        if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-            other_batch[NOVELTY_VALUES] = replay_result[NOVELTY_VALUES]
-
-        other_batch[ACTION_LOGP], other_batch[ACTION_PROB] = \
-            _compute_logp(
-                other_batch[BEHAVIOUR_LOGITS],
-                other_batch[SampleBatch.ACTIONS]
-            )
-        # TODO a bug, that when use diversity without DELAY_UPDATE,
-        #  the other_batches contain wrong polices.
+        # the behaviour logits used for computing diversity is from other's
+        # policy, and the comparing subject is other polies too
+        # so there is a mess. We need to either (1) compute novelty use
+        # my logit or (2) compute novelty with other's logit and compare to
+        # my policy.
+        # Maybe the first solution sound natural.
 
         other_batch_raw = postprocess_diversity(
-            policy, other_batch_raw, others_batches
+            policy, other_batch_raw, others_batches, use_my_logit=True
         )
         to_add_batch = postprocess_ppo_gae(policy, other_batch_raw)
 
