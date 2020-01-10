@@ -87,7 +87,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
 
         self.policies = dict(
             self.workers.local_worker().
-                foreach_trainable_policy(lambda p, i: (i, p))
+            foreach_trainable_policy(lambda p, i: (i, p))
         )
         logger.debug("Policies to train: {}".format(self.policies))
         for policy_id, policy in self.policies.items():
@@ -116,19 +116,16 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                                 policy._optimizer, self.devices, {
                                     (i, k): v
                                     for i,
-                                        (k, v) in
-                                    enumerate(policy._loss_inputs)
+                                    (k, v) in enumerate(policy._loss_inputs)
                                     if k not in no_split_list
                                 }, {
                                     (i, k): v
                                     for i,
-                                        (k, v) in
-                                    enumerate(policy._loss_inputs)
+                                    (k, v) in enumerate(policy._loss_inputs)
                                     if k in no_split_list
                                 }, [
                                     (i, k) for i,
-                                               (k, _) in
-                                    enumerate(policy._loss_inputs)
+                                    (k, _) in enumerate(policy._loss_inputs)
                                 ], rnn_inputs, self.per_device_batch_size,
                                 policy.copy
                             )
@@ -228,7 +225,7 @@ class LocalMultiGPUOptimizerModified(LocalMultiGPUOptimizer):
                     for batch_index in range(num_batches):
                         batch_fetches = optimizer.optimize(
                             self.sess, permutation[batch_index] *
-                                       self.per_device_batch_size
+                            self.per_device_batch_size
                         )
                         for k, v in batch_fetches[LEARNER_STATS_KEY].items():
                             iter_extra_fetches[k].append(v)
@@ -305,7 +302,7 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
 
         self.policies = dict(
             self.workers.local_worker().
-                foreach_trainable_policy(lambda p, i: (i, p))
+            foreach_trainable_policy(lambda p, i: (i, p))
         )
         logger.debug("Policies to train: {}".format(self.policies))
         for policy_id, policy in self.policies.items():
@@ -424,7 +421,8 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                     int(tuples_per_device) // int(self.per_device_batch_size)
                 )
                 assert int(tuples_per_device) % int(
-                    self.per_device_batch_size) == 0
+                    self.per_device_batch_size
+                ) == 0
                 # assert num_batches == 1, (tuples_per_device,
                 # self.per_device_batch_size, num_batches)
                 # if self.use_vtrace:
@@ -443,10 +441,9 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                     for batch_index in range(num_batches):
                         batch_fetches = optimizer.optimize(
                             self.sess, permutation[batch_index] *
-                                       self.per_device_batch_size
+                            self.per_device_batch_size
                         )
-                        for k, v in batch_fetches[LEARNER_STATS_KEY].items(
-                        ):
+                        for k, v in batch_fetches[LEARNER_STATS_KEY].items():
                             iter_extra_fetches[k].append(v)
                     logger.debug(
                         "{} {}".format(i, _averaged(iter_extra_fetches))

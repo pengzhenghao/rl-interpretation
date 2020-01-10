@@ -62,8 +62,9 @@ def validate_config(config):
             "".format(config['sgd_minibatch_size'],
                       config['env_config']['num_agents'],
                       config['sample_batch_size'])
-        assert config['sgd_minibatch_size'] >= (config['env_config'][
-            'num_agents'] * config['sample_batch_size'])
+        assert config['sgd_minibatch_size'] >= (
+            config['env_config']['num_agents'] * config['sample_batch_size']
+        )
 
     validate_config_original(config)
 
