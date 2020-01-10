@@ -58,8 +58,9 @@ def test_vtrace(local_mode=False, hard=False):
         extra_config={
             REPLAY_VALUES: True,
             'sample_batch_size': 50 if hard else 8,
-            'train_batch_size': 200 if hard else 32,
+            'train_batch_size': 200 if hard else 96,
             'num_sgd_iter': 10 if hard else 2,
+            "sgd_minibatch_size": 50 if hard else 3 * 8,
             'model': {
                 'fcnet_hiddens': [16, 16]
             },
@@ -76,13 +77,14 @@ def test_vtrace_single_agent(local_mode=False):
         trainer=DECETrainer,
         local_mode=local_mode,
         extra_config={
-            REPLAY_VALUES: True,
+            REPLAY_VALUES: tune.grid_search([True, False]),
             'sample_batch_size': 50,
             'train_batch_size': 200,
-            'num_sgd_iter': 10
+            'num_sgd_iter': 10,
+            'sgd_minibatch_size': 50
         },
-        env_name="BipedalWalker-v2",
-        t=2000,
+        env_name=FourWayGridWorld,
+        t=20000,
         num_agents=1
     )
 
@@ -97,16 +99,17 @@ def regression_test(local_mode=False):
             # 'use_vtrace': tune.grid_search([True]),
             'sample_batch_size': 128,
             'train_batch_size': 512,
-            'sgd_minibatch_size': 32,
+            'sgd_minibatch_size': 128,
             'num_sgd_iter': 10,
             USE_BISECTOR: False,
             'seed': tune.grid_search([432, 1920]),
             # 'lr': 5e-3,
         },
-        env_name="Pendulum-v0",
+        # env_name="Pendulum-v0",
         # env_name="CartPole-v0",
-        # env_name=FourWayGridWorld,
-        t={'timesteps_total': 300000},
+        env_name=FourWayGridWorld,
+        t={'time_total_s': 300},
+        # t={'timesteps_total': 300000},
         num_agents=1
     )
 
@@ -155,5 +158,5 @@ if __name__ == '__main__':
     # only_tnb()
     regression_test(local_mode=False)
     # test_vtrace(local_mode=True)
-    # test_vtrace_single_agent(local_mode=True)
+    # test_vtrace_single_agent(local_mode=False)
     # replay_values_or_not_test(False)

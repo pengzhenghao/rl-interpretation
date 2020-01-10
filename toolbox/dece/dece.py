@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 def validate_config(config):
-
     # assert REPLAY_VALUES not in config
     # config[REPLAY_VALUES] = config[REPLAY_VALUES]
 
@@ -49,10 +48,22 @@ def validate_config(config):
     # Reduce the train batch size for each agent
     if not config[ONLY_TNB]:
         num_agents = len(config['multiagent']['policies'])
+        assert num_agents == config['env_config']['num_agents']
         config['train_batch_size'] = int(
             config['train_batch_size'] // num_agents
         )
         assert config['train_batch_size'] >= config["sgd_minibatch_size"]
+
+    if config[REPLAY_VALUES]:
+        # use vtrace, need to check sgd_minibatch_size
+        assert config['sgd_minibatch_size'] % (config['env_config'][
+            'num_agents'] * config['sample_batch_size']) == 0, \
+            "sgd_minibatch_size: {}, num_agents: {}, sample_batch_size: {}" \
+            "".format(config['sgd_minibatch_size'],
+                      config['env_config']['num_agents'],
+                      config['sample_batch_size'])
+        assert config['sgd_minibatch_size'] >= (config['env_config'][
+            'num_agents'] * config['sample_batch_size'])
 
     validate_config_original(config)
 
