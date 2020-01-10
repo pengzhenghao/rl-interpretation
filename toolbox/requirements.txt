@@ -24,3 +24,5 @@ seaborn
 distro
 gym[atari]
 gputil
+ray[tune]
+ray[rllib]

@@ -10,7 +10,7 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--exp-name", type=str, default="0107-dece-test")
+    parser.add_argument("--exp-name", type=str, default="0108-dece-test")
     parser.add_argument("--num-gpus", type=int, default=8)
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--test", action="store_true")
@@ -42,7 +42,7 @@ if __name__ == '__main__':
         "num_gpus": 0.45,
         "num_cpus_per_worker": 0.5,
         "num_cpus_for_driver": 0.5,
-        "num_envs_per_worker": 16,
+        "num_envs_per_worker": 8,
         'num_workers': 8,
     }
     train(
