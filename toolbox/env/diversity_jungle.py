@@ -47,8 +47,8 @@ class Wall:
 class FourWayGridWorld(gym.Env):
     def __init__(self, env_config=None):
         self.N = 16
-        self.observation_space = Box(0, self.N, shape=(2,))
-        self.action_space = Box(-1, 1, shape=(2,))
+        self.observation_space = Box(0, self.N, shape=(2, ))
+        self.action_space = Box(-1, 1, shape=(2, ))
 
         self.config = default_config
         if isinstance(env_config, dict):
@@ -101,8 +101,10 @@ class FourWayGridWorld(gym.Env):
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         img = ax.imshow(
-            np.transpose(self.map)[::-1, :], aspect=1,
-            extent=[-0.5, self.N + 0.5, -0.5, self.N + 0.5], cmap=plt.cm.hot_r
+            np.transpose(self.map)[::-1, :],
+            aspect=1,
+            extent=[-0.5, self.N + 0.5, -0.5, self.N + 0.5],
+            cmap=plt.cm.hot_r
         )
         fig.colorbar(img)
         ax.set_aspect(1)
@@ -128,11 +130,11 @@ class FourWayGridWorld(gym.Env):
         else:
             if self.config['int_initialize']:
                 self.loc = np.random.randint(
-                    0, self.N + 1, size=(2,)
+                    0, self.N + 1, size=(2, )
                 ).astype(np.float32)
             else:
                 self.loc = np.random.uniform(
-                    0, self.N, size=(2,)
+                    0, self.N, size=(2, )
                 ).astype(np.float32)
         self.step_num = 0
         self.traj = []
@@ -159,17 +161,12 @@ def draw(compute_action, env_config):
 
 if __name__ == '__main__':
     test_env_config = dict(
-        down=10,
-        up=5,
-        left=20,
-        right=13,
-        use_walls=True,
-        init_loc=[8, 8]
+        down=10, up=5, left=20, right=13, use_walls=True, init_loc=[8, 8]
     )
     env = FourWayGridWorld(test_env_config)
     env.loc = [8, 8]
     for i in range(1000):
-        env.step(np.random.uniform(size=(2,)) * 2 - 1)
+        env.step(np.random.uniform(size=(2, )) * 2 - 1)
     env.render()
     compute_action = lambda _: [1, 0.5]
     draw(compute_action, test_env_config)

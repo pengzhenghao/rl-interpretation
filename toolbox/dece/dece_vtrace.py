@@ -175,7 +175,7 @@ def _make_time_major(policy, seq_lens, tensor, drop_last=False):
         T = tf.shape(tensor)[0] // B
     else:
         # Important: chop the tensor into batches at known episode cut
-        # boundaries. TODO(ekl) this is kind of a hack
+        # boundaries.
         T = policy.config["sample_batch_size"]
         B = tf.shape(tensor)[0] // T
         # B = 1
@@ -239,7 +239,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         behaviour_logits, output_hidden_shape, axis=1
     )
     unpacked_old_policy_behaviour_logits = tf.split(
-        old_policy_behaviour_logits, output_hidden_shape, axis=1)
+        old_policy_behaviour_logits, output_hidden_shape, axis=1
+    )
     unpacked_outputs = tf.split(model_out, output_hidden_shape, axis=1)
     old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
     prev_action_dist = dist_class(
@@ -301,7 +302,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     # )
 
     loss_old_policy_behaviour_logits = make_time_major(
-        unpacked_old_policy_behaviour_logits, drop_last=True)
+        unpacked_old_policy_behaviour_logits, drop_last=True
+    )
 
     loss_mask = make_time_major(mask, drop_last=True)
 

@@ -1,10 +1,8 @@
 from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, ACTION_LOGP, \
     SampleBatch, BEHAVIOUR_LOGITS
 from ray.rllib.evaluation.postprocessing import discount, Postprocessing
-from ray.rllib.policy.tf_policy import ACTION_PROB
 
 from toolbox.dece.utils import *
-from toolbox.distance import get_kl_divergence
 
 MY_LOGIT = "my_logits"
 MY_LOGP = "my_logp"
@@ -60,7 +58,6 @@ MY_LOGP = "my_logp"
 #     )
 #     return batch
 
-
 # def calculate_vtrace_minus(values, delta, ratio, gamma):
 #     assert len(delta) > 0, (values, delta)
 #     assert values.shape == delta.shape
@@ -74,7 +71,6 @@ MY_LOGP = "my_logp"
 #         # y_n[ind] = delta[ind] + ratio[ind] * gamma * delta[ind + 1]
 #         y_n[ind] = delta[ind] + ratio[ind] * gamma * y_n[ind + 1]
 #     return y_n
-
 
 # def compute_vtrace(
 #         rollout,
@@ -99,7 +95,6 @@ MY_LOGP = "my_logp"
 #     ratio = np.exp(traj['action_logp'] - traj["other_action_logp"])
 #     clipped_ratio = np.minimum(
 #         ratio, clip_rho_threshold
-#     )  # TODO 没有放进config this
 #     # is \bar{pho} !
 #     delta_t = clipped_ratio * (rewards + gamma * vpred_t[1:] - vpred_t[:-1])
 #     cs = np.minimum(ratio, 1.0)
@@ -114,7 +109,8 @@ MY_LOGP = "my_logp"
 #         traj["abs_novelty_advantage"] = np.abs(advantage)
 #         # traj["debug_ratio"] = ratio
 #         # traj["is_ratio"] = np.clip(
-#         #     np.exp(traj["other_action_logp"] - traj["action_logp"]), 0, 2.0)
+#         #     np.exp(traj["other_action_logp"] - traj["action_logp"]), 0,
+#         2.0)
 #         traj[NOVELTY_VALUE_TARGETS] = vs[:-1]
 #         traj[NOVELTY_ADVANTAGES] = traj[NOVELTY_ADVANTAGES].copy().astype(
 #             np.float32
@@ -134,7 +130,6 @@ MY_LOGP = "my_logp"
 #     # assert all(val.shape[0] == trajsize for val in traj.values()), \
 #     #     "Rollout stacked incorrectly!"
 #     return SampleBatch(traj)
-
 
 # def postprocess_ppo_gae_replay(policy, batch, other_policy):
 #     """Adds the policy logits, VF preds, and advantages to the trajectory."""
@@ -163,9 +158,9 @@ MY_LOGP = "my_logp"
 #     )
 #     return batch
 
-
 # def compute_advantages_replay(
-#         rollout, my_last_r, other_last_r, gamma=0.9, lambda_=1.0, use_gae=True
+#         rollout, my_last_r, other_last_r, gamma=0.9, lambda_=1.0,
+#         use_gae=True
 # ):
 #     """Given a rollout, compute its value targets and the advantage.
 #
@@ -207,7 +202,8 @@ MY_LOGP = "my_logp"
 #         # other_advantage = (other_advantage - other_advantage.mean()
 #         #                    ) / max(1e-4, other_advantage.std())
 #
-#         # we put other's advantage in 'advantages' field. We need to make sure
+#         # we put other's advantage in 'advantages' field. We need to make
+#         sure
 #         # this field is not used in future postprocessing.
 #         # traj[Postprocessing.ADVANTAGES] = other_advantage
 #
@@ -261,7 +257,6 @@ MY_LOGP = "my_logp"
 #     assert all(val.shape[0] == trajsize for val in traj.values()), \
 #         "Rollout stacked incorrectly!"
 #     return SampleBatch(traj)
-
 
 # def calculate_gae_advantage(values, delta, ratio, lambda_, gamma):
 #     assert len(delta) > 0, (values, delta)
@@ -373,7 +368,8 @@ def postprocess_vtrace(policy, sample_batch, others_batches, episode):
 #         batch[NOVELTY_REWARDS] = np.zeros_like(
 #             batch["advantages"], dtype=np.float32
 #         )
-#         if policy.config[DIVERSITY_ENCOURAGING] and (not config[REPLAY_VALUES]):
+#         if policy.config[DIVERSITY_ENCOURAGING] and (not config[
+#         REPLAY_VALUES]):
 #             batch[NOVELTY_VALUE_TARGETS] = np.zeros_like(
 #                 batch["advantages"], dtype=np.float32
 #             )
@@ -410,9 +406,11 @@ def postprocess_vtrace(policy, sample_batch, others_batches, episode):
 #         return batch
 #
 #     for pid, (other_policy, other_batch_raw) in others_batches.items():
-#         # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
+#         # The logic is that EVEN though we may use DISABLE or
+#         NO_REPLAY_VALUES,
 #         # but we still want to take a look of those statics.
-#         # Maybe in the future we can add knob to remove all such slowly stats.
+#         # Maybe in the future we can add knob to remove all such slowly
+#         stats.
 #
 #         if other_batch_raw is None:
 #             continue
@@ -434,7 +432,8 @@ def postprocess_vtrace(policy, sample_batch, others_batches, episode):
 #             other_batch[SampleBatch.CUR_OBS]
 #         )[2]
 #
-#         other_batch[SampleBatch.VF_PREDS] = replay_result[SampleBatch.VF_PREDS]
+#         other_batch[SampleBatch.VF_PREDS] = replay_result[
+#         SampleBatch.VF_PREDS]
 #         other_batch[BEHAVIOUR_LOGITS] = replay_result[BEHAVIOUR_LOGITS]
 #
 #         if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
@@ -445,8 +444,6 @@ def postprocess_vtrace(policy, sample_batch, others_batches, episode):
 #                 other_batch[BEHAVIOUR_LOGITS],
 #                 other_batch[SampleBatch.ACTIONS]
 #             )
-#         # TODO a bug, that when use diversity without DELAY_UPDATE,
-#         #  the other_batches contain wrong polices.
 #         other_batch = postprocess_diversity(
 #             policy, other_batch, others_batches
 #         )
@@ -500,9 +497,8 @@ def postprocess_no_replay_values(
     batch = sample_batch.copy()
     batch = postprocess_ppo_gae(policy, batch)
     batch["abs_advantage"] = np.abs(batch[Postprocessing.ADVANTAGES])
-    batch = postprocess_diversity(
-        policy, batch, others_batches, use_my_logit=False
-    )
+    batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
+    batch = postprocess_diversity(policy, batch, others_batches)
     batches = [batch]
 
     # if config[ONLY_TNB]:
@@ -535,21 +531,18 @@ def postprocess_no_replay_values(
         # my logit or (2) compute novelty with other's logit and compare to
         # my policy.
         # Maybe the first solution sound natural.
-
         other_batch_raw = postprocess_diversity(
-            policy, other_batch_raw, others_batches, use_my_logit=True
+            policy, other_batch_raw, others_batches
         )
-        to_add_batch = postprocess_ppo_gae(policy, other_batch_raw)
 
+        to_add_batch = postprocess_ppo_gae(policy, other_batch_raw)
         to_add_batch["abs_advantage"] = np.abs(
             to_add_batch[Postprocessing.ADVANTAGES]
         )
-
         batches.append(to_add_batch)
 
     for batch in batches:
         if ("debug_ratio" not in batch) and (not config[REPLAY_VALUES]):
-            # assert "debug_fake_adv" not in batch
             batch['debug_ratio'] = np.zeros_like(
                 batch['advantages'], dtype=np.float32
             )
@@ -571,10 +564,10 @@ def postprocess_dece(policy, *args, **kwargs):
     return batch
 
 
-def postprocess_diversity(policy, batch, others_batches, use_my_logit=False):
+def postprocess_diversity(policy, batch, others_batches):
     completed = batch["dones"][-1]
     batch[NOVELTY_REWARDS] = policy.compute_novelty(
-        batch, others_batches, use_my_logit=use_my_logit
+        batch, others_batches, use_my_logit=True
     )
 
     if completed:
