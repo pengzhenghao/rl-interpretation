@@ -33,7 +33,7 @@ if __name__ == '__main__':
         "env": MultiAgentEnvWrapper,
         "env_config": {
             "env_name": args.env_name,
-            "num_agents": tune.grid_search([5, 1])
+            "num_agents": tune.grid_search([5])  # quick run 5 agent firstly
         },
 
         # should be fixed
