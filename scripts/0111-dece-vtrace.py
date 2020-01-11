@@ -47,8 +47,8 @@ if __name__ == '__main__':
         "num_gpus": 1,
         "num_cpus_per_worker": 1,
         "num_cpus_for_driver": 1,
-        "num_envs_per_worker": 4 if not test else 1,
-        'num_workers': 16 if not test else 1,
+        "num_envs_per_worker": 16 if not test else 1,
+        'num_workers': 4 if not test else 1,
     }
     train(
         extra_config=walker_config,
