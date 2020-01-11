@@ -7,7 +7,6 @@ from toolbox.dece.utils import *
 from toolbox.marl import MultiAgentEnvWrapper
 
 os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
