@@ -53,6 +53,14 @@ def on_train_result(info):
         result['custom_metrics'].clear()
 
 
+def on_sample_end(info):
+    """We correct the count of the batch"""
+    multiagent_batch = info['samples']
+    multiagent_batch.count = int(
+        np.mean([b.count for b in multiagent_batch.policy_batches.values()])
+    )
+
+
 # def on_episode_start(info):
 #     episode = info["episode"]
 #     episode.user_data["relative_kl"] = {
@@ -138,7 +146,8 @@ dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         tau=5e-3,
-        callbacks={"on_train_result": on_train_result},
+        callbacks={"on_train_result": on_train_result,
+                   "on_sample_end": on_sample_end},
         **{
             DIVERSITY_ENCOURAGING: True,
             USE_BISECTOR: True,

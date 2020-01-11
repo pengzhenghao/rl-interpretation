@@ -58,13 +58,13 @@ def test_vtrace(local_mode=False, hard=False):
         extra_config={
             REPLAY_VALUES: True,
             'sample_batch_size': 50 if hard else 8,
-            'train_batch_size': 200 if hard else 96,
+            'train_batch_size': 450 if hard else 96,
             'num_sgd_iter': 10 if hard else 2,
-            "sgd_minibatch_size": 50 if hard else 3 * 8,
+            "sgd_minibatch_size": 150 if hard else 3 * 8,
             'model': {
                 'fcnet_hiddens': [16, 16]
             },
-            'seed': tune.grid_search([0, 100]) if hard else 0
+            'seed': 0
             # 'lr': 5e-3,
         },
         env_name=FourWayGridWorld,
@@ -148,6 +148,23 @@ def replay_values_or_not_test(lm=False):
     )
 
 
+def mock_experiment():
+    _base(
+        trainer=DECETrainer,
+        local_mode=False,
+        extra_config={
+            DELAY_UPDATE: tune.grid_search([True, False]),
+            REPLAY_VALUES: tune.grid_search([True, False]),
+            'sample_batch_size': 20,
+            'sgd_minibatch_size': 100,
+            'train_batch_size': 500,
+        },
+        env_name=FourWayGridWorld,
+        t={'timesteps_total': 5000},
+        num_agents=tune.grid_search([1, 5])
+    )
+
+
 if __name__ == '__main__':
     # test_dece(local_mode=False)
     # test_dece_batch0(local_mode=False)
@@ -156,7 +173,9 @@ if __name__ == '__main__':
     # test_three_tuning(local_mode=False)
     # single_agent_cetnb()
     # only_tnb()
-    regression_test(local_mode=False)
+    # regression_test(local_mode=False)
     # test_vtrace(local_mode=True)
     # test_vtrace_single_agent(local_mode=False)
     # replay_values_or_not_test(False)
+    # test_vtrace(local_mode=True, hard=True)
+    mock_experiment()
