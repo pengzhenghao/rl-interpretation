@@ -7,12 +7,12 @@ from toolbox.dece.utils import *
 from toolbox.marl import MultiAgentEnvWrapper
 
 os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['CUDA_VISIBLE_DEVICES'] = '2,4,5,7'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, default="0111-dece-vtrace")
-    parser.add_argument("--num-gpus", type=int, default=4)  # run using 4 gpu
+    parser.add_argument("--num-gpus", type=int, default=2)  # run using 4 gpu
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--env-name", type=str, default="Walker2d-v3")
     parser.add_argument("--test", action="store_true")
@@ -47,8 +47,8 @@ if __name__ == '__main__':
         "num_gpus": 1,
         "num_cpus_per_worker": 1,
         "num_cpus_for_driver": 1,
-        "num_envs_per_worker": 8 if not test else 1,
-        'num_workers': 8 if not test else 1,
+        "num_envs_per_worker": 4 if not test else 1,
+        'num_workers': 16 if not test else 1,
     }
     train(
         extra_config=walker_config,
