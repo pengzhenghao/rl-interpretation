@@ -43,11 +43,11 @@ if __name__ == '__main__':
         'sample_batch_size': 200 if not test else 40,
         'sgd_minibatch_size': 1000 if not test else 200,
         'train_batch_size': 10000 if not test else 400,
-        "num_gpus": 0.3,
-        "num_cpus_per_worker": 0.5,
-        "num_cpus_for_driver": 1,
-        "num_envs_per_worker": 32 if not test else 1,
-        'num_workers': 2 if not test else 1,
+        "num_gpus": 0.45,
+        "num_cpus_per_worker": 0.45,
+        "num_cpus_for_driver": 0.4,
+        "num_envs_per_worker": 8 if not test else 1,
+        'num_workers': 8 if not test else 1,
     }
     train(
         extra_config=walker_config,

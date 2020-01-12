@@ -35,6 +35,7 @@ def train(
         "seed": tune.grid_search([i * 100 for i in range(num_seeds)]),
         "env": MultiAgentEnvWrapper,
         "env_config": env_config,
+        "log_level": "DEBUG" if test_mode else "INFO"
     }
     if extra_config:
         config.update(extra_config)
