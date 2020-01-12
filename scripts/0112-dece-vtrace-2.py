@@ -10,7 +10,7 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--exp-name", type=str, default="0112-dece-vtrace")
+    parser.add_argument("--exp-name", type=str, default="0112-dece-vtrace-2")
     parser.add_argument("--num-gpus", type=int, default=4)  # run using 4 gpu
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--env-name", type=str, default="Walker2d-v3")
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     walker_config = {
         # "use_vtrace": True,
 
-        DELAY_UPDATE: tune.grid_search([True]),
+        DELAY_UPDATE: tune.grid_search([True, False]),
         REPLAY_VALUES: tune.grid_search([True, False]),
         # USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([True, False]),
 
@@ -43,11 +43,11 @@ if __name__ == '__main__':
         'sample_batch_size': 200 if not test else 40,
         'sgd_minibatch_size': 1000 if not test else 200,
         'train_batch_size': 10000 if not test else 400,
-        "num_gpus": 0.6,
-        "num_cpus_per_worker": 1,
+        "num_gpus": 0.3,
+        "num_cpus_per_worker": 0.5,
         "num_cpus_for_driver": 1,
-        "num_envs_per_worker": 16 if not test else 1,
-        'num_workers': 4 if not test else 1,
+        "num_envs_per_worker": 32 if not test else 1,
+        'num_workers': 2 if not test else 1,
     }
     train(
         extra_config=walker_config,
