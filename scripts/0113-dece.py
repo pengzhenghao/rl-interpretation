@@ -10,7 +10,7 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--exp-name", type=str, default="0112-dece-vtrace-2")
+    parser.add_argument("--exp-name", type=str, default="0113-dece")
     parser.add_argument("--num-gpus", type=int, default=4)  # run using 4 gpu
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--env-name", type=str, default="Walker2d-v3")
