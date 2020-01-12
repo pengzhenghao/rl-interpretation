@@ -7,6 +7,7 @@ from toolbox.dece.utils import *
 MY_LOGIT = "my_logits"
 MY_LOGP = "my_logp"
 
+
 # def postprocess_vtrace_diversity(policy, batch, others_batches,
 # episode=None):
 #     raise ValueError()
@@ -277,8 +278,8 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     p = np.exp(logp)
     return logp, p
@@ -551,14 +552,16 @@ def postprocess_no_replay_values(
     return batch
 
 
-def postprocess_dece(policy, *args, **kwargs):
+def postprocess_dece(policy, sample_batch, others_batches, episode):
     # only TNB happen for all cases, so need to handle it for all cases.
     if policy.config[REPLAY_VALUES]:
-        batch = postprocess_vtrace(policy, *args, **kwargs)
+        batch = postprocess_vtrace(policy, sample_batch, others_batches,
+                                   episode)
     # elif policy.config[REPLAY_VALUES]:
     #     batch = postprocess_replay_values(policy, *args, **kwargs)
     else:
-        batch = postprocess_no_replay_values(policy, *args, **kwargs)
+        batch = postprocess_no_replay_values(policy, sample_batch,
+                                             others_batches, episode)
     del batch.data['new_obs']  # save memory
     del batch.data['action_prob']
     return batch

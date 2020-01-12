@@ -53,12 +53,23 @@ def on_train_result(info):
         result['custom_metrics'].clear()
 
 
-def on_sample_end(info):
-    """We correct the count of the batch"""
-    multiagent_batch = info['samples']
-    multiagent_batch.count = int(
-        np.mean([b.count for b in multiagent_batch.policy_batches.values()])
-    )
+# def on_sample_end(info):
+#     """We correct the count of the batch"""
+#     multiagent_batch = info['samples']
+#     old_count = multiagent_batch.count
+#     multiagent_batch.count = int(
+#         np.mean([b.count for b in multiagent_batch.policy_batches.values()])
+#     )
+#     print("In on_sample_end, we change count from {} to {}".format(
+#         old_count, multiagent_batch.count
+#     ))
+
+
+def on_postprocess_traj(info):
+    """We correct the count of the MultiAgentBatch"""
+    post_batch = info['post_batch']
+    episode = info['episode']
+    episode.batch_builder.count = post_batch.count
 
 
 # def on_episode_start(info):
@@ -146,8 +157,10 @@ dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         tau=5e-3,
-        callbacks={"on_train_result": on_train_result,
-                   "on_sample_end": on_sample_end},
+        callbacks={
+            "on_train_result": on_train_result,
+            "on_postprocess_traj": on_postprocess_traj
+        },
         **{
             DIVERSITY_ENCOURAGING: True,
             USE_BISECTOR: True,

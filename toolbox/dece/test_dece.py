@@ -139,9 +139,11 @@ def single_agent_cetnb(lm=False):
 def replay_values_or_not_test(lm=False):
     test_dece(
         {
-            # DELAY_UPDATE: tune.grid_search([True, False]),
             REPLAY_VALUES: tune.grid_search([True, False]),
-            # USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([True, False]),
+            'num_envs_per_worker': 3,
+            'sample_batch_size': 20,
+            'sgd_minibatch_size': 120,
+            'train_batch_size': 480
         },
         lm,
         num_agents=tune.grid_search([1, 3])
@@ -165,6 +167,26 @@ def mock_experiment():
     )
 
 
+def no_replay_values_batch_size_bug(lm=False):
+    _base(
+        trainer=DECETrainer,
+        local_mode=lm,
+        extra_config={
+            REPLAY_VALUES: tune.grid_search([False]),
+            'num_envs_per_worker': 16,
+            'sample_batch_size': 200,
+            'sgd_minibatch_size': 1000,
+            'train_batch_size': 10000,
+            "num_cpus_per_worker": 1,
+            "num_cpus_for_driver": 1,
+            'num_workers': 4,
+        },
+        env_name="Pendulum-v0",
+        t=20000,
+        num_agents=tune.grid_search([5])
+    )
+
+
 if __name__ == '__main__':
     # test_dece(local_mode=False)
     # test_dece_batch0(local_mode=False)
@@ -178,4 +200,5 @@ if __name__ == '__main__':
     # test_vtrace_single_agent(local_mode=False)
     # replay_values_or_not_test(False)
     # test_vtrace(local_mode=True, hard=True)
-    mock_experiment()
+    # mock_experiment()
+    no_replay_values_batch_size_bug(False)
