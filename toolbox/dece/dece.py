@@ -46,13 +46,17 @@ def validate_config(config):
         config['model']['custom_options'] = None
 
     # Reduce the train batch size for each agent
-    if not config[ONLY_TNB]:
-        num_agents = len(config['multiagent']['policies'])
-        assert num_agents == config['env_config']['num_agents']
-        config['train_batch_size'] = int(
-            config['train_batch_size'] // num_agents
-        )
-        assert config['train_batch_size'] >= config["sgd_minibatch_size"]
+    # PENGZH UPDATE 2019.01.12
+    # We do not modify train batch size anymore, since the
+    # issue in counting the SampleBatch is corrected.
+
+    # if not config[ONLY_TNB]:
+    #     num_agents = len(config['multiagent']['policies'])
+    #     assert num_agents == config['env_config']['num_agents']
+        # config['train_batch_size'] = int(
+        #     config['train_batch_size'] // num_agents
+        # )
+        # assert config['train_batch_size'] >= config["sgd_minibatch_size"]
 
     if config[REPLAY_VALUES]:
         # use vtrace, need to check sgd_minibatch_size

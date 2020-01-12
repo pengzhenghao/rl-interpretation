@@ -53,23 +53,38 @@ def on_train_result(info):
         result['custom_metrics'].clear()
 
 
-# def on_sample_end(info):
-#     """We correct the count of the batch"""
-#     multiagent_batch = info['samples']
-#     old_count = multiagent_batch.count
-#     multiagent_batch.count = int(
-#         np.mean([b.count for b in multiagent_batch.policy_batches.values()])
-#     )
-#     print("In on_sample_end, we change count from {} to {}".format(
-#         old_count, multiagent_batch.count
-#     ))
+def on_sample_end(info):
+    """We correct the count of the batch"""
+    multiagent_batch = info['samples']
+    old_count = multiagent_batch.count
+    # multiagent_batch.count = int(
+    #     np.mean([b.count for b in multiagent_batch.policy_batches.values()])
+    # )
+    print("In on_sample_end, we change count from {} to {}".format(
+        old_count, multiagent_batch.count
+    ))
 
 
 def on_postprocess_traj(info):
     """We correct the count of the MultiAgentBatch"""
     post_batch = info['post_batch']
     episode = info['episode']
-    episode.batch_builder.count = post_batch.count
+    if post_batch.count < 20:
+        print('please stop here')
+
+    if episode.batch_builder.count != 20:
+        print('plesa here')
+
+    if episode.batch_builder.total() != 20:
+        print('plesh re')
+
+    episode.batch_builder.count = episode.batch_builder.total()
+    # episode.length used to record the real length of the episode.
+    # it should not equal to episode.batch_builder.count
+    # episode.length = post_batch.count
+
+def on_episode_step(info):
+    pass
 
 
 # def on_episode_start(info):
@@ -159,7 +174,8 @@ dece_default_config = merge_dicts(
         tau=5e-3,
         callbacks={
             "on_train_result": on_train_result,
-            "on_postprocess_traj": on_postprocess_traj
+            "on_postprocess_traj": on_postprocess_traj,
+            "on_episode_step": on_episode_step,
         },
         **{
             DIVERSITY_ENCOURAGING: True,
