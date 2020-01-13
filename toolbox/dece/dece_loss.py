@@ -373,7 +373,14 @@ def tnb_gradients(policy, optimizer, loss):
         tf.multiply(policy_grad_norm, novelty_grad_norm)
     )
 
-    tg = tf.linalg.l2_normalize(policy_grad_norm + novelty_grad_norm)
+    if policy.config[CONSTRAIN_NOVELTY] == 'soft':
+        tg = tf.linalg.l2_normalize(
+            policy._alpha * novelty_grad_norm +
+            (1 - policy._alpha) * policy_grad_norm
+        )
+    else:  # CONSTRAIN_NOVELTY == hard or None
+        tg = tf.linalg.l2_normalize(policy_grad_norm + novelty_grad_norm)
+
     pg_length = tf.norm(tf.multiply(policy_grad_flatten, tg))
     ng_length = tf.norm(tf.multiply(novelty_grad_flatten, tg))
 
@@ -382,7 +389,14 @@ def tnb_gradients(policy, optimizer, loss):
 
     tg_lenth = (pg_length + ng_length) / 2
     tg = tg * tg_lenth
-    total_grad = tg
+    if policy.config[CONSTRAIN_NOVELTY] == 'hard':
+        total_grad = tf.cond(
+            policy._alpha < 0.5,
+            lambda: policy_grad_flatten,  # use pure policy gradient if alpha too small
+            lambda: tg
+        )
+    else:
+        total_grad = tg
 
     policy.gradient_cosine_similarity = cos_similarity
     policy.policy_grad_norm = tf.norm(policy_grad_flatten)

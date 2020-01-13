@@ -1,5 +1,3 @@
-import logging
-
 import ray
 from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, \
     validate_config as validate_config_original
@@ -53,13 +51,16 @@ def validate_config(config):
     if config[REPLAY_VALUES]:
         # use vtrace, need to check sgd_minibatch_size
         assert config['sgd_minibatch_size'] % (config['env_config'][
-            'num_agents'] * config['sample_batch_size']) == 0, \
+                                                   'num_agents'] * config[
+                                                   'sample_batch_size']) == \
+               0, \
             "sgd_minibatch_size: {}, num_agents: {}, sample_batch_size: {}" \
             "".format(config['sgd_minibatch_size'],
                       config['env_config']['num_agents'],
                       config['sample_batch_size'])
         assert config['sgd_minibatch_size'] >= (
-            config['env_config']['num_agents'] * config['sample_batch_size']
+                config['env_config']['num_agents'] * config[
+            'sample_batch_size']
         )
 
     validate_config_original(config)
@@ -68,6 +69,8 @@ def validate_config(config):
         assert not config[USE_BISECTOR]
         assert not config[USE_DIVERSITY_VALUE_NETWORK]
         # assert not config[]
+
+    assert config[CONSTRAIN_NOVELTY] in ['soft', 'hard', None]
 
 
 def make_policy_optimizer_tnbes(workers, config):
@@ -142,6 +145,19 @@ def after_optimizer_iteration(trainer, fetches):
 
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
             ray_get_and_free(weights)
+
+    if trainer.config[CONSTRAIN_NOVELTY] is not None:
+        # print("***** enter update after optimizer iteration")
+
+        def update(pi, pi_id):
+            if pi_id in fetches:
+                pi.update_alpha(fetches[pi_id]["novelty_reward_mean"])
+            else:
+                logger.debug(
+                    "No data for {}, not updating alpha".format(pi_id))
+
+        trainer.workers.foreach_worker(
+            lambda w: w.foreach_trainable_policy(update))
 
 
 DECETrainer = PPOTrainer.with_updates(

@@ -187,8 +187,17 @@ def no_replay_values_batch_size_bug(lm=False):
     )
 
 
+def test_constrain_novelty(lm=False):
+    test_dece(
+        {
+            CONSTRAIN_NOVELTY: tune.grid_search(['soft', 'hard', None]),
+            "novelty_stat_length": 2,
+        }, lm
+    )
+
+
 if __name__ == '__main__':
-    test_dece(local_mode=True)
+    # test_dece(local_mode=True)
     # test_dece_batch0(local_mode=False)
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)
@@ -202,3 +211,4 @@ if __name__ == '__main__':
     # test_vtrace(local_mode=True, hard=True)
     # mock_experiment(False)
     # no_replay_values_batch_size_bug(False)
+    test_constrain_novelty(False)

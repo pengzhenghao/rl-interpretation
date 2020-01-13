@@ -1,4 +1,4 @@
-import logging
+from collections import deque
 
 from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, \
@@ -43,7 +43,7 @@ def grad_stats_fn(policy, batch, grads):
         return {}
 
 
-class NoveltyValueNetworkMixin(object):
+class NoveltyValueNetworkMixin:
     def __init__(self, obs_space, action_space, config):
         if config["use_gae"] and config[USE_DIVERSITY_VALUE_NETWORK]:
 
@@ -116,7 +116,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
         }
     )
     if policy.config[USE_DIVERSITY_VALUE_NETWORK
-                     ] and not policy.config[REPLAY_VALUES]:
+    ] and not policy.config[REPLAY_VALUES]:
         ret['novelty_vf_explained_var'] = explained_variance(
             train_batch[NOVELTY_VALUE_TARGETS],
             policy.model.novelty_value_function()
@@ -124,7 +124,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
     return ret
 
 
-class ComputeNoveltyMixin(object):
+class ComputeNoveltyMixin:
     def __init__(self):
         self.initialized_policies_pool = False
         self.policies_pool = {}
@@ -195,6 +195,7 @@ def setup_mixins_dece(policy, action_space, obs_space, config):
     setup_mixins(policy, action_space, obs_space, config)
     NoveltyValueNetworkMixin.__init__(policy, obs_space, action_space, config)
     ComputeNoveltyMixin.__init__(policy)
+    ConstrainNoveltyMixin.__init__(policy, config)
 
 
 def get_batch_divisibility_req(policy):
@@ -204,7 +205,7 @@ def get_batch_divisibility_req(policy):
         return 1
 
 
-class TargetNetworkMixin(object):
+class TargetNetworkMixin:
     def __init__(self, obs_space, action_space, config):
         """Target Network is updated by the master learner every
         trainer.update_target_frequency steps. All worker batches
@@ -236,7 +237,7 @@ class TargetNetworkMixin(object):
         for var, var_target in zip(self.model_vars, self.target_model_vars):
             assign_ops.append(
                 var_target.
-                assign(self.tau * var + (1.0 - self.tau) * var_target)
+                    assign(self.tau * var + (1.0 - self.tau) * var_target)
             )
         self.update_target_expr = tf.group(*assign_ops)
 
@@ -270,6 +271,72 @@ def setup_late_mixins(policy, obs_space, action_space, config):
         TargetNetworkMixin.__init__(policy, obs_space, action_space, config)
 
 
+class ConstrainNoveltyMixin:
+    def __init__(self, config):
+        self.constrain_mode = config[CONSTRAIN_NOVELTY]
+        assert self.constrain_mode in ['soft', 'hard', None]
+
+        self._alpha_val = 0.5
+        self._novelty_target = np.nan
+
+        self._alpha = tf.get_variable(
+            initializer=tf.constant_initializer(self._alpha_val),
+            name="alpha",
+            shape=(),
+            trainable=False,
+            dtype=tf.float32
+        )
+
+        self.maxlen = config['novelty_stat_length']
+        self.novelty_stat = deque(maxlen=self.maxlen)
+
+    def update_alpha(self, sampled_novelty):
+        # print("***** ENTER UPDATE ALPHA")
+        assert sampled_novelty > 0
+        self.novelty_stat.append(sampled_novelty)
+        if len(self.novelty_stat) < self.maxlen:
+            # start tuning after the queue is full.
+            logger.debug(
+                "Current stat length: {}".format(len(self.novelty_stat))
+            )
+            return self._alpha_val
+        elif np.isnan(self._novelty_target):
+            self._novelty_target = self.config["novelty_target_multiplier"] * \
+                                   np.mean(self.novelty_stat)
+            logger.debug(
+                "After {} iterations, we set novelty_target to {}"
+                "".format(len(self.novelty_stat), self._novelty_target)
+            )
+
+        running_mean = np.mean(self.novelty_stat)
+        logger.debug(
+            "Current novelty {}, mean {}, target {}, param {}".format(
+                sampled_novelty, running_mean, self._novelty_target,
+                self._alpha_val
+            )
+        )
+
+        if self.constrain_mode == 'hard':
+            if running_mean > 2.0 * self._novelty_target:
+                self._alpha_val = 0.0
+            else:
+                self._alpha_val = 0.5
+
+            # print('***** Update alpha hard mode alpha val ', self._alpha_val)
+        else:
+            if running_mean > 2.0 * self._novelty_target:
+                self._alpha_val *= 0.5
+            elif running_mean < 0.5 * self._novelty_target:
+                self._alpha_val *= 1.5
+
+            # print('***** Update alpha soft mode alpha val ',
+            #       self._alpha_val)
+        self._alpha.load(
+            self._alpha_val, session=self.get_session()
+        )
+        return self._alpha_val
+
+
 DECEPolicy = PPOTFPolicy.with_updates(
     name="DECEPolicy",
     get_default_config=lambda: dece_default_config,
@@ -284,7 +351,7 @@ DECEPolicy = PPOTFPolicy.with_updates(
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
         ValueNetworkMixin, NoveltyValueNetworkMixin, ComputeNoveltyMixin,
-        TargetNetworkMixin
+        TargetNetworkMixin, ConstrainNoveltyMixin
     ],
     get_batch_divisibility_req=get_batch_divisibility_req,
 )
