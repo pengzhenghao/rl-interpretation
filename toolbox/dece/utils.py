@@ -1,3 +1,4 @@
+import logging
 import pickle
 
 import numpy as np
@@ -6,6 +7,8 @@ from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
 from ray.tune.util import merge_dicts
 
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
+
+logger = logging.getLogger(__name__)
 
 
 def on_train_result(info):
@@ -55,7 +58,17 @@ def on_train_result(info):
 def on_postprocess_traj(info):
     """We correct the count of the MultiAgentBatch"""
     episode = info['episode']
-    episode.batch_builder.count = episode.batch_builder.total()
+    corrected_count = int(np.mean([
+        b.count for b in episode.batch_builder.policy_builders.values()
+        if b.count != 0
+    ]))
+    logger.debug(
+        "***** Current episode.batch_builder.count {}, corrected count {}, "
+        "total {}, length {}".format(
+            episode.batch_builder.count, corrected_count,
+            episode.batch_builder.total(), episode.length
+        ))
+    episode.batch_builder.count = corrected_count
 
 
 def _restore_state(ckpt):
@@ -99,6 +112,7 @@ DIVERSITY_REWARD_TYPE = "diversity_reward_type"
 REPLAY_VALUES = "replay_values"
 TWO_SIDE_CLIP_LOSS = "two_side_clip_loss"
 ONLY_TNB = "only_tnb"
+CONSTRAIN_NOVELTY = "constrain_novelty"
 
 I_AM_CLONE = "i_am_clone"
 NOVELTY_REWARDS = "novelty_rewards"
@@ -125,13 +139,16 @@ dece_default_config = merge_dicts(
             TWO_SIDE_CLIP_LOSS: True,
             I_AM_CLONE: False,
             ONLY_TNB: False,
+            CONSTRAIN_NOVELTY: "soft",
 
             # vtrace
             # "use_vtrace": False,
             'use_kl_loss': True,
             "clip_rho_threshold": 1.0,  # TODO
             "clip_pg_rho_threshold": 1.0,  # TODO
-            "normalize_advantage": True
+            "normalize_advantage": True,
+            "novelty_target_multiplier": 1.0,
+            "novelty_stat_length": 100,
         }
     )
 )

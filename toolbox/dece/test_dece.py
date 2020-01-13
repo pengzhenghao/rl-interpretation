@@ -172,8 +172,8 @@ def no_replay_values_batch_size_bug(lm=False):
         trainer=DECETrainer,
         local_mode=lm,
         extra_config={
-            REPLAY_VALUES: tune.grid_search([False]),
-            'num_envs_per_worker': 16,
+            REPLAY_VALUES: tune.grid_search([True, False]),
+            'num_envs_per_worker': 4,
             'sample_batch_size': 20,
             'sgd_minibatch_size': 100,
             'train_batch_size': 1000,
@@ -188,7 +188,7 @@ def no_replay_values_batch_size_bug(lm=False):
 
 
 if __name__ == '__main__':
-    # test_dece(local_mode=False)
+    test_dece(local_mode=True)
     # test_dece_batch0(local_mode=False)
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)
@@ -200,5 +200,5 @@ if __name__ == '__main__':
     # test_vtrace_single_agent(local_mode=False)
     # replay_values_or_not_test(False)
     # test_vtrace(local_mode=True, hard=True)
-    mock_experiment(False)
-    # no_replay_values_batch_size_bug(True)
+    # mock_experiment(False)
+    # no_replay_values_batch_size_bug(False)

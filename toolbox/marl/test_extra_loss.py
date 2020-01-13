@@ -20,7 +20,7 @@ def _get_default_test_config(num_agents, env_name, num_gpus):
         "log_level": "DEBUG",
         "sample_batch_size": 20,
         "train_batch_size": 100,
-        "sgd_minibatch_size": 8,
+        "sgd_minibatch_size": 60,
         "num_sgd_iter": 3,
     }
     return config

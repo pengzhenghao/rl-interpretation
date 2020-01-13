@@ -329,13 +329,10 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                             rnn_inputs = []
                         self.optimizers[policy_id] = (
                             LocalSyncParallelOptimizer(
-                                policy._optimizer,
-                                self.devices,
-                                [v for _, v in policy._loss_inputs],
-                                rnn_inputs,
-                                self.per_device_batch_size,
-                                # self.per_device_batch_size if not self.use_vtrace else 999999,
-                                policy.copy
+                                policy._optimizer, self.devices,
+                                [v
+                                 for _, v in policy._loss_inputs], rnn_inputs,
+                                self.per_device_batch_size, policy.copy
                             )
                         )
 
@@ -343,8 +340,6 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                 self.sess.run(tf.global_variables_initializer())
 
         self.compute_num_steps_sampled = compute_num_steps_sampled
-        if self.use_vtrace:
-            assert len(self.devices) == 1
 
     def step(self):
         with self.update_weights_timer:
@@ -459,10 +454,28 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                 dtype=np.int64
             )
 
+        logger.debug(
+            "***** [num_steps_sampled] Count is: {}, the new one is {}".format(
+                samples.count,
+                np.mean(
+                    [b.count for b in samples.policy_batches.values()],
+                    dtype=np.int64
+                )
+            )
+        )
+
         # Here!
         self.num_steps_trained += np.mean(
             list(num_loaded_tuples.values()), dtype=np.int64
         ) * len(self.devices)
+
+        logger.debug(
+            "***** [num_steps_sampled] Count is: {}, the new one is {}".format(
+                tuples_per_device * len(self.devices),
+                np.mean(list(num_loaded_tuples.values()), dtype=np.int64) *
+                len(self.devices)
+            )
+        )
 
         self.learner_stats = fetches
         return fetches
