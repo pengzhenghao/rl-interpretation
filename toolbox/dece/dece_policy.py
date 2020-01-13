@@ -121,6 +121,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
             train_batch[NOVELTY_VALUE_TARGETS],
             policy.model.novelty_value_function()
         )
+    if policy.config[CONSTRAIN_NOVELTY] is not None:
+        ret['alpha'] = tf.ones_like(policy.loss_obj.loss) * policy._alpha
     return ret
 
 
