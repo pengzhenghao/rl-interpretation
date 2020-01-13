@@ -49,68 +49,13 @@ def on_train_result(info):
                     if isinstance(a, dict)
                 ]
             )
-
         result['custom_metrics'].clear()
-
-
-def on_sample_end(info):
-    """We correct the count of the batch"""
-    multiagent_batch = info['samples']
-    old_count = multiagent_batch.count
-    # multiagent_batch.count = int(
-    #     np.mean([b.count for b in multiagent_batch.policy_batches.values()])
-    # )
-    print(
-        "In on_sample_end, we change count from {} to {}".format(
-            old_count, multiagent_batch.count
-        )
-    )
 
 
 def on_postprocess_traj(info):
     """We correct the count of the MultiAgentBatch"""
     episode = info['episode']
     episode.batch_builder.count = episode.batch_builder.total()
-    # episode.length used to record the real length of the episode.
-    # it should not equal to episode.batch_builder.count
-    # episode.length = post_batch.count
-
-
-def on_episode_step(info):
-    pass
-
-
-# def on_episode_start(info):
-#     episode = info["episode"]
-#     episode.user_data["relative_kl"] = {
-#         pid: {}
-#         for pid in episode._policies.keys()
-#     }
-#     episode.user_data["unclip_length"] = {
-#         pid: {}
-#         for pid in episode._policies.keys()
-#     }
-
-# def on_postprocess_traj(info):
-#     pass
-
-# def on_episode_end(info):
-#     episode = info["episode"]
-#
-#     tmp = "{}-action_kl"
-#     for pid, oth in episode.user_data['relative_kl'].items():
-#         episode.custom_metrics[tmp.format(pid)] = np.mean(
-#             np.concatenate([kl for kl in oth.values()])
-#         )
-#
-#     tmp = "{}-unclipped_ratio"
-#     for pid, oth in episode.user_data['unclip_length'].items():
-#         if not oth:
-#             continue
-#         total_length = sum(l for (_, l) in oth.values())
-#         unclipped_length = sum(l for (l, _) in oth.values())
-#         episode.custom_metrics[tmp.format(pid)] = \
-#             unclipped_length / total_length
 
 
 def _restore_state(ckpt):
@@ -167,8 +112,7 @@ dece_default_config = merge_dicts(
         tau=5e-3,
         callbacks={
             "on_train_result": on_train_result,
-            "on_postprocess_traj": on_postprocess_traj,
-            "on_episode_step": on_episode_step,
+            "on_postprocess_traj": on_postprocess_traj
         },
         **{
             DIVERSITY_ENCOURAGING: True,
