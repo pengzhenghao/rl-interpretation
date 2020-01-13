@@ -53,10 +53,10 @@ def validate_config(config):
     # if not config[ONLY_TNB]:
     #     num_agents = len(config['multiagent']['policies'])
     #     assert num_agents == config['env_config']['num_agents']
-        # config['train_batch_size'] = int(
-        #     config['train_batch_size'] // num_agents
-        # )
-        # assert config['train_batch_size'] >= config["sgd_minibatch_size"]
+    # config['train_batch_size'] = int(
+    #     config['train_batch_size'] // num_agents
+    # )
+    # assert config['train_batch_size'] >= config["sgd_minibatch_size"]
 
     if config[REPLAY_VALUES]:
         # use vtrace, need to check sgd_minibatch_size

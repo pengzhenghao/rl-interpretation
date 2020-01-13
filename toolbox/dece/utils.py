@@ -60,28 +60,21 @@ def on_sample_end(info):
     # multiagent_batch.count = int(
     #     np.mean([b.count for b in multiagent_batch.policy_batches.values()])
     # )
-    print("In on_sample_end, we change count from {} to {}".format(
-        old_count, multiagent_batch.count
-    ))
+    print(
+        "In on_sample_end, we change count from {} to {}".format(
+            old_count, multiagent_batch.count
+        )
+    )
 
 
 def on_postprocess_traj(info):
     """We correct the count of the MultiAgentBatch"""
-    post_batch = info['post_batch']
     episode = info['episode']
-    if post_batch.count < 20:
-        print('please stop here')
-
-    if episode.batch_builder.count != 20:
-        print('plesa here')
-
-    if episode.batch_builder.total() != 20:
-        print('plesh re')
-
     episode.batch_builder.count = episode.batch_builder.total()
     # episode.length used to record the real length of the episode.
     # it should not equal to episode.batch_builder.count
     # episode.length = post_batch.count
+
 
 def on_episode_step(info):
     pass
