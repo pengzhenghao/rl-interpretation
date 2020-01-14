@@ -2,6 +2,7 @@ import gym
 import numpy as np
 from gym.envs.registration import register as register_gym
 from gym.spaces import Box
+import copy
 
 default_config = dict(
     down=10,
@@ -80,7 +81,7 @@ def _clip(x, low, high):
 
 class FourWayGridWorld(gym.Env):
     def __init__(self, env_config=None):
-        self.config = default_config
+        self.config = copy.deepcopy(default_config)
         if isinstance(env_config, dict):
             self.config.update(env_config)
         self.N = self.config['N']
@@ -211,6 +212,15 @@ def draw(compute_action, env_config=dict(), num_grids=32, **plt_kwargs):
             ax.arrow(old_loc[0], old_loc[1], diff[0], diff[1], head_width=0.2,
                      shape='left')
     plt.show()
+
+def make_expert(env):
+    config = env.config
+    assert not config['use_walls']
+    N = config['N']
+    env.reset()
+    map = env.map
+    goals = map > 0
+
 
 
 if __name__ == '__main__':
