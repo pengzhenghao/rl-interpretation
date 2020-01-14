@@ -13,8 +13,8 @@ os.environ['OMP_NUM_THREADS'] = '1'
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str,
-                        default="0114-dece-constrain-novelty")
-    parser.add_argument("--num-gpus", type=int, default=8)  # run using 4 gpu
+                        default="0115-dece-constrain-novelty")
+    parser.add_argument("--num-gpus", type=int, default=8)
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--env-name", type=str, default="Walker2d-v3")
     parser.add_argument("--test", action="store_true")
@@ -27,11 +27,9 @@ if __name__ == '__main__':
     test = args.test
 
     walker_config = {
-        # "use_vtrace": True,
-
         DELAY_UPDATE: True,
         CONSTRAIN_NOVELTY: tune.grid_search(['hard', 'soft', None]),
-        REPLAY_VALUES: tune.grid_search([True]),
+        REPLAY_VALUES: tune.grid_search([True, False]),
         # USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([True, False]),
 
         "env": MultiAgentEnvWrapper,
