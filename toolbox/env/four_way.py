@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+from gym.envs.registration import register_gym
 from gym.spaces import Box
 
 default_config = dict(
@@ -15,6 +16,30 @@ default_config = dict(
     record_trajectory=False,
     _show=True
 )
+
+
+# We register a non-slippery version of FrozenLake environment.
+def register():
+    register_gym(
+        id='FourWay-v0',
+        entry_point='toolbox.env.four_way:FourWayGridWorld',
+        kwargs={},
+    )
+    register_gym(
+        id='FourWayUseWalls-v0',
+        entry_point='toolbox.env.four_way:FourWayGridWorld',
+        kwargs={"env_config": {"use_walls": True}},
+    )
+    register_gym(
+        id='FourWayUseWallsFixed-v0',
+        entry_point='toolbox.env.four_way:FourWayGridWorld',
+        kwargs={"env_config": {"use_walls": True, "init_loc": [8.0, 8.0]}},
+    )
+    print("Registed three environments: FourWay-v0, "
+          "FourWayUseWalls-v0, FourWayUseWallsFixed-v0.")
+
+
+register()
 
 
 class Wall:
