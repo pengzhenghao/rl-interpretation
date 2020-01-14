@@ -14,8 +14,8 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     p = np.exp(logp)
     return logp, p
@@ -152,12 +152,36 @@ def postprocess_dece(policy, sample_batch, others_batches, episode):
         batch = postprocess_vtrace(
             policy, sample_batch, others_batches, episode
         )
-    # elif policy.config[REPLAY_VALUES]:
-    #     batch = postprocess_replay_values(policy, *args, **kwargs)
     else:
         batch = postprocess_no_replay_values(
             policy, sample_batch, others_batches, episode
         )
+
+    # if policy.loss_initialized():
+    #     assert episode is not None
+    #     logger.debug(
+    #         "***** In postprocess, when loss is initialized, we modified the "
+    #         "episode.batch_builder.count to the value of sampled contain "
+    #         "in each policy's batch: the sum of the count of all possible "
+    #         "batches. The count of the post-processed batch is {}, the sum "
+    #         "of all possible batches is {}, the current count of batch "
+    #         "builder is {}. This policy name is: {}.".format(
+    #             batch.count, sum(b.count for _, b in others_batches.values(
+    #             )) + sample_batch.count, episode.batch_builder.count,
+    #             np.unique(sample_batch[SampleBatch.AGENT_INDEX])))
+    #     print(
+    #         "***** In postprocess, when loss is initialized, we modified the "
+    #         "episode.batch_builder.count to the value of sampled contain "
+    #         "in each policy's batch: the sum of the count of all possible "
+    #         "batches. The count of the post-processed batch is {}, the sum "
+    #         "of all possible batches is {}, the current count of batch "
+    #         "builder is {}. The updated count of batch builder is {}. "
+    #         "This policy name is: {}.".format(
+    #             batch.count, sum(b.count for _, b in others_batches.values(
+    #             )) + sample_batch.count, episode.batch_builder.count,
+    #             episode.batch_builder.count + batch.count,
+    #             np.unique(sample_batch[SampleBatch.AGENT_INDEX])))
+    #     episode.batch_builder.count += batch.count
     del batch.data['new_obs']  # save memory
     del batch.data['action_prob']
     return batch

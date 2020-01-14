@@ -1,7 +1,6 @@
 import logging
-import pickle
-
 import numpy as np
+import pickle
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
 from ray.tune.util import merge_dicts
@@ -9,6 +8,17 @@ from ray.tune.util import merge_dicts
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
 
 logger = logging.getLogger(__name__)
+
+def on_sample_end(info):
+
+    batch = info['samples']
+
+    print(batch.count)
+
+    if batch.count < 80:
+        print('fuck you')
+
+    print('please stop herer')
 
 
 def on_train_result(info):
@@ -58,17 +68,57 @@ def on_train_result(info):
 def on_postprocess_traj(info):
     """We correct the count of the MultiAgentBatch"""
     episode = info['episode']
-    corrected_count = int(np.mean([
+    post_batch = info['post_batch']
+    all_pre_batches = info['all_pre_batches']
+    agent_id = next(iter(all_pre_batches.keys()))
+
+    if agent_id != info['agent_id']:
+        return
+
+    increment_count = int(np.mean(
+        [b.count for _, b in all_pre_batches.values()]
+    ))
+    current_count = episode.batch_builder.count
+
+    corrected_count = current_count - increment_count + post_batch.count
+
+    mean_count = int(np.mean(
+        [b.count for b in episode.batch_builder.policy_builders.values()
+         if b.count > 0]
+    ))
+
+    print("***** In on_postprocess_traj, we update the old count {} to "
+          "corrected count {}. The count of post_batch is {}. The mean of"
+          " all possible batch count is {}. The pre batch mean count is "
+          "{}".format(current_count, corrected_count, post_batch.count,
+                      mean_count, increment_count))
+
+    episode.batch_builder.count = corrected_count
+
+
+    # corrected_count = int(np.mean([
+    #     b.count for b in episode.batch_builder.policy_builders.values()
+    #     if b.count != 0
+    # ]))
+    # logger.debug(
+    #     "***** Current episode.batch_builder.count {}, corrected count {}, "
+    #     "total {}, length {}".format(
+    #         episode.batch_builder.count, corrected_count,
+    #         episode.batch_builder.total(), episode.length
+    #     ))
+    # print(
+    #     "***** Current episode.batch_builder.count {}, corrected count {}, "
+    #     "total {}, length {}".format(
+    #         episode.batch_builder.count, corrected_count,
+    #         episode.batch_builder.total(), episode.length
+    #     ))
+    # episode.batch_builder.count = corrected_count
+    set_count = set([
         b.count for b in episode.batch_builder.policy_builders.values()
         if b.count != 0
-    ]))
-    logger.debug(
-        "***** Current episode.batch_builder.count {}, corrected count {}, "
-        "total {}, length {}".format(
-            episode.batch_builder.count, corrected_count,
-            episode.batch_builder.total(), episode.length
-        ))
-    episode.batch_builder.count = corrected_count
+    ])
+    if len(set_count) > 1:
+        print('***** Wrong NUMBER!!! {}'.format(set_count))
 
 
 def _restore_state(ckpt):
@@ -126,7 +176,8 @@ dece_default_config = merge_dicts(
         tau=5e-3,
         callbacks={
             "on_train_result": on_train_result,
-            "on_postprocess_traj": on_postprocess_traj
+            "on_postprocess_traj": on_postprocess_traj,
+            # "on_sample_end": on_sample_end
         },
         **{
             DIVERSITY_ENCOURAGING: True,

@@ -50,10 +50,9 @@ def validate_config(config):
 
     if config[REPLAY_VALUES]:
         # use vtrace, need to check sgd_minibatch_size
-        assert config['sgd_minibatch_size'] % (config['env_config'][
-                                                   'num_agents'] * config[
-                                                   'sample_batch_size']) == \
-               0, \
+        assert config['sgd_minibatch_size'] % \
+               (config['env_config']['num_agents'] *
+                config['sample_batch_size']) == 0, \
             "sgd_minibatch_size: {}, num_agents: {}, sample_batch_size: {}" \
             "".format(config['sgd_minibatch_size'],
                       config['env_config']['num_agents'],
