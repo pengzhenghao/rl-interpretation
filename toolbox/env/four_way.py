@@ -1,6 +1,6 @@
 import gym
 import numpy as np
-from gym.envs.registration import register_gym
+from gym.envs.registration import register as register_gym
 from gym.spaces import Box
 
 default_config = dict(
@@ -20,6 +20,8 @@ default_config = dict(
 
 # We register a non-slippery version of FrozenLake environment.
 def register():
+    if "FourWay-v0" in [s.id for s in gym.envs.registry.all()]:
+        return
     register_gym(
         id='FourWay-v0',
         entry_point='toolbox.env.four_way:FourWayGridWorld',
