@@ -1,6 +1,4 @@
 from collections import deque
-
-from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, \
     EntropyCoeffSchedule, \
     BEHAVIOUR_LOGITS, kl_and_loss_stats, PPOTFPolicy, KLCoeffMixin, \
@@ -182,13 +180,10 @@ class ComputeNoveltyMixin:
                 np.split(logit, 2, axis=1)[0] for logit in replays.values()
             ]
             my_act = np.split(my_batch[logit_key], 2, axis=1)[0]
-            return np.mean(
-                [
-                    (np.square(my_act - other_act)).mean(1)
-                    for other_act in replays
-                ],
-                axis=0
-            )
+            return np.mean([
+                (np.square(my_act - other_act)).mean(1)
+                for other_act in replays
+            ], axis=0)
         else:
             raise NotImplementedError()
 
@@ -279,7 +274,9 @@ class ConstrainNoveltyMixin:
         assert self.constrain_mode in ['soft', 'hard', None]
 
         self._alpha_val = 0.5
+        self._alpha_coefficient = config["alpha_coefficient"]
         self._novelty_target = np.nan
+        self._novelty_target_tau = config.get('tau')
 
         self._alpha = tf.get_variable(
             initializer=tf.constant_initializer(self._alpha_val),
@@ -293,14 +290,12 @@ class ConstrainNoveltyMixin:
         self.novelty_stat = deque(maxlen=self.maxlen)
 
     def update_alpha(self, sampled_novelty):
-        # print("***** ENTER UPDATE ALPHA")
         assert sampled_novelty > 0
         self.novelty_stat.append(sampled_novelty)
         if len(self.novelty_stat) < self.maxlen:
             # start tuning after the queue is full.
-            logger.debug(
-                "Current stat length: {}".format(len(self.novelty_stat))
-            )
+            logger.debug("Current novelty stat length: {}".format(
+                len(self.novelty_stat)))
             return self._alpha_val
         elif np.isnan(self._novelty_target):
             self._novelty_target = self.config["novelty_target_multiplier"] * \
@@ -311,6 +306,13 @@ class ConstrainNoveltyMixin:
             )
 
         running_mean = np.mean(self.novelty_stat)
+
+        # Slowly update novelty target.
+        self._novelty_target = (
+                self._novelty_target_tau * running_mean +
+                (1 - self._novelty_target_tau) * self._novelty_target
+        )
+
         logger.debug(
             "Current novelty {}, mean {}, target {}, param {}".format(
                 sampled_novelty, running_mean, self._novelty_target,
@@ -319,20 +321,18 @@ class ConstrainNoveltyMixin:
         )
 
         if self.constrain_mode == 'hard':
-            if running_mean > 2.0 * self._novelty_target:
+            if running_mean > 1.5 * self._novelty_target:
                 self._alpha_val = 0.0
             else:
                 self._alpha_val = 0.5
-
-            # print('***** Update alpha hard mode alpha val ', self._alpha_val)
         else:
-            if running_mean > 2.0 * self._novelty_target:
-                self._alpha_val *= 0.5
+            if running_mean > 1.5 * self._novelty_target:
+                self._alpha_val *= (1 - self._alpha_coefficient)
             elif running_mean < 0.5 * self._novelty_target:
-                self._alpha_val *= 1.5
+                self._alpha_val = min(
+                    (1 + self._alpha_coefficient) * self._alpha_val,
+                    0.5)
 
-            # print('***** Update alpha soft mode alpha val ',
-            #       self._alpha_val)
         self._alpha.load(
             self._alpha_val, session=self.get_session()
         )

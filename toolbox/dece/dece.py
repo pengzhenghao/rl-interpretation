@@ -133,6 +133,10 @@ def setup_policies_pool(trainer):
 def after_optimizer_iteration(trainer, fetches):
     """Update the policies pool in each policy."""
     update_kl(trainer, fetches)
+    for pid in fetches.keys():
+        fetches[pid]["novelty_target"] = \
+            trainer.get_policy(pid)._novelty_target
+        
     if trainer.config[DELAY_UPDATE] and (not trainer.config[I_AM_CLONE]):
         if trainer.workers.remote_workers():
             weights = ray.put(trainer.workers.local_worker().get_weights())
