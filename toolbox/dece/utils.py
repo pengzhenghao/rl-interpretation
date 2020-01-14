@@ -9,16 +9,9 @@ from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
 
 logger = logging.getLogger(__name__)
 
+
 def on_sample_end(info):
-
-    batch = info['samples']
-
-    print(batch.count)
-
-    if batch.count < 80:
-        print('fuck you')
-
-    print('please stop herer')
+    pass
 
 
 def on_train_result(info):
@@ -79,46 +72,8 @@ def on_postprocess_traj(info):
         [b.count for _, b in all_pre_batches.values()]
     ))
     current_count = episode.batch_builder.count
-
     corrected_count = current_count - increment_count + post_batch.count
-
-    mean_count = int(np.mean(
-        [b.count for b in episode.batch_builder.policy_builders.values()
-         if b.count > 0]
-    ))
-
-    print("***** In on_postprocess_traj, we update the old count {} to "
-          "corrected count {}. The count of post_batch is {}. The mean of"
-          " all possible batch count is {}. The pre batch mean count is "
-          "{}".format(current_count, corrected_count, post_batch.count,
-                      mean_count, increment_count))
-
     episode.batch_builder.count = corrected_count
-
-
-    # corrected_count = int(np.mean([
-    #     b.count for b in episode.batch_builder.policy_builders.values()
-    #     if b.count != 0
-    # ]))
-    # logger.debug(
-    #     "***** Current episode.batch_builder.count {}, corrected count {}, "
-    #     "total {}, length {}".format(
-    #         episode.batch_builder.count, corrected_count,
-    #         episode.batch_builder.total(), episode.length
-    #     ))
-    # print(
-    #     "***** Current episode.batch_builder.count {}, corrected count {}, "
-    #     "total {}, length {}".format(
-    #         episode.batch_builder.count, corrected_count,
-    #         episode.batch_builder.total(), episode.length
-    #     ))
-    # episode.batch_builder.count = corrected_count
-    set_count = set([
-        b.count for b in episode.batch_builder.policy_builders.values()
-        if b.count != 0
-    ])
-    if len(set_count) > 1:
-        print('***** Wrong NUMBER!!! {}'.format(set_count))
 
 
 def _restore_state(ckpt):
@@ -176,8 +131,7 @@ dece_default_config = merge_dicts(
         tau=5e-3,
         callbacks={
             "on_train_result": on_train_result,
-            "on_postprocess_traj": on_postprocess_traj,
-            # "on_sample_end": on_sample_end
+            "on_postprocess_traj": on_postprocess_traj
         },
         **{
             DIVERSITY_ENCOURAGING: True,
@@ -200,6 +154,7 @@ dece_default_config = merge_dicts(
             "normalize_advantage": True,
             "novelty_target_multiplier": 1.0,
             "novelty_stat_length": 100,
+            "alpha_coefficient": 0.01,
         }
     )
 )

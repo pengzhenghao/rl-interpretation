@@ -392,7 +392,8 @@ def tnb_gradients(policy, optimizer, loss):
     if policy.config[CONSTRAIN_NOVELTY] == 'hard':
         total_grad = tf.cond(
             policy._alpha < 0.5,
-            lambda: policy_grad_flatten,  # use pure policy gradient if alpha too small
+            # use pure policy gradient if alpha too small
+            lambda: policy_grad_flatten,
             lambda: tg
         )
     else:
