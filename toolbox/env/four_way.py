@@ -19,7 +19,7 @@ default_config = dict(
 
 
 # We register a non-slippery version of FrozenLake environment.
-def register():
+def register_four_way():
     if "FourWay-v0" in [s.id for s in gym.envs.registry.all()]:
         return
     register_gym(
@@ -41,7 +41,7 @@ def register():
           "FourWayUseWalls-v0, FourWayUseWallsFixed-v0.")
 
 
-register()
+register_four_way()
 
 
 class Wall:
