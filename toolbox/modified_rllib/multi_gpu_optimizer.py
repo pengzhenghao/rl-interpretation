@@ -270,8 +270,7 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
             train_batch_size=1024,
             num_gpus=0,
             standardize_fields=[],
-            shuffle_sequences=True,
-            use_vtrace=False,
+            shuffle_sequences=True
     ):
 
         PolicyOptimizer.__init__(self, workers)
@@ -282,7 +281,6 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
         self.sample_batch_size = sample_batch_size
         self.train_batch_size = train_batch_size
         self.shuffle_sequences = shuffle_sequences
-        self.use_vtrace = use_vtrace
         if not num_gpus:
             self.devices = ["/cpu:0"]
         else:

@@ -198,7 +198,7 @@ def test_constrain_novelty(lm=False):
 
 
 if __name__ == '__main__':
-    # test_dece(local_mode=False)
+    # test_dece(local_mode=True)
     # test_dece_batch0(local_mode=False)
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)
@@ -211,5 +211,5 @@ if __name__ == '__main__':
     # replay_values_or_not_test(False)
     # test_vtrace(local_mode=True, hard=True)
     # mock_experiment(False)
-    no_replay_values_batch_size_bug(False)
+    no_replay_values_batch_size_bug(True)
     # test_constrain_novelty(False)

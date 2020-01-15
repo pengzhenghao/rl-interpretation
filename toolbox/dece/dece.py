@@ -92,8 +92,7 @@ def make_policy_optimizer_tnbes(workers, config):
         standardize_fields=["advantages", NOVELTY_ADVANTAGES]
         if not config[REPLAY_VALUES] else [],  # HERE!
         shuffle_sequences=config["shuffle_sequences"]
-        if not config[REPLAY_VALUES] else False,
-        use_vtrace=config[REPLAY_VALUES]
+        if not config[REPLAY_VALUES] else False
     )
 
 
@@ -136,7 +135,7 @@ def after_optimizer_iteration(trainer, fetches):
     for pid in fetches.keys():
         fetches[pid]["novelty_target"] = \
             trainer.get_policy(pid)._novelty_target
-        
+
     if trainer.config[DELAY_UPDATE] and (not trainer.config[I_AM_CLONE]):
         if trainer.workers.remote_workers():
             weights = ray.put(trainer.workers.local_worker().get_weights())

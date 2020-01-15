@@ -196,6 +196,10 @@ def setup_mixins_dece(policy, action_space, obs_space, config):
 
 
 def get_batch_divisibility_req(policy):
+    """You may notice the num_steps_trained is larger than num_steps_sampled.
+    This is because we pad the data in REPLAY_VALUES mode to make sure we can
+    split the batch correctly in computing loss. Currently we have no idea to
+    help save this kind of waste."""
     if policy.config[REPLAY_VALUES]:
         return policy.config['sample_batch_size']
     else:
