@@ -7,6 +7,8 @@ from toolbox import initialize_ray, get_local_dir
 from toolbox.cooperative_exploration.ceppo import *
 from toolbox.marl import MultiAgentEnvWrapper
 
+GB = int(1024 * 1024 * 1024)
+
 
 def train(
         extra_config,
@@ -17,18 +19,35 @@ def train(
         num_agents,
         num_seeds,
         num_gpus,
+        num_cpus=None,
         test_mode=False,
         address=None,
+        redis_password=None,
+        clip_memory=False,
+        init_memory=None,
+        init_object_store_memory=None,
+        init_redis_max_memory=None,
         **kwargs
 ):
     # assert isinstance(stop, int)
     if address is not None:
         num_gpus = None
+
+    if clip_memory:
+        init_memory = int(300 * GB)
+        init_object_store_memory = int(100 * GB)
+        init_redis_max_memory = int(50 * GB)
+
     initialize_ray(
         test_mode=test_mode,
         local_mode=False,
         num_gpus=num_gpus,
-        address=address
+        address=address,
+        redis_password=redis_password,
+        memory=init_memory,
+        object_store_memory=init_object_store_memory,
+        redis_max_memory=init_redis_max_memory,
+        num_cpus=num_cpus
     )
     env_config = {"env_name": env_name, "num_agents": num_agents}
     config = {

@@ -1,6 +1,7 @@
 import logging
-import numpy as np
 import pickle
+
+import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
 from ray.tune.util import merge_dicts
@@ -61,6 +62,10 @@ def on_train_result(info):
 def on_postprocess_traj(info):
     """We correct the count of the MultiAgentBatch"""
     episode = info['episode']
+
+    if episode._policies[info['agent_id']].config[ONLY_TNB]:
+        return
+
     post_batch = info['post_batch']
     all_pre_batches = info['all_pre_batches']
     agent_id = next(iter(all_pre_batches.keys()))
@@ -124,6 +129,8 @@ NOVELTY_REWARDS = "novelty_rewards"
 NOVELTY_VALUES = "novelty_values"
 NOVELTY_ADVANTAGES = "novelty_advantages"
 NOVELTY_VALUE_TARGETS = "novelty_value_targets"
+PURE_OFF_POLICY = "pure_off_policy"
+NORMALIZE_ADVANTAGE = "normalize_advantage"
 
 dece_default_config = merge_dicts(
     DEFAULT_CONFIG,
@@ -140,11 +147,13 @@ dece_default_config = merge_dicts(
             CLIP_DIVERSITY_GRADIENT: True,
             DELAY_UPDATE: True,
             DIVERSITY_REWARD_TYPE: "mse",
-            REPLAY_VALUES: True,
+            REPLAY_VALUES: False,
             TWO_SIDE_CLIP_LOSS: True,
             I_AM_CLONE: False,
             ONLY_TNB: False,
             CONSTRAIN_NOVELTY: "soft",
+            PURE_OFF_POLICY: False,
+            NORMALIZE_ADVANTAGE: True,
 
             # vtrace
             # "use_vtrace": False,

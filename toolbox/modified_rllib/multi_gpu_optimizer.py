@@ -415,9 +415,9 @@ class LocalMultiGPUOptimizerCorrectedNumberOfSampled(LocalMultiGPUOptimizer):
                     1,
                     int(tuples_per_device) // int(self.per_device_batch_size)
                 )
-                assert int(tuples_per_device) % int(
-                    self.per_device_batch_size
-                ) == 0
+                # assert int(tuples_per_device) % int(
+                #     self.per_device_batch_size
+                # ) == 0
                 # assert num_batches == 1, (tuples_per_device,
                 # self.per_device_batch_size, num_batches)
                 # if self.use_vtrace:

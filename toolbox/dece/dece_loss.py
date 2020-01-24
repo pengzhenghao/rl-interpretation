@@ -1,8 +1,6 @@
-import logging
-
 from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
 from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, \
-    PPOLoss, ppo_surrogate_loss
+    PPOLoss as original_PPOLoss, ppo_surrogate_loss
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch
 
@@ -10,6 +8,13 @@ from toolbox.dece.dece_vtrace import build_appo_surrogate_loss
 from toolbox.dece.utils import *
 
 logger = logging.getLogger(__name__)
+
+
+def PPOLoss(*args, **kwargs):
+    """A workaround"""
+    if "is_ratio" in kwargs:
+        kwargs.pop("is_ratio")
+    return original_PPOLoss(*args, **kwargs)
 
 
 def loss_dece(policy, model, dist_class, train_batch):
@@ -275,7 +280,8 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
         model_config=policy.config["model"],
-        # is_ratio=train_batch['is_ratio'] if policy.config[REPLAY_VALUES] else None
+        # is_ratio=train_batch['is_ratio'] if policy.config[REPLAY_VALUES]
+        # else None
     )
     # FIXME we don't prepare to use vtrace in no replay values mode.
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:

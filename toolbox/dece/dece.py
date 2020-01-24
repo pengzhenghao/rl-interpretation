@@ -80,6 +80,11 @@ def make_policy_optimizer_tnbes(workers, config):
     if config["simple_optimizer"]:
         raise NotImplementedError()
 
+    if (not config[REPLAY_VALUES]) and config[NORMALIZE_ADVANTAGE]:
+        normalized_fields = ["advantages", NOVELTY_ADVANTAGES]
+    else:
+        normalized_fields = []
+
     return LocalMultiGPUOptimizerCorrectedNumberOfSampled(
         workers,
         compute_num_steps_sampled=None,
@@ -89,8 +94,7 @@ def make_policy_optimizer_tnbes(workers, config):
         sample_batch_size=config["sample_batch_size"],
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
-        standardize_fields=["advantages", NOVELTY_ADVANTAGES]
-        if not config[REPLAY_VALUES] else [],  # HERE!
+        standardize_fields=normalized_fields,
         shuffle_sequences=config["shuffle_sequences"]
         if not config[REPLAY_VALUES] else False
     )
@@ -117,7 +121,6 @@ def setup_policies_pool(trainer):
         for e in trainer.workers.remote_workers():
             e.set_weights.remote(weights)
         # by doing these, we sync the worker.polices for all workers.
-        # ray_get_and_free(weights)
 
     def _init_pool(worker, worker_index):
         def _init_novelty_policy(policy, my_policy_name):
@@ -146,7 +149,6 @@ def after_optimizer_iteration(trainer, fetches):
                 worker.foreach_policy(lambda p, _: p.update_clone_network())
 
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
-            ray_get_and_free(weights)
 
     if trainer.config[CONSTRAIN_NOVELTY] is not None:
         # print("***** enter update after optimizer iteration")

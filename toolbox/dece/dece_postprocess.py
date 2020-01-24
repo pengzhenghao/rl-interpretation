@@ -41,6 +41,10 @@ def postprocess_vtrace(policy, sample_batch, others_batches, episode):
     )
     batches = [batch]
     for pid, (other_policy, other_batch_raw) in others_batches.items():
+
+        if policy.config[ONLY_TNB]:
+            break
+
         if other_batch_raw is None:
             continue
         other_batch_raw = other_batch_raw.copy()
@@ -97,14 +101,21 @@ def postprocess_no_replay_values(
         )
         return batch
 
-    batch = sample_batch.copy()
-    batch = postprocess_ppo_gae(policy, batch)
-    batch["abs_advantage"] = np.abs(batch[Postprocessing.ADVANTAGES])
-    batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
-    batch = postprocess_diversity(policy, batch, others_batches)
-    batches = [batch]
+    if (not config[PURE_OFF_POLICY]) or (not others_batches):
+        batch = sample_batch.copy()
+        batch = postprocess_ppo_gae(policy, batch)
+        batch["abs_advantage"] = np.abs(batch[Postprocessing.ADVANTAGES])
+        batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
+        batch = postprocess_diversity(policy, batch, others_batches)
+        batches = [batch]
+    else:
+        batches = []
 
     for pid, (other_policy, other_batch_raw) in others_batches.items():
+
+        if policy.config[ONLY_TNB]:
+            break
+
         # The logic is that EVEN though we may use DISABLE or NO_REPLAY_VALUES,
         # but we still want to take a look of those statics.
         # Maybe in the future we can add knob to remove all such slowly stats.

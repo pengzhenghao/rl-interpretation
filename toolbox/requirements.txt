@@ -9,7 +9,7 @@ mkl-random
 opencv-python==4.0.0.21
 pytest==4.3.1
 ray==0.8.0
-tensorboard==1.15.0
+tensorboard==1.14.0
 tensorflow-probability
 yapf==0.27
 numpy==1.16.0
@@ -26,3 +26,4 @@ gym[atari]
 gputil
 ray[tune]
 ray[rllib]
+tensorflow-gpu==1.14.0
