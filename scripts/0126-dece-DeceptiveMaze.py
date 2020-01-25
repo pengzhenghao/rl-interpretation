@@ -41,7 +41,7 @@ dece_config.update(
         },
         "alpha_coefficient": tune.grid_search([0.05, 0.1, 0.01]),
         "tau": tune.grid_search([0.05, 0.1, 0.01]),
-        "novelty_stat_length": tune.grid_searhc([20, 50])
+        "novelty_stat_length": tune.grid_search([20, 50])
     },
 )
 
