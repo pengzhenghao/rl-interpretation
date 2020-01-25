@@ -41,16 +41,17 @@ def register_four_way():
         register_gym(
             id="DeceptiveMaze-v0",
             entry_point='toolbox.env.four_way:FourWayGridWorld',
-            kwargs={
+            kwargs={"env_config": {
                 "use_walls": True,
                 "init_loc": [8.0, 8.0],
                 "left": 0,
                 "right": 100,
                 "record_trajectory": True,
-                "early_done": True}
+                "early_done": True}}
         )
         print("Registed three environments: FourWay-v0, "
-              "FourWayUseWalls-v0, FourWayUseWallsFixed-v0 in Gym.")
+              "FourWayUseWalls-v0, FourWayUseWallsFixed-v0, DeceptiveMaze-v0 "
+              "in Gym.")
     try:
         from ray.tune.registry import register_env
         register_env(
@@ -77,7 +78,8 @@ def register_four_way():
                 "early_done": True})
         )
         print("Registed three environments: FourWay-v0, "
-              "FourWayUseWalls-v0, FourWayUseWallsFixed-v0 in RLLib.")
+              "FourWayUseWalls-v0, FourWayUseWallsFixed-v0, DeceptiveMaze-v0 "
+              "in RLLib.")
     except Exception:
         print("Failed to register environment in RLLib.")
 
