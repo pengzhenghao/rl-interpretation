@@ -112,8 +112,8 @@ class FourWayGridWorld(gym.Env):
     @property
     def done(self):
         if self.config['early_done']:
-            return (not (0 <= self.x <= self.N - 1)) or \
-                   (not (0 <= self.y <= self.N - 1)) or \
+            return (not (0 < self.x < self.N)) or \
+                   (not (0 < self.y < self.N)) or \
                    (self.step_num >= 2 * self.N)
         return self.step_num >= 2 * self.N
 
