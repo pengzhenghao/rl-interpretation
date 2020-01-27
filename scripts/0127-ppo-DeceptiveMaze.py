@@ -3,7 +3,10 @@ import pickle
 from ray import tune
 
 from toolbox import initialize_ray
+from toolbox.env import register_four_way
 from toolbox.utils import get_local_dir
+
+register_four_way()
 
 ppo_default_config = {
     "seed": tune.grid_search([i * 100 for i in range(3)]),
