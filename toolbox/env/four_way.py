@@ -1,8 +1,9 @@
+import copy
+
 import gym
 import numpy as np
 from gym.envs.registration import register as register_gym
 from gym.spaces import Box
-import copy
 
 default_config = dict(
     down=10,
@@ -21,25 +22,66 @@ default_config = dict(
 
 # We register a non-slippery version of FrozenLake environment.
 def register_four_way():
-    if "FourWay-v0" in [s.id for s in gym.envs.registry.all()]:
-        return
-    register_gym(
-        id='FourWay-v0',
-        entry_point='toolbox.env.four_way:FourWayGridWorld',
-        kwargs={},
-    )
-    register_gym(
-        id='FourWayUseWalls-v0',
-        entry_point='toolbox.env.four_way:FourWayGridWorld',
-        kwargs={"env_config": {"use_walls": True}},
-    )
-    register_gym(
-        id='FourWayUseWallsFixed-v0',
-        entry_point='toolbox.env.four_way:FourWayGridWorld',
-        kwargs={"env_config": {"use_walls": True, "init_loc": [8.0, 8.0]}},
-    )
-    print("Registed three environments: FourWay-v0, "
-          "FourWayUseWalls-v0, FourWayUseWallsFixed-v0.")
+    if "FourWay-v0" not in [s.id for s in gym.envs.registry.all()]:
+        register_gym(
+            id='FourWay-v0',
+            entry_point='toolbox.env.four_way:FourWayGridWorld',
+            kwargs={},
+        )
+        register_gym(
+            id='FourWayUseWalls-v0',
+            entry_point='toolbox.env.four_way:FourWayGridWorld',
+            kwargs={"env_config": {"use_walls": True}},
+        )
+        register_gym(
+            id='FourWayUseWallsFixed-v0',
+            entry_point='toolbox.env.four_way:FourWayGridWorld',
+            kwargs={"env_config": {"use_walls": True, "init_loc": [8.0, 8.0]}},
+        )
+        register_gym(
+            id="DeceptiveMaze-v0",
+            entry_point='toolbox.env.four_way:FourWayGridWorld',
+            kwargs={"env_config": {
+                "use_walls": True,
+                "init_loc": [8.0, 8.0],
+                "left": 0,
+                "right": 100,
+                "record_trajectory": True,
+                "early_done": True}}
+        )
+        print("Registed three environments: FourWay-v0, "
+              "FourWayUseWalls-v0, FourWayUseWallsFixed-v0, DeceptiveMaze-v0 "
+              "in Gym.")
+    try:
+        from ray.tune.registry import register_env
+        register_env(
+            'FourWay-v0',
+            lambda _: FourWayGridWorld()
+        )
+        register_env(
+            'FourWayUseWalls-v0',
+            lambda _: FourWayGridWorld(env_config={"use_walls": True}),
+        )
+        register_env(
+            'FourWayUseWallsFixed-v0',
+            lambda _: FourWayGridWorld(
+                env_config={"use_walls": True, "init_loc": [8.0, 8.0]}),
+        )
+        register_env(
+            'DeceptiveMaze-v0',
+            lambda _: FourWayGridWorld(env_config={
+                "use_walls": True,
+                "init_loc": [8.0, 8.0],
+                "left": 0,
+                "right": 100,
+                "record_trajectory": True,
+                "early_done": True})
+        )
+        print("Registed three environments: FourWay-v0, "
+              "FourWayUseWalls-v0, FourWayUseWallsFixed-v0, DeceptiveMaze-v0 "
+              "in RLLib.")
+    except Exception:
+        print("Failed to register environment in RLLib.")
 
 
 register_four_way()
@@ -109,12 +151,12 @@ class FourWayGridWorld(gym.Env):
         self.map[int(self.N / 2), self.N] = self.config['up']
         self.traj = []
 
-    @property
-    def done(self):
+    def is_done(self, reward):
         if self.config['early_done']:
-            return (not (0 <= self.x <= self.N - 1)) or \
-                   (not (0 <= self.y <= self.N - 1)) or \
-                   (self.step_num >= 2 * self.N)
+            return (not (0 < self.x < self.N)) or \
+                   (not (0 < self.y < self.N)) or \
+                   (self.step_num >= 2 * self.N) or \
+                   (reward > 0.1)
         return self.step_num >= 2 * self.N
 
     def step(self, action):
@@ -134,7 +176,7 @@ class FourWayGridWorld(gym.Env):
         self.step_num += 1
         if self.config['record_trajectory']:
             self.traj.append(loc)
-        return loc, reward, self.done, {}
+        return loc, reward, self.is_done(reward), {}
 
     def render(self, mode=None, **plt_kwargs):
         import matplotlib.pyplot as plt
@@ -213,6 +255,7 @@ def draw(compute_action, env_config=dict(), num_grids=32, **plt_kwargs):
                      shape='left')
     plt.show()
 
+
 def make_expert(env):
     config = env.config
     assert not config['use_walls']
@@ -220,7 +263,6 @@ def make_expert(env):
     env.reset()
     map = env.map
     goals = map > 0
-
 
 
 if __name__ == '__main__':
