@@ -63,8 +63,12 @@ def get_experiment_summary(trial_path):
                 tuning_keys.append(item_name)
         except TypeError:
             pass
-    for k, v in ret_df.groupby(tuning_keys):
-        print("\n=== Result For: <{}> ===\n".format(k), v.describe())
+
+    if tuning_keys:
+        for k, v in ret_df.groupby(tuning_keys):
+            print("\n=== Result For: <{}> ===\n".format(k), v.describe())
+    else:
+        print(ret_df.describe())
 
     info = {'tuning_keys': tuning_keys,
             "trial_dataframes": ana.trial_dataframes}
