@@ -64,7 +64,7 @@ def get_experiment_summary(trial_path):
         except TypeError:
             pass
     for k, v in ret_df.groupby(tuning_keys):
-        print(k, v.describe())
+        print("\n=== Result For: <{}> ===".format(k), v.describe())
 
     info = {'tuning_keys': tuning_keys,
             "trial_dataframes": ana.trial_dataframes}
