@@ -26,9 +26,9 @@ if __name__ == '__main__':
 
     walker_config = {
         DELAY_UPDATE: tune.grid_search([True]),
-        CONSTRAIN_NOVELTY: tune.grid_search(['soft', 'hard', None]),
+        CONSTRAIN_NOVELTY: tune.grid_search(['soft']),
         REPLAY_VALUES: tune.grid_search([False]),
-        USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([False]),
+        USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([False, True]),
         NORMALIZE_ADVANTAGE: tune.grid_search([False]),
 
         "env": MultiAgentEnvWrapper,
