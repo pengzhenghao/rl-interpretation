@@ -124,15 +124,23 @@ def only_tnb(local_mode=False):
     )
 
 
-def single_agent_cetnb(lm=False):
+def single_agent_dece(lm=False):
     test_dece(
         {
-            DELAY_UPDATE: tune.grid_search([True, False]),
+            DELAY_UPDATE: tune.grid_search([True]),
             REPLAY_VALUES: tune.grid_search([False]),
-            USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([True, False]),
+            USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([False]),
+            NORMALIZE_ADVANTAGE: tune.grid_search([False]),
+            'sample_batch_size': 50,
+            'sgd_minibatch_size': 64,
+            'train_batch_size': 2048,
+            "num_cpus_per_worker": 1,
+            "num_cpus_for_driver": 1,
+            "num_envs_per_worker": 5,
+            'num_workers': 1,
         },
         lm,
-        num_agents=tune.grid_search([1, 3])
+        num_agents=tune.grid_search([1])
     )
 
 
@@ -210,7 +218,7 @@ if __name__ == '__main__':
     # test_two_side_loss(local_mode=True)
     # test_delay_update(local_mode=False)
     # test_three_tuning(local_mode=False)
-    # single_agent_cetnb()
+    single_agent_dece()
     # only_tnb()
     # regression_test(local_mode=False)
     # test_vtrace(local_mode=True)
@@ -220,4 +228,4 @@ if __name__ == '__main__':
     # mock_experiment(False)
     # no_replay_values_batch_size_bug(True)
     # test_constrain_novelty(False)
-    test_marginal_cases(False)
+    # test_marginal_cases(False)
