@@ -6,13 +6,13 @@ from toolbox.env import FourWayGridWorld
 from toolbox.marl.test_extra_loss import _base
 
 
-def test_dece(config={}, local_mode=False, **kwargs):
+def test_dece(config={}, local_mode=False, t=2000, **kwargs):
     _base(
         trainer=DECETrainer,
         local_mode=local_mode,
         extra_config=config,
         env_name="Pendulum-v0",
-        t=2000,
+        t=t,
         **kwargs
     )
 
@@ -140,7 +140,8 @@ def single_agent_dece(lm=False):
             'num_workers': 1,
         },
         lm,
-        num_agents=tune.grid_search([1])
+        num_agents=tune.grid_search([1]),
+        t=10000
     )
 
 

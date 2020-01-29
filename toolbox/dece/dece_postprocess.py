@@ -21,55 +21,55 @@ def _compute_logp(logit, x):
     return logp, p
 
 
-def postprocess_vtrace(policy, sample_batch, others_batches, episode):
-    """Add novelty and MY_LOGIT into batches."""
-    batch = sample_batch.copy()
-    if not policy.loss_initialized():
-        batch[NOVELTY_REWARDS] = np.zeros_like(
-            batch[SampleBatch.REWARDS], dtype=np.float32
-        )
-        batch[MY_LOGP] = np.zeros_like(batch[ACTION_LOGP], dtype=np.float32)
-        batch[MY_LOGIT] = np.zeros_like(
-            batch[BEHAVIOUR_LOGITS], dtype=np.float32
-        )
-        return batch
-
-    batch[MY_LOGP] = batch[ACTION_LOGP].copy()
-    batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS].copy()
-    batch[NOVELTY_REWARDS] = policy.compute_novelty(
-        batch, others_batches, use_my_logit=True
-    )
-    batches = [batch]
-    for pid, (other_policy, other_batch_raw) in others_batches.items():
-
-        if policy.config[ONLY_TNB]:
-            break
-
-        if other_batch_raw is None:
-            continue
-        other_batch_raw = other_batch_raw.copy()
-
-        # add action_logp
-        replay_result = policy.compute_actions(
-            other_batch_raw[SampleBatch.CUR_OBS]
-        )[2]
-
-        other_batch_raw[MY_LOGP], _ = \
-            _compute_logp(
-                replay_result[BEHAVIOUR_LOGITS],
-                other_batch_raw[SampleBatch.ACTIONS]
-            )
-
-        other_batch_raw[MY_LOGIT] = \
-            replay_result[BEHAVIOUR_LOGITS]
-
-        other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
-            other_batch_raw, others_batches, use_my_logit=True
-        )
-
-        batches.append(other_batch_raw)
-    return SampleBatch.concat_samples(batches) if len(batches) != 1 \
-        else batches[0]
+# def postprocess_vtrace(policy, sample_batch, others_batches, episode):
+#     """Add novelty and MY_LOGIT into batches."""
+#     batch = sample_batch.copy()
+#     if not policy.loss_initialized():
+#         batch[NOVELTY_REWARDS] = np.zeros_like(
+#             batch[SampleBatch.REWARDS], dtype=np.float32
+#         )
+#         batch[MY_LOGP] = np.zeros_like(batch[ACTION_LOGP], dtype=np.float32)
+#         batch[MY_LOGIT] = np.zeros_like(
+#             batch[BEHAVIOUR_LOGITS], dtype=np.float32
+#         )
+#         return batch
+#
+#     batch[MY_LOGP] = batch[ACTION_LOGP].copy()
+#     batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS].copy()
+#     batch[NOVELTY_REWARDS] = policy.compute_novelty(
+#         batch, others_batches, use_my_logit=True
+#     )
+#     batches = [batch]
+#     for pid, (other_policy, other_batch_raw) in others_batches.items():
+#
+#         if policy.config[ONLY_TNB]:
+#             break
+#
+#         if other_batch_raw is None:
+#             continue
+#         other_batch_raw = other_batch_raw.copy()
+#
+#         # add action_logp
+#         replay_result = policy.compute_actions(
+#             other_batch_raw[SampleBatch.CUR_OBS]
+#         )[2]
+#
+#         other_batch_raw[MY_LOGP], _ = \
+#             _compute_logp(
+#                 replay_result[BEHAVIOUR_LOGITS],
+#                 other_batch_raw[SampleBatch.ACTIONS]
+#             )
+#
+#         other_batch_raw[MY_LOGIT] = \
+#             replay_result[BEHAVIOUR_LOGITS]
+#
+#         other_batch_raw[NOVELTY_REWARDS] = policy.compute_novelty(
+#             other_batch_raw, others_batches, use_my_logit=True
+#         )
+#
+#         batches.append(other_batch_raw)
+#     return SampleBatch.concat_samples(batches) if len(batches) != 1 \
+#         else batches[0]
 
 
 def postprocess_no_replay_values(

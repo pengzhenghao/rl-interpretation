@@ -294,7 +294,6 @@ class ConstrainNoveltyMixin:
         self.novelty_stat = deque(maxlen=self.maxlen)
 
     def update_alpha(self, sampled_novelty):
-        assert sampled_novelty > 0
         self.novelty_stat.append(sampled_novelty)
         if len(self.novelty_stat) < self.maxlen:
             # start tuning after the queue is full.
