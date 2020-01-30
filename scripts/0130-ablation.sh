@@ -22,7 +22,7 @@ diversity_reward_type
 
 for modename in "${modelist[@]}"; do
   srun --gres=gpu:4 -n1 --kill-on-bad-exit=1 --ntasks-per-node=1 \
-    --job-name=$envname --mem=0 --exclusive \
+    --job-name=modename --mem=0 --exclusive \
     python scripts/0130-ablation.py \
     --exp-name=0130-ablation-$modename \
     --mode=$modename \
