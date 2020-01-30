@@ -12,17 +12,15 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", type=str, required=True)
     parser.add_argument("--exp-name", type=str,
-                        default="0130-ablation")
+                        default="0130-dece")
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--env-name", type=str, default="Walker2DBulletEnv-v0")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
 
-    mode = args.mode
-    exp_name = args.exp_name + "-{}".format(mode)
+    exp_name = args.exp_name + "-{}".format(args.env_name)
 
     assert os.getenv("OMP_NUM_THREADS") == '1'
     # assert args.env_name in ['Walker2d-v3', 'Hopper-v3', 'HalfCheetah-v3']
