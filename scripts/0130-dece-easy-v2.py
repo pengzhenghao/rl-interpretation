@@ -27,9 +27,9 @@ if __name__ == '__main__':
 
     walker_config = {
         DELAY_UPDATE: tune.grid_search([True]),
-        CONSTRAIN_NOVELTY: tune.grid_search(['soft']),
+        CONSTRAIN_NOVELTY: tune.grid_search(['soft', 'hard', None]),
         REPLAY_VALUES: tune.grid_search([False]),
-        USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([False, True]),
+        USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([False]),
         NORMALIZE_ADVANTAGE: tune.grid_search([False]),
 
         "env": MultiAgentEnvWrapper,
@@ -41,7 +41,7 @@ if __name__ == '__main__':
         # should be fixed
         "kl_coeff": 1.0,
         "num_sgd_iter": 10,
-        "lr": 0.0002,
+        "lr": 0.0003,
         'sample_batch_size': 50,
         'sgd_minibatch_size': 64,
         'train_batch_size': 2048,
