@@ -4,6 +4,7 @@ import pickle
 from ray import tune
 
 from toolbox import initialize_ray, get_local_dir
+from toolbox.dece.utils import on_train_result
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -30,11 +31,15 @@ if __name__ == '__main__':
         'sample_batch_size': 200,
         'sgd_minibatch_size': 1000 if not is_humanoid else 4000,
         'train_batch_size': 10000 if not is_humanoid else 60000,
-        "num_gpus": 0,
+        "num_gpus": 0 if args.num_gpus == 0 else 0.25,
         "num_cpus_per_worker": 1,
         "num_cpus_for_driver": 1,
         "num_envs_per_worker": 8,
         'num_workers': 8 if not is_humanoid else 24,
+
+        "callbacks": {
+            "on_train_result": on_train_result
+        }
     }
 
     initialize_ray(
