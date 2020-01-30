@@ -15,6 +15,7 @@ if __name__ == '__main__':
     parser.add_argument("--exp-name", type=str, required=True)
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-seeds", type=int, default=3)
+    parser.add_argument("--stop", type=float, default=5e6)
     parser.add_argument("--env-name", type=str, default="Walker2d-v3")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
@@ -28,13 +29,13 @@ if __name__ == '__main__':
         DELAY_UPDATE: tune.grid_search([True]),
         CONSTRAIN_NOVELTY: tune.grid_search(['soft']),
         REPLAY_VALUES: tune.grid_search([False]),
-        USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([False]),
+        USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([False, True]),
         NORMALIZE_ADVANTAGE: tune.grid_search([False]),
 
         "env": MultiAgentEnvWrapper,
         "env_config": {
             "env_name": args.env_name,
-            "num_agents": tune.grid_search([1, 3, 7, 10])
+            "num_agents": tune.grid_search([5])
         },
 
         # should be fixed
@@ -54,7 +55,7 @@ if __name__ == '__main__':
         extra_config=walker_config,
         trainer=DECETrainer,
         env_name=walker_config['env_config']['env_name'],
-        stop={"timesteps_total": int(5e6) if not test else 2000},
+        stop={"timesteps_total": int(args.stop) if not test else 2000},
         exp_name=exp_name,
         num_agents=walker_config['env_config']['num_agents'],
         num_seeds=args.num_seeds,
