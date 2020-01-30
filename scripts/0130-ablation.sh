@@ -9,6 +9,14 @@ cd ~/novel-rl/
 #  'HopperBulletEnv-v0',
 #)
 
+modename=ppo
+
+srun --gres=gpu:0 -n1 --kill-on-bad-exit=1 --ntasks-per-node=1 \
+  --job-name=$modename --mem=0 --exclusive \
+  python scripts/0130-ppo-baseline-cpu.py \
+  --exp-name=0130-ablation-$modename \
+  2>&1 | tee 0130-ablation-log/$modename.log &
+
 modelist=(
 constrain_novelty
 use_bisector

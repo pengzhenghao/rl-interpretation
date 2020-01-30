@@ -38,7 +38,7 @@ if __name__ == '__main__':
         USE_BISECTOR: tune.grid_search([True]),
         DIVERSITY_REWARD_TYPE: tune.grid_search(['mse']),
         ONLY_TNB: tune.grid_search([False]),
-        NORMALIZE_ADVANTAGE: tune.grid_search(False),
+        NORMALIZE_ADVANTAGE: tune.grid_search([False]),
 
         "env": MultiAgentEnvWrapper,
         "env_config": {
