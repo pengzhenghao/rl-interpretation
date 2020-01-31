@@ -50,7 +50,7 @@ if __name__ == '__main__':
         'sample_batch_size': 50,
         'sgd_minibatch_size': 64,
         'train_batch_size': 2048,
-        "num_gpus": 0.2,
+        "num_gpus": 0 if args.num_gpus == 0 else 0.2,
         "num_cpus_per_worker": 1,
         "num_cpus_for_driver": 1,
         "num_envs_per_worker": 16,
