@@ -27,19 +27,15 @@ if __name__ == '__main__':
         # should be fixed
         "kl_coeff": 1.0,
         "num_sgd_iter": 10,
-        "lr": 0.0001,
-        'sample_batch_size': 200,
-        'sgd_minibatch_size': 1000 if not is_humanoid else 4000,
-        'train_batch_size': 10000 if not is_humanoid else 60000,
-        "num_gpus": 0 if args.num_gpus == 0 else 0.45,
+        "lr": 0.0002,
+        'sample_batch_size': 50,
+        'sgd_minibatch_size': 64,
+        'train_batch_size': 2048,
+        "num_gpus": 0.4,
         "num_cpus_per_worker": 1,
         "num_cpus_for_driver": 1,
-        "num_envs_per_worker": 8,
-        'num_workers': 8 if not is_humanoid else 24,
-
-        "callbacks": {
-            "on_train_result": on_train_result
-        }
+        "num_envs_per_worker": 5,
+        'num_workers': 1,
     }
 
     initialize_ray(
