@@ -160,7 +160,7 @@ dece_default_config = merge_dicts(
             'use_kl_loss': True,
             "clip_rho_threshold": 1.0,  # TODO
             "clip_pg_rho_threshold": 1.0,  # TODO
-            "normalize_advantage": True,
+            # "normalize_advantage": True,
             "novelty_target_multiplier": 1.0,
             "novelty_stat_length": 100,
             "alpha_coefficient": 0.01,
