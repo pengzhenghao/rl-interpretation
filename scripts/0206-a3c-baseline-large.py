@@ -24,14 +24,12 @@ if __name__ == '__main__':
         "seed": tune.grid_search([i * 100 for i in range(3)]),
         "env": env_name,
         # should be fixed
-        "lr": 0.0001,
-        'sample_batch_size': 200,
-        # 'sgd_minibatch_size': 1000,
+
+        'sample_batch_size': 20,
         'train_batch_size': 10000,
         "num_gpus": 1,
         "num_cpus_per_worker": 1,
         "num_cpus_for_driver": 1,
-        "num_envs_per_worker": 8,
         'num_workers': 8,
     }
 
@@ -53,7 +51,8 @@ if __name__ == '__main__':
         stop={"timesteps_total": int(5e7)},
         config=walker_config,
         max_failures=20,
-        reuse_actors=False
+        reuse_actors=False,
+        verbose=1
     )
 
     path = "{}-{}-{}ts.pkl".format(
