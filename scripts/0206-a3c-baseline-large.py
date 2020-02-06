@@ -26,7 +26,7 @@ if __name__ == '__main__':
         # should be fixed
         "lr": 0.0001,
         'sample_batch_size': 200,
-        'sgd_minibatch_size': 1000,
+        # 'sgd_minibatch_size': 1000,
         'train_batch_size': 10000,
         "num_gpus": 1,
         "num_cpus_per_worker": 1,
