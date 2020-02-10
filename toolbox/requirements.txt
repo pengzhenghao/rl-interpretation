@@ -4,12 +4,9 @@ gym==0.12.1
 lz4
 Markdown
 matplotlib
-mkl-fft
-mkl-random
 opencv-python==4.0.0.21
 pytest==4.3.1
 ray==0.8.0
-tensorboard==1.14.0
 tensorflow-probability
 yapf==0.27
 numpy==1.16.0
