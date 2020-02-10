@@ -95,7 +95,6 @@ if __name__ == '__main__':
 
     train(
         extra_config=config,
-        trainer=DiCETrainer,
         env_name=config['env_config']['env_name'],
         stop=stop,
         exp_name=exp_name,
