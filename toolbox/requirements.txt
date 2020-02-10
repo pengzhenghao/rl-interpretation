@@ -26,4 +26,4 @@ gym[atari]
 gputil
 ray[tune]
 ray[rllib]
-tensorflow-gpu==1.14.0
+tensorflow-gpu==1.15.2
