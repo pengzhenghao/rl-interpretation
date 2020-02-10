@@ -189,9 +189,11 @@ def dice_loss(policy, model, dist_class, train_batch):
             entropy_coeff=policy.entropy_coeff,
             clip_param=policy.config["clip_param"]
         )
-    policy.diversity_reward_mean = tf.reduce_mean(train_batch[DIVERSITY_REWARDS])
-    policy.debug_ratio = train_batch["debug_ratio"]
-    policy.abs_advantage = train_batch["abs_advantage"]
+    policy.diversity_reward_mean = tf.reduce_mean(
+        train_batch[DIVERSITY_REWARDS]
+    )
+    # policy.debug_ratio = train_batch["debug_ratio"]
+    # policy.abs_advantage = train_batch["abs_advantage"]
     return [policy.loss_obj.loss, policy.diversity_loss_obj.loss]
 
 

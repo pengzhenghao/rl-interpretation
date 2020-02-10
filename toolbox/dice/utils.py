@@ -67,9 +67,9 @@ def on_postprocess_traj(info):
     if agent_id != info['agent_id']:
         return
 
-    increment_count = int(np.mean(
-        [b.count for _, b in all_pre_batches.values()]
-    ))
+    increment_count = int(
+        np.mean([b.count for _, b in all_pre_batches.values()])
+    )
     current_count = episode.batch_builder.count
     corrected_count = current_count - increment_count + post_batch.count
     episode.batch_builder.count = corrected_count
@@ -91,15 +91,13 @@ PURE_OFF_POLICY = "pure_off_policy"
 NORMALIZE_ADVANTAGE = "normalize_advantage"
 
 dice_default_config = merge_dicts(
-    DEFAULT_CONFIG,
-    {
+    DEFAULT_CONFIG, {
         USE_BISECTOR: True,
         USE_DIVERSITY_VALUE_NETWORK: False,
         DELAY_UPDATE: True,
         TWO_SIDE_CLIP_LOSS: True,
         ONLY_TNB: False,
         NORMALIZE_ADVANTAGE: False,
-
         CLIP_DIVERSITY_GRADIENT: True,
         DIVERSITY_REWARD_TYPE: "mse",
         PURE_OFF_POLICY: False,
@@ -109,5 +107,26 @@ dice_default_config = merge_dicts(
             "on_postprocess_traj": on_postprocess_traj
         }
     }
-
 )
+
+
+def get_kl_divergence(source, target, mean=True):
+    assert source.ndim == 2
+    assert target.ndim == 2
+
+    source_mean, source_log_std = np.split(source, 2, axis=1)
+    target_mean, target_log_std = np.split(target, 2, axis=1)
+
+    kl_divergence = np.sum(
+        target_log_std - source_log_std + (
+            np.square(np.exp(source_log_std)) +
+            np.square(source_mean - target_mean)
+        ) / (2.0 * np.square(np.exp(target_log_std)) + 1e-10) - 0.5,
+        axis=1
+    )
+    kl_divergence = np.clip(kl_divergence, 1e-12, 1e38)  # to avoid inf
+    if mean:
+        averaged_kl_divergence = np.mean(kl_divergence)
+        return averaged_kl_divergence
+    else:
+        return kl_divergence

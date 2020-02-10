@@ -1,8 +1,7 @@
 import tensorflow as tf
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins, \
-    EntropyCoeffSchedule, \
-    BEHAVIOUR_LOGITS, kl_and_loss_stats, PPOTFPolicy, KLCoeffMixin, \
-    ValueNetworkMixin
+from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
+    EntropyCoeffSchedule, BEHAVIOUR_LOGITS, PPOTFPolicy, \
+    KLCoeffMixin
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.sample_batch import SampleBatch
@@ -13,20 +12,8 @@ from ray.rllib.utils.tf_ops import make_tf_callable
 from toolbox.dice.dice_loss import dice_loss, dice_gradient
 from toolbox.dice.dice_postprocess import postprocess_dice, MY_LOGIT
 from toolbox.dice.utils import *
-from toolbox.distance import get_kl_divergence
 
 logger = logging.getLogger(__name__)
-
-POLICY_SCOPE = "func"
-TARGET_POLICY_SCOPE = "target_func"
-
-
-def wrap_stats_ceppo(policy, train_batch):
-    ret = kl_and_loss_stats(policy, train_batch)
-    if hasattr(policy.loss_obj, "stats"):
-        assert isinstance(policy.loss_obj.stats, dict)
-        ret.update(policy.loss_obj.stats)
-    return ret
 
 
 def grad_stats_fn(policy, batch, grads):
@@ -72,8 +59,10 @@ class NoveltyValueNetworkMixin:
 
 def additional_fetches(policy):
     """Adds value function and logits outputs to experience train_batches."""
-    ret = {BEHAVIOUR_LOGITS: policy.model.last_output(),
-           SampleBatch.VF_PREDS: policy.model.value_function()}
+    ret = {
+        BEHAVIOUR_LOGITS: policy.model.last_output(),
+        SampleBatch.VF_PREDS: policy.model.value_function()
+    }
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret[DIVERSITY_VALUES] = policy.model.diversity_value_function()
     return ret
@@ -99,8 +88,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
         "diversity_kl": policy.diversity_loss_obj.mean_kl,
         "diversity_entropy": policy.diversity_loss_obj.mean_entropy,
         "diversity_reward_mean": policy.diversity_reward_mean,
-        "debug_ratio": policy.debug_ratio,
-        "abs_advantage": policy.abs_advantage
+        # "debug_ratio": policy.debug_ratio,
+        # "abs_advantage": policy.abs_advantage
     }
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret['diversity_vf_explained_var'] = explained_variance(
@@ -165,10 +154,13 @@ class ComputeNoveltyMixin:
                 np.split(logit, 2, axis=1)[0] for logit in replays.values()
             ]
             my_act = np.split(my_batch[logit_key], 2, axis=1)[0]
-            return np.mean([
-                (np.square(my_act - other_act)).mean(1)
-                for other_act in replays
-            ], axis=0)
+            return np.mean(
+                [
+                    (np.square(my_act - other_act)).mean(1)
+                    for other_act in replays
+                ],
+                axis=0
+            )
         else:
             raise NotImplementedError()
 
@@ -195,7 +187,7 @@ class TargetNetworkMixin:
             action_space,
             logit_dim,
             config["model"],
-            name=TARGET_POLICY_SCOPE,
+            name="target_func",
             framework="tf"
         )
 
@@ -211,29 +203,22 @@ class TargetNetworkMixin:
         for var, var_target in zip(self.model_vars, self.target_model_vars):
             assign_ops.append(
                 var_target.
-                    assign(self.tau * var + (1.0 - self.tau) * var_target)
+                assign(self.tau * var + (1.0 - self.tau) * var_target)
             )
         self.update_target_expr = tf.group(*assign_ops)
 
         @make_tf_callable(self.get_session(), True)
         def compute_clone_network_logits(ob):
-            # def compute_clone_network_logits(ob, prev_action, prev_reward):
-            # We do not support recurrent network now.
             feed_dict = {
                 SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
-                # SampleBatch.PREV_REWARDS: tf.convert_to_tensor(
-                #     prev_reward),
                 "is_training": tf.convert_to_tensor(False)
             }
-            # if prev_action is not None:
-            #     feed_dict[SampleBatch.PREV_ACTIONS] = tf.convert_to_tensor(
-            #         prev_action)
             model_out, _ = self.target_model(feed_dict)
             return model_out
 
         self._compute_clone_network_logits = compute_clone_network_logits
 
-    def update_clone_network(self, tau=None):
+    def update_target_network(self, tau=None):
         tau = tau or self.tau_value
         return self.get_session().run(
             self.update_target_expr, feed_dict={self.tau: tau}

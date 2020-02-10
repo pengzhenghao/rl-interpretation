@@ -2,13 +2,12 @@ import ray
 from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, \
     validate_config as validate_config_original
 from ray.rllib.models.catalog import ModelCatalog
+from ray.rllib.optimizers import LocalMultiGPUOptimizer
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
+from toolbox.dice.dice_model import ActorDoubleCriticNetwork
 from toolbox.dice.dice_policy import DiCEPolicy
 from toolbox.dice.utils import *
-from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
-from toolbox.modified_rllib.multi_gpu_optimizer import \
-    LocalMultiGPUOptimizerCorrectedNumberOfSampled
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,6 @@ def validate_config(config):
         ModelCatalog.register_custom_model(
             "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
         )
-
         config['model']['custom_model'] = "ActorDoubleCriticNetwork"
         config['model']['custom_options'] = {
             "use_diversity_value_network": config[USE_DIVERSITY_VALUE_NETWORK]
@@ -54,9 +52,8 @@ def make_policy_optimizer_tnbes(workers, config):
     else:
         normalized_fields = []
 
-    return LocalMultiGPUOptimizerCorrectedNumberOfSampled(
+    return LocalMultiGPUOptimizer(
         workers,
-        compute_num_steps_sampled=None,
         sgd_batch_size=config["sgd_minibatch_size"],
         num_sgd_iter=config["num_sgd_iter"],
         num_gpus=config["num_gpus"],
@@ -76,9 +73,6 @@ def setup_policies_pool(trainer):
     Second, build polices in each worker, based on the policy_map in them.
     Third, build the target model in each policy in policy_map, by syncing
     the weights of policy.model.
-
-
-
     """
     if not trainer.config[DELAY_UPDATE]:
         return
@@ -92,7 +86,7 @@ def setup_policies_pool(trainer):
 
     def _init_pool(worker, worker_index):
         def _init_diversity_policy(policy, my_policy_name):
-            policy.update_clone_network(tau=1.0)
+            policy.update_target_network(tau=1.0)
             policy._lazy_initialize(worker.policy_map, my_policy_name)
 
         worker.foreach_policy(_init_diversity_policy)
@@ -111,7 +105,7 @@ def after_optimizer_iteration(trainer, fetches):
                 e.set_weights.remote(weights)
 
             def _delay_update_for_worker(worker, worker_index):
-                worker.foreach_policy(lambda p, _: p.update_clone_network())
+                worker.foreach_policy(lambda p, _: p.update_target_network())
 
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 

@@ -14,8 +14,13 @@ num_agents_pair = tune.grid_search([1, 3])
 true_false_pair = tune.grid_search([True, False])
 
 
-def _test_dice(extra_config={}, local_mode=False, num_agents=3,
-               env_name="BipedalWalker-v2", t=2000):
+def _test_dice(
+        extra_config={},
+        local_mode=False,
+        num_agents=3,
+        env_name="BipedalWalker-v2",
+        t=2000
+):
     num_gpus = 0
     initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
 
