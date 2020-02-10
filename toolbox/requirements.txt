@@ -2,7 +2,7 @@ gym==0.12.1
 lz4
 Markdown
 matplotlib
-opencv-python==4.0.0.21
+opencv-python
 pytest==4.3.1
 ray==0.8.0
 tensorflow-probability
@@ -21,4 +21,3 @@ gym[atari]
 gputil
 ray[tune]
 ray[rllib]
-tensorflow-gpu==1.15.2
