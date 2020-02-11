@@ -3,8 +3,58 @@ import os
 
 from ray import tune
 
+from toolbox import initialize_ray
+from toolbox.dece.utils import *
+from toolbox.dice.dice import DiCETrainer
 from toolbox.marl import MultiAgentEnvWrapper
-from .train_dice_change_env import train
+
+
+def train(
+        extra_config,
+        env_name,
+        stop,
+        exp_name,
+        num_agents,
+        num_seeds,
+        num_gpus,
+        test_mode=False,
+        **kwargs
+):
+    initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
+    config = {
+        "seed": tune.grid_search([i * 100 for i in range(num_seeds)]),
+        "env": MultiAgentEnvWrapper,
+        "env_config": {"env_name": env_name, "num_agents": num_agents},
+        "log_level": "DEBUG" if test_mode else "INFO"
+    }
+    if extra_config:
+        config.update(extra_config)
+
+    analysis = tune.run(
+        DiCETrainer,
+        name=exp_name,
+        checkpoint_freq=10,
+        keep_checkpoints_num=10,
+        checkpoint_score_attr="episode_reward_mean",
+        checkpoint_at_end=True,
+        stop={"timesteps_total": stop}
+        if isinstance(stop, int) else stop,
+        config=config,
+        max_failures=20,
+        reuse_actors=False,
+        **kwargs
+    )
+
+    path = "{}-{}-{}ts-{}agents.pkl".format(
+        exp_name, env_name, stop, num_agents
+    )
+    with open(path, "wb") as f:
+        data = analysis.fetch_trial_dataframes()
+        pickle.dump(data, f)
+        print("Result is saved at: <{}>".format(path))
+
+    return analysis
+
 
 os.environ['OMP_NUM_THREADS'] = '1'
 
