@@ -63,22 +63,22 @@ if __name__ == '__main__':
     parser.add_argument("--exp-name", type=str, required=True)
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-seeds", type=int, default=3)
+    parser.add_argument("--num-agents", type=int, default=5)
     parser.add_argument("--stop", type=float, default=5e6)
     parser.add_argument("--env-name", type=str, default="Walker2d-v3")
-    parser.add_argument("--large", action="store_true")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
 
     env_name = args.env_name
     exp_name = "{}-{}".format(args.exp_name, env_name)
     stop = int(args.stop)
-    large = bool(args.large)
+    large = env_name in ["Walker2d-v3", "Hopper-v3"]
 
     config = {
         "env": MultiAgentEnvWrapper,
         "env_config": {
             "env_name": env_name,
-            "num_agents": tune.grid_search([5])
+            "num_agents": tune.grid_search([args.num_agents])
         },
         "kl_coeff": 1.0,
         "num_sgd_iter": 10,
