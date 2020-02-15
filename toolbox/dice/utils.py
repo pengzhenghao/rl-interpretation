@@ -1,3 +1,6 @@
+"""
+This files defines some constants and provides some useful utilities.
+"""
 import logging
 
 import numpy as np
@@ -54,16 +57,24 @@ def on_train_result(info):
 
 
 def on_postprocess_traj(info):
-    """We correct the count of the MultiAgentBatch"""
+    """Originally, the sampled steps is accumulated by the count of the batch
+    return by the postprocess function in dice_postprocess.py. Since we
+    merge the batches of other polices into the batch of one policy,
+    the count of the batch should changed to the number of sampled of all
+    policies. However it's not changed. In this function, we correct the
+    count of the MultiAgentBatch in order to make a fair comparison between
+    DiCE and baseline.
+    """
     episode = info['episode']
 
     if episode._policies[info['agent_id']].config[ONLY_TNB]:
+        # ONLY_TNB modes mean we using purely DR, without CE. So in that case
+        # we don't need to correct the count since no other batches are merged.
         return
 
     post_batch = info['post_batch']
     all_pre_batches = info['all_pre_batches']
     agent_id = next(iter(all_pre_batches.keys()))
-
     if agent_id != info['agent_id']:
         return
 
@@ -75,14 +86,14 @@ def on_postprocess_traj(info):
     episode.batch_builder.count = corrected_count
 
 
-USE_BISECTOR = "use_bisector"
+USE_BISECTOR = "use_bisector"  # If false, the the DR is disabled.
 USE_DIVERSITY_VALUE_NETWORK = "use_diversity_value_network"
-CLIP_DIVERSITY_GRADIENT = "clip_diversity_gradient"
 DELAY_UPDATE = "delay_update"
-DIVERSITY_REWARD_TYPE = "diversity_reward_type"
 TWO_SIDE_CLIP_LOSS = "two_side_clip_loss"
-ONLY_TNB = "only_tnb"
+ONLY_TNB = "only_tnb"  # If true, then the CE is disabled.
 
+CLIP_DIVERSITY_GRADIENT = "clip_diversity_gradient"
+DIVERSITY_REWARD_TYPE = "diversity_reward_type"
 DIVERSITY_REWARDS = "diversity_rewards"
 DIVERSITY_VALUES = "diversity_values"
 DIVERSITY_ADVANTAGES = "diversity_advantages"
@@ -119,8 +130,8 @@ def get_kl_divergence(source, target, mean=True):
 
     kl_divergence = np.sum(
         target_log_std - source_log_std + (
-            np.square(np.exp(source_log_std)) +
-            np.square(source_mean - target_mean)
+                np.square(np.exp(source_log_std)) +
+                np.square(source_mean - target_mean)
         ) / (2.0 * np.square(np.exp(target_log_std)) + 1e-10) - 0.5,
         axis=1
     )
