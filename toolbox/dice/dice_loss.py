@@ -1,7 +1,13 @@
+"""
+The Two-side Clip Loss and the diversity-regularized learning is implemented
+in this file.
+
+First we compute the task loss and the diversity loss in dice_loss. Then we
+implement the Diversity Regularization module in dice_gradient.
+"""
 import tensorflow as tf
 from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
-from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, \
-    PPOLoss as original_PPOLoss
+from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, PPOLoss
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch
 
@@ -10,14 +16,9 @@ from toolbox.dice.utils import *
 logger = logging.getLogger(__name__)
 
 
-def PPOLoss(*args, **kwargs):
-    """A workaround"""
-    if "is_ratio" in kwargs:
-        kwargs.pop("is_ratio")
-    return original_PPOLoss(*args, **kwargs)
+class PPOLossTwoSideDiversity(object):
+    """Compute the PPO loss for diversity without diversity value network"""
 
-
-class PPOLossTwoSideNovelty(object):
     def __init__(
             self,
             dist_class,
@@ -54,29 +55,27 @@ class PPOLossTwoSideNovelty(object):
 
 
 class PPOLossTwoSideClip(object):
-    def __init__(
-            self,
-            action_space,
-            dist_class,
-            model,
-            value_targets,
-            advantages,
-            actions,
-            prev_logits,
-            prev_actions_logp,
-            vf_preds,
-            curr_action_dist,
-            value_fn,
-            cur_kl_coeff,
-            valid_mask,
-            entropy_coeff=0,
-            clip_param=0.1,
-            vf_clip_param=0.1,
-            vf_loss_coeff=1.0,
-            use_gae=True,
-            model_config=None,
-            is_ratio=None
-    ):
+    def __init__(self,
+                 action_space,
+                 dist_class,
+                 model,
+                 value_targets,
+                 advantages,
+                 actions,
+                 prev_logits,
+                 prev_actions_logp,
+                 vf_preds,
+                 curr_action_dist,
+                 value_fn,
+                 cur_kl_coeff,
+                 valid_mask,
+                 entropy_coeff=0,
+                 clip_param=0.1,
+                 vf_clip_param=0.1,
+                 vf_loss_coeff=1.0,
+                 use_gae=True,
+                 model_config=None,
+                 ):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
@@ -115,7 +114,7 @@ class PPOLossTwoSideClip(object):
 
 
 def dice_loss(policy, model, dist_class, train_batch):
-    """Add diversity loss with original ppo loss using TNB method"""
+    """Compute the task loss and the diversity loss for gradients computing."""
     logits, state = model.from_batch(train_batch)
     action_dist = dist_class(logits, model)
 
@@ -152,7 +151,11 @@ def dice_loss(policy, model, dist_class, train_batch):
         use_gae=policy.config["use_gae"],
         model_config=policy.config["model"],
     )
+
+    # Build the loss for diversity
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
+        # if we don't use DVN, we don't have diversity values, so the
+        # entries of loss object is also changed.
         policy.diversity_loss_obj = loss_cls(
             policy.action_space,
             dist_class,
@@ -172,11 +175,10 @@ def dice_loss(policy, model, dist_class, train_batch):
             vf_clip_param=policy.config["vf_clip_param"],
             vf_loss_coeff=policy.config["vf_loss_coeff"],
             use_gae=policy.config["use_gae"],
-            model_config=policy.config["model"],
-            is_ratio=train_batch['is_ratio']
+            model_config=policy.config["model"]
         )
     else:
-        policy.diversity_loss_obj = PPOLossTwoSideNovelty(
+        policy.diversity_loss_obj = PPOLossTwoSideDiversity(
             dist_class,
             model,
             train_batch[DIVERSITY_ADVANTAGES],
@@ -189,11 +191,11 @@ def dice_loss(policy, model, dist_class, train_batch):
             entropy_coeff=policy.entropy_coeff,
             clip_param=policy.config["clip_param"]
         )
+
+    # Add the diversity reward as a stat
     policy.diversity_reward_mean = tf.reduce_mean(
         train_batch[DIVERSITY_REWARDS]
     )
-    # policy.debug_ratio = train_batch["debug_ratio"]
-    # policy.abs_advantage = train_batch["abs_advantage"]
     return [policy.loss_obj.loss, policy.diversity_loss_obj.loss]
 
 
@@ -203,7 +205,12 @@ def _flatten(tensor):
 
 
 def dice_gradient(policy, optimizer, loss):
+    """Implement the idea of gradients bisector to fuse the task gradients
+    with the diversity gradient.
+    """
     if not policy.config[USE_BISECTOR]:
+        # For ablation study. If don't use bisector, we simply return the
+        # task gradient.
         with tf.control_dependencies([loss[1]]):
             policy_grad = optimizer.compute_gradients(loss[0])
         return policy_grad
@@ -217,6 +224,7 @@ def dice_gradient(policy, optimizer, loss):
     diversity_grad_flatten = []
     diversity_grad_info = []
 
+    # First, flatten task gradient and diversity gradient into two vector.
     for (pg, var), (ng, var2) in zip(policy_grad, diversity_grad):
         assert var == var2
         if pg is None:
@@ -237,37 +245,36 @@ def dice_gradient(policy, optimizer, loss):
     policy_grad_flatten = tf.concat(policy_grad_flatten, 0)
     diversity_grad_flatten = tf.concat(diversity_grad_flatten, 0)
 
-    # implement the logic of TNB
+    # Second, compute the norm of two gradient.
     policy_grad_norm = tf.linalg.l2_normalize(policy_grad_flatten)
     diversity_grad_norm = tf.linalg.l2_normalize(diversity_grad_flatten)
-    cos_similarity = tf.reduce_sum(
-        tf.multiply(policy_grad_norm, diversity_grad_norm)
-    )
 
-    tg = tf.linalg.l2_normalize(policy_grad_norm + diversity_grad_norm)
+    # Third, compute the bisector.
+    final_grad = tf.linalg.l2_normalize(policy_grad_norm + diversity_grad_norm)
 
-    pg_length = tf.norm(tf.multiply(policy_grad_flatten, tg))
-    ng_length = tf.norm(tf.multiply(diversity_grad_flatten, tg))
-
+    # Fourth, compute the length of the final gradient.
+    pg_length = tf.norm(tf.multiply(policy_grad_flatten, final_grad))
+    ng_length = tf.norm(tf.multiply(diversity_grad_flatten, final_grad))
     if policy.config[CLIP_DIVERSITY_GRADIENT]:
         ng_length = tf.minimum(pg_length, ng_length)
-
     tg_lenth = (pg_length + ng_length) / 2
-    tg = tg * tg_lenth
-    total_grad = tg
 
-    policy.gradient_cosine_similarity = cos_similarity
+    final_grad = final_grad * tg_lenth
+
+    # add some stats.
+    policy.gradient_cosine_similarity = tf.reduce_sum(
+        tf.multiply(policy_grad_norm, diversity_grad_norm)
+    )
     policy.policy_grad_norm = tf.norm(policy_grad_flatten)
     policy.diversity_grad_norm = tf.norm(diversity_grad_flatten)
 
-    # reshape back the gradients
+    # Fifth, split the flatten vector into the original form as the final
+    # gradients.
     count = 0
     for idx, (flat_shape, org_shape, var) in enumerate(policy_grad_info):
         assert flat_shape is not None
-        # return_gradients.append((None, var))
-        #     continue
         size = flat_shape.as_list()[0]
-        grad = total_grad[count:count + size]
+        grad = final_grad[count:count + size]
         return_gradients[var] = (tf.reshape(grad, org_shape), var)
         count += size
 

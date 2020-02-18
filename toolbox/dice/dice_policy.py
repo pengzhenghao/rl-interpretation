@@ -1,3 +1,11 @@
+"""
+This file implement a DiCE policy. Note that in one DiCE trainer, there are
+many DiCE policies, each serves as a member in the team. We implement the
+following functions for each policy:
+1. Compute the diversity of one policy against others.
+2. Maintain the target network for each policy if in DELAY_UPDATE mode.
+3. Update the target network for each training iteration.
+"""
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
     EntropyCoeffSchedule, BEHAVIOUR_LOGITS, PPOTFPolicy, \
@@ -28,7 +36,7 @@ def grad_stats_fn(policy, batch, grads):
         return {}
 
 
-class NoveltyValueNetworkMixin:
+class DiversityValueNetworkMixin:
     def __init__(self, obs_space, action_space, config):
         if config["use_gae"] and config[USE_DIVERSITY_VALUE_NETWORK]:
 
@@ -58,7 +66,7 @@ class NoveltyValueNetworkMixin:
 
 
 def additional_fetches(policy):
-    """Adds value function and logits outputs to experience train_batches."""
+    """Fetch diversity values if using diversity value network."""
     ret = {
         BEHAVIOUR_LOGITS: policy.model.last_output(),
         SampleBatch.VF_PREDS: policy.model.value_function()
@@ -69,6 +77,7 @@ def additional_fetches(policy):
 
 
 def kl_and_loss_stats_modified(policy, train_batch):
+    """Add the diversity-related stats here."""
     ret = {
         "cur_kl_coeff": tf.cast(policy.kl_coeff, tf.float64),
         "cur_lr": tf.cast(policy.cur_lr, tf.float64),
@@ -88,8 +97,6 @@ def kl_and_loss_stats_modified(policy, train_batch):
         "diversity_kl": policy.diversity_loss_obj.mean_kl,
         "diversity_entropy": policy.diversity_loss_obj.mean_entropy,
         "diversity_reward_mean": policy.diversity_reward_mean,
-        # "debug_ratio": policy.debug_ratio,
-        # "abs_advantage": policy.abs_advantage
     }
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret['diversity_vf_explained_var'] = explained_variance(
@@ -99,12 +106,22 @@ def kl_and_loss_stats_modified(policy, train_batch):
     return ret
 
 
-class ComputeNoveltyMixin:
+class ComputeDiversityMixin:
+    """This class initialize a reference of the policies pool within each
+    policy, and provide the function to compute the diversity of each policy.
+
+    The _lazy_initialize is only called in DELAY_UPDATE mode. This is because
+    if we compute diversity of this policy against other latest policies,
+    we can simply access other policies via other_batches, the input to the
+    compute_diversity function.
+    """
+
     def __init__(self):
         self.initialized_policies_pool = False
         self.policies_pool = {}
 
     def _lazy_initialize(self, policies_pool, my_name):
+        """Initialize the reference of policies pool within this policy."""
         assert self.config[DELAY_UPDATE]
         self.policies_pool = {
             agent_name: other_policy
@@ -114,20 +131,20 @@ class ComputeNoveltyMixin:
         self.num_of_policies = len(self.policies_pool)
         self.initialized_policies_pool = True
 
-    def compute_diversity(self, my_batch, others_batches, use_my_logit):
-        """It should be noted that in Cooperative Exploration setting,
-        This implementation is inefficient. Since the 'observation' of each
-        agent are identical, though may different in order, so we call the
-        compute_actions for num_agents * num_agents * batch_size times overall.
-        """
+    def compute_diversity(self, my_batch, others_batches):
+        """Compute the diversity of this agent."""
         replays = {}
         if self.config[DELAY_UPDATE]:
+            # If in DELAY_UPDATE mode, compute diversity against the target
+            # network of each policies.
             for other_name, other_policy in self.policies_pool.items():
                 logits = other_policy._compute_clone_network_logits(
                     my_batch[SampleBatch.CUR_OBS]
                 )
                 replays[other_name] = logits
         else:
+            # Otherwise compute the diversity against other latest policies
+            # contained in other_batches.
             if not others_batches:
                 return np.zeros_like(
                     my_batch[SampleBatch.REWARDS], dtype=np.float32
@@ -138,12 +155,12 @@ class ComputeNoveltyMixin:
                 )
                 replays[other_name] = info[BEHAVIOUR_LOGITS]
 
-        logit_key = MY_LOGIT if use_my_logit else BEHAVIOUR_LOGITS
-
+        # Compute the diversity loss based on the action distribution of
+        # this policy and other polices.
         if self.config[DIVERSITY_REWARD_TYPE] == "kl":
             return np.mean(
                 [
-                    get_kl_divergence(my_batch[logit_key], logit, mean=False)
+                    get_kl_divergence(my_batch[MY_LOGIT], logit, mean=False)
                     for logit in replays.values()
                 ],
                 axis=0
@@ -153,7 +170,7 @@ class ComputeNoveltyMixin:
             replays = [
                 np.split(logit, 2, axis=1)[0] for logit in replays.values()
             ]
-            my_act = np.split(my_batch[logit_key], 2, axis=1)[0]
+            my_act = np.split(my_batch[MY_LOGIT], 2, axis=1)[0]
             return np.mean(
                 [
                     (np.square(my_act - other_act)).mean(1)
@@ -165,20 +182,21 @@ class ComputeNoveltyMixin:
             raise NotImplementedError()
 
 
-def setup_mixins_dece(policy, action_space, obs_space, config):
-    setup_mixins(policy, action_space, obs_space, config)
-    NoveltyValueNetworkMixin.__init__(policy, obs_space, action_space, config)
-    ComputeNoveltyMixin.__init__(policy)
-
-
 class TargetNetworkMixin:
+    """This class implement the DELAY_UPDATE mechanism. Allowing:
+    1. delayed update the targets networks of each policy.
+    2. allowed fetches of action distribution of the target network of each
+    policy.
+
+    Note that this Mixin is with policy. That is to say, the target network
+    of each policy is maintain by their own. After each training iteration, all
+    policy will update their own target network.
+    """
+
     def __init__(self, obs_space, action_space, config):
-        """Target Network is updated by the master learner every
-        trainer.update_target_frequency steps. All worker batches
-        are importance sampled w.r. to the target network to ensure
-        a more stable pi_old in PPO.
-        """
         assert config[DELAY_UPDATE]
+
+        # Build the target network of this policy.
         _, logit_dim = ModelCatalog.get_action_dist(
             action_space, config["model"]
         )
@@ -190,12 +208,11 @@ class TargetNetworkMixin:
             name="target_func",
             framework="tf"
         )
-
         self.model_vars = self.model.variables()
         self.target_model_vars = self.target_model.variables()
-
         self.get_session().run(tf.initialize_variables(self.target_model_vars))
 
+        # Here is the delayed update mechanism.
         self.tau_value = config.get("tau")
         self.tau = tf.placeholder(tf.float32, (), name="tau")
         assign_ops = []
@@ -203,7 +220,7 @@ class TargetNetworkMixin:
         for var, var_target in zip(self.model_vars, self.target_model_vars):
             assign_ops.append(
                 var_target.
-                assign(self.tau * var + (1.0 - self.tau) * var_target)
+                    assign(self.tau * var + (1.0 - self.tau) * var_target)
             )
         self.update_target_expr = tf.group(*assign_ops)
 
@@ -219,10 +236,18 @@ class TargetNetworkMixin:
         self._compute_clone_network_logits = compute_clone_network_logits
 
     def update_target_network(self, tau=None):
+        """Delayed update the target network."""
         tau = tau or self.tau_value
         return self.get_session().run(
             self.update_target_expr, feed_dict={self.tau: tau}
         )
+
+
+def setup_mixins_dece(policy, action_space, obs_space, config):
+    setup_mixins(policy, action_space, obs_space, config)
+    DiversityValueNetworkMixin.__init__(policy, obs_space, action_space,
+                                        config)
+    ComputeDiversityMixin.__init__(policy)
 
 
 def setup_late_mixins(policy, obs_space, action_space, config):
@@ -243,7 +268,7 @@ DiCEPolicy = PPOTFPolicy.with_updates(
     after_init=setup_late_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-        ValueNetworkMixin, NoveltyValueNetworkMixin, ComputeNoveltyMixin,
+        ValueNetworkMixin, DiversityValueNetworkMixin, ComputeDiversityMixin,
         TargetNetworkMixin
     ]
 )
