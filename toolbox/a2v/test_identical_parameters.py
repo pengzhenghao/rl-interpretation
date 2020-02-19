@@ -82,10 +82,11 @@ def test_reference_consistency():
     initialize_ray(test_mode=True)
     algos = ["PPO", "ES", "TD3"]
     rws = {}
-    for algo in algos:
+    for i, algo in enumerate(algos):
         trainer = get_dynamic_trainer(algo)(config={
             "env": "BipedalWalker-v2",
             "init_seed": 10000,
+            "seed": i * 1000 + 789
         })
         rw = {
             k: v for k, v in
@@ -93,14 +94,12 @@ def test_reference_consistency():
             if "value" not in k
         }
         rws[algo] = rw
-
     ks = list(rws)
     first_weight_dict = next(iter(rws.values()))
     for weight_name in first_weight_dict.keys():
         print("Current weight name: ", weight_name)
         for weight_dict_name in ks[1:]:
             weight_dict = rws[weight_dict_name]
-
             assert_equal(first_weight_dict[weight_name],
                          weight_dict[weight_name])
 
