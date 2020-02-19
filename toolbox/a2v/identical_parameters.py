@@ -295,5 +295,6 @@ if __name__ == '__main__':
         exp_name=exp_name,
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
-        test_mode=test
+        test_mode=test,
+        verbose=1,
     )
