@@ -244,7 +244,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     algo = args.algo
     test = args.test
-    exp_name = "{}-{}-{}".format(args.exp_name, algo, args.init_seed)
+    exp_name = "{}-{}-seed{}-{}agents".format(args.exp_name, algo,
+                                              args.init_seed, args.num_seeds)
 
     os.environ['OMP_NUM_THREADS'] = '1'
 
