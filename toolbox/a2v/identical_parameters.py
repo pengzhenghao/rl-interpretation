@@ -237,14 +237,14 @@ if __name__ == '__main__':
     parser.add_argument("--exp-name", type=str, required=True)
     parser.add_argument("--algo", type=str, required=True)
     parser.add_argument("--num-gpus", type=int, default=4)
-    parser.add_argument("--num-seeds", type=int, default=3)
-    parser.add_argument("--num-agents", type=int, default=5)
-    parser.add_argument("--stop", type=float, default=5e6)
+    parser.add_argument("--num-seeds", type=int, default=10)
+    parser.add_argument("--init-seed", type=int, default=2020)
     parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
     algo = args.algo
     test = args.test
+    exp_name = "{}-{}-{}".format(args.exp_name, algo, args.init_seed)
 
     os.environ['OMP_NUM_THREADS'] = '1'
 
@@ -278,7 +278,7 @@ if __name__ == '__main__':
     stop = int(algo_specify_stop[algo]) if not test else 10000
     config = algo_specify_config[algo]
     config.update({
-        "init_seed": 2020,
+        "init_seed": args.init_seed,
         "log_level": "DEBUG" if test else "ERROR",
         "num_gpus": 0.2,
         "num_cpus_for_driver": 0.2,
@@ -290,7 +290,7 @@ if __name__ == '__main__':
         extra_config=config,
         env_name=args.env_name,
         stop=stop,
-        exp_name=args.exp_name,
+        exp_name=exp_name,
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
         test_mode=test
