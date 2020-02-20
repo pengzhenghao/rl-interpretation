@@ -194,7 +194,7 @@ class GridVideoRecorder(object):
                 break
 
         env.close()
-        agent.stop()
+        # agent.stop()
         period_info = extra_info['period_info']
         if period_info:
             period_source = np.stack(period_info)
