@@ -132,7 +132,7 @@ class RolloutWorkerWrapper(object):
 
         # This is a workaround for ES agent.
         self.is_es_agent = False
-        if self.run_name == "ES":
+        if "ES" in self.run_name:
             self.is_es_agent = True
 
     def _lazy_reset(self):
@@ -449,7 +449,7 @@ def rollout(
         multiagent = isinstance(env, MultiAgentEnv)
         if agent.workers.local_worker().multiagent:
             policy_agent_mapping = agent.config["multiagent"
-                                                ]["policy_mapping_fn"]
+            ]["policy_mapping_fn"]
 
         policy_map = agent.workers.local_worker().policy_map
         state_init = {p: m.get_initial_state() for p, m in policy_map.items()}
@@ -536,7 +536,7 @@ def rollout(
                         agent_states[agent_id] = p_state
                     else:
                         # This is a workaround
-                        if agent._name == "ES":
+                        if "ES" in agent._name:
                             a_action = agent.compute_action(a_obs)
                             a_info = {}
                         else:
@@ -553,10 +553,10 @@ def rollout(
                     if require_extra_info:
                         extra_infos.append(a_info)
                     # This is a work around
-                    if agent._name != "ES":
+                    if "ES" not in agent._name:
                         value_functions[agent_id] = a_info["vf_preds"]
             # This is a work around
-            if require_frame and agent._name != "ES":
+            if require_frame and ("ES" not in agent._name):
                 frame_extra_info['value_function'].append(
                     value_functions[_DUMMY_AGENT_ID]
                 )
