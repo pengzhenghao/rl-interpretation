@@ -112,7 +112,7 @@ class _CollectFramesWorker(WorkerBase):
                     )
                 )
         env.close()
-        agent.stop()
+        # agent.stop()
         return frames, extra_info
 
 
