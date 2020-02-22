@@ -32,7 +32,7 @@ def _test_basic(algo):
     if algo == "ES":
         tw = {k: v for k, v in
               trainer.policy.variables.get_weights().items()}
-    elif algo == "PPO":
+    elif algo == "PPO" or algo == "A2C":
         tw = {k: v for k, v in trainer.get_weights()['default_policy'].items()
               if "value" not in k}
     elif algo == "TD3":
@@ -80,7 +80,7 @@ def _test_blackbox(algo):
 
 def test_reference_consistency():
     initialize_ray(test_mode=True)
-    algos = ["PPO", "ES", "TD3"]
+    algos = ["PPO", "ES", "TD3", "A2C"]
     rws = {}
     for i, algo in enumerate(algos):
         trainer = get_dynamic_trainer(algo)(config={
@@ -114,6 +114,9 @@ class BasicTest(unittest.TestCase):
     def test_td3(self):
         _test_basic("TD3")
 
+    def test_a2c(self):
+        _test_basic("TD3")
+
 
 class BlackBoxTest(unittest.TestCase):
     def test_ppo(self):
@@ -123,6 +126,9 @@ class BlackBoxTest(unittest.TestCase):
         _test_blackbox("ES")
 
     def test_td3(self):
+        _test_blackbox("TD3")
+
+    def test_a2c(self):
         _test_blackbox("TD3")
 
 

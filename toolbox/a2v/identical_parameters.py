@@ -3,6 +3,7 @@ import copy
 import os
 
 from ray import tune
+from ray.rllib.agents.a3c import A2CTrainer
 from ray.rllib.agents.ddpg import TD3Trainer
 from ray.rllib.agents.es import ESTrainer
 from ray.rllib.agents.ppo import PPOTrainer
@@ -116,6 +117,17 @@ def set_td3_from_ppo(td3_agent, ppo_agent):
     return td3_agent
 
 
+def set_a2c_from_ppo(a2c_agent, ppo_agent):
+    assert a2c_agent.config["model"]["vf_share_layers"] == False
+    weights = ppo_agent.get_weights()
+    model_weight = weights["default_policy"]
+    a2c_keys = model_weight.keys()
+    for k in a2c_keys:
+        assert k in model_weight, (k, model_weight.keys(), a2c_keys)
+    a2c_agent.set_weights(weights)
+    return a2c_agent
+
+
 class TrainerBaseWrapper:
     def __init__(self, base, config=None, *args, **kwargs):
         assert "init_seed" in config, config.keys()
@@ -135,7 +147,8 @@ class TrainerBaseWrapper:
         })
 
         # Update the config if necessary.
-        config = copy.deepcopy(config)
+        org_config.update(config)
+        config = copy.deepcopy(org_config)
         if algo == "TD3":
             config.update({
                 "actor_hiddens": [256, 256],
@@ -143,9 +156,12 @@ class TrainerBaseWrapper:
                 "actor_hidden_activation": "tanh",
                 "critic_hidden_activation": "tanh"
             })
+        elif algo == "A2C":
+            if config["model"]["vf_share_layers"]:
+                print("A2C should not share value function layers. "
+                      "So we set config['model']['vf_share_layers'] to False")
+                config["model"]["vf_share_layers"] = False
         config["seed"] = init_seed
-        org_config.update(config)
-        config = org_config
 
         self.__config = config
 
@@ -160,6 +176,8 @@ class TrainerBaseWrapper:
             set_td3_from_ppo(self, ppo_agent)
         elif algo == "ES":
             set_es_from_ppo(self, ppo_agent)
+        elif algo == "A2C":
+            set_a2c_from_ppo(self, ppo_agent)
         else:
             raise NotImplementedError("Config is: {}".format(config))
 
@@ -177,6 +195,8 @@ def get_dynamic_trainer(algo):
         base = PPOTrainer
     elif algo == "ES":
         base = ESTrainer
+    elif algo == "A2C":
+        base = A2CTrainer
     else:
         raise NotImplementedError()
 
@@ -268,6 +288,13 @@ if __name__ == '__main__':
         },
         "ES": {
             "observation_filter": "NoFilter",
+        },
+        "A2C": {
+            "num_envs_per_worker": 16,
+            "entropy_coeff": 0.001,
+            "lambda": 0.95,
+            "lr": 5e-4,
+            "model": {"vf_share_layers": False}
         }
     }
 
