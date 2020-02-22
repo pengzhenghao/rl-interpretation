@@ -64,6 +64,8 @@ if __name__ == '__main__':
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--num-agents", type=int, default=5)
+    parser.add_argument("--num-cpus-per-worker", type=float, default=0.4)
+    parser.add_argument("--num-cpus-for-driver", type=float, default=0.45)
     parser.add_argument("--stop", type=float, default=5e6)
     parser.add_argument("--env-name", type=str, default="Walker2d-v3")
     parser.add_argument("--test", action="store_true")
@@ -87,8 +89,8 @@ if __name__ == '__main__':
         'sgd_minibatch_size': 100 if large else 64,
         'train_batch_size': 10000 if large else 2048,
         "num_gpus": 0.4,
-        "num_cpus_per_worker": 0.4,
-        "num_cpus_for_driver": 0.45,
+        "num_cpus_per_worker": args.num_cpus_per_worker,
+        "num_cpus_for_driver": args.num_cpus_for_driver,
         "num_envs_per_worker": 8 if large else 5,
         'num_workers': 8 if large else 1,
     }
