@@ -290,7 +290,6 @@ if __name__ == '__main__':
             "observation_filter": "NoFilter",
         },
         "A2C": {
-            "num_envs_per_worker": 16,
             "entropy_coeff": 0.001,
             "lambda": 0.95,
             "lr": 5e-4,
@@ -302,7 +301,7 @@ if __name__ == '__main__':
         "PPO": 1e7,
         "TD3": 1e6,
         "ES": 1e9,
-        "A2C": 2e7,
+        "A2C": 5e7,
     }
 
     stop = int(algo_specify_stop[algo]) if not test else 10000
