@@ -120,6 +120,7 @@ def set_td3_from_ppo(td3_agent, ppo_agent):
 def set_a2c_from_ppo(a2c_agent, ppo_agent):
     assert a2c_agent.config["model"]["vf_share_layers"] == False
     weights = ppo_agent.get_weights()
+    weights = copy.deepcopy(weights)
     model_weight = weights["default_policy"]
     a2c_keys = model_weight.keys()
     for k in a2c_keys:
@@ -310,9 +311,9 @@ if __name__ == '__main__':
     config.update({
         "init_seed": args.init_seed,
         "log_level": "DEBUG" if test else "ERROR",
-        "num_gpus": 0.2,
+        "num_gpus": 0.25,
         "num_cpus_for_driver": 1,
-        "num_cpus_per_worker": 1,
+        "num_cpus_per_worker": 2,
     })
 
     train(
