@@ -232,9 +232,9 @@ def train(
     analysis = tune.run(
         trainer,
         name=exp_name,
-        checkpoint_freq=10,
-        keep_checkpoints_num=5,
-        checkpoint_score_attr="episode_reward_mean",
+        checkpoint_freq=100,
+        # keep_checkpoints_num=5,
+        # checkpoint_score_attr="episode_reward_mean",
         checkpoint_at_end=True,
         stop={"timesteps_total": stop}
         if isinstance(stop, int) else stop,
