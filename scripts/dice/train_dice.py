@@ -66,15 +66,19 @@ if __name__ == '__main__':
     parser.add_argument("--num-agents", type=int, default=5)
     parser.add_argument("--num-cpus-per-worker", type=float, default=0.4)
     parser.add_argument("--num-cpus-for-driver", type=float, default=0.45)
-    parser.add_argument("--stop", type=float, default=5e6)
     parser.add_argument("--env-name", type=str, default="Walker2d-v3")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
 
     env_name = args.env_name
     exp_name = "{}-{}".format(args.exp_name, env_name)
-    stop = int(args.stop)
     large = env_name in ["Walker2d-v3", "Hopper-v3"]
+    if large:
+        stop = int(5e7)
+    elif env_name == "Humanoid-v3":
+        stop = int(2e7)
+    else:
+        stop = int(5e6)
 
     config = {
         "env": MultiAgentEnvWrapper,
