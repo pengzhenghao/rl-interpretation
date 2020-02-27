@@ -302,7 +302,7 @@ if __name__ == '__main__':
         "PPO": 1e7,
         "TD3": 1e6,
         "ES": 1e9,
-        "A2C": 1e7
+        "A2C": 2e7
     }
 
     stop = int(algo_specify_stop[algo]) if not test else 10000
