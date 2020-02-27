@@ -291,7 +291,6 @@ if __name__ == '__main__':
             "observation_filter": "NoFilter",
         },
         "A2C": {
-            "num_envs_per_worker": 16,
             "entropy_coeff": 0.001,
             "lambda": 0.95,
             "lr": 5e-4,
