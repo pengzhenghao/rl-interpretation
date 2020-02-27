@@ -290,6 +290,7 @@ if __name__ == '__main__':
             "observation_filter": "NoFilter",
         },
         "A2C": {
+            "num_envs_per_worker": 16,
             "entropy_coeff": 0.001,
             "lambda": 0.95,
             "lr": 5e-4,
@@ -301,7 +302,7 @@ if __name__ == '__main__':
         "PPO": 1e7,
         "TD3": 1e6,
         "ES": 1e9,
-        "A2C": 5e7,
+        "A2C": 1e7
     }
 
     stop = int(algo_specify_stop[algo]) if not test else 10000
@@ -310,7 +311,7 @@ if __name__ == '__main__':
         "init_seed": args.init_seed,
         "log_level": "DEBUG" if test else "ERROR",
         "num_gpus": 0.2,
-        "num_cpus_for_driver": 0.2,
+        "num_cpus_for_driver": 1,
         "num_cpus_per_worker": 1,
     })
 
