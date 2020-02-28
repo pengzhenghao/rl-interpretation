@@ -4,6 +4,7 @@ import os
 
 from ray import tune
 from ray.rllib.agents.a3c import A2CTrainer, A3CTrainer
+from ray.rllib.agents.impala import ImpalaTrainer
 from ray.rllib.agents.ddpg import TD3Trainer
 from ray.rllib.agents.es import ESTrainer
 from ray.rllib.agents.ppo import PPOTrainer
@@ -145,9 +146,9 @@ class TrainerBaseWrapper:
                 "actor_hidden_activation": "tanh",
                 "critic_hidden_activation": "tanh"
             })
-        elif algo in ["A2C", "A3C"]:
+        elif algo in ["A2C", "A3C", "IMPALA"]:
             if config["model"]["vf_share_layers"]:
-                print("A2C/A3C should not share value function layers. "
+                print("A2C/A3C/IMPALA should not share value function layers. "
                       "So we set config['model']['vf_share_layers'] to False")
                 config["model"]["vf_share_layers"] = False
         config["seed"] = init_seed
@@ -159,7 +160,7 @@ class TrainerBaseWrapper:
         base.__init__(self, config, *args, **kwargs)
 
         # Set the weights of the training agent.
-        if algo in ["PPO", "A2C", "A3C"]:
+        if algo in ["PPO", "A2C", "A3C", "IMPALA"]:
             self.set_weights(copy.deepcopy(ppo_agent.get_weights()))
         elif algo == "TD3":
             set_td3_from_ppo(self, ppo_agent)
@@ -186,6 +187,8 @@ def get_dynamic_trainer(algo):
         base = A2CTrainer
     elif algo == "A3C":
         base = A3CTrainer
+    elif algo == "IMPALA":
+        base = ImpalaTrainer
     else:
         raise NotImplementedError()
 
@@ -228,7 +231,6 @@ def train(
         if isinstance(stop, int) else stop,
         config=config,
         max_failures=20,
-        reuse_actors=False,
         **kwargs
     )
 
@@ -290,6 +292,11 @@ if __name__ == '__main__':
             "lr": 5e-4,
             "model": {"vf_share_layers": False}
         },  # identical to A2C
+        "IMPALA": {
+            "entropy_coeff": 0.001,
+            "lr": 5e-4,
+            "model": {"vf_share_layers": False}
+        },
     }
 
     algo_specify_stop = {
@@ -297,7 +304,8 @@ if __name__ == '__main__':
         "TD3": 1e6,
         "ES": 1e9,
         "A2C": 2e7,
-        "A3C": 2e7
+        "A3C": 2e7,
+        "IMPALA": 1e7
     }
 
     stop = int(algo_specify_stop[algo]) if not test else 10000
