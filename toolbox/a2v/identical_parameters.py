@@ -159,9 +159,11 @@ class TrainerBaseWrapper:
         print("Super: ", super())
         base.__init__(self, config, *args, **kwargs)
 
+        self._reference_agent_weight = copy.deepcopy(ppo_agent.get_weights())
+
         # Set the weights of the training agent.
         if algo in ["PPO", "A2C", "A3C", "IMPALA"]:
-            self.set_weights(copy.deepcopy(ppo_agent.get_weights()))
+            self.set_weights(self._reference_agent_weight)
         elif algo == "TD3":
             set_td3_from_ppo(self, ppo_agent)
         elif algo == "ES":
@@ -169,7 +171,6 @@ class TrainerBaseWrapper:
         else:
             raise NotImplementedError("Config is: {}".format(config))
 
-        self._reference_agent_weight = copy.deepcopy(ppo_agent.get_weights())
 
     @property
     def _name(self):
@@ -283,18 +284,18 @@ if __name__ == '__main__':
         "A2C": {
             "entropy_coeff": 0.001,
             "lambda": 0.95,
-            "lr": 5e-4,
+            "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
         "A3C": {
             "entropy_coeff": 0.001,
             "lambda": 0.95,
-            "lr": 5e-4,
+            "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },  # identical to A2C
         "IMPALA": {
             "entropy_coeff": 0.001,
-            "lr": 5e-4,
+            "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
     }
@@ -305,7 +306,7 @@ if __name__ == '__main__':
         "ES": 1e9,
         "A2C": 2e7,
         "A3C": 2e7,
-        "IMPALA": 1e7
+        "IMPALA": 2e7
     }
 
     stop = int(algo_specify_stop[algo]) if not test else 10000
