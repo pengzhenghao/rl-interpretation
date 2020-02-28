@@ -3,7 +3,7 @@ import copy
 import os
 
 from ray import tune
-from ray.rllib.agents.a3c import A2CTrainer
+from ray.rllib.agents.a3c import A2CTrainer, A3CTrainer
 from ray.rllib.agents.ddpg import TD3Trainer
 from ray.rllib.agents.es import ESTrainer
 from ray.rllib.agents.ppo import PPOTrainer
@@ -117,18 +117,6 @@ def set_td3_from_ppo(td3_agent, ppo_agent):
     return td3_agent
 
 
-def set_a2c_from_ppo(a2c_agent, ppo_agent):
-    assert a2c_agent.config["model"]["vf_share_layers"] == False
-    weights = ppo_agent.get_weights()
-    weights = copy.deepcopy(weights)
-    model_weight = weights["default_policy"]
-    a2c_keys = model_weight.keys()
-    for k in a2c_keys:
-        assert k in model_weight, (k, model_weight.keys(), a2c_keys)
-    a2c_agent.set_weights(weights)
-    return a2c_agent
-
-
 class TrainerBaseWrapper:
     def __init__(self, base, config=None, *args, **kwargs):
         assert "init_seed" in config, config.keys()
@@ -157,9 +145,9 @@ class TrainerBaseWrapper:
                 "actor_hidden_activation": "tanh",
                 "critic_hidden_activation": "tanh"
             })
-        elif algo == "A2C":
+        elif algo in ["A2C", "A3C"]:
             if config["model"]["vf_share_layers"]:
-                print("A2C should not share value function layers. "
+                print("A2C/A3C should not share value function layers. "
                       "So we set config['model']['vf_share_layers'] to False")
                 config["model"]["vf_share_layers"] = False
         config["seed"] = init_seed
@@ -171,18 +159,16 @@ class TrainerBaseWrapper:
         base.__init__(self, config, *args, **kwargs)
 
         # Set the weights of the training agent.
-        if algo == "PPO":
-            self.set_weights(ppo_agent.get_weights())
+        if algo in ["PPO", "A2C", "A3C"]:
+            self.set_weights(copy.deepcopy(ppo_agent.get_weights()))
         elif algo == "TD3":
             set_td3_from_ppo(self, ppo_agent)
         elif algo == "ES":
             set_es_from_ppo(self, ppo_agent)
-        elif algo == "A2C":
-            set_a2c_from_ppo(self, ppo_agent)
         else:
             raise NotImplementedError("Config is: {}".format(config))
 
-        self._reference_agent = ppo_agent
+        self._reference_agent_weight = copy.deepcopy(ppo_agent.get_weights())
 
     @property
     def _name(self):
@@ -198,6 +184,8 @@ def get_dynamic_trainer(algo):
         base = ESTrainer
     elif algo == "A2C":
         base = A2CTrainer
+    elif algo == "A3C":
+        base = A3CTrainer
     else:
         raise NotImplementedError()
 
@@ -295,14 +283,21 @@ if __name__ == '__main__':
             "lambda": 0.95,
             "lr": 5e-4,
             "model": {"vf_share_layers": False}
-        }
+        },
+        "A3C": {
+            "entropy_coeff": 0.001,
+            "lambda": 0.95,
+            "lr": 5e-4,
+            "model": {"vf_share_layers": False}
+        },  # identical to A2C
     }
 
     algo_specify_stop = {
         "PPO": 1e7,
         "TD3": 1e6,
         "ES": 1e9,
-        "A2C": 2e7
+        "A2C": 2e7,
+        "A3C": 2e7
     }
 
     stop = int(algo_specify_stop[algo]) if not test else 10000
