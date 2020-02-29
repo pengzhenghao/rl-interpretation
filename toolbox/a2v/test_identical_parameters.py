@@ -32,7 +32,7 @@ def _test_basic(algo):
     if algo == "ES":
         tw = {k: v for k, v in
               trainer.policy.variables.get_weights().items()}
-    elif algo == "PPO" or algo == "A2C":
+    elif algo in ["PPO", "A2C", "A3C", "IMPALA"]:
         tw = {k: v for k, v in trainer.get_weights()['default_policy'].items()
               if "value" not in k}
     elif algo == "TD3":
@@ -69,7 +69,7 @@ def _test_blackbox(algo):
     ret = tune.run(
         trainer,
         local_dir=dir_path,
-        stop={"timesteps_total": 1000},
+        stop={"training_iteration": 10},
         config=config,
         verbose=2,
         max_failures=0
@@ -80,7 +80,7 @@ def _test_blackbox(algo):
 
 def test_reference_consistency():
     initialize_ray(test_mode=True)
-    algos = ["PPO", "ES", "TD3", "A2C"]
+    algos = ["PPO", "ES", "TD3", "A2C", "A3C", "IMPALA"]
     rws = {}
     for i, algo in enumerate(algos):
         trainer = get_dynamic_trainer(algo)(config={
@@ -90,7 +90,7 @@ def test_reference_consistency():
         })
         rw = {
             k: v for k, v in
-            trainer._reference_agent.get_weights()['default_policy'].items()
+            trainer._reference_agent_weights['default_policy'].items()
             if "value" not in k
         }
         rws[algo] = rw
@@ -115,7 +115,13 @@ class BasicTest(unittest.TestCase):
         _test_basic("TD3")
 
     def test_a2c(self):
-        _test_basic("TD3")
+        _test_basic("A2C")
+
+    def test_a3c(self):
+        _test_basic("A3C")
+
+    def test_impala(self):
+        _test_basic("IMPALA")
 
 
 class BlackBoxTest(unittest.TestCase):
@@ -129,7 +135,13 @@ class BlackBoxTest(unittest.TestCase):
         _test_blackbox("TD3")
 
     def test_a2c(self):
-        _test_blackbox("TD3")
+        _test_blackbox("A2C")
+
+    def test_a3c(self):
+        _test_blackbox("A3C")
+
+    def test_impala(self):
+        _test_blackbox("IMPALA")
 
 
 if __name__ == "__main__":
