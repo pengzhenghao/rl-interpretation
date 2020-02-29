@@ -151,7 +151,7 @@ class TrainerBaseWrapper:
                 print("A2C/A3C/IMPALA should not share value function layers. "
                       "So we set config['model']['vf_share_layers'] to False")
                 config["model"]["vf_share_layers"] = False
-        config["seed"] = init_seed
+        # config["seed"] = init_seed
 
         self.__config = config
 
@@ -231,7 +231,7 @@ def train(
         stop={"timesteps_total": stop}
         if isinstance(stop, int) else stop,
         config=config,
-        max_failures=20,
+        max_failures=5,
         **kwargs
     )
 
@@ -282,20 +282,15 @@ if __name__ == '__main__':
             "observation_filter": "NoFilter",
         },
         "A2C": {
-            "entropy_coeff": 0.001,
-            "lambda": 0.95,
-            "lr": 5e-5,
+            "lr": 1e-4,
             "model": {"vf_share_layers": False}
         },
         "A3C": {
-            "entropy_coeff": 0.001,
-            "lambda": 0.95,
-            "lr": 5e-5,
+            "lr": 1e-4,
             "model": {"vf_share_layers": False}
-        },  # identical to A2C
+        },
         "IMPALA": {
-            "entropy_coeff": 0.001,
-            "lr": 5e-5,
+            "lr": 1e-4,
             "model": {"vf_share_layers": False}
         },
     }
@@ -316,7 +311,7 @@ if __name__ == '__main__':
         "log_level": "DEBUG" if test else "ERROR",
         "num_gpus": 0.25,
         "num_cpus_for_driver": 1,
-        "num_cpus_per_worker": 2,
+        "num_cpus_per_worker": 1,
     })
 
     train(
