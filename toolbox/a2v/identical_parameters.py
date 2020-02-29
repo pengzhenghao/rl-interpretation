@@ -4,15 +4,15 @@ import os
 
 from ray import tune
 from ray.rllib.agents.a3c import A2CTrainer, A3CTrainer
-from ray.rllib.agents.impala import ImpalaTrainer
 from ray.rllib.agents.ddpg import TD3Trainer
-from ray.rllib.agents.es import ESTrainer
+from ray.rllib.agents.impala import ImpalaTrainer
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.models.tf.tf_action_dist import DiagGaussian
 
 from toolbox import initialize_ray
 from toolbox.dece.utils import *
 from toolbox.evaluate import restore_agent
+from toolbox.evolution.modified_es import GaussianESTrainer
 
 
 def set_es_from_ppo(es_agent, ppo_agent):
@@ -171,7 +171,6 @@ class TrainerBaseWrapper:
         else:
             raise NotImplementedError("Config is: {}".format(config))
 
-
     @property
     def _name(self):
         return self.__name
@@ -183,7 +182,8 @@ def get_dynamic_trainer(algo):
     elif algo == "PPO":
         base = PPOTrainer
     elif algo == "ES":
-        base = ESTrainer
+        # base = ESTrainer
+        base = GaussianESTrainer
     elif algo == "A2C":
         base = A2CTrainer
     elif algo == "A3C":
@@ -278,9 +278,7 @@ if __name__ == '__main__':
             "actor_hidden_activation": "tanh",
             "critic_hidden_activation": "tanh"
         },
-        "ES": {
-            "observation_filter": "NoFilter",
-        },
+        "ES": {},
         "A2C": {
             "lr": 1e-4,
             "model": {"vf_share_layers": False}
