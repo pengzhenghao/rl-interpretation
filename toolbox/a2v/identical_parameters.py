@@ -9,67 +9,66 @@ from ray.rllib.agents.a3c import A2CTrainer, A3CTrainer
 from ray.rllib.agents.ddpg import TD3Trainer
 from ray.rllib.agents.impala import ImpalaTrainer
 from ray.rllib.agents.ppo import PPOTrainer
-from ray.rllib.models.tf.tf_action_dist import DiagGaussian
 
 from toolbox import initialize_ray
 from toolbox.evaluate import restore_agent
 from toolbox.evolution.modified_es import GaussianESTrainer
 
 
-def set_es_from_ppo(es_agent, ppo_agent):
-    assert es_agent._name == "ES"  # Not "GaussianES"
-    weights = copy.deepcopy(ppo_agent.get_policy().get_weights())
+# def set_es_from_ppo(es_agent, ppo_agent_weights):
+#     assert es_agent._name == "ES"  # Not "GaussianES"
+#     weights = ppo_agent_weights["default_policy"]
+#
+#     # modify keys
+#     weights = {
+#         k.split('default_policy/')[-1]: v
+#         for k, v in weights.items()
+#         if "value" not in k
+#     }
+#
+#     # the output is deterministic
+#     if (ppo_agent.get_policy().dist_class is DiagGaussian):
+#         new_weights = {}
+#         for k, v in weights.items():
+#             if "out" in k:
+#                 if v.ndim == 2:
+#                     new_v = np.split(v, 2, axis=1)[0]
+#                 elif v.ndim == 1:
+#                     new_v = np.split(v, 2, axis=0)[0]
+#                 else:
+#                     raise ValueError()
+#                 new_weights[k] = new_v
+#             else:
+#                 new_weights[k] = v
+#     else:
+#         new_weights = weights
+#
+#     # rename some variables
+#     tmp_new_weights = copy.deepcopy(new_weights)
+#     for k, v in new_weights.items():
+#         if "out" not in k:
+#             # in ES, the layer names are: fc1, fc_out,
+#             # but in PPO, they're fc_1, fc_out.
+#             assert "fc_" in k, k
+#             new_k = k.replace("fc_", "fc")
+#             tmp_new_weights[new_k] = v
+#     new_weights = tmp_new_weights
+#
+#     # verification
+#     es_weights = es_agent.policy.variables.get_weights()
+#     es_keys = es_weights.keys()
+#     for k in es_keys:
+#         assert k in new_weights, (k, new_weights.keys(), es_keys)
+#         assert es_weights[k].shape == new_weights[k].shape, \
+#             (k, es_weights[k].shape, new_weights[k].shape)
+#
+#     es_agent.policy.variables.set_weights(new_weights)
+#
+#     return es_agent
 
-    # modify keys
-    weights = {
-        k.split('default_policy/')[-1]: v
-        for k, v in weights.items()
-        if "value" not in k
-    }
 
-    # the output is deterministic
-    if (ppo_agent.get_policy().dist_class is DiagGaussian):
-        new_weights = {}
-        for k, v in weights.items():
-            if "out" in k:
-                if v.ndim == 2:
-                    new_v = np.split(v, 2, axis=1)[0]
-                elif v.ndim == 1:
-                    new_v = np.split(v, 2, axis=0)[0]
-                else:
-                    raise ValueError()
-                new_weights[k] = new_v
-            else:
-                new_weights[k] = v
-    else:
-        new_weights = weights
-
-    # rename some variables
-    tmp_new_weights = copy.deepcopy(new_weights)
-    for k, v in new_weights.items():
-        if "out" not in k:
-            # in ES, the layer names are: fc1, fc_out,
-            # but in PPO, they're fc_1, fc_out.
-            assert "fc_" in k, k
-            new_k = k.replace("fc_", "fc")
-            tmp_new_weights[new_k] = v
-    new_weights = tmp_new_weights
-
-    # verification
-    es_weights = es_agent.policy.variables.get_weights()
-    es_keys = es_weights.keys()
-    for k in es_keys:
-        assert k in new_weights, (k, new_weights.keys(), es_keys)
-        assert es_weights[k].shape == new_weights[k].shape, \
-            (k, es_weights[k].shape, new_weights[k].shape)
-
-    es_agent.policy.variables.set_weights(new_weights)
-
-    return es_agent
-
-
-def set_td3_from_ppo(td3_agent, ppo_agent):
-    ppo_weights = copy.deepcopy(ppo_agent.get_policy().get_weights())
+def set_td3_from_ppo(td3_agent, ppo_agent_weights):
+    ppo_weights = ppo_agent_weights["default_policy"]
 
     # modify keys
     ppo_weights = {
@@ -79,20 +78,20 @@ def set_td3_from_ppo(td3_agent, ppo_agent):
     }
 
     # the output is deterministic
-    if ppo_agent.get_policy().dist_class is DiagGaussian:
-        tmp_ppo_weights = copy.deepcopy(ppo_weights)
-        for k, v in ppo_weights.items():
-            if "out" in k:
-                if v.ndim == 2:
-                    new_v = np.split(v, 2, axis=1)[0]
-                elif v.ndim == 1:
-                    new_v = np.split(v, 2, axis=0)[0]
-                else:
-                    assert False
-                tmp_ppo_weights[k] = new_v
-        ppo_weights = tmp_ppo_weights
-    else:
-        pass
+    # if ppo_agent.get_policy().dist_class is DiagGaussian:
+    tmp_ppo_weights = copy.deepcopy(ppo_weights)
+    for k, v in ppo_weights.items():
+        if "out" in k:
+            if v.ndim == 2:
+                new_v = np.split(v, 2, axis=1)[0]
+            elif v.ndim == 1:
+                new_v = np.split(v, 2, axis=0)[0]
+            else:
+                assert False
+            tmp_ppo_weights[k] = new_v
+    ppo_weights = tmp_ppo_weights
+    # else:
+    #     pass
 
     key_map = {
         "dense": "fc_1",
@@ -188,9 +187,9 @@ def get_dynamic_trainer(algo, init_seed, env_name):
             if algo in ["PPO", "A2C", "A3C", "IMPALA"] or our_es:
                 self.set_weights(self._reference_agent_weights)
             elif algo == "TD3":
-                set_td3_from_ppo(self, ppo_agent)
-            elif algo == "ES":  # For modified GaussianES, treat it like PPO.
-                set_es_from_ppo(self, ppo_agent)
+                set_td3_from_ppo(self, self._reference_agent_weights)
+            # elif algo == "ES":  # For modified GaussianES, treat it like PPO.
+            #     set_es_from_ppo(self, ppo_agent)
             else:
                 raise NotImplementedError("Algo is: {}. Config is: {}"
                                           "".format(algo, config))
