@@ -79,7 +79,7 @@ def _test_blackbox(algo):
 
 
 def test_reference_consistency():
-    initialize_ray(test_mode=True)
+    initialize_ray(test_mode=True, local_mode=True)
     algos = ["PPO", "ES", "TD3", "A2C", "A3C", "IMPALA"]
     rws = {}
     for i, algo in enumerate(algos):

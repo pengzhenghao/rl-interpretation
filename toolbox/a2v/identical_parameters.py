@@ -16,7 +16,8 @@ from toolbox.evolution.modified_es import GaussianESTrainer
 
 
 def set_es_from_ppo(es_agent, ppo_agent):
-    weights = ppo_agent.get_policy().get_weights()
+    assert es_agent._name == "ES"  # Not "GaussianES"
+    weights = copy.deepcopy(ppo_agent.get_policy().get_weights())
 
     # modify keys
     weights = {
@@ -26,7 +27,7 @@ def set_es_from_ppo(es_agent, ppo_agent):
     }
 
     # the output is deterministic
-    if ppo_agent.get_policy().dist_class is DiagGaussian:
+    if (ppo_agent.get_policy().dist_class is DiagGaussian):
         new_weights = {}
         for k, v in weights.items():
             if "out" in k:
@@ -67,7 +68,7 @@ def set_es_from_ppo(es_agent, ppo_agent):
 
 
 def set_td3_from_ppo(td3_agent, ppo_agent):
-    ppo_weights = ppo_agent.get_policy().get_weights()
+    ppo_weights = copy.deepcopy(ppo_agent.get_policy().get_weights())
 
     # modify keys
     ppo_weights = {
@@ -162,11 +163,11 @@ class TrainerBaseWrapper:
         self._reference_agent_weights = copy.deepcopy(ppo_agent.get_weights())
 
         # Set the weights of the training agent.
-        if algo in ["PPO", "A2C", "A3C", "IMPALA"]:
+        if algo in ["PPO", "A2C", "A3C", "IMPALA", "GaussianES"]:
             self.set_weights(self._reference_agent_weights)
         elif algo == "TD3":
             set_td3_from_ppo(self, ppo_agent)
-        elif algo in ["ES", "GaussianES"]:
+        elif algo == "ES":  # For modified GaussianES, treat it like PPO.
             set_es_from_ppo(self, ppo_agent)
         else:
             raise NotImplementedError("Algo is: {}. Config is: {}"

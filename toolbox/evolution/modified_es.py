@@ -64,10 +64,12 @@ class Worker(object):
 
         self.sess = utils.make_session(single_threaded=True)
 
-        self.policy = GenericGaussianPolicy(
-            self.sess, self.env.action_space, self.env.observation_space,
-            self.preprocessor, config["observation_filter"], config["model"],
-            **policy_params)
+        with tf.name_scope(DEFAULT_POLICY_ID):
+            self.policy = GenericGaussianPolicy(
+                self.sess, self.env.action_space, self.env.observation_space,
+                self.preprocessor, config["observation_filter"],
+                config["model"],
+                **policy_params)
 
     @property
     def filters(self):
@@ -164,13 +166,15 @@ class GenericGaussianPolicy(GenericPolicy):
         self._dist_class, logit_dim = ModelCatalog.get_action_dist(
             action_space, model_config
         )
-        self.model = ModelCatalog.get_model_v2(
-            obs_space,
-            action_space,
-            logit_dim,
-            model_config,
-            framework="tf"
-        )
+
+        with tf.name_scope(DEFAULT_POLICY_ID):
+            self.model = ModelCatalog.get_model_v2(
+                obs_space,
+                action_space,
+                logit_dim,
+                model_config,
+                framework="tf"
+            )
         model_out, self._state_out = self.model(
             {SampleBatch.CUR_OBS: self.inputs}
         )
@@ -191,10 +195,30 @@ class GenericGaussianPolicy(GenericPolicy):
                               feed_dict={self.inputs: observation})
         return logit
 
+    def set_weights(self, x):
+        if isinstance(x, dict):
+            self.variables.set_weights(x)
+        elif isinstance(x, np.ndarray):
+            self.variables.set_flat(x)
+        else:
+            raise ValueError("Wrong type when setting weights in policy: ",
+                             type(x))
+
+    def get_weights(self):
+        # return self.variables.get_weights()
+        return self.variables.get_flat()
+
 
 class GaussianESTrainer(ESTrainer):
     _default_config = DEFAULT_CONFIG
     _name = "GaussianES"
+
+    def get_weights(self, policies=None):
+        return {DEFAULT_POLICY_ID: self.policy.get_weights()}
+
+    def set_weights(self, weights):
+        assert len(weights) == 1
+        self.policy.set_weights(weights[DEFAULT_POLICY_ID])
 
     def get_policy(self, _=None):
         return self.policy
