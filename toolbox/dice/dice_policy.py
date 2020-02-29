@@ -210,7 +210,8 @@ class TargetNetworkMixin:
         )
         self.model_vars = self.model.variables()
         self.target_model_vars = self.target_model.variables()
-        self.get_session().run(tf.initialize_variables(self.target_model_vars))
+        self.get_session().run(
+            tf.variables_initializer(self.target_model_vars))
 
         # Here is the delayed update mechanism.
         self.tau_value = config.get("tau")
