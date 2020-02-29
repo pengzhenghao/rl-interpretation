@@ -7,9 +7,9 @@ following functions for each policy:
 3. Update the target network for each training iteration.
 """
 import tensorflow as tf
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
-    EntropyCoeffSchedule, BEHAVIOUR_LOGITS, PPOTFPolicy, \
-    KLCoeffMixin
+from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
+    ValueNetworkMixin, KLCoeffMixin, \
+    EntropyCoeffSchedule, BEHAVIOUR_LOGITS, PPOTFPolicy
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.sample_batch import SampleBatch
@@ -243,7 +243,7 @@ class TargetNetworkMixin:
         )
 
 
-def setup_mixins_dece(policy, action_space, obs_space, config):
+def setup_mixins_dice(policy, action_space, obs_space, config):
     setup_mixins(policy, action_space, obs_space, config)
     DiversityValueNetworkMixin.__init__(policy, obs_space, action_space,
                                         config)
@@ -264,7 +264,7 @@ DiCEPolicy = PPOTFPolicy.with_updates(
     gradients_fn=dice_gradient,
     grad_stats_fn=grad_stats_fn,
     extra_action_fetches_fn=additional_fetches,
-    before_loss_init=setup_mixins_dece,
+    before_loss_init=setup_mixins_dice,
     after_init=setup_late_mixins,
     mixins=[
         LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,

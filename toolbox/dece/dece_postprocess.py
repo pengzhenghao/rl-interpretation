@@ -1,4 +1,4 @@
-from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, ACTION_LOGP, \
+from ray.rllib.agents.ppo.ppo_tf_policy import postprocess_ppo_gae, ACTION_LOGP, \
     SampleBatch, BEHAVIOUR_LOGITS
 from ray.rllib.evaluation.postprocessing import discount, Postprocessing
 

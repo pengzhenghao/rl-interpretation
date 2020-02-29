@@ -5,9 +5,9 @@ import logging
 
 import numpy as np
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
-from ray.tune.util import merge_dicts
 
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
+from toolbox.utils import merge_dicts
 
 logger = logging.getLogger(__name__)
 

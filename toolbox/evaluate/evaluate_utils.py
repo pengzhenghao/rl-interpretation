@@ -7,7 +7,6 @@ import pickle
 
 from ray.rllib.agents import Trainer
 from ray.rllib.agents.registry import get_agent_class
-from ray.tune.util import merge_dicts
 from tensorflow import Graph
 
 from toolbox.env.env_maker import get_env_maker
@@ -19,7 +18,7 @@ from toolbox.modified_rllib.agent_with_mask import (
     PPOAgentWithMask, register_fc_with_mask, PPOTFPolicyWithMask,
     ppo_agent_default_config_with_mask
 )
-from toolbox.utils import has_gpu
+from toolbox.utils import merge_dicts, has_gpu
 
 logger = logging.getLogger(__name__)
 

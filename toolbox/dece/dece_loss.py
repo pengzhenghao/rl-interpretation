@@ -1,5 +1,5 @@
 from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
-from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, \
+from ray.rllib.agents.ppo.ppo_tf_policy import BEHAVIOUR_LOGITS, \
     PPOLoss as original_PPOLoss, ppo_surrogate_loss
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch

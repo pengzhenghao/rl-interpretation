@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 import ray
-from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
+from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
 
 from collections import OrderedDict
 
