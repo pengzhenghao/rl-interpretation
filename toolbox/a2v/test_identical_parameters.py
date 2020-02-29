@@ -44,7 +44,7 @@ def _test_basic(algo):
 
     rw = {
         k: v for k, v in
-        trainer._reference_agent.get_weights()['default_policy'].items()
+        trainer._reference_agent_weights['default_policy'].items()
         if "value" not in k}
 
     assert len(tw) == len(rw)

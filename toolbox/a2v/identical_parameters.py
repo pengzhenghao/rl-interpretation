@@ -159,11 +159,11 @@ class TrainerBaseWrapper:
         print("Super: ", super())
         base.__init__(self, config, *args, **kwargs)
 
-        self._reference_agent_weight = copy.deepcopy(ppo_agent.get_weights())
+        self._reference_agent_weights = copy.deepcopy(ppo_agent.get_weights())
 
         # Set the weights of the training agent.
         if algo in ["PPO", "A2C", "A3C", "IMPALA"]:
-            self.set_weights(self._reference_agent_weight)
+            self.set_weights(self._reference_agent_weights)
         elif algo == "TD3":
             set_td3_from_ppo(self, ppo_agent)
         elif algo == "ES":
