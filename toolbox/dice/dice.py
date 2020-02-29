@@ -121,10 +121,15 @@ def after_optimizer_iteration(trainer, fetches):
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 
 
+def get_policy_class(config):
+    return DiCEPolicy
+
+
 DiCETrainer = PPOTrainer.with_updates(
     name="DiCETrainer",
     default_config=dice_default_config,
     default_policy=DiCEPolicy,
+    get_policy_class=get_policy_class,
     validate_config=validate_config,
     make_policy_optimizer=make_policy_optimizer_tnbes,
     after_init=setup_policies_pool,
