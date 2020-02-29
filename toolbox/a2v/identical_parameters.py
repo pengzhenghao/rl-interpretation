@@ -166,10 +166,11 @@ class TrainerBaseWrapper:
             self.set_weights(self._reference_agent_weights)
         elif algo == "TD3":
             set_td3_from_ppo(self, ppo_agent)
-        elif algo == "ES":
+        elif algo in ["ES", "GaussianES"]:
             set_es_from_ppo(self, ppo_agent)
         else:
-            raise NotImplementedError("Config is: {}".format(config))
+            raise NotImplementedError("Algo is: {}. Config is: {}"
+                                      "".format(algo, config))
 
     @property
     def _name(self):
