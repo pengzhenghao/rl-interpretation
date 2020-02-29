@@ -4,11 +4,12 @@ import pickle
 import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
-from ray.tune.util import merge_dicts
 
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
 
 logger = logging.getLogger(__name__)
+
+from toolbox.utils import merge_dicts
 
 
 def on_sample_end(info):

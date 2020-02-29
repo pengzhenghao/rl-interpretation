@@ -9,7 +9,10 @@ from sys import getsizeof
 import numpy as np
 import ray
 from distro import linux_distribution
-from ray.internal.internal_api import unpin_object_data
+
+
+# from ray.internal.internal_api import unpin_object_data
+# Update ray to 0.8.2 cause this function disappeared.
 
 
 class DefaultMapping(collections.defaultdict):
@@ -18,6 +21,12 @@ class DefaultMapping(collections.defaultdict):
     def __missing__(self, key):
         self[key] = value = self.default_factory(key)
         return value
+
+
+def merge_dicts(base_config, extra_config):
+    config = copy.deepcopy(base_config)
+    config.update(extra_config)
+    return config
 
 
 def _is_centos():
@@ -118,8 +127,8 @@ def ray_get_and_free(object_ids):
     if type(object_ids) is not list:
         object_ids = [object_ids]
 
-    for oid in object_ids:
-        unpin_object_data(oid)
+    # for oid in object_ids:
+    #     unpin_object_data(oid)
 
     _to_free.extend(object_ids)
 
