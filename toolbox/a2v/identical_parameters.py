@@ -145,11 +145,14 @@ def get_dynamic_trainer(algo, init_seed, env_name):
 
     reference_agent_weights = copy.deepcopy(ppo_agent.get_weights())
 
+    name = "Seed{}-{}".format(init_seed, algo)
+
     class TrainerWrapper(base):
+        _name = name
+
         def __init__(self, config, *args, **kwargs):
             assert "env" in config, config.keys()
 
-            self.__name = "Seed{}-{}".format(init_seed, algo)
             org_config = copy.deepcopy(base._default_config)
 
             our_es = algo == "ES" and base._name == "GaussianES"
@@ -192,10 +195,8 @@ def get_dynamic_trainer(algo, init_seed, env_name):
                 raise NotImplementedError("Algo is: {}. Config is: {}"
                                           "".format(algo, config))
 
-        @property
-        def _name(self):
-            return self.__name
-
+    TrainerWrapper.__name__ = TrainerWrapper
+    TrainerWrapper.__qualname__ = TrainerWrapper
     return TrainerWrapper
 
 
