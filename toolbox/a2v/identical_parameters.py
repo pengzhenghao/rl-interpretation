@@ -195,8 +195,8 @@ def get_dynamic_trainer(algo, init_seed, env_name):
                 raise NotImplementedError("Algo is: {}. Config is: {}"
                                           "".format(algo, config))
 
-    TrainerWrapper.__name__ = TrainerWrapper
-    TrainerWrapper.__qualname__ = TrainerWrapper
+    TrainerWrapper.__name__ = name
+    TrainerWrapper.__qualname__ = name
     return TrainerWrapper
 
 
