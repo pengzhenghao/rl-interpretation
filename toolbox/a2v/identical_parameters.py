@@ -120,7 +120,7 @@ def set_td3_from_ppo(td3_agent, ppo_agent):
     return td3_agent
 
 
-def get_dynamic_trainer(algo):
+def get_dynamic_trainer(algo, init_seed, env_name):
     if algo == "TD3":
         base = TD3Trainer
     elif algo == "PPO":
@@ -137,24 +137,22 @@ def get_dynamic_trainer(algo):
     else:
         raise NotImplementedError()
 
+    # Create the reference agent.
+    ppo_agent = restore_agent("PPO", None, env_name, {
+        "seed": init_seed,
+        "num_workers": 0
+    })
+
+    reference_agent_weights = copy.deepcopy(ppo_agent.get_weights())
+
     class TrainerWrapper(base):
         def __init__(self, config, *args, **kwargs):
-            assert "init_seed" in config, config.keys()
             assert "env" in config, config.keys()
-
-            init_seed = config.pop("init_seed")
-            env_name = config["env"]
 
             self.__name = "Seed{}-{}".format(init_seed, algo)
             org_config = copy.deepcopy(base._default_config)
 
             our_es = algo == "ES" and base._name == "GaussianES"
-
-            # Create the reference agent.
-            ppo_agent = restore_agent("PPO", None, env_name, {
-                "seed": init_seed,
-                "num_workers": 0
-            })
 
             # Update the config if necessary.
             org_config.update(config)
@@ -176,14 +174,12 @@ def get_dynamic_trainer(algo):
                     config["model"]["vf_share_layers"] = False
             # config["seed"] = init_seed
 
-            self.__config = config
-
             # Restore the training agent.
-            print("Super: ", super())
             base.__init__(self, config, *args, **kwargs)
 
             self._reference_agent_weights = copy.deepcopy(
-                ppo_agent.get_weights())
+                reference_agent_weights
+            )
 
             # Set the weights of the training agent.
             if algo in ["PPO", "A2C", "A3C", "IMPALA"] or our_es:
@@ -205,6 +201,7 @@ def get_dynamic_trainer(algo):
 
 def train(
         algo,
+        init_seed,
         extra_config,
         env_name,
         stop,
@@ -223,7 +220,7 @@ def train(
     if extra_config:
         config.update(extra_config)
 
-    trainer = get_dynamic_trainer(algo)
+    trainer = get_dynamic_trainer(algo, init_seed, env_name)
     analysis = tune.run(
         trainer,
         name=exp_name,
@@ -308,7 +305,6 @@ if __name__ == '__main__':
     stop = int(algo_specify_stop[algo]) if not test else 10000
     config = algo_specify_config[algo]
     config.update({
-        "init_seed": args.init_seed,
         "log_level": "DEBUG" if test else "ERROR",
         "num_gpus": 0.25,
         "num_cpus_for_driver": 1,
@@ -317,6 +313,7 @@ if __name__ == '__main__':
 
     train(
         algo=algo,
+        init_seed=args.init_seed,
         extra_config=config,
         env_name=args.env_name,
         stop=stop,

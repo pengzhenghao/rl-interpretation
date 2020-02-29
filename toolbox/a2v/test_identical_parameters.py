@@ -24,10 +24,8 @@ def assert_equal(arr1, arr2, k=""):
 
 def _test_basic(algo):
     initialize_ray(test_mode=True)
-    trainer = get_dynamic_trainer(algo)(config={
-        "env": "BipedalWalker-v2",
-        "init_seed": 10000,
-    })
+    trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker-v2")(
+        config={"env": "BipedalWalker-v2"})
 
     if algo == "ES":
         tw = {k: v for k, v in
@@ -61,11 +59,11 @@ def _test_basic(algo):
 
 def _test_blackbox(algo):
     initialize_ray(test_mode=True)
-    config = {"env": "BipedalWalker-v2", "init_seed": 10000}
+    config = {"env": "BipedalWalker-v2"}
     if algo == "ES":
         config['num_workers'] = 2
     dir_path = tempfile.mkdtemp()
-    trainer = get_dynamic_trainer(algo)
+    trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker")
     ret = tune.run(
         trainer,
         local_dir=dir_path,
@@ -83,9 +81,8 @@ def test_reference_consistency():
     algos = ["PPO", "ES", "TD3", "A2C", "A3C", "IMPALA"]
     rws = {}
     for i, algo in enumerate(algos):
-        trainer = get_dynamic_trainer(algo)(config={
+        trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker-v2")(config={
             "env": "BipedalWalker-v2",
-            "init_seed": 10000,
             "seed": i * 1000 + 789
         })
         rw = {
