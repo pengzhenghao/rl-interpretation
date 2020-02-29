@@ -120,65 +120,6 @@ def set_td3_from_ppo(td3_agent, ppo_agent):
     return td3_agent
 
 
-class TrainerBaseWrapper:
-    def __init__(self, base, config=None, *args, **kwargs):
-        assert "init_seed" in config, config.keys()
-        assert "env" in config, config.keys()
-
-        init_seed = config.pop("init_seed")
-        env_name = config["env"]
-        algo = base._name
-
-        self.__name = "Seed{}-{}".format(init_seed, algo)
-        org_config = copy.deepcopy(base._default_config)
-
-        # Create the reference agent.
-        ppo_agent = restore_agent("PPO", None, env_name, {
-            "seed": init_seed,
-            "num_workers": 0
-        })
-
-        # Update the config if necessary.
-        org_config.update(config)
-        config = copy.deepcopy(org_config)
-        if algo == "TD3":
-            config.update({
-                "actor_hiddens": [256, 256],
-                "critic_hiddens": [256, 256],
-                "actor_hidden_activation": "tanh",
-                "critic_hidden_activation": "tanh"
-            })
-        elif algo in ["A2C", "A3C", "IMPALA"]:
-            if config["model"]["vf_share_layers"]:
-                print("A2C/A3C/IMPALA should not share value function layers. "
-                      "So we set config['model']['vf_share_layers'] to False")
-                config["model"]["vf_share_layers"] = False
-        # config["seed"] = init_seed
-
-        self.__config = config
-
-        # Restore the training agent.
-        print("Super: ", super())
-        base.__init__(self, config, *args, **kwargs)
-
-        self._reference_agent_weights = copy.deepcopy(ppo_agent.get_weights())
-
-        # Set the weights of the training agent.
-        if algo in ["PPO", "A2C", "A3C", "IMPALA", "GaussianES"]:
-            self.set_weights(self._reference_agent_weights)
-        elif algo == "TD3":
-            set_td3_from_ppo(self, ppo_agent)
-        elif algo == "ES":  # For modified GaussianES, treat it like PPO.
-            set_es_from_ppo(self, ppo_agent)
-        else:
-            raise NotImplementedError("Algo is: {}. Config is: {}"
-                                      "".format(algo, config))
-
-    @property
-    def _name(self):
-        return self.__name
-
-
 def get_dynamic_trainer(algo):
     if algo == "TD3":
         base = TD3Trainer
@@ -196,9 +137,68 @@ def get_dynamic_trainer(algo):
     else:
         raise NotImplementedError()
 
-    class TrainerWrapper(TrainerBaseWrapper, base):
+    class TrainerWrapper(base):
         def __init__(self, config, *args, **kwargs):
-            TrainerBaseWrapper.__init__(self, base, config, *args, **kwargs)
+            assert "init_seed" in config, config.keys()
+            assert "env" in config, config.keys()
+
+            init_seed = config.pop("init_seed")
+            env_name = config["env"]
+
+            self.__name = "Seed{}-{}".format(init_seed, algo)
+            org_config = copy.deepcopy(base._default_config)
+
+            our_es = algo == "ES" and base._name == "GaussianES"
+
+            # Create the reference agent.
+            ppo_agent = restore_agent("PPO", None, env_name, {
+                "seed": init_seed,
+                "num_workers": 0
+            })
+
+            # Update the config if necessary.
+            org_config.update(config)
+            config = copy.deepcopy(org_config)
+            if algo == "TD3":
+                config.update({
+                    "actor_hiddens": [256, 256],
+                    "critic_hiddens": [256, 256],
+                    "actor_hidden_activation": "tanh",
+                    "critic_hidden_activation": "tanh"
+                })
+            elif algo in ["A2C", "A3C", "IMPALA"] or our_es:
+                if config["model"]["vf_share_layers"]:
+                    print(
+                        "A2C/A3C/IMPALA should not share value function "
+                        "layers. "
+                        "So we set config['model']['vf_share_layers'] to "
+                        "False")
+                    config["model"]["vf_share_layers"] = False
+            # config["seed"] = init_seed
+
+            self.__config = config
+
+            # Restore the training agent.
+            print("Super: ", super())
+            base.__init__(self, config, *args, **kwargs)
+
+            self._reference_agent_weights = copy.deepcopy(
+                ppo_agent.get_weights())
+
+            # Set the weights of the training agent.
+            if algo in ["PPO", "A2C", "A3C", "IMPALA"] or our_es:
+                self.set_weights(self._reference_agent_weights)
+            elif algo == "TD3":
+                set_td3_from_ppo(self, ppo_agent)
+            elif algo == "ES":  # For modified GaussianES, treat it like PPO.
+                set_es_from_ppo(self, ppo_agent)
+            else:
+                raise NotImplementedError("Algo is: {}. Config is: {}"
+                                          "".format(algo, config))
+
+        @property
+        def _name(self):
+            return self.__name
 
     return TrainerWrapper
 
@@ -227,9 +227,9 @@ def train(
     analysis = tune.run(
         trainer,
         name=exp_name,
-        checkpoint_freq=100,
-        # keep_checkpoints_num=5,
-        # checkpoint_score_attr="episode_reward_mean",
+        checkpoint_freq=10,
+        keep_checkpoints_num=5,
+        checkpoint_score_attr="episode_reward_mean",
         checkpoint_at_end=True,
         stop={"timesteps_total": stop}
         if isinstance(stop, int) else stop,
@@ -281,13 +281,13 @@ if __name__ == '__main__':
             "actor_hidden_activation": "tanh",
             "critic_hidden_activation": "tanh"
         },
-        "ES": {},
+        "ES": {"model": {"vf_share_layers": False}},
         "A2C": {
-            "lr": 1e-4,
+            "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
         "A3C": {
-            "lr": 1e-4,
+            "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {

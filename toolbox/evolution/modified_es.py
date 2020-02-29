@@ -25,7 +25,7 @@ DEFAULT_CONFIG = with_common_config({
     "stepsize": 0.01,
     "observation_filter": "NoFilter",
     "noise_size": 250000000,
-    "report_length": 10,
+    "report_length": 10
 })
 
 
@@ -162,7 +162,7 @@ class GenericGaussianPolicy(GenericPolicy):
         #     self.action_space, model_options
         # )
 
-        model_config = MODEL_DEFAULTS.copy()
+        model_config = model_options
         self._dist_class, logit_dim = ModelCatalog.get_action_dist(
             action_space, model_config
         )
