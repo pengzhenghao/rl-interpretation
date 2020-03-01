@@ -43,17 +43,15 @@ def _is_centos():
 
 
 def initialize_ray(local_mode=False, num_gpus=None, test_mode=False, **kwargs):
-    if not ray.is_initialized():
-        ray.init(
-            logging_level=logging.ERROR if not test_mode else logging.DEBUG,
-            log_to_driver=test_mode,
-            local_mode=local_mode,
-            num_gpus=num_gpus,
-            temp_dir="/data1/pengzh/tmp"
-            if _is_centos() == "b146466" else None,
-            **kwargs
-        )
-        print("Successfully initialize Ray!")
+    ray.init(
+        logging_level=logging.ERROR if not test_mode else logging.DEBUG,
+        log_to_driver=test_mode,
+        local_mode=local_mode,
+        num_gpus=num_gpus,
+        ignore_reinit_error=True,
+        **kwargs
+    )
+    print("Successfully initialize Ray!")
     if not local_mode:
         print("Available resources: ", ray.available_resources())
 
