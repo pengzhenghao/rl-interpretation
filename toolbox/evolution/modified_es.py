@@ -9,7 +9,6 @@ from ray.rllib.agents.es.es import ESTrainer, create_shared_noise, \
     DEFAULT_POLICY_ID, Result
 from ray.rllib.agents.es.policies import get_filter, tf, ModelCatalog, \
     GenericPolicy
-from ray.rllib.models.catalog import MODEL_DEFAULTS
 from ray.rllib.policy.tf_policy import SampleBatch
 
 logger = logging.getLogger(__name__)
@@ -212,6 +211,15 @@ class GenericGaussianPolicy(GenericPolicy):
 class GaussianESTrainer(ESTrainer):
     _default_config = DEFAULT_CONFIG
     _name = "GaussianES"
+
+    @staticmethod
+    def with_updates(after_init):
+        class return_cls(GaussianESTrainer):
+            def __init__(self, *args, **kwargs):
+                super(return_cls, self).__init__(*args, **kwargs)
+                after_init(self)
+
+        return return_cls
 
     def get_weights(self, policies=None):
         return {DEFAULT_POLICY_ID: self.policy.get_weights()}

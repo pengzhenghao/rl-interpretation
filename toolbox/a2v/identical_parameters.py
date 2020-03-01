@@ -177,7 +177,7 @@ def get_dynamic_trainer(algo, init_seed, env_name):
             # config["seed"] = init_seed
 
             # Restore the training agent.
-            base.__init__(self, config, *args, **kwargs)
+            super().__init__(config, *args, **kwargs)
 
             self._reference_agent_weights = copy.deepcopy(
                 reference_agent_weights
