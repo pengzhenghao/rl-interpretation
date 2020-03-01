@@ -28,8 +28,8 @@ def _test_basic(algo):
         config={"env": "BipedalWalker-v2"})
 
     if algo == "ES":
-        tw = {k: v for k, v in
-              trainer.policy.variables.get_weights().items()}
+        tw = {k: v for k, v in trainer.policy.variables.get_weights().items()
+              if "value" not in k}
     elif algo in ["PPO", "A2C", "A3C", "IMPALA"]:
         tw = {k: v for k, v in trainer.get_weights()['default_policy'].items()
               if "value" not in k}
@@ -77,7 +77,7 @@ def _test_blackbox(algo):
 
 
 def test_reference_consistency():
-    initialize_ray(test_mode=True, local_mode=True)
+    initialize_ray(test_mode=True, local_mode=False)
     algos = ["PPO", "ES", "TD3", "A2C", "A3C", "IMPALA"]
     rws = {}
     for i, algo in enumerate(algos):
