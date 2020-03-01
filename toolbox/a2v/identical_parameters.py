@@ -280,15 +280,27 @@ if __name__ == '__main__':
         },
         "ES": {"model": {"vf_share_layers": False}},
         "A2C": {
+            "grad_clip": 0.5,
+            "num_envs_per_worker": 8,
+            "entropy_coeff": 0.0,
+            "lambda": 0.99,
             "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
         "A3C": {
+            "grad_clip": 0.5,
+            "num_envs_per_worker": 8,
+            "entropy_coeff": 0.0,
+            "lambda": 0.99,
             "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
-            "lr": 1e-4,
+            "grad_clip": 0.5,
+            "num_envs_per_worker": 8,
+            "entropy_coeff": 0.0,
+            "lambda": 0.99,
+            "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
     }
