@@ -52,8 +52,8 @@ def initialize_ray(local_mode=False, num_gpus=None, test_mode=False, **kwargs):
         **kwargs
     )
     print("Successfully initialize Ray!")
-    if not local_mode:
-        print("Available resources: ", ray.available_resources())
+    # if not local_mode:
+    #     print("Available resources: ", ray.available_resources())
 
 
 def get_local_dir():
