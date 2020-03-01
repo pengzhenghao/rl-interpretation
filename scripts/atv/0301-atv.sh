@@ -11,7 +11,7 @@ algolist=(
 
 for algoname in "${algolist[@]}"; do
   srun --gres=gpu:4 -n1 --kill-on-bad-exit=1 --ntasks-per-node=1 \
-    --job-name=$envname --mem=0 --exclusive \
+    --job-name=$algoname --mem=0 --exclusive \
     python toolbox/atv/identical_parameters.py \
     --exp-name=0301-atv \
     --algo=$algoname \

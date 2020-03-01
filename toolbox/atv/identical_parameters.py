@@ -296,11 +296,10 @@ if __name__ == '__main__':
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
-            "grad_clip": 0.5,
+            # "grad_clip": 0.5,
             "num_envs_per_worker": 8,
-            "entropy_coeff": 0.0,
-            "lambda": 0.99,
-            "lr": 1e-5,
+            # "entropy_coeff": 0.0,
+            "lr": 1e-4,
             "model": {"vf_share_layers": False}
         },
     }
