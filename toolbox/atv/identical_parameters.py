@@ -284,7 +284,7 @@ if __name__ == '__main__':
             "num_envs_per_worker": 8,
             "entropy_coeff": 0.0,
             "lambda": 0.99,
-            "lr": 5e-5,
+            "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
         "A3C": {
@@ -292,7 +292,7 @@ if __name__ == '__main__':
             "num_envs_per_worker": 8,
             "entropy_coeff": 0.0,
             "lambda": 0.99,
-            "lr": 5e-5,
+            "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
@@ -300,7 +300,7 @@ if __name__ == '__main__':
             "num_envs_per_worker": 8,
             "entropy_coeff": 0.0,
             "lambda": 0.99,
-            "lr": 5e-5,
+            "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
     }
@@ -309,9 +309,9 @@ if __name__ == '__main__':
         "PPO": 1e7,
         "TD3": 1e6,
         "ES": 1e9,
-        "A2C": 2e7,
-        "A3C": 2e7,
-        "IMPALA": 2e7
+        "A2C": 1e8,
+        "A3C": 1e8,
+        "IMPALA": 1e8
     }
 
     stop = int(algo_specify_stop[algo]) if not test else 10000
@@ -322,6 +322,9 @@ if __name__ == '__main__':
         "num_cpus_for_driver": 1,
         "num_cpus_per_worker": 1,
     })
+
+    if algo == "ES":
+        config.pop("num_gpus")
 
     train(
         algo=algo,

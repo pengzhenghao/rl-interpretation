@@ -6,7 +6,7 @@ import numpy as np
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.a2v.identical_parameters import get_dynamic_trainer
+from toolbox.atv.identical_parameters import get_dynamic_trainer
 
 
 def assert_equal(arr1, arr2, k=""):
@@ -63,7 +63,7 @@ def _test_blackbox(algo):
     if algo == "ES":
         config['num_workers'] = 2
     dir_path = tempfile.mkdtemp()
-    trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker")
+    trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker-v2")
     ret = tune.run(
         trainer,
         local_dir=dir_path,
