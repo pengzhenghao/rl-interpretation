@@ -3,7 +3,6 @@ import copy
 import os
 import pickle
 
-import numpy as np
 from ray import tune
 from ray.rllib.agents.a3c import A2CTrainer, A3CTrainer
 from ray.rllib.agents.ddpg import TD3Trainer
@@ -12,61 +11,62 @@ from ray.rllib.agents.ppo import PPOTrainer
 
 from toolbox import initialize_ray
 from toolbox.evaluate import restore_agent
+from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
 
 os.environ['OMP_NUM_THREADS'] = '1'
 
 
-def set_td3_from_ppo(td3_agent, ppo_agent_weights):
-    ppo_weights = ppo_agent_weights["default_policy"]
-
-    # modify keys
-    ppo_weights = {
-        k.split('default_policy/')[-1]: v
-        for k, v in ppo_weights.items()
-        if "value" not in k
-    }
-
-    # the output is deterministic
-    # if ppo_agent.get_policy().dist_class is DiagGaussian:
-    tmp_ppo_weights = copy.deepcopy(ppo_weights)
-    for k, v in ppo_weights.items():
-        if "out" in k:
-            if v.ndim == 2:
-                new_v = np.split(v, 2, axis=1)[0]
-            elif v.ndim == 1:
-                new_v = np.split(v, 2, axis=0)[0]
-            else:
-                assert False
-            tmp_ppo_weights[k] = new_v
-    ppo_weights = tmp_ppo_weights
-    # else:
-    #     pass
-
-    key_map = {
-        "dense": "fc_1",
-        "dense_1": "fc_2",
-        "dense_2": "fc_out"
-    }
-
-    td3_weights = td3_agent.get_policy().get_weights()
-    for k, v in td3_weights.items():
-        if "/policy/" in k or "/target_policy/" in k:
-            # k: "default_policy/policy/dense/bias"
-
-            k1 = k.split("/")
-            # k1: ['default_policy', 'policy', 'dense', 'bias']
-            assert k1[2] in key_map
-
-            k2 = "/".join([key_map[k1[2]], *k1[3:]])
-            # k2: 'default_policy/fc_1/bias'
-            assert k2 in ppo_weights, (k2, ppo_weights.keys())
-            assert td3_weights[k].shape == ppo_weights[k2].shape, \
-                (k, k2, td3_weights[k].shape, ppo_weights[k2].shape)
-            td3_weights[k] = ppo_weights[k2]
-
-    td3_agent.get_policy().set_weights(td3_weights)
-    return td3_agent
+# def set_td3_from_ppo(td3_agent, ppo_agent_weights):
+#     ppo_weights = ppo_agent_weights["default_policy"]
+#
+#     # modify keys
+#     ppo_weights = {
+#         k.split('default_policy/')[-1]: v
+#         for k, v in ppo_weights.items()
+#         if "value" not in k
+#     }
+#
+#     # the output is deterministic
+#     # if ppo_agent.get_policy().dist_class is DiagGaussian:
+#     tmp_ppo_weights = copy.deepcopy(ppo_weights)
+#     for k, v in ppo_weights.items():
+#         if "out" in k:
+#             if v.ndim == 2:
+#                 new_v = np.split(v, 2, axis=1)[0]
+#             elif v.ndim == 1:
+#                 new_v = np.split(v, 2, axis=0)[0]
+#             else:
+#                 assert False
+#             tmp_ppo_weights[k] = new_v
+#     ppo_weights = tmp_ppo_weights
+#     # else:
+#     #     pass
+#
+#     key_map = {
+#         "dense": "fc_1",
+#         "dense_1": "fc_2",
+#         "dense_2": "fc_out"
+#     }
+#
+#     td3_weights = td3_agent.get_policy().get_weights()
+#     for k, v in td3_weights.items():
+#         if "/policy/" in k or "/target_policy/" in k:
+#             # k: "default_policy/policy/dense/bias"
+#
+#             k1 = k.split("/")
+#             # k1: ['default_policy', 'policy', 'dense', 'bias']
+#             assert k1[2] in key_map
+#
+#             k2 = "/".join([key_map[k1[2]], *k1[3:]])
+#             # k2: 'default_policy/fc_1/bias'
+#             assert k2 in ppo_weights, (k2, ppo_weights.keys())
+#             assert td3_weights[k].shape == ppo_weights[k2].shape, \
+#                 (k, k2, td3_weights[k].shape, ppo_weights[k2].shape)
+#             td3_weights[k] = ppo_weights[k2]
+#
+#     td3_agent.get_policy().set_weights(td3_weights)
+#     return td3_agent
 
 
 def get_dynamic_trainer(algo, init_seed, env_name):
@@ -83,6 +83,8 @@ def get_dynamic_trainer(algo, init_seed, env_name):
         base = A3CTrainer
     elif algo == "IMPALA":
         base = ImpalaTrainer
+    elif algo == "ARS":
+        base = GaussianARSTrainer
     else:
         raise NotImplementedError()
 
@@ -102,7 +104,7 @@ def get_dynamic_trainer(algo, init_seed, env_name):
         def __init__(self, config, *args, **kwargs):
             assert "env" in config, config.keys()
             org_config = copy.deepcopy(base._default_config)
-            our_es = algo == "ES" and base._name == "GaussianES"
+            # our_es = algo == "ES" and base._name == "GaussianES"
 
             # Update the config if necessary.
             org_config.update(config)
@@ -134,7 +136,7 @@ def get_dynamic_trainer(algo, init_seed, env_name):
             )
 
             # Set the weights of the training agent.
-            if algo in ["PPO", "A2C", "A3C", "IMPALA"] or our_es:
+            if algo in ["PPO", "A2C", "A3C", "IMPALA", "ES", "ARS"]:
                 self.set_weights(self._reference_agent_weights)
             # elif algo == "TD3":
             #     set_td3_from_ppo(self, self._reference_agent_weights)
@@ -227,6 +229,7 @@ if __name__ == '__main__':
             "critic_hidden_activation": "tanh"
         },
         "ES": {"model": {"vf_share_layers": False}},
+        "ARS": {"model": {"vf_share_layers": False}},
         "A2C": {
             # "grad_clip": 0.5,
             "num_envs_per_worker": 16,
@@ -256,6 +259,7 @@ if __name__ == '__main__':
         "PPO": 1e7,
         "TD3": 1e6,
         "ES": 5e8,
+        "ARS": 5e8,
         "A2C": 1e8,
         "A3C": 1e8,
         "IMPALA": 1e8
@@ -270,7 +274,7 @@ if __name__ == '__main__':
         "num_cpus_per_worker": 1,
     })
 
-    if algo == "ES":
+    if algo in ["ES", "ARS"]:
         config["num_gpus"] = 0
         config["num_cpus_per_worker"] = 0.5
 

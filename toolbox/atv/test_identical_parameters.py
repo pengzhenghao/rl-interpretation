@@ -27,7 +27,7 @@ def _test_basic(algo):
     trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker-v2")(
         config={"env": "BipedalWalker-v2"})
 
-    if algo == "ES":
+    if algo in ["ES", "ARS"]:
         tw = {k: v for k, v in trainer.policy.variables.get_weights().items()
               if "value" not in k}
     elif algo in ["PPO", "A2C", "A3C", "IMPALA"]:
@@ -78,7 +78,7 @@ def _test_blackbox(algo):
 
 def test_reference_consistency():
     initialize_ray(test_mode=True, local_mode=False)
-    algos = ["PPO", "ES", "TD3", "A2C", "A3C", "IMPALA"]
+    algos = ["PPO", "ES", "TD3", "A2C", "A3C", "IMPALA", "ARS"]
     rws = {}
     for i, algo in enumerate(algos):
         trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker-v2")(config={
@@ -120,6 +120,9 @@ class BasicTest(unittest.TestCase):
     def test_impala(self):
         _test_basic("IMPALA")
 
+    def test_ars(self):
+        _test_basic("ARS")
+
 
 class BlackBoxTest(unittest.TestCase):
     def test_ppo(self):
@@ -139,6 +142,9 @@ class BlackBoxTest(unittest.TestCase):
 
     def test_impala(self):
         _test_blackbox("IMPALA")
+
+    def test_ars(self):
+        _test_blackbox("ARS")
 
 
 if __name__ == "__main__":
