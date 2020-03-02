@@ -329,7 +329,8 @@ class VideoRecorder(object):
                 pass
             else:
                 self.background[len(frames):, height[0]:height[1], width[0]:
-                                width[1], 2::-1] = frames[-1]
+                                                                   width[1],
+                2::-1] = frames[-1]
             if require_text:
                 for information in extra_info_dict.values():
                     if 'pos_ratio' not in information:
@@ -381,7 +382,8 @@ class VideoRecorder(object):
         self._close()
         return self.path
 
-    def generate_video(self, frames_dict, extra_info_dict, require_text=True):
+    def generate_video(self, frames_dict, extra_info_dict, require_text=True,
+                       gif_mode=None):
         """Render the given `env` and add the resulting frame to the video."""
         logger.debug('Capturing video frame: path=%s', self.path)
 
@@ -401,7 +403,8 @@ class VideoRecorder(object):
 
         if self.generate_gif:
             # self.scale = 1
-            name_path_dict = self._generate_gif(frames_dict, extra_info_dict)
+            name_path_dict = self._generate_gif(frames_dict, extra_info_dict,
+                                                gif_mode)
             return name_path_dict
             # return self.base_path
 
@@ -445,7 +448,7 @@ class VideoRecorder(object):
             int(bottom_ratio * height[0] + (1 - bottom_ratio) * height[1])
         )
 
-    def _generate_gif(self, frames_dict, extra_info_dict):
+    def _generate_gif(self, frames_dict, extra_info_dict, mode=None):
         # self._add_things_on_backgaround(frames_dict, extra_info_dict)
         obj_list = []
         name_path_dict = {}
@@ -490,7 +493,7 @@ class VideoRecorder(object):
                     self._put_text(None, text, pos, canvas=frames)
 
             obj_ids, mode_path_dict = self._generate_gif_for_clip(
-                title, frames, resize_frames, frames_info
+                title, frames, resize_frames, frames_info, mode
             )
             obj_list.extend(obj_ids)
             name_path_dict[title] = mode_path_dict
@@ -504,19 +507,23 @@ class VideoRecorder(object):
         return name_path_dict
 
     def _generate_gif_for_clip(
-            self, agent_name, frames, resize_frames, frames_info
+            self, agent_name, frames, resize_frames, frames_info, mode=None
     ):
-        print(
-            "Start generating gif for agent <{}>. "
-            "We will use these modes: {}".format(
-                agent_name, self.allow_gif_mode
+        if mode is None:
+            print(
+                "Start generating gif for agent <{}>. "
+                "We will use these modes: {}".format(
+                    agent_name, self.allow_gif_mode
+                )
             )
-        )
+            mode_list = self.allow_gif_mode
+        else:
+            mode_list = [mode]
         length = len(frames)
         one_clip_length = min(3 * self.frames_per_sec, length)
         obj_ids = []
         mode_path_dict = {}
-        for mode in self.allow_gif_mode:
+        for mode in mode_list:
             print("Start to collect mode: ", mode, len(resize_frames))
             if mode == 'hd':
                 clip = frames
@@ -903,7 +910,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                format(type(frame), frame)
+                    format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(

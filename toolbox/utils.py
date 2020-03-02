@@ -9,7 +9,10 @@ from sys import getsizeof
 import numpy as np
 import ray
 from distro import linux_distribution
-from ray.internal.internal_api import unpin_object_data
+
+
+# from ray.internal.internal_api import unpin_object_data
+# Update ray to 0.8.2 cause this function disappeared.
 
 
 class DefaultMapping(collections.defaultdict):
@@ -18,6 +21,12 @@ class DefaultMapping(collections.defaultdict):
     def __missing__(self, key):
         self[key] = value = self.default_factory(key)
         return value
+
+
+def merge_dicts(base_config, extra_config):
+    config = copy.deepcopy(base_config)
+    config.update(extra_config)
+    return config
 
 
 def _is_centos():
@@ -34,19 +43,19 @@ def _is_centos():
 
 
 def initialize_ray(local_mode=False, num_gpus=None, test_mode=False, **kwargs):
-    if not ray.is_initialized():
-        ray.init(
-            logging_level=logging.ERROR if not test_mode else logging.DEBUG,
-            log_to_driver=test_mode,
-            local_mode=local_mode,
-            num_gpus=num_gpus,
-            temp_dir="/data1/pengzh/tmp"
-            if _is_centos() == "b146466" else None,
-            **kwargs
-        )
-        print("Successfully initialize Ray!")
-    if not local_mode:
+    ray.init(
+        logging_level=logging.ERROR if not test_mode else logging.DEBUG,
+        log_to_driver=test_mode,
+        local_mode=local_mode,
+        num_gpus=num_gpus,
+        ignore_reinit_error=True,
+        **kwargs
+    )
+    print("Successfully initialize Ray!")
+    try:
         print("Available resources: ", ray.available_resources())
+    except Exception:
+        pass
 
 
 def get_local_dir():
@@ -118,8 +127,8 @@ def ray_get_and_free(object_ids):
     if type(object_ids) is not list:
         object_ids = [object_ids]
 
-    for oid in object_ids:
-        unpin_object_data(oid)
+    # for oid in object_ids:
+    #     unpin_object_data(oid)
 
     _to_free.extend(object_ids)
 

@@ -12,7 +12,7 @@ from collections import OrderedDict
 import numpy as np
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
-from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
+from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy, \
     EntropyCoeffSchedule, KLCoeffMixin, LearningRateSchedule, \
     BEHAVIOUR_LOGITS, ValueNetworkMixin
 from ray.rllib.models import ModelCatalog
@@ -20,7 +20,7 @@ from ray.rllib.models.tf.misc import normc_initializer, get_activation_fn
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils import try_import_tf
-from ray.tune.util import merge_dicts
+from toolbox.utils import merge_dicts
 from tensorflow.keras.layers import Layer
 from tensorflow.python.keras.backend import set_session
 

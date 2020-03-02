@@ -11,6 +11,32 @@ import scipy.interpolate
 from ray.tune.analysis.experiment_analysis import Analysis, ExperimentAnalysis
 
 
+def _process_input(path_or_obj):
+    if isinstance(path_or_obj, str):
+        # analysis directory, pkl file path or experiment state json path.
+        path_or_obj = osp.expanduser(path_or_obj)
+        assert osp.isfile(path_or_obj) or osp.isdir(path_or_obj)
+        if path_or_obj.endswith("pkl"):
+            with open(path_or_obj, 'rb') as f:
+                trial_dict = pickle.load(f)
+        elif path_or_obj.endswith("json"):
+            trial_dict = ExperimentAnalysis(path_or_obj).trial_dataframes
+        else:
+            trial_dict = Analysis(path_or_obj).trial_dataframes
+    elif isinstance(path_or_obj, dict):
+        trial_dict = path_or_obj
+    elif isinstance(path_or_obj, Analysis) or \
+            isinstance(path_or_obj, ExperimentAnalysis):
+        trial_dict = path_or_obj.trial_dataframes
+    else:
+        raise NotImplementedError(
+            "We expect the input is trial_dataframes dict, an analysis object,"
+            " path toward a experiment, path toward a experiment_state json "
+            "file.")
+    assert isinstance(trial_dict, dict)
+    return trial_dict
+
+
 def _parse_tag(tag):
     """
     tag: 0_normalize_advantage=True,seed=0,tau=0.1,mode=None
@@ -26,6 +52,15 @@ def _parse_tag(tag):
             value = value
         ret[key] = value
     return ret
+
+
+def get_keys(path_or_obj):
+    trial_dict = _process_input(path_or_obj)
+    keys = set()
+    for trial_name, trial_df in trial_dict.items():
+        keys.update(_parse_tag(trial_df.experiment_tag[0]).keys())
+        keys.update(trial_df.keys())
+    return keys
 
 
 def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
@@ -50,28 +85,7 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
     :return: a big pandas dataframe which contains everything.
     """
     # Step 1: Read the data from four possible sources.
-    if isinstance(path_or_obj, str):
-        # analysis directory, pkl file path or experiment state json path.
-        path_or_obj = osp.expanduser(path_or_obj)
-        assert osp.isfile(path_or_obj) or osp.isdir(path_or_obj)
-        if path_or_obj.endswith("pkl"):
-            with open(path_or_obj, 'rb') as f:
-                trial_dict = pickle.load(f)
-        elif path_or_obj.endswith("json"):
-            trial_dict = ExperimentAnalysis(path_or_obj).trial_dataframes
-        else:
-            trial_dict = Analysis(path_or_obj).trial_dataframes
-    elif isinstance(path_or_obj, dict):
-        trial_dict = path_or_obj
-    elif isinstance(path_or_obj, Analysis) or \
-            isinstance(path_or_obj, ExperimentAnalysis):
-        trial_dict = path_or_obj.trial_dataframes
-    else:
-        raise NotImplementedError(
-            "We expect the input is trial_dataframes dict, an analysis object,"
-            " path toward a experiment, path toward a experiment_state json "
-            "file.")
-    assert isinstance(trial_dict, dict)
+    trial_dict = _process_input(path_or_obj)
 
     # Step 2: process the keys that user querying.
     if keys is None:

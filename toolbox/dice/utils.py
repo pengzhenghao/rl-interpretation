@@ -5,10 +5,12 @@ import logging
 
 import numpy as np
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
-from ray.tune.util import merge_dicts
+from ray.rllib.utils import try_import_tf
 
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
+from toolbox.utils import merge_dicts
 
+tf = try_import_tf()
 logger = logging.getLogger(__name__)
 
 

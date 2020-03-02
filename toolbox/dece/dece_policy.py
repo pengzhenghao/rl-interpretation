@@ -1,5 +1,5 @@
 from collections import deque
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins, \
+from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
     EntropyCoeffSchedule, \
     BEHAVIOUR_LOGITS, kl_and_loss_stats, PPOTFPolicy, KLCoeffMixin, \
     ValueNetworkMixin
