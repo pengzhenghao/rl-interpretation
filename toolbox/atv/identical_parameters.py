@@ -271,7 +271,8 @@ if __name__ == '__main__':
     })
 
     if algo == "ES":
-        config.pop("num_gpus")
+        config["num_gpus"] = 0
+        config["num_cpus_per_worker"] = 0.5
 
     train(
         algo=algo,
