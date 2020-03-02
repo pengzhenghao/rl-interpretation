@@ -12,22 +12,23 @@ for algoname in "${algolist[@]}"; do
   srun --gres=gpu:4 -n1 --kill-on-bad-exit=1 --ntasks-per-node=1 \
     --job-name=$algoname --mem=0 --exclusive \
     python toolbox/atv/identical_parameters.py \
-    --exp-name=0301-atv \
+    --exp-name=0302-atv \
     --algo=$algoname \
     --num-gpus=4 \
-    2>&1 | tee atv_logs/0301-$algoname.log &
+    2>&1 | tee atv_logs/0302-$algoname.log &
 done
 
 # No GPU requirements algorithms
 algolist=(
   ES
+  ARS
 )
 for algoname in "${algolist[@]}"; do
   srun -n1 --kill-on-bad-exit=1 --ntasks-per-node=1 \
     --job-name=$algoname --mem=0 --exclusive \
     python toolbox/atv/identical_parameters.py \
-    --exp-name=0301-atv \
+    --exp-name=0302-atv \
     --algo=$algoname \
     --num-gpus=4 \
-    2>&1 | tee atv_logs/0301-$algoname.log &
+    2>&1 | tee atv_logs/0302-$algoname.log &
 done
