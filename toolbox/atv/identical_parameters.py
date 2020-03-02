@@ -5,7 +5,7 @@ import pickle
 
 from ray import tune
 from ray.rllib.agents.a3c import A2CTrainer, A3CTrainer
-from ray.rllib.agents.ddpg import TD3Trainer
+# from ray.rllib.agents.ddpg import TD3Trainer
 from ray.rllib.agents.impala import ImpalaTrainer
 from ray.rllib.agents.ppo import PPOTrainer
 
@@ -70,9 +70,9 @@ os.environ['OMP_NUM_THREADS'] = '1'
 
 
 def get_dynamic_trainer(algo, init_seed, env_name):
-    if algo == "TD3":
-        base = TD3Trainer
-    elif algo == "PPO":
+    # if algo == "TD3":
+    #     base = TD3Trainer
+    if algo == "PPO":
         base = PPOTrainer
     elif algo == "ES":
         # base = ESTrainer
@@ -220,14 +220,14 @@ if __name__ == '__main__':
             "lambda": 0.95,
             "lr": 2.5e-4,
         },
-        "TD3": {
-            "actor_lr": 0.0005,
-            "buffer_size": 100000,
-            "actor_hiddens": [256, 256],
-            "critic_hiddens": [256, 256],
-            "actor_hidden_activation": "tanh",
-            "critic_hidden_activation": "tanh"
-        },
+        # "TD3": {
+        #     "actor_lr": 0.0005,
+        #     "buffer_size": 100000,
+        #     "actor_hiddens": [256, 256],
+        #     "critic_hiddens": [256, 256],
+        #     "actor_hidden_activation": "tanh",
+        #     "critic_hidden_activation": "tanh"
+        # },
         "ES": {"model": {"vf_share_layers": False}},
         "ARS": {"model": {"vf_share_layers": False}},
         "A2C": {
@@ -257,7 +257,7 @@ if __name__ == '__main__':
 
     algo_specify_stop = {
         "PPO": 1e7,
-        "TD3": 1e6,
+        # "TD3": 1e6,
         "ES": 5e8,
         "ARS": 5e8,
         "A2C": 1e8,
