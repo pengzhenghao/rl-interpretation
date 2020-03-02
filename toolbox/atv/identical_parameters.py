@@ -15,58 +15,6 @@ from toolbox.evaluate import restore_agent
 from toolbox.evolution.modified_es import GaussianESTrainer
 
 
-# def set_es_from_ppo(es_agent, ppo_agent_weights):
-#     assert es_agent._name == "ES"  # Not "GaussianES"
-#     weights = ppo_agent_weights["default_policy"]
-#
-#     # modify keys
-#     weights = {
-#         k.split('default_policy/')[-1]: v
-#         for k, v in weights.items()
-#         if "value" not in k
-#     }
-#
-#     # the output is deterministic
-#     if (ppo_agent.get_policy().dist_class is DiagGaussian):
-#         new_weights = {}
-#         for k, v in weights.items():
-#             if "out" in k:
-#                 if v.ndim == 2:
-#                     new_v = np.split(v, 2, axis=1)[0]
-#                 elif v.ndim == 1:
-#                     new_v = np.split(v, 2, axis=0)[0]
-#                 else:
-#                     raise ValueError()
-#                 new_weights[k] = new_v
-#             else:
-#                 new_weights[k] = v
-#     else:
-#         new_weights = weights
-#
-#     # rename some variables
-#     tmp_new_weights = copy.deepcopy(new_weights)
-#     for k, v in new_weights.items():
-#         if "out" not in k:
-#             # in ES, the layer names are: fc1, fc_out,
-#             # but in PPO, they're fc_1, fc_out.
-#             assert "fc_" in k, k
-#             new_k = k.replace("fc_", "fc")
-#             tmp_new_weights[new_k] = v
-#     new_weights = tmp_new_weights
-#
-#     # verification
-#     es_weights = es_agent.policy.variables.get_weights()
-#     es_keys = es_weights.keys()
-#     for k in es_keys:
-#         assert k in new_weights, (k, new_weights.keys(), es_keys)
-#         assert es_weights[k].shape == new_weights[k].shape, \
-#             (k, es_weights[k].shape, new_weights[k].shape)
-#
-#     es_agent.policy.variables.set_weights(new_weights)
-#
-#     return es_agent
-
-
 def set_td3_from_ppo(td3_agent, ppo_agent_weights):
     ppo_weights = ppo_agent_weights["default_policy"]
 
@@ -281,7 +229,7 @@ if __name__ == '__main__':
         "ES": {"model": {"vf_share_layers": False}},
         "A2C": {
             "grad_clip": 0.5,
-            "num_envs_per_worker": 8,
+            "num_envs_per_worker": 2,
             "entropy_coeff": 0.0,
             "lambda": 0.99,
             "lr": 1e-5,
@@ -289,7 +237,7 @@ if __name__ == '__main__':
         },
         "A3C": {
             "grad_clip": 0.5,
-            "num_envs_per_worker": 8,
+            "num_envs_per_worker": 4,
             "entropy_coeff": 0.0,
             "lambda": 0.99,
             "lr": 1e-5,
@@ -297,7 +245,7 @@ if __name__ == '__main__':
         },
         "IMPALA": {
             "grad_clip": 0.5,
-            "num_envs_per_worker": 8,
+            "num_envs_per_worker": 1,
             "entropy_coeff": 0.0,
             "lr": 1e-5,
             "model": {"vf_share_layers": False}
@@ -307,7 +255,7 @@ if __name__ == '__main__':
     algo_specify_stop = {
         "PPO": 1e7,
         "TD3": 1e6,
-        "ES": 1e9,
+        "ES": 5e8,
         "A2C": 1e8,
         "A3C": 1e8,
         "IMPALA": 1e8
@@ -317,7 +265,7 @@ if __name__ == '__main__':
     config = algo_specify_config[algo]
     config.update({
         "log_level": "DEBUG" if test else "ERROR",
-        "num_gpus": 0.25,
+        "num_gpus": 0.5,
         "num_cpus_for_driver": 1,
         "num_cpus_per_worker": 1,
     })
