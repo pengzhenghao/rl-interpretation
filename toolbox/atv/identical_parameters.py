@@ -231,23 +231,23 @@ if __name__ == '__main__':
         "ES": {"model": {"vf_share_layers": False}},
         "ARS": {"model": {"vf_share_layers": False}},
         "A2C": {
-            "grad_clip": 10.0,
+            # "grad_clip": 10.0,
             "num_envs_per_worker": 8,
-            "entropy_coeff": 0.0,
-            "lr": 5e-5,
+            # "entropy_coeff": 0.0,
+            "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
         "A3C": {
-            "grad_clip": 10.0,
+            # "grad_clip": 10.0,
             "num_envs_per_worker": 8,
-            "entropy_coeff": 0.0,
-            "lr": 5e-5,
+            # "entropy_coeff": 0.0,
+            "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
-            "grad_clip": 10.0,
+            # "grad_clip": 10.0,
             "num_envs_per_worker": 8,
-            "entropy_coeff": 0.0,
+            # "entropy_coeff": 0.0,
             "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
@@ -267,10 +267,10 @@ if __name__ == '__main__':
     config = algo_specify_config[algo]
     config.update({
         "log_level": "DEBUG" if test else "ERROR",
-        "num_gpus": 0.8,  # run 5 experiments in 4 card machine
+        "num_gpus": 1,  # run 5 experiments in 4 card machine
         "num_cpus_for_driver": 1,
-        "num_cpus_per_worker": 1,  # 6 cpus for one trial
-        "num_workers": 5
+        "num_cpus_per_worker": 1,
+        "num_workers": 8
     })
 
     if algo in ["ES", "ARS"]:
