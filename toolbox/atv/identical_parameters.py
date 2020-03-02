@@ -14,6 +14,8 @@ from toolbox import initialize_ray
 from toolbox.evaluate import restore_agent
 from toolbox.evolution.modified_es import GaussianESTrainer
 
+os.environ['OMP_NUM_THREADS'] = '1'
+
 
 def set_td3_from_ppo(td3_agent, ppo_agent_weights):
     ppo_weights = ppo_agent_weights["default_policy"]
@@ -99,32 +101,32 @@ def get_dynamic_trainer(algo, init_seed, env_name):
 
         def __init__(self, config, *args, **kwargs):
             assert "env" in config, config.keys()
-
             org_config = copy.deepcopy(base._default_config)
-
             our_es = algo == "ES" and base._name == "GaussianES"
 
             # Update the config if necessary.
             org_config.update(config)
             config = copy.deepcopy(org_config)
-            if algo == "TD3":
-                config.update({
-                    "actor_hiddens": [256, 256],
-                    "critic_hiddens": [256, 256],
-                    "actor_hidden_activation": "tanh",
-                    "critic_hidden_activation": "tanh"
-                })
-            elif algo in ["A2C", "A3C", "IMPALA"] or our_es:
-                if config["model"]["vf_share_layers"]:
-                    print(
-                        "A2C/A3C/IMPALA should not share value function "
-                        "layers. "
-                        "So we set config['model']['vf_share_layers'] to "
-                        "False")
-                    config["model"]["vf_share_layers"] = False
-            # config["seed"] = init_seed
+            # if algo == "TD3":
+            #     config.update({
+            #         "actor_hiddens": [256, 256],
+            #         "critic_hiddens": [256, 256],
+            #         "actor_hidden_activation": "tanh",
+            #         "critic_hidden_activation": "tanh"
+            #     })
+            # elif algo in ["A2C", "A3C", "IMPALA"] or our_es:
 
+            if config["model"]["vf_share_layers"]:
+                print(
+                    "A2C/A3C/IMPALA should not share value function "
+                    "layers. "
+                    "So we set config['model']['vf_share_layers'] to "
+                    "False")
+                config["model"]["vf_share_layers"] = False
+
+            # config["seed"] = init_seed
             # Restore the training agent.
+
             super().__init__(config, *args, **kwargs)
 
             self._reference_agent_weights = copy.deepcopy(
@@ -134,8 +136,8 @@ def get_dynamic_trainer(algo, init_seed, env_name):
             # Set the weights of the training agent.
             if algo in ["PPO", "A2C", "A3C", "IMPALA"] or our_es:
                 self.set_weights(self._reference_agent_weights)
-            elif algo == "TD3":
-                set_td3_from_ppo(self, self._reference_agent_weights)
+            # elif algo == "TD3":
+            #     set_td3_from_ppo(self, self._reference_agent_weights)
             # elif algo == "ES":  # For modified GaussianES, treat it like PPO.
             #     set_es_from_ppo(self, ppo_agent)
             else:
@@ -208,8 +210,6 @@ if __name__ == '__main__':
                                                  args.init_seed,
                                                  args.num_seeds)
 
-    os.environ['OMP_NUM_THREADS'] = '1'
-
     algo_specify_config = {
         "PPO": {
             "num_sgd_iter": 10,
@@ -228,25 +228,25 @@ if __name__ == '__main__':
         },
         "ES": {"model": {"vf_share_layers": False}},
         "A2C": {
-            "grad_clip": 0.5,
+            # "grad_clip": 0.5,
             "num_envs_per_worker": 16,
-            "entropy_coeff": 0.0,
-            "lambda": 0.99,
+            # "entropy_coeff": 0.0,
+            # "lambda": 0.99,
             "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
         "A3C": {
-            "grad_clip": 0.5,
+            # "grad_clip": 0.5,
             "num_envs_per_worker": 16,
-            "entropy_coeff": 0.0,
-            "lambda": 0.99,
-            "lr": 5e-5,
+            # "entropy_coeff": 0.0,
+            # "lambda": 1.0,
+            "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
-            "grad_clip": 0.5,
+            # "grad_clip": 0.5,
             "num_envs_per_worker": 16,
-            "entropy_coeff": 0.0,
+            # "entropy_coeff": 0.0,
             # "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
