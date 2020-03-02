@@ -5,13 +5,13 @@ in this file.
 First we compute the task loss and the diversity loss in dice_loss. Then we
 implement the Diversity Regularization module in dice_gradient.
 """
-import tensorflow as tf
 from ray.rllib.agents.ppo.ppo_tf_policy import BEHAVIOUR_LOGITS, PPOLoss
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch
 
 from toolbox.dice.utils import *
 
+tf = try_import_tf()
 logger = logging.getLogger(__name__)
 
 
