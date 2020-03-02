@@ -55,7 +55,6 @@ class PPOLossTwoSideDiversity(object):
 
 class PPOLossTwoSideClip(object):
     def __init__(self,
-                 action_space,
                  dist_class,
                  model,
                  value_targets,
@@ -72,8 +71,7 @@ class PPOLossTwoSideClip(object):
                  clip_param=0.1,
                  vf_clip_param=0.1,
                  vf_loss_coeff=1.0,
-                 use_gae=True,
-                 model_config=None,
+                 use_gae=True
                  ):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
@@ -130,7 +128,6 @@ def dice_loss(policy, model, dist_class, train_batch):
         if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
 
     policy.loss_obj = loss_cls(
-        policy.action_space,
         dist_class,
         model,
         train_batch[Postprocessing.VALUE_TARGETS],
@@ -147,8 +144,7 @@ def dice_loss(policy, model, dist_class, train_batch):
         clip_param=policy.config["clip_param"],
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
-        use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"],
+        use_gae=policy.config["use_gae"]
     )
 
     # Build the loss for diversity
@@ -156,7 +152,6 @@ def dice_loss(policy, model, dist_class, train_batch):
         # if we don't use DVN, we don't have diversity values, so the
         # entries of loss object is also changed.
         policy.diversity_loss_obj = loss_cls(
-            policy.action_space,
             dist_class,
             model,
             train_batch[DIVERSITY_VALUE_TARGETS],
@@ -173,8 +168,7 @@ def dice_loss(policy, model, dist_class, train_batch):
             clip_param=policy.config["clip_param"],
             vf_clip_param=policy.config["vf_clip_param"],
             vf_loss_coeff=policy.config["vf_loss_coeff"],
-            use_gae=policy.config["use_gae"],
-            model_config=policy.config["model"]
+            use_gae=policy.config["use_gae"]
         )
     else:
         policy.diversity_loss_obj = PPOLossTwoSideDiversity(
