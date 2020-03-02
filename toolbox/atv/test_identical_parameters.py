@@ -33,12 +33,12 @@ def _test_basic(algo):
     elif algo in ["PPO", "A2C", "A3C", "IMPALA"]:
         tw = {k: v for k, v in trainer.get_weights()['default_policy'].items()
               if "value" not in k}
-    elif algo == "TD3":
-        tw = {
-            k.split("policy/")[-1].replace("dense", "fc"): v
-            for k, v in trainer.get_weights()['default_policy'].items()
-            if "/policy/" in k
-        }
+    # elif algo == "TD3":
+    #     tw = {
+    #         k.split("policy/")[-1].replace("dense", "fc"): v
+    #         for k, v in trainer.get_weights()['default_policy'].items()
+    #         if "/policy/" in k
+    #     }
 
     rw = {
         k: v for k, v in
@@ -78,7 +78,7 @@ def _test_blackbox(algo):
 
 def test_reference_consistency():
     initialize_ray(test_mode=True, local_mode=False)
-    algos = ["PPO", "ES", "TD3", "A2C", "A3C", "IMPALA", "ARS"]
+    algos = ["PPO", "ES", "A2C", "A3C", "IMPALA", "ARS"]
     rws = {}
     for i, algo in enumerate(algos):
         trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker-v2")(config={
@@ -108,8 +108,8 @@ class BasicTest(unittest.TestCase):
     def test_es(self):
         _test_basic("ES")
 
-    def test_td3(self):
-        _test_basic("TD3")
+    # def test_td3(self):
+    #     _test_basic("TD3")
 
     def test_a2c(self):
         _test_basic("A2C")
@@ -131,8 +131,8 @@ class BlackBoxTest(unittest.TestCase):
     def test_es(self):
         _test_blackbox("ES")
 
-    def test_td3(self):
-        _test_blackbox("TD3")
+    # def test_td3(self):
+    #     _test_blackbox("TD3")
 
     def test_a2c(self):
         _test_blackbox("A2C")
