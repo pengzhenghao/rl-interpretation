@@ -215,7 +215,7 @@ if __name__ == '__main__':
     algo_specify_config = {
         "PPO": {
             "num_sgd_iter": 10,
-            "num_envs_per_worker": 16,
+            "num_envs_per_worker": 8,
             "entropy_coeff": 0.001,
             "lambda": 0.95,
             "lr": 2.5e-4,
@@ -231,23 +231,24 @@ if __name__ == '__main__':
         "ES": {"model": {"vf_share_layers": False}},
         "ARS": {"model": {"vf_share_layers": False}},
         "A2C": {
-            # "grad_clip": 10.0,
             "num_envs_per_worker": 8,
-            # "entropy_coeff": 0.0,
-            "lr": 1e-5,
+            "lr_schedule": [
+                [0, 0.00005],
+                [100000000, 0.000000000001],
+            ],
             "model": {"vf_share_layers": False}
         },
         "A3C": {
-            # "grad_clip": 10.0,
             "num_envs_per_worker": 8,
-            # "entropy_coeff": 0.0,
-            "lr": 1e-5,
+            "sample_batch_size": 20,
+            "lr_schedule": [
+                [0, 0.00005],
+                [100000000, 0.000000000001],
+            ],
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
-            # "grad_clip": 10.0,
             "num_envs_per_worker": 8,
-            # "entropy_coeff": 0.0,
             "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
@@ -255,7 +256,6 @@ if __name__ == '__main__':
 
     algo_specify_stop = {
         "PPO": 1e7,
-        # "TD3": 1e6,
         "ES": 5e8,
         "ARS": 5e8,
         "A2C": 1e8,
