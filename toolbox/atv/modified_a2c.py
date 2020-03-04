@@ -27,7 +27,7 @@ if __name__ == '__main__':
     parser.add_argument("--num-samples", type=int, default=5)
     args = parser.parse_args()
 
-    if args:
+    if args.file:
         with open(args.file, "r") as f:
             config = yaml.safe_load(f)
     else:

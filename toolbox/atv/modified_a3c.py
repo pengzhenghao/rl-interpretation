@@ -11,14 +11,22 @@ def modified_postprocess(policy, sample_batch, other_batches, episode):
     return post_batch
 
 
-ANA3cTFPolicy = A3CTFPolicy.with_updates(
+def get_policy_class_modified(config):
+    if config["use_pytorch"]:
+        raise NotImplementedError()
+    else:
+        return ANA3CTFPolicy
+
+
+ANA3CTFPolicy = A3CTFPolicy.with_updates(
     name="ANA3CTFPolicy",
     postprocess_fn=modified_postprocess
 )
 
 ANA3CTrainer = A3CTrainer.with_updates(
     name="ANA3C",
-    default_policy=ANA3cTFPolicy
+    default_policy=ANA3CTFPolicy,
+    get_policy_class=get_policy_class_modified
 )
 
 if __name__ == '__main__':
@@ -30,11 +38,11 @@ if __name__ == '__main__':
     parser.add_argument("--num-samples", type=int, default=5)
     args = parser.parse_args()
 
-    if args:
+    if args.file:
         with open(args.file, "r") as f:
             config = yaml.safe_load(f)
     else:
-        config = {}
+        config = {"env": "BipedalWalker-v2"}
 
     tune.run(
         ANA3CTrainer,
