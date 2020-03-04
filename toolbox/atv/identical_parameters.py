@@ -232,19 +232,12 @@ if __name__ == '__main__':
         "ARS": {"model": {"vf_share_layers": False}},
         "A2C": {
             "num_envs_per_worker": 8,
-            "lr_schedule": [
-                [0, 0.00005],
-                [100000000, 0.000000000001],
-            ],
             "model": {"vf_share_layers": False}
         },
         "A3C": {
             "num_envs_per_worker": 8,
             "sample_batch_size": 20,
-            "lr_schedule": [
-                [0, 0.00005],
-                [100000000, 0.000000000001],
-            ],
+            "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
