@@ -4,12 +4,12 @@ import os
 import pickle
 
 from ray import tune
-from ray.rllib.agents.a3c import A2CTrainer, A3CTrainer
-# from ray.rllib.agents.ddpg import TD3Trainer
-from ray.rllib.agents.impala import ImpalaTrainer
+# from ray.rllib.agents.a3c import A2CTrainer, A3CTrainer
+# from ray.rllib.agents.impala import ImpalaTrainer
 from ray.rllib.agents.ppo import PPOTrainer
 
 from toolbox import initialize_ray
+from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
 from toolbox.evaluate import restore_agent
 from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
@@ -78,11 +78,11 @@ def get_dynamic_trainer(algo, init_seed, env_name):
         # base = ESTrainer
         base = GaussianESTrainer
     elif algo == "A2C":
-        base = A2CTrainer
+        base = ANA2CTrainer
     elif algo == "A3C":
-        base = A3CTrainer
+        base = ANA3CTrainer
     elif algo == "IMPALA":
-        base = ImpalaTrainer
+        base = ANIMPALATrainer
     elif algo == "ARS":
         base = GaussianARSTrainer
     else:

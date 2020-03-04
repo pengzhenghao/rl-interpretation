@@ -159,7 +159,7 @@ def choose_policy(config):
         raise NotImplementedError()
 
 
-ANIMPALA = ImpalaTrainer.with_updates(
+ANIMPALATrainer = ImpalaTrainer.with_updates(
     name="ANIMPALA",
     get_policy_class=choose_policy,
     default_policy=VTraceLossModified
@@ -184,7 +184,7 @@ if __name__ == '__main__':
         config = {"env": "BipedalWalker-v2", "num_gpus": 0}
 
     tune.run(
-        ANIMPALA,
+        ANIMPALATrainer,
         config=config,
         num_samples=args.num_samples
     )
