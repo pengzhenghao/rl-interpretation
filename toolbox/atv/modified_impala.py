@@ -1,74 +1,176 @@
+import gym
+import numpy as np
 from ray import tune
-from ray.rllib.agents.impala.impala import ImpalaTrainer, TreeAggregator
-from ray.rllib.optimizers.async_samples_optimizer import AsyncSamplesOptimizer
+from ray.rllib.agents.impala import vtrace
+from ray.rllib.agents.impala.impala import ImpalaTrainer, VTraceTFPolicy
+from ray.rllib.agents.impala.vtrace_policy import _make_time_major
+from ray.rllib.models.tf.tf_action_dist import Categorical
+from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.tf_policy import ACTION_LOGP
+from ray.rllib.utils import try_import_tf
+
+BEHAVIOUR_LOGITS = "behaviour_logits"
+tf = try_import_tf()
 
 
-class ANAsyncSamplesOptimizer(AsyncSamplesOptimizer):
-    def _step(self):
-        sample_timesteps, train_timesteps = 0, 0
+class VTraceLossModified:
+    def __init__(self,
+                 actions,
+                 actions_logp,
+                 actions_entropy,
+                 dones,
+                 behaviour_action_logp,
+                 behaviour_logits,
+                 target_logits,
+                 discount,
+                 rewards,
+                 values,
+                 bootstrap_value,
+                 dist_class,
+                 model,
+                 valid_mask,
+                 config,
+                 vf_loss_coeff=0.5,
+                 entropy_coeff=0.01,
+                 clip_rho_threshold=1.0,
+                 clip_pg_rho_threshold=1.0):
+        # Compute vtrace on the CPU for better perf.
+        with tf.device("/cpu:0"):
+            self.vtrace_returns = vtrace.multi_from_logits(
+                behaviour_action_log_probs=behaviour_action_logp,
+                behaviour_policy_logits=behaviour_logits,
+                target_policy_logits=target_logits,
+                actions=tf.unstack(actions, axis=2),
+                discounts=tf.to_float(~dones) * discount,
+                rewards=rewards,
+                values=values,
+                bootstrap_value=bootstrap_value,
+                dist_class=dist_class,
+                model=model,
+                clip_rho_threshold=tf.cast(clip_rho_threshold, tf.float32),
+                clip_pg_rho_threshold=tf.cast(clip_pg_rho_threshold,
+                                              tf.float32))
+            self.value_targets = self.vtrace_returns.vs
 
-        for train_batch in self.aggregator.iter_train_batches():
-            sample_timesteps += train_batch.count
+            advantages = self.vtrace_returns.pg_advantages
+            # The advantages has shape [Sample batch size, B] (B is the
+            # number of sample_batch in train_batch). Here we normalize
+            # advantages among whole train batch.
+            advantages = (advantages - tf.reduce_mean(advantages)) / \
+                         tf.maximum(1e-4, tf.math.reduce_std(advantages))
 
-            # Normalize the advantage
-            array = train_batch["advantages"]
-            train_batch["advantages"] = (array - array.mean()) / max(
-                1e-4, array.std())
+        # The policy gradients loss
+        self.pi_loss = -tf.reduce_sum(
+            tf.boolean_mask(actions_logp * advantages, valid_mask)
+        )
 
-            self.learner.inqueue.put(train_batch)
-            if (self.learner.weights_updated
-                    and self.aggregator.should_broadcast()):
-                self.aggregator.broadcast_new_weights()
+        # The baseline loss
+        delta = tf.boolean_mask(values - self.vtrace_returns.vs, valid_mask)
+        self.vf_loss = 0.5 * tf.reduce_sum(tf.square(delta))
 
-        while not self.learner.outqueue.empty():
-            count = self.learner.outqueue.get()
-            train_timesteps += count
+        # The entropy loss
+        self.entropy = tf.reduce_sum(
+            tf.boolean_mask(actions_entropy, valid_mask))
 
-        return sample_timesteps, train_timesteps
+        # The summed weighted loss
+        self.total_loss = (self.pi_loss + self.vf_loss * vf_loss_coeff -
+                           self.entropy * entropy_coeff)
 
 
-def modified_make_policy_optimizer(workers, config):
-    if config["num_aggregation_workers"] > 0:
-        # Create co-located aggregator actors first for placement pref
-        aggregators = TreeAggregator.precreate_aggregators(
-            config["num_aggregation_workers"])
+def build_vtrace_loss_modified(policy, model, dist_class, train_batch):
+    model_out, _ = model.from_batch(train_batch)
+    action_dist = dist_class(model_out, model)
+
+    if isinstance(policy.action_space, gym.spaces.Discrete):
+        is_multidiscrete = False
+        output_hidden_shape = [policy.action_space.n]
+    elif isinstance(policy.action_space,
+                    gym.spaces.multi_discrete.MultiDiscrete):
+        is_multidiscrete = True
+        output_hidden_shape = policy.action_space.nvec.astype(np.int32)
     else:
-        aggregators = None
-    workers.add_workers(config["num_workers"])
+        is_multidiscrete = False
+        output_hidden_shape = 1
 
-    optimizer = ANAsyncSamplesOptimizer(
-        workers,
-        lr=config["lr"],
-        num_gpus=config["num_gpus"],
-        sample_batch_size=config["sample_batch_size"],
-        train_batch_size=config["train_batch_size"],
-        replay_buffer_num_slots=config["replay_buffer_num_slots"],
-        replay_proportion=config["replay_proportion"],
-        num_data_loader_buffers=config["num_data_loader_buffers"],
-        max_sample_requests_in_flight_per_worker=config[
-            "max_sample_requests_in_flight_per_worker"],
-        broadcast_interval=config["broadcast_interval"],
-        num_sgd_iter=config["num_sgd_iter"],
-        minibatch_buffer_size=config["minibatch_buffer_size"],
-        num_aggregation_workers=config["num_aggregation_workers"],
-        learner_queue_size=config["learner_queue_size"],
-        learner_queue_timeout=config["learner_queue_timeout"],
-        **config["optimizer"])
+    def make_time_major(*args, **kw):
+        return _make_time_major(policy, train_batch.get("seq_lens"), *args,
+                                **kw)
 
-    if aggregators:
-        # Assign the pre-created aggregators to the optimizer
-        optimizer.aggregator.init(aggregators)
-    return optimizer
+    actions = train_batch[SampleBatch.ACTIONS]
+    dones = train_batch[SampleBatch.DONES]
+    rewards = train_batch[SampleBatch.REWARDS]
+    behaviour_action_logp = train_batch[ACTION_LOGP]
+    behaviour_logits = train_batch[BEHAVIOUR_LOGITS]
+    unpacked_behaviour_logits = tf.split(
+        behaviour_logits, output_hidden_shape, axis=1)
+    unpacked_outputs = tf.split(model_out, output_hidden_shape, axis=1)
+    values = model.value_function()
+
+    if policy.is_recurrent():
+        max_seq_len = tf.reduce_max(train_batch["seq_lens"]) - 1
+        mask = tf.sequence_mask(train_batch["seq_lens"], max_seq_len)
+        mask = tf.reshape(mask, [-1])
+    else:
+        mask = tf.ones_like(rewards)
+
+    # Prepare actions for loss
+    loss_actions = actions if is_multidiscrete else tf.expand_dims(
+        actions, axis=1)
+
+    # Inputs are reshaped from [B * T] => [T - 1, B] for V-trace calc.
+    policy.loss = VTraceLossModified(
+        actions=make_time_major(loss_actions, drop_last=True),
+        actions_logp=make_time_major(
+            action_dist.logp(actions), drop_last=True),
+        actions_entropy=make_time_major(
+            action_dist.multi_entropy(), drop_last=True),
+        dones=make_time_major(dones, drop_last=True),
+        behaviour_action_logp=make_time_major(
+            behaviour_action_logp, drop_last=True),
+        behaviour_logits=make_time_major(
+            unpacked_behaviour_logits, drop_last=True),
+        target_logits=make_time_major(unpacked_outputs, drop_last=True),
+        discount=policy.config["gamma"],
+        rewards=make_time_major(rewards, drop_last=True),
+        values=make_time_major(values, drop_last=True),
+        bootstrap_value=make_time_major(values)[-1],
+        dist_class=Categorical if is_multidiscrete else dist_class,
+        model=model,
+        valid_mask=make_time_major(mask, drop_last=True),
+        config=policy.config,
+        vf_loss_coeff=policy.config["vf_loss_coeff"],
+        entropy_coeff=policy.entropy_coeff,
+        clip_rho_threshold=policy.config["vtrace_clip_rho_threshold"],
+        clip_pg_rho_threshold=policy.config["vtrace_clip_pg_rho_threshold"])
+
+    return policy.loss.total_loss
+
+
+ANVTraceTFPolicy = VTraceTFPolicy.with_updates(
+    name="ANVTraceTFPolicy",
+    loss_fn=build_vtrace_loss_modified
+)
+
+
+def choose_policy(config):
+    if config["vtrace"]:
+        return ANVTraceTFPolicy
+    else:
+        raise NotImplementedError()
 
 
 ANIMPALA = ImpalaTrainer.with_updates(
     name="ANIMPALA",
-    make_policy_optimizer=modified_make_policy_optimizer,
+    get_policy_class=choose_policy,
+    default_policy=VTraceLossModified
 )
 
 if __name__ == '__main__':
     import yaml
     import argparse
+    from toolbox import initialize_ray
+
+    initialize_ray(test_mode=True)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", "-f", type=str, default="")
