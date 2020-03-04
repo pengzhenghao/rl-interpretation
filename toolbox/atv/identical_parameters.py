@@ -231,18 +231,21 @@ if __name__ == '__main__':
         "ES": {"model": {"vf_share_layers": False}},
         "ARS": {"model": {"vf_share_layers": False}},
         "A2C": {
-            "num_envs_per_worker": 8,
-            "model": {"vf_share_layers": False}
+            # "num_envs_per_worker": 8,
+            "model": {"vf_share_layers": False},
+            # "entropy_coeff": 0.001,
+            # "lr": 1e-5
         },
         "A3C": {
-            "num_envs_per_worker": 8,
-            "sample_batch_size": 20,
-            "lr": 1e-5,
+            # "num_envs_per_worker": 8,
+            # "sample_batch_size": 20,
+            # "entropy_coeff": 0.001,
+            # "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
-            "num_envs_per_worker": 8,
-            "lr": 5e-5,
+            # "num_envs_per_worker": 8,
+            # "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
     }
@@ -263,7 +266,7 @@ if __name__ == '__main__':
         "num_gpus": 1,  # run 5 experiments in 4 card machine
         "num_cpus_for_driver": 1,
         "num_cpus_per_worker": 1,
-        "num_workers": 8
+        # "num_workers": 8
     })
 
     if algo in ["ES", "ARS"]:
