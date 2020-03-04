@@ -233,18 +233,20 @@ if __name__ == '__main__':
         "A2C": {
             # "num_envs_per_worker": 8,
             "model": {"vf_share_layers": False},
-            # "entropy_coeff": 0.001,
+            "entropy_coeff": 0.0,
             # "lr": 1e-5
         },
         "A3C": {
             # "num_envs_per_worker": 8,
             # "sample_batch_size": 20,
             # "entropy_coeff": 0.001,
+            "entropy_coeff": 0.0,
             "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
             # "num_envs_per_worker": 8,
+            "entropy_coeff": 0.0,
             "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
