@@ -187,7 +187,7 @@ if __name__ == '__main__':
         "IMPALA": 5e7
     }
 
-    stop = int(algo_specify_stop[algo]) if not test else 10000
+    stop = int(algo_specify_stop[algo])
     config = algo_specify_config[algo]
     config.update({
         "log_level": "DEBUG" if test else "ERROR",
