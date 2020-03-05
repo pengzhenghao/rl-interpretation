@@ -166,7 +166,6 @@ if __name__ == '__main__':
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
-            "num_sgd_iter": 10,
             "num_envs_per_worker": 8,
             "entropy_coeff": 0.001,
             "lr": 1e-4,
