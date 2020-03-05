@@ -33,12 +33,6 @@ def _test_basic(algo):
     elif algo in ["PPO", "A2C", "A3C", "IMPALA"]:
         tw = {k: v for k, v in trainer.get_weights()['default_policy'].items()
               if "value" not in k}
-    # elif algo == "TD3":
-    #     tw = {
-    #         k.split("policy/")[-1].replace("dense", "fc"): v
-    #         for k, v in trainer.get_weights()['default_policy'].items()
-    #         if "/policy/" in k
-    #     }
 
     rw = {
         k: v for k, v in
