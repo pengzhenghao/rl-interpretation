@@ -163,9 +163,10 @@ if __name__ == '__main__':
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
-            # "num_envs_per_worker": 8,
-            "entropy_coeff": 0.0,
-            # "lr": 5e-5,
+            "num_sgd_iter": 10,
+            "num_envs_per_worker": 8,
+            "entropy_coeff": 0.001,
+            "lr": 1e-4,
             "model": {"vf_share_layers": False}
         },
     }
@@ -175,8 +176,8 @@ if __name__ == '__main__':
         "ES": 5e8,
         "ARS": 5e8,
         "A2C": 5e7,
-        "A3C": 5e8,
-        "IMPALA": 5e8
+        "A3C": 5e7,
+        "IMPALA": 5e7
     }
 
     stop = int(algo_specify_stop[algo]) if not test else 10000
