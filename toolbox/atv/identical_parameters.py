@@ -159,13 +159,13 @@ if __name__ == '__main__':
             # "sample_batch_size": 20,
             # "entropy_coeff": 0.001,
             "entropy_coeff": 0.0,
-            "lr": 1e-5,
+            # "lr": 1e-5,
             "model": {"vf_share_layers": False}
         },
         "IMPALA": {
             # "num_envs_per_worker": 8,
             "entropy_coeff": 0.0,
-            "lr": 5e-5,
+            # "lr": 5e-5,
             "model": {"vf_share_layers": False}
         },
     }
