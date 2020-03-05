@@ -3,6 +3,7 @@ import copy
 import os
 import pickle
 
+import ray
 from ray import tune
 from ray.rllib.agents.ppo import PPOTrainer
 
@@ -11,7 +12,6 @@ from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
 from toolbox.evaluate import restore_agent
 from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
-import ray
 
 os.environ['OMP_NUM_THREADS'] = '1'
 
@@ -64,6 +64,9 @@ def get_dynamic_trainer(algo, init_seed, env_name):
             super().__init__(config, *args, **kwargs)
 
             self._reference_agent_weights = ray.get(reference_weights_id)
+
+            print("We have received reference agent weights: ",
+                  self._reference_agent_weights)
 
             # Set the weights of the training agent.
             if algo in ["PPO", "A2C", "A3C", "IMPALA", "ES", "ARS"]:
