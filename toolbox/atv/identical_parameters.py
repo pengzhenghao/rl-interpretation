@@ -9,9 +9,12 @@ from ray.rllib.agents.ppo import PPOTrainer
 
 from toolbox import initialize_ray
 from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
+from toolbox.atv.wrapped_env import register
 from toolbox.evaluate import restore_agent
 from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
+
+register()
 
 os.environ['OMP_NUM_THREADS'] = '1'
 
@@ -132,7 +135,9 @@ if __name__ == '__main__':
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-seeds", type=int, default=10)
     parser.add_argument("--init-seed", type=int, default=2020)
-    parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
+    parser.add_argument("--env-name", type=str,
+                        default="WrappedBipedalWalker-v2")
+    # parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
     algo = args.algo
