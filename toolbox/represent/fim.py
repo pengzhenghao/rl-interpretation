@@ -45,6 +45,14 @@ PPOFIMTFPolicy = PPOTFPolicy.with_updates(
     ]
 )
 
+
+def get_policy_class(config):
+    if config.get("use_pytorch") is True:
+        raise NotImplementedError()
+    else:
+        return PPOFIMTFPolicy
+
+
 PPOFIMTrainer = PPOTrainer.with_updates(
     name="PPOFIM",
     default_policy=PPOFIMTFPolicy,
