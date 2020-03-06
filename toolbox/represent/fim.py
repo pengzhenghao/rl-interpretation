@@ -56,6 +56,7 @@ def get_policy_class(config):
 PPOFIMTrainer = PPOTrainer.with_updates(
     name="PPOFIM",
     default_policy=PPOFIMTFPolicy,
+    get_policy_class=get_policy_class,
 )
 
 
