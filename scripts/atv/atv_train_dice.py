@@ -79,7 +79,8 @@ if __name__ == '__main__':
             "num_agents": tune.grid_search([args.num_agents])
         },
 
-        "num_sgd_iter": 10,        "num_envs_per_worker": 8,
+        "num_sgd_iter": 10,
+        "num_envs_per_worker": 1,
         "entropy_coeff": 0.001,
         "lambda": 0.95,
         "lr": 2.5e-4,
@@ -88,8 +89,8 @@ if __name__ == '__main__':
         # 'sgd_minibatch_size': 100 if large else 64,
         # 'train_batch_size': 10000 if large else 2048,
         "num_gpus": 1,
-        "num_cpus_per_worker": args.num_cpus_per_worker,
-        "num_cpus_for_driver": args.num_cpus_for_driver,
+        "num_cpus_per_worker": 1,
+        "num_cpus_for_driver": 2,
         # 'num_workers': 8 if large else 1,
     }
 
