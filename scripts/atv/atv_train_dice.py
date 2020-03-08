@@ -91,7 +91,7 @@ if __name__ == '__main__':
         "num_gpus": 1,
         "num_cpus_per_worker": 1,
         "num_cpus_for_driver": 2,
-        # 'num_workers': 8 if large else 1,
+        'num_workers': 16
     }
 
     train(
