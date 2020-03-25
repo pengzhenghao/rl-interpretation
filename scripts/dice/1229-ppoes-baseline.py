@@ -2,7 +2,7 @@ from ray import tune
 
 from toolbox.cooperative_exploration.train import train
 from toolbox.marl import MultiAgentEnvWrapper
-from toolbox.ppo_es.ppo_es import PPOESTrainer
+from toolbox.dies.ppo_es import PPOESTrainer
 
 if __name__ == '__main__':
     exp_name = "1229-ppoes-baseline"

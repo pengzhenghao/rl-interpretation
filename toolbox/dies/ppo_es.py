@@ -4,8 +4,7 @@ from ray import tune
 from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG, \
     warn_about_bad_reward_scales
 from ray.tune.registry import _global_registry, ENV_CREATOR
-from ray.tune.util import merge_dicts
-
+from ray.tune.utils import merge_dicts
 from toolbox import initialize_ray
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.marl.utils import on_train_result
@@ -35,10 +34,16 @@ def after_train_result(trainer, result):
 
     if steps > update_steps * trainer.update_policy_counter:
         best_agent = max(rewards, key=lambda x: rewards[x])
-        weights = trainer.get_policy(best_agent).get_weights()
+        best_weights = trainer.get_policy(best_agent).get_weights()
 
-        def _spawn_policy(policy, _):
-            policy.set_weights(weights)
+        def _spawn_policy(policy, policy_id):
+            # Change the name of weight from best_agent_name/xxx to
+            # current_agent_name/xxx
+            new_weights = {
+                k.replace(best_agent, policy_id): v
+                for k, v in best_weights.items()
+            }
+            policy.set_weights(new_weights)
 
         # set to policies on local worker. Then all polices would be the same.
         trainer.workers.local_worker().foreach_policy(_spawn_policy)
@@ -54,9 +59,8 @@ def after_train_result(trainer, result):
         trainer.update_policy_counter += 1
 
     result['update_policy_counter'] = trainer.update_policy_counter
-    result[
-        'update_policy_threshold'] = trainer.update_policy_counter * \
-                                     update_steps
+    result['update_policy_threshold'] = trainer.update_policy_counter * \
+                                        update_steps
 
 
 def validate_config(config):

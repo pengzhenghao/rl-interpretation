@@ -13,7 +13,7 @@ from toolbox.ipd.tnb_utils import *
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerCorrectedNumberOfSampled
-from toolbox.ppo_es.ppo_es import PPOESTrainer, \
+from toolbox.dies.ppo_es import PPOESTrainer, \
     validate_config as validate_config_PPOESTrainer
 
 tnbes_config = merge_dicts(
