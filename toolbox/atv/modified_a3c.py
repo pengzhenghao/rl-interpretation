@@ -8,6 +8,14 @@ def modified_postprocess(policy, sample_batch, other_batches, episode):
         policy, sample_batch, other_batches, episode)
     array = post_batch["advantages"]
     post_batch["advantages"] = (array - array.mean()) / max(1e-4, array.std())
+
+    print("***********ACTION*********")
+    print("action batch max {}, min {}, mean {}".format(
+        post_batch["actions"].max(), post_batch["actions"].min(),
+        post_batch["actions"].mean()
+    ))
+    print("***********ACTION*********")
+
     return post_batch
 
 

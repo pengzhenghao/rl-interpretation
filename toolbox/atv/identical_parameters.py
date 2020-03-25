@@ -42,7 +42,7 @@ def get_dynamic_trainer(algo, init_seed, env_name):
     })
 
     reference_weights = copy.deepcopy(ppo_agent.get_weights())
-    reference_weights_id = ray.put(reference_weights)
+    # reference_weights_id = ray.put(reference_weights)
     name = "Seed{}-{}".format(init_seed, algo)
 
     class TrainerWrapper(base):
@@ -66,7 +66,8 @@ def get_dynamic_trainer(algo, init_seed, env_name):
 
             super().__init__(config, *args, **kwargs)
 
-            self._reference_agent_weights = ray.get(reference_weights_id)
+            # self._reference_agent_weights = ray.get(reference_weights_id)
+            self._reference_agent_weights = reference_weights
 
             print("We have received reference agent weights: ",
                   self._reference_agent_weights)
@@ -108,10 +109,10 @@ def train(
     analysis = tune.run(
         trainer,
         name=exp_name,
-        checkpoint_freq=10,
-        keep_checkpoints_num=5,
-        checkpoint_score_attr="episode_reward_mean",
-        checkpoint_at_end=True,
+        checkpoint_freq=10 if not test_mode else None,
+        keep_checkpoints_num=5 if not test_mode else None,
+        checkpoint_score_attr="episode_reward_mean" if not test_mode else None,
+        checkpoint_at_end=True if not test_mode else None,
         stop={"timesteps_total": stop}
         if isinstance(stop, int) else stop,
         config=config,
@@ -191,7 +192,7 @@ if __name__ == '__main__':
     config = algo_specify_config[algo]
     config.update({
         "log_level": "DEBUG" if test else "ERROR",
-        "num_gpus": 1,  # run 5 experiments in 4 card machine
+        "num_gpus": 1 if args.num_gpus != 0 else 0,
         "num_cpus_for_driver": 1,
         "num_cpus_per_worker": 1,
         # "num_workers": 8
@@ -212,5 +213,5 @@ if __name__ == '__main__':
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
         test_mode=test,
-        verbose=1,
+        verbose=1 if not test else 2,
     )
