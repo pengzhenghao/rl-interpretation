@@ -282,7 +282,7 @@ def generate_progress_yaml(exp_names, output_path, number=None):
             start_index = len(dataframe) % number - 1
             data_list = dataframe[:start_index:-interval][::-1]
         assert (len(data_list) == number) or (
-                    len(dataframe) == len(data_list)), \
+                len(dataframe) == len(data_list)), \
             len(data_list)
         for _, series in data_list.iterrows():
             # varibales show here:
@@ -352,7 +352,13 @@ def generate_yaml(
         # trial_name: PPO_BipedalWalker-v2_38_seed=138
         # result: "PPO seed=139 rew=249.01"
         components = trial_name.split("_")
-        return "{0} {3} rew={4:.2f}".format(*components, performance)
+        try:
+            ret = "{0} {3} rew={4:.2f}".format(*components, performance)
+        except ValueError:
+            strs = components + [performance]
+            strs = [str(s) for s in strs]
+            ret = ",".join(strs)
+        return ret
 
     # Return: [{"name": NAME, "path": CKPT_PATH, ...}, {...}, ...]
     results = []
