@@ -1,24 +1,14 @@
 import logging
 
 import numpy as np
-import tensorflow as tf
-import tensorflow_probability as tfp
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.tf_action_dist import TFActionDistribution
+from ray.rllib.utils import try_import_tf, try_import_tfp
 
 logger = logging.getLogger(__name__)
+tf = try_import_tf()
+tfp = try_import_tfp()
 tfd = tfp.distributions
-"""This codes is still contains bugs. But I can not find it.
-
-The most significant symptom is the NaN may raise as the sample, which
-cause BipedalWalker-v2 raise "AssertionError: r.LengthSquared() > 0.0f"
-error and Mujoco env raise "mujoco_py.builder.MujocoException: Unknown
- warning type Time = 0.0000.Check for NaN in simulation." error.
-
-But I have not really try to look at does it really yield NaN as sample.
-
-Anyway, this branch is closed. 
-"""
 
 
 class GaussianMixture(TFActionDistribution):
