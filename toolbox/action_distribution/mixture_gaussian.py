@@ -73,6 +73,7 @@ def register_gaussian_mixture():
     ModelCatalog.register_custom_action_dist(
         GaussianMixture.name, GaussianMixture
     )
+    print("Successfully register Gaussian Mixture action distribution.")
 
 
 register_gaussian_mixture()
