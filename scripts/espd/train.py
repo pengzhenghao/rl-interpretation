@@ -56,7 +56,7 @@ def train(
     if extra_config:
         config.update(extra_config)
 
-    trainer = get_dynamic_trainer(algo, init_seed, env_name)
+    trainer = get_dynamic_trainer(algo)
     analysis = tune.run(
         trainer,
         name=exp_name,
