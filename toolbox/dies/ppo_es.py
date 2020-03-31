@@ -89,13 +89,13 @@ PPOESTrainer = PPOTrainer.with_updates(
     name="PPOES",
     default_config=ppo_es_default_config,
     validate_config=validate_config,
-    make_policy_optimizer=make_policy_optimizer_basic_modification,
+    # make_policy_optimizer=make_policy_optimizer_basic_modification,
     after_train_result=after_train_result
 )
 
 if __name__ == '__main__':
     # def test_train_ipd(local_mode=False):
-    initialize_ray(test_mode=True, local_mode=False)
+    initialize_ray(test_mode=True, local_mode=True)
     env_name = "CartPole-v0"
     num_agents = 3
 
