@@ -41,6 +41,5 @@ if __name__ == '__main__':
         num_agents=config['env_config']['num_agents'],
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
-        test_mode=args.test,
-        verbose=1
+        test_mode=args.test
     )

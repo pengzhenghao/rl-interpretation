@@ -14,13 +14,12 @@ def train(
         extra_config,
         stop,
         exp_name,
-        num_seeds,
-        num_gpus,
+        num_seeds=1,
+        num_gpus=0,
         test_mode=False,
         suffix="",
         checkpoint_freq=10,
-keep_checkpoints_num=None,
-        verbose=1,
+        keep_checkpoints_num=None,
         **kwargs
 ):
     # initialize ray
@@ -60,7 +59,7 @@ keep_checkpoints_num=None,
         config=config,
         max_failures=20,
         reuse_actors=False,
-        verbose=verbose,
+        verbose=1 if not test_mode else 2,
         **kwargs
     )
 

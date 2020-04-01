@@ -2,7 +2,6 @@ import logging
 
 import numpy as np
 import ray
-from ray import tune
 from ray.rllib.agents.es import utils
 from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG, \
     warn_about_bad_reward_scales
@@ -10,7 +9,7 @@ from ray.tune.registry import _global_registry, ENV_CREATOR
 from ray.tune.utils import merge_dicts
 
 from toolbox import initialize_ray
-from toolbox.marl import MultiAgentEnvWrapper
+from toolbox.marl import get_marl_env_config
 from toolbox.marl.utils import on_train_result
 
 logger = logging.getLogger(__name__)
@@ -173,25 +172,21 @@ PPOESTrainer = PPOTrainer.with_updates(
 )
 
 if __name__ == '__main__':
-    # def test_train_ipd(local_mode=False):
-    initialize_ray(test_mode=True, local_mode=True)
+    from toolbox import train
+
     env_name = "CartPole-v0"
     num_agents = 3
-
     config = {
         "num_sgd_iter": 2,
         "train_batch_size": 400,
-        "env": MultiAgentEnvWrapper,
-        "env_config": {
-            "env_name": env_name,
-            "num_agents": num_agents
-        },
-        "update_steps": 1000
+        "update_steps": 1000,
+        **get_marl_env_config(env_name, num_agents)
     }
-    tune.run(
+    initialize_ray(test_mode=True, local_mode=True)
+    train(
         PPOESTrainer,
-        name="DELETEME_TEST",
-        verbose=2,
+        config,
+        exp_name="DELETE_ME_TEST",
         stop={"timesteps_total": 10000},
-        config=config
+        test_mode=True
     )
