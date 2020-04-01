@@ -1,12 +1,15 @@
 from ray import tune
 
 from toolbox.dies.dies import DiESTrainer
+from toolbox.dies.ppo_es import PPOESTrainer
 from toolbox.marl import get_marl_env_config
 from toolbox.train import train, get_train_parser
 
 if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--num-agents", type=int, default=10)
+    parser.add_argument("--algo", type=str, required=True,
+                        help="Must in PPO, DIES")
     args = parser.parse_args()
 
     env_name = args.env_name
@@ -24,16 +27,23 @@ if __name__ == '__main__':
         # 'sgd_minibatch_size': 100 if large else 64,
         # 'train_batch_size': 10000 if large else 2048,
         "num_gpus": 1,
-        "num_cpus_per_worker": 1,
+        "num_cpus_per_worker": 10,
         "num_cpus_for_driver": 2,
-        'num_workers': 16
+        'num_workers': 1
     }
 
     config.update(get_marl_env_config(
         env_name, tune.grid_search([args.num_agents])))
 
+    if args.algo == "PPO":
+        trainer = PPOESTrainer
+    elif args.algo == "DIES":
+        trainer = DiESTrainer
+    else:
+        raise ValueError("args.algo must in PPO, DIES")
+
     train(
-        DiESTrainer,
+        trainer,
         extra_config=config,
         stop=stop,
         exp_name=exp_name,
