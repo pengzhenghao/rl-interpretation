@@ -19,6 +19,7 @@ def train(
         test_mode=False,
         suffix="",
         checkpoint_freq=10,
+keep_checkpoints_num=None,
         verbose=1,
         **kwargs
 ):
@@ -43,6 +44,11 @@ def train(
     if not isinstance(stop, dict):
         assert np.isscalar(stop)
         stop = {"timesteps_total": int(stop)}
+
+    if keep_checkpoints_num is not None:
+        assert isinstance(keep_checkpoints_num, int)
+        kwargs["keep_checkpoints_num"] = keep_checkpoints_num
+        kwargs["checkpoint_score_attr"] = "episode_reward_mean"
 
     # start training
     analysis = tune.run(
