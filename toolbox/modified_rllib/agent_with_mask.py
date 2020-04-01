@@ -12,7 +12,7 @@ from collections import OrderedDict
 import numpy as np
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
-from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy, \
+from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
     EntropyCoeffSchedule, KLCoeffMixin, LearningRateSchedule, \
     BEHAVIOUR_LOGITS, ValueNetworkMixin
 from ray.rllib.models import ModelCatalog
