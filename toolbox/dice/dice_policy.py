@@ -6,7 +6,7 @@ following functions for each policy:
 2. Maintain the target network for each policy if in DELAY_UPDATE mode.
 3. Update the target network for each training iteration.
 """
-from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
+from ray.rllib.agents.ppo.ppo_policy import setup_mixins, \
     ValueNetworkMixin, KLCoeffMixin, \
     EntropyCoeffSchedule, BEHAVIOUR_LOGITS, PPOTFPolicy
 from ray.rllib.evaluation.postprocessing import Postprocessing

@@ -14,7 +14,7 @@ from ray.rllib.utils import try_import_tf, merge_dicts
 # import sys
 # sys.path.append()
 tf = try_import_tf()
-from ray.rllib.agents.ppo.ppo_tf_policy import build_tf_policy, \
+from ray.rllib.agents.ppo.ppo_policy import build_tf_policy, \
     ppo_surrogate_loss, kl_and_loss_stats, setup_config, setup_mixins, \
     clip_gradients, postprocess_ppo_gae, EntropyCoeffSchedule, KLCoeffMixin, \
     LearningRateSchedule, ValueNetworkMixin, SampleBatch, BEHAVIOUR_LOGITS

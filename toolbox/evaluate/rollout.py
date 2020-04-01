@@ -16,7 +16,7 @@ from math import ceil
 
 import numpy as np
 import ray
-from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
+from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy
 from ray.rllib.env import MultiAgentEnv
 from ray.rllib.env.base_env import _DUMMY_AGENT_ID
 from ray.rllib.evaluation.episode import _flatten_action

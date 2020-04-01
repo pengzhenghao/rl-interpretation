@@ -2,7 +2,7 @@
 return the FIM embedding of agent."""
 # import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTrainer
-from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy, SampleBatch, \
+from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, SampleBatch, \
     LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, setup_mixins, \
     ValueNetworkMixin
 from ray.rllib.utils import try_import_tf
