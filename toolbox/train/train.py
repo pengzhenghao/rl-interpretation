@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 from ray import tune
 
+from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.train.deprecated_train_config import get_config
 from toolbox.utils import initialize_ray
 
@@ -31,7 +32,12 @@ def train(
     }
     if extra_config:
         config.update(extra_config)
-    env_name = config["env"]
+
+    if isinstance(config["env"], str):
+        env_name = config["env"]
+    else:
+        assert config["env"] is MultiAgentEnvWrapper
+        env_name = config["env_config"]["env_name"]
     trainer_name = trainer if isinstance(trainer, str) else trainer._name
 
     if not isinstance(stop, dict):
@@ -62,14 +68,21 @@ def train(
     return analysis
 
 
-if __name__ == '__main__':
+def get_train_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, required=True)
-    parser.add_argument("--env", type=str, default="BipedalWalker-v2")
-    parser.add_argument("--run", type=str, default="PPO")
-    parser.add_argument("--num-seeds", type=int, default=1)
     parser.add_argument("--num-gpus", type=int, default=4)
-    parser.add_argument("--test-mode", action="store_true")
+    parser.add_argument("--num-seeds", type=int, default=3)
+    parser.add_argument("--num-cpus-per-worker", type=float, default=1.0)
+    parser.add_argument("--num-cpus-for-driver", type=float, default=1.0)
+    parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
+    parser.add_argument("--test", action="store_true")
+    return parser
+
+
+if __name__ == '__main__':
+    parser = get_train_parser()
+    parser.add_argument("--run", type=str, default="PPO")
     args = parser.parse_args()
 
     print("Argument: ", args)
