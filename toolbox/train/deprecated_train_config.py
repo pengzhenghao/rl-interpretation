@@ -193,4 +193,12 @@ def get_config(env, run, test):
     }
 
     run_config = merge_dicts(general_config, algo_specify_config['config'])
-    return run_config, algo_specify_config
+
+    if "timesteps_total" in algo_specify_config:
+        stop_criterion = {
+            "timesteps_total": algo_specify_config['timesteps_total']
+        }
+    else:
+        stop_criterion = algo_specify_config['stop']
+
+    return run_config, stop_criterion
