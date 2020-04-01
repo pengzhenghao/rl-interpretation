@@ -1,20 +1,11 @@
-import argparse
-import os
-import pickle
-
 from ray import tune
 from ray.rllib.agents.ppo import PPOTrainer
 
-from toolbox import initialize_ray
 from toolbox.action_distribution import GaussianMixture
 from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
-# from toolbox.atv.wrapped_env import register
 from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
-
-# register()
-
-os.environ['OMP_NUM_THREADS'] = '1'
+from toolbox.train import train, get_train_parser
 
 
 def get_dynamic_trainer(algo):
@@ -35,61 +26,12 @@ def get_dynamic_trainer(algo):
     return base
 
 
-def train(
-        algo,
-        init_seed,
-        extra_config,
-        env_name,
-        stop,
-        exp_name,
-        num_seeds,
-        num_gpus,
-        test_mode=False,
-        **kwargs
-):
-    initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
-    config = {
-        "seed": tune.grid_search([i * 100 for i in range(num_seeds)]),
-        "env": env_name,
-        "log_level": "DEBUG" if test_mode else "INFO"
-    }
-    if extra_config:
-        config.update(extra_config)
-
-    trainer = get_dynamic_trainer(algo)
-    analysis = tune.run(
-        trainer,
-        name=exp_name,
-        checkpoint_freq=10 if not test_mode else None,
-        keep_checkpoints_num=5 if not test_mode else None,
-        checkpoint_score_attr="episode_reward_mean" if not test_mode else None,
-        checkpoint_at_end=True if not test_mode else None,
-        stop={"timesteps_total": stop}
-        if isinstance(stop, int) else stop,
-        config=config,
-        max_failures=5,
-        **kwargs
-    )
-
-    path = "{}-{}-{}ts-{}.pkl".format(exp_name, env_name, stop, algo)
-    with open(path, "wb") as f:
-        data = analysis.fetch_trial_dataframes()
-        pickle.dump(data, f)
-        print("Result is saved at: <{}>".format(path))
-
-    return analysis
-
-
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--exp-name", type=str, required=True)
+    parser = get_train_parser()
     parser.add_argument("--algo", type=str, required=True)
-    parser.add_argument("--num-gpus", type=int, default=0)
-    parser.add_argument("--num-seeds", type=int, default=5)
     parser.add_argument("--init-seed", type=int, default=2020)
-    parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
-    parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
+
     algo = args.algo
     test = args.test
     exp_name = "{}-{}-initseed{}-{}seeds".format(args.exp_name, algo,
@@ -139,12 +81,6 @@ if __name__ == '__main__':
 
     stop = int(algo_specify_stop[algo])
     config = algo_specify_config[algo]
-    config.update({
-        "log_level": "DEBUG" if test else "ERROR",
-        "num_gpus": 1 if args.num_gpus != 0 else 0,
-        "num_cpus_for_driver": 1,
-        "num_cpus_per_worker": 1,
-    })
 
     # Update model config (Remove all model config above)
     config["model"] = {
@@ -161,14 +97,12 @@ if __name__ == '__main__':
         config["num_workers"] = 10
 
     train(
-        algo=algo,
-        init_seed=args.init_seed,
+        get_dynamic_trainer(algo),
         extra_config=config,
-        env_name=args.env_name,
         stop=stop,
         exp_name=exp_name,
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
         test_mode=test,
-        verbose=1 if not test else 2,
+        keep_checkpoints_num=5
     )

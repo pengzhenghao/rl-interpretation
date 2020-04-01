@@ -35,10 +35,8 @@ if __name__ == '__main__':
     train(
         PPOESTrainer,
         extra_config=config,
-        env_name=config['env_config']['env_name'],
         stop=stop,
         exp_name=exp_name,
-        num_agents=config['env_config']['num_agents'],
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
         test_mode=args.test
