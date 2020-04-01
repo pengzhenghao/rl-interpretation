@@ -55,6 +55,7 @@ class PPOLossTwoSideDiversity(object):
 
 class PPOLossTwoSideClip(object):
     def __init__(self,
+                 _useless,
                  dist_class,
                  model,
                  value_targets,
@@ -128,6 +129,7 @@ def dice_loss(policy, model, dist_class, train_batch):
         if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
 
     policy.loss_obj = loss_cls(
+        None,
         dist_class,
         model,
         train_batch[Postprocessing.VALUE_TARGETS],

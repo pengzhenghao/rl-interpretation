@@ -58,11 +58,9 @@ def run_evolution_strategies(trainer, result):
         # This should be the first iter?
         trainer.update_policy_counter = 1
         trainer._last_update_weights = get_flat(trainer.get_policy("agent0"))
-
-        trainer.debug_last_update_weights = trainer.get_weights("agent0")[
-            "agent0"]
-
         trainer._es_optimizer = Adam(trainer._last_update_weights.size)
+        logger.info(
+            "First run of ES module. Setup counter, weights and optimizer.")
 
     rewards = result['policy_reward_mean']
     steps = result['info']['num_steps_trained']
@@ -102,7 +100,8 @@ def run_evolution_strategies(trainer, result):
         def _spawn_policy(policy, policy_id):
             new_weights = ray.get(theta_id)
             policy._variables.set_flat(new_weights)
-            print("Sync {}.".format(policy_id))
+            logger.debug("In ES updates {} sync {}.".format(
+                trainer.update_policy_counter, policy_id))
 
         # set to policies on local worker. Then all polices would be the same.
         trainer.workers.local_worker().foreach_policy(_spawn_policy)
