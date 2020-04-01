@@ -50,7 +50,7 @@ def train(
         kwargs["checkpoint_score_attr"] = "episode_reward_mean"
 
     if "verbose" not in kwargs:
-        kwargs["verbose"] = 1 if not test_mode else 2,
+        kwargs["verbose"] = 1 if not test_mode else 2
 
     # start training
     analysis = tune.run(
