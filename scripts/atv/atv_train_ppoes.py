@@ -1,6 +1,6 @@
 from ray import tune
 
-from toolbox.dice.dice import DiCETrainer
+from toolbox.dies.ppo_es import PPOESTrainer
 from toolbox.marl import get_marl_env_config
 from toolbox.train import train, get_train_parser
 
@@ -29,16 +29,17 @@ if __name__ == '__main__':
         'num_workers': 16
     }
 
-    config.update(
-        get_marl_env_config(env_name, tune.grid_search([args.num_agents]))
-    )
+    config.update(get_marl_env_config(
+        env_name, tune.grid_search([args.num_agents])))
 
     train(
-        DiCETrainer,
+        PPOESTrainer,
         extra_config=config,
+        env_name=config['env_config']['env_name'],
         stop=stop,
         exp_name=exp_name,
+        num_agents=config['env_config']['num_agents'],
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
-        test_mode=args.test,
+        test_mode=args.test
     )

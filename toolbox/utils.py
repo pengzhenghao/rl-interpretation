@@ -1,6 +1,7 @@
 import collections
 import copy
 import logging
+import os
 import time
 import uuid
 from collections import Mapping, Container
@@ -43,6 +44,8 @@ def _is_centos():
 
 
 def initialize_ray(local_mode=False, num_gpus=None, test_mode=False, **kwargs):
+    os.environ['OMP_NUM_THREADS'] = '1'
+
     ray.init(
         logging_level=logging.ERROR if not test_mode else logging.DEBUG,
         log_to_driver=test_mode,

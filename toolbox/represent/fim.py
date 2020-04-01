@@ -1,12 +1,15 @@
 """This file provide function that take agent and probe agent as input and
 return the FIM embedding of agent."""
-import tensorflow as tf
+# import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTrainer
 from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy, SampleBatch, \
     LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, setup_mixins, \
     ValueNetworkMixin
+from ray.rllib.utils import try_import_tf
 
 from toolbox.evaluate import restore_agent
+
+tf = try_import_tf()
 
 
 class FIMEmbeddingMixin:
