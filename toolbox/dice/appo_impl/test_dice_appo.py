@@ -1,7 +1,9 @@
+import copy
 import shutil
 import tempfile
 import unittest
 
+import pytest
 from ray import tune
 
 from toolbox import initialize_ray
@@ -11,6 +13,59 @@ from toolbox.dice.appo_impl.dice_appo import DiCETrainer_APPO
 num_agents_pair = tune.grid_search([1, 3])
 
 true_false_pair = tune.grid_search([True, False])
+
+
+@pytest.fixture(params=[1, 3])
+def dice_trainer(request):
+    initialize_ray(test_mode=True, local_mode=True)
+    return DiCETrainer_APPO(env="BipedalWalker-v2", config=dict(
+        num_agents=request.param,
+        delay_update=False
+    ))
+
+
+@pytest.mark.unittest
+def test_policy_pool_sync(dice_trainer):
+    init_policy_pool = copy.deepcopy(dice_trainer._central_policy_pool)
+
+    for _, ws in dice_trainer.workers.items():
+        for (pid1, w1), (pid2, w2) in zip(
+                ws.local_worker()._local_policy_pool.items(),
+                init_policy_pool.items()
+        ):
+            assert pid1 == pid2
+            for (wid1, arr1), (wid2, arr2) in zip(
+                    w1.items(), w2.items()
+            ):
+                assert arr1 == pytest.approx(arr2)
+                assert wid1 == wid2
+
+    dice_trainer.train()
+
+    new_policy_pool = copy.deepcopy(dice_trainer._central_policy_pool)
+
+    for (pid1, w1), (pid2, w2) in zip(
+            init_policy_pool.items(),
+            new_policy_pool.items()
+    ):
+        assert pid1 == pid2
+        for (wid1, arr1), (wid2, arr2) in zip(
+                w1.items(), w2.items()
+        ):
+            assert arr1 != pytest.approx(arr2)
+            assert wid1 == wid2
+
+    for _, ws in dice_trainer.workers.items():
+        for (pid1, w1), (pid2, w2) in zip(
+                ws.local_worker()._local_policy_pool.items(),
+                new_policy_pool.items()
+        ):
+            assert pid1 == pid2
+            for (wid1, arr1), (wid2, arr2) in zip(
+                    w1.items(), w2.items()
+            ):
+                assert arr1 == pytest.approx(arr2)
+                assert wid1 == wid2
 
 
 def _test_dice(
@@ -83,18 +138,21 @@ class DiCETest(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    pytest.main(["-v", "-m", "unittest"])
     # unittest.main(verbosity=2)
 
-    _test_dice(
-        # num_agents=tune.grid_search([1, 3, 5]),
-        num_agents=1,
-        local_mode=True
-    )
+    # print("===== 3 agents =====")
+    # _test_dice(
+    #     # num_agents=tune.grid_search([1, 3, 5]),
+    #     num_agents=3,
+    #     local_mode=True
+    # )
+    #
+    # print("===== 1 agents =====")
+    # _test_dice(
+    #     # num_agents=tune.grid_search([1, 3, 5]),
+    #     num_agents=1,
+    #     local_mode=True
+    # )
 
-    print("===== Change to 3 agents =====")
-
-    _test_dice(
-        # num_agents=tune.grid_search([1, 3, 5]),
-        num_agents=3,
-        local_mode=True
-    )
+    # pytest.main(["-v -m unittest test_dice_appo.py"])

@@ -13,8 +13,10 @@ policy if necessary.
 We also validate the config of the DiCE trainer in this file.
 """
 
+import copy
+
 from ray.rllib.agents.impala.impala import validate_config as original_validate
-from ray.rllib.agents.ppo.appo import APPOTrainer, update_kl
+from ray.rllib.agents.ppo.appo import APPOTrainer
 # update_target_and_kl as original_after_optimizer_step
 from ray.rllib.models.catalog import ModelCatalog
 
@@ -27,7 +29,7 @@ from toolbox.dice.utils import *
 
 # validate_config as validate_config_original
 logger = logging.getLogger(__name__)
-
+DEFAULT_POLICY_ID = "default_policy"
 
 def validate_config(config):
     """Validate the config"""
@@ -65,39 +67,44 @@ def validate_config(config):
 def setup_policies_pool(trainer):
     """Initialize the team of agents by calling the function in each policy"""
 
-    # FIXME temporarily disable this function
-    # return
-
     # Original initialization
     # TODO should we maintain the concept of target network?? How we deal
     #  with the policy map?
     # The next line is not commented in original code
     # trainer.workers.local_worker().foreach_trainable_policy(
     #     lambda p, _: p.update_target())
-    trainer.target_update_frequency = trainer.config["num_sgd_iter"] \
-                                      * trainer.config["minibatch_buffer_size"]
+    trainer.target_update_frequency = \
+        trainer.config["num_sgd_iter"] * trainer.config["minibatch_buffer_size"]
 
-    # FIXME
-    return
+    assert len(trainer.workers.items()) == trainer.config["num_agents"]
 
-    if not trainer.config[DELAY_UPDATE]:
-        return
-    assert not trainer.get_policy().initialized_policies_pool
+    # Aggregate all policy in each worker set to build central policy pool
+    trainer._central_policy_pool = {}
+    for ws_id, worker_set in trainer.workers.items():
+        weights = worker_set.local_worker().get_weights()[DEFAULT_POLICY_ID]
+        trainer._central_policy_pool[ws_id] = weights
+
+    # Maintain a copy of central policy pool in each local worker set
+    for ws_id, worker_set in trainer.workers.items():
+        worker_set.local_worker()._local_policy_pool = copy.deepcopy(
+            trainer._central_policy_pool
+        )
+
+    # print("1902ls")
+    # if not trainer.config[DELAY_UPDATE]:
+    #     return
+    # assert not trainer.get_policy().initialized_policies_pool
     # First step, broadcast local weights to remote worker.
     # assert trainer.workers.remote_workers()
 
-    # TODO this checking is necessary, but not now. please uncomment next line
-    # assert len(trainer.workers.remote_workers()) == trainer.config[
-    # "num_agents"]
+    # trainer._policy_worker_mapping = {}
 
-    trainer._policy_worker_mapping = {}
+    # def _get_weight(worker, worker_index):
+    #     return worker.get_weights(), worker_index
 
-    def _get_weight(worker, worker_index):
-        return worker.get_weights(), worker_index
-
-    result = trainer.workers.foreach_worker_with_index(_get_weight)
-    for weights, worker_id in result:
-        trainer._policy_worker_mapping[worker_id] = weights
+    # result = trainer.workers.foreach_worker_with_index(_get_weight)
+    # for weights, worker_id in result:
+    #     trainer._policy_worker_mapping[worker_id] = weights
 
     # print('skdjflkadsjf')
     # weights = ray.put(trainer.workers.local_worker().get_weights())
@@ -116,28 +123,64 @@ def setup_policies_pool(trainer):
 
 
 def after_optimizer_iteration(trainer, fetches):
-    """Update the policies pool in each policy."""
-    # original_after_optimizer_step(trainer, fetches)  # original APPO procedure
+    """
+    1. Receive all latest policies
+    2. Update the policies in local trainer
+    3. Broadcast the latest policy map to each workerset
+    """
 
+    # Receive all latest policies and update the central policy pool
+
+    tmp = dict()
+
+    for ws_id, worker_set in trainer.workers.items():
+        weights = worker_set.local_worker().get_weights()[DEFAULT_POLICY_ID]
+        weights = copy.deepcopy(weights)
+        if trainer.config[DELAY_UPDATE]:
+            tau = trainer.config["tau"]
+
+            trainer._central_policy_pool[ws_id] = {
+                k: w * tau + (1 - tau) * old_w
+                for (k, w), old_w in zip(
+                    weights.items(),
+                    trainer._central_policy_pool[ws_id].values())
+            }
+
+            # trainer._central_policy_pool[ws_id] = \
+            #     weights * tau + (1 - tau) * trainer._central_policy_pool[ws_id]
+        else:
+            trainer._central_policy_pool[ws_id] = weights
+
+        tmp[ws_id] = weights
+
+    # Bradcast the latest policy map to each workerset
+    for ws_id, worker_set in trainer.workers.items():
+        worker_set.local_worker()._local_policy_pool = copy.deepcopy(
+            trainer._central_policy_pool
+        )
+
+    print("ssss")
+    # TODO revisit the usage of target network, should we have anything related
+    #  to this? If no, then we should remove all related codes.
     # Original APPO
     # Update the KL coeff depending on how many steps LearnerThread has stepped
     # through
-    # TODO Wrong!
-    learner_steps = trainer.optimizer.learner_set[0].num_steps
+
+    # learner_steps = trainer.optimizer.learner_set[0].num_steps
     # learner_steps = trainer.optimizer.learner.num_steps
-    if learner_steps >= trainer.target_update_frequency:
+    # if learner_steps >= trainer.target_update_frequency:
 
-        # Update Target Network
-        for learner in trainer.optimizer.learner_set.values():
-            learner.num_steps = 0
-        trainer.workers.local_worker().foreach_trainable_policy(
-            lambda p, _: p.update_target())
+    # Update Target Network
+    # for learner in trainer.optimizer.learner_set.values():
+    #     learner.num_steps = 0
+    # trainer.workers.local_worker().foreach_trainable_policy(
+    #     lambda p, _: p.update_target())
 
-        # Also update KL Coeff
-        if trainer.config["use_kl_loss"]:
-            # TODO wrong!
-            # update_kl(trainer, trainer.optimizer.learner.stats)
-            update_kl(trainer, trainer.optimizer.learner_set[0].stats)
+    # Also update KL Coeff
+    # if trainer.config["use_kl_loss"]:
+    #     raise NotImplementedError("KL loss not used.")
+    # update_kl(trainer, trainer.optimizer.learner.stats)
+    # update_kl(trainer, trainer.optimizer.learner_set[0].stats)
 
     # only update the policies pool if used DELAY_UPDATE, otherwise
     # the policies_pool in each policy is simply not used, so we don't
