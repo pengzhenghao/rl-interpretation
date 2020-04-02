@@ -203,6 +203,9 @@ def dice_gradient(policy, optimizer, loss):
     """Implement the idea of gradients bisector to fuse the task gradients
     with the diversity gradient.
     """
+
+    # FIXME the gradient clipping is discarded!!
+
     if not policy.config[USE_BISECTOR]:
         # For ablation study. If don't use bisector, we simply return the
         # task gradient.
