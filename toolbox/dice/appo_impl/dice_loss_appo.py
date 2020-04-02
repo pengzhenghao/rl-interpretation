@@ -119,10 +119,9 @@ logger = logging.getLogger(__name__)
 #         self.loss = loss
 
 
-
-
 class PPOSurrogateDiversityLoss:
     """Diversity loss"""
+
     def __init__(self,
                  prev_actions_logp,
                  actions_logp,
@@ -139,6 +138,7 @@ class PPOSurrogateDiversityLoss:
                  use_kl_loss=False):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
+
         logp_ratio = tf.exp(actions_logp - prev_actions_logp)
         surrogate_loss = tf.minimum(
             advantages * logp_ratio,
@@ -153,28 +153,6 @@ class PPOSurrogateDiversityLoss:
         # Optional additional KL Loss
         if use_kl_loss:
             self.total_loss += cur_kl_coeff * self.mean_kl
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
@@ -290,12 +268,6 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
             cur_kl_coeff=policy.kl_coeff,
             use_kl_loss=policy.config["use_kl_loss"])
 
-
-
-
-
-
-
     # Build the loss for diversity
 
     # Build the loss for diversity
@@ -324,7 +296,6 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         #     vf_loss_coeff=policy.config["vf_loss_coeff"],
         #     use_gae=policy.config["use_gae"]
         # )
-
 
         policy.diversity_loss = PPOSurrogateLoss(
             prev_actions_logp=make_time_major(prev_action_dist.logp(actions)),
@@ -374,7 +345,8 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
 
 
 # def dice_loss(policy, model, dist_class, train_batch):
-#     """Compute the task loss and the diversity loss for gradients computing."""
+#     """Compute the task loss and the diversity loss for gradients
+#     computing."""
 #     logits, state = model.from_batch(train_batch)
 #     action_dist = dist_class(logits, model)
 #
@@ -465,25 +437,14 @@ def dice_gradient(policy, optimizer, loss):
     """Implement the idea of gradients bisector to fuse the task gradients
     with the diversity gradient.
     """
-
-    # FIXME!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # The gradient is not clippe!
-    # def clip_gradients(policy, optimizer, loss):
-    #     grads_and_vars = optimizer.compute_gradients(
-    #         loss, policy.model.trainable_variables())
-    #     grads = [g for (g, v) in grads_and_vars]
-    #     policy.grads, _ = tf.clip_by_global_norm(grads,
-    #                                              policy.config["grad_clip"])
-    #     clipped_grads = list(
-    #         zip(policy.grads, policy.model.trainable_variables()))
-    #     return clipped_grads
-
     if not policy.config[USE_BISECTOR]:
         # For ablation study. If don't use bisector, we simply return the
         # task gradient.
         with tf.control_dependencies([loss[1]]):
             policy_grad = optimizer.compute_gradients(loss[0])
-        return policy_grad
+        clipped_grads = tf.clip_by_global_norm([g for g, _ in policy_grad],
+                                               policy.config["grad_clip"])
+        return [(g, v) for g, (_, v) in zip(clipped_grads, policy_grad)]
 
     policy_grad = optimizer.compute_gradients(loss[0])
     diversity_grad = optimizer.compute_gradients(loss[1])
@@ -548,16 +509,8 @@ def dice_gradient(policy, optimizer, loss):
         return_gradients[var] = (tf.reshape(grad, org_shape), var)
         count += size
 
-    # FIXME!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # The gradient is not clippe!
-    # def clip_gradients(policy, optimizer, loss):
-    #     grads_and_vars = optimizer.compute_gradients(
-    #         loss, policy.model.trainable_variables())
-    #     grads = [g for (g, v) in grads_and_vars]
-    #     policy.grads, _ = tf.clip_by_global_norm(grads,
-    #                                              policy.config["grad_clip"])
-    #     clipped_grads = list(
-    #         zip(policy.grads, policy.model.trainable_variables()))
-    #     return clipped_grads
-
-    return [return_gradients[var] for _, var in policy_grad]
+    ret_grads = [return_gradients[var][0] for _, var in policy_grad]
+    clipped_grads, _ = tf.clip_by_global_norm(ret_grads,
+                                              policy.config["grad_clip"])
+    return [(g, return_gradients[var][1])
+            for g, (_, var) in zip(clipped_grads, policy_grad)]
