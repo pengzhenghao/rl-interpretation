@@ -20,6 +20,7 @@ from ray.rllib.agents.ppo.appo import APPOTrainer, \
     initialize_target as original_after_init
 from ray.rllib.models.catalog import ModelCatalog
 
+from toolbox.dice.appo_impl.dice_optimizer import AsyncSamplesOptimizer
 from toolbox.dice.appo_impl.dice_policy_appo import DiCEPolicy_APPO
 from toolbox.dice.appo_impl.utils import dice_appo_default_config
 from toolbox.dice.dice_model import ActorDoubleCriticNetwork
@@ -145,6 +146,41 @@ def after_optimizer_iteration(trainer, fetches):
                 worker.foreach_policy(lambda p, _: p.update_target_network())
 
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
+
+
+def make_aggregators_and_optimizer(workers, config):
+    if config["num_aggregation_workers"] > 0:
+        # Create co-located aggregator actors first for placement pref
+        # aggregators = TreeAggregator.precreate_aggregators(
+        #     config["num_aggregation_workers"])
+        raise NotImplementedError()
+    else:
+        aggregators = None
+    workers.add_workers(config["num_workers"])
+
+    optimizer = AsyncSamplesOptimizer(
+        workers,
+        lr=config["lr"],
+        num_gpus=config["num_gpus"],
+        sample_batch_size=config["sample_batch_size"],
+        train_batch_size=config["train_batch_size"],
+        replay_buffer_num_slots=config["replay_buffer_num_slots"],
+        replay_proportion=config["replay_proportion"],
+        num_data_loader_buffers=config["num_data_loader_buffers"],
+        max_sample_requests_in_flight_per_worker=config[
+            "max_sample_requests_in_flight_per_worker"],
+        broadcast_interval=config["broadcast_interval"],
+        num_sgd_iter=config["num_sgd_iter"],
+        minibatch_buffer_size=config["minibatch_buffer_size"],
+        num_aggregation_workers=config["num_aggregation_workers"],
+        learner_queue_size=config["learner_queue_size"],
+        learner_queue_timeout=config["learner_queue_timeout"],
+        **config["optimizer"])
+
+    if aggregators:
+        # Assign the pre-created aggregators to the optimizer
+        optimizer.aggregator.init(aggregators)
+    return optimizer
 
 
 DiCETrainer_APPO = APPOTrainer.with_updates(
