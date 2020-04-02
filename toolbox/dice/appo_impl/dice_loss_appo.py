@@ -212,6 +212,9 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         mean_kl = make_time_major(
             old_policy_action_dist.multi_kl(action_dist), drop_last=True)
 
+        # If you are using vtrace, please note that normalization advantage is
+        # disable.
+
         policy.loss = VTraceSurrogateLoss(
             actions=make_time_major(loss_actions, drop_last=True),
             prev_actions_logp=make_time_major(
@@ -251,6 +254,12 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
         # Prepare KL for Loss
         mean_kl = make_time_major(prev_action_dist.multi_kl(action_dist))
 
+        advantages = train_batch[Postprocessing.ADVANTAGES]
+        if policy.config[NORMALIZE_ADVANTAGE]:
+            advantages = (advantages - tf.reduce_mean(advantages)) / (
+                    tf.math.reduce_std(advantages) + 1e-6
+            )
+
         policy.loss = PPOSurrogateLoss(
             prev_actions_logp=make_time_major(prev_action_dist.logp(actions)),
             actions_logp=make_time_major(action_dist.logp(actions)),
@@ -259,7 +268,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
             actions_entropy=make_time_major(action_dist.multi_entropy()),
             values=make_time_major(values),
             valid_mask=make_time_major(mask),
-            advantages=make_time_major(train_batch[Postprocessing.ADVANTAGES]),
+            advantages=make_time_major(advantages),
             value_targets=make_time_major(
                 train_batch[Postprocessing.VALUE_TARGETS]),
             vf_loss_coeff=policy.config["vf_loss_coeff"],

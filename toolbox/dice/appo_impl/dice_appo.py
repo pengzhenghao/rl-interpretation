@@ -62,31 +62,6 @@ def validate_config(config):
     original_validate(config)
 
 
-# TODO You need to make clear whether advantage normalization is used or not
-
-# def make_policy_optimizer_tnbes(workers, config):
-#     """We implement the knob of NORMALIZE_ADVANTAGE here."""
-#     if config["simple_optimizer"]:
-#         raise NotImplementedError()
-#
-#     if config[NORMALIZE_ADVANTAGE]:
-#         normalized_fields = ["advantages", DIVERSITY_ADVANTAGES]
-#     else:
-#         normalized_fields = []
-#
-#     return LocalMultiGPUOptimizer(
-#         workers,
-#         sgd_batch_size=config["sgd_minibatch_size"],
-#         num_sgd_iter=config["num_sgd_iter"],
-#         num_gpus=config["num_gpus"],
-#         sample_batch_size=config["sample_batch_size"],
-#         num_envs_per_worker=config["num_envs_per_worker"],
-#         train_batch_size=config["train_batch_size"],
-#         standardize_fields=normalized_fields,
-#         shuffle_sequences=config["shuffle_sequences"]
-#     )
-
-
 def setup_policies_pool(trainer):
     """Initialize the team of agents by calling the function in each policy"""
 
@@ -104,8 +79,6 @@ def setup_policies_pool(trainer):
 
     # FIXME
     return
-
-
 
     if not trainer.config[DELAY_UPDATE]:
         return
