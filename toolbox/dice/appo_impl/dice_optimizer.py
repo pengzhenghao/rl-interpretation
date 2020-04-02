@@ -4,7 +4,10 @@ Copied from ray/rllib/optimizers/async_samples_optimizer.py and Modified a lot
 
 import logging
 import time
+from collections import defaultdict
 
+import numpy as np
+from ray.rllib.evaluation.metrics import collect_episodes, summarize_episodes
 # from ray.rllib.optimizers.aso_aggregator import SimpleAggregator
 # from ray.rllib.optimizers.aso_learner import LearnerThread
 # from ray.rllib.optimizers.aso_tree_aggregator import TreeAggregator
@@ -15,8 +18,6 @@ from ray.rllib.utils.timer import TimerStat
 from toolbox.dice.appo_impl.dice_actor import DRAggregator
 from toolbox.dice.appo_impl.dice_learner import LearnerThread
 from toolbox.dice.appo_impl.dice_workers import SuperWorkerSet
-
-from ray.rllib.evaluation.metrics import collect_episodes, summarize_episodes
 
 logger = logging.getLogger(__name__)
 
@@ -151,13 +152,15 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         with self._optimizer_step_timer:
             sample_timesteps, train_timesteps = self._step()
 
+            # We use the summation of all agents as these two stats
+            sample_timesteps = sum(sample_timesteps.values())
+            train_timesteps = sum(train_timesteps.values())
+
         if sample_timesteps > 0:
             self.add_stat_val("sample_throughput", sample_timesteps)
         if train_timesteps > 0:
             self.add_stat_val("train_throughput", train_timesteps)
 
-        # TODO different agents may have different stats!
-        # How should we deal with this part?
         self.num_steps_sampled += sample_timesteps
         self.num_steps_trained += train_timesteps
 
@@ -214,38 +217,58 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         def timer_to_ms(timer):
             return round(1000 * timer.mean, 3)
 
-        # TODO this is wrong!
-        aggregator = self.aggregator_set[0]
-        learner = self.learner_set[0]
+        stats_list = []
 
-        stats = aggregator.stats()
-        stats.update(self.get_mean_stats_and_reset())
-        stats["timing_breakdown"] = {
-            "optimizer_step_time_ms": timer_to_ms(self._optimizer_step_timer),
-            "learner_grad_time_ms": timer_to_ms(learner.grad_timer),
-            "learner_load_time_ms": timer_to_ms(learner.load_timer),
-            "learner_load_wait_time_ms": timer_to_ms(
-                learner.load_wait_timer),
-            "learner_dequeue_time_ms": timer_to_ms(learner.queue_timer),
-        }
-        stats["learner_queue"] = learner.learner_queue_size.stats()
-        if learner.stats:
-            stats["learner"] = learner.stats
-        return dict(PolicyOptimizer.stats(self), **stats)
+        for ws_id in self.aggregator_set.keys():
+            aggregator = self.aggregator_set[ws_id]
+            learner = self.learner_set[ws_id]
+
+            stats = aggregator.stats()
+            stats.update(self.get_mean_stats_and_reset())
+            stats["timing_breakdown"] = {
+                "optimizer_step_time_ms": timer_to_ms(
+                    self._optimizer_step_timer),
+                "learner_grad_time_ms": timer_to_ms(learner.grad_timer),
+                "learner_load_time_ms": timer_to_ms(learner.load_timer),
+                "learner_load_wait_time_ms": timer_to_ms(
+                    learner.load_wait_timer),
+                "learner_dequeue_time_ms": timer_to_ms(learner.queue_timer),
+            }
+            stats["learner_queue"] = learner.learner_queue_size.stats()
+            if learner.stats:
+                stats["learner"] = learner.stats
+
+            stats_list.append(stats)
+
+        print("stop here")
+
+        ret_stat = wrap_dict_list(stats_list)
+
+        original_stat = PolicyOptimizer.stats(self)
+
+        original_stat.update(ret_stat)
+
+        return original_stat
+        # return dict(PolicyOptimizer.stats(self), **ret_stat)
 
     def _step(self):
-        sample_timesteps, train_timesteps = 0, 0
+        sample_timesteps = {}
+        train_timesteps = {}
 
         assert not hasattr(self, "aggregator")
         assert not hasattr(self, "learner")
 
         for (ws_id, aggregator), (ws_id2, learner) in zip(
                 self.aggregator_set.items(),
-                self.learner_set.items()):
+                self.learner_set.items()
+        ):
             assert ws_id == ws_id2
 
+            sample_timesteps[ws_id] = 0
+            train_timesteps[ws_id] = 0
+
             for train_batch in aggregator.iter_train_batches():
-                sample_timesteps += train_batch.count
+                sample_timesteps[ws_id] += train_batch.count
                 learner.inqueue.put(train_batch)
                 if (learner.weights_updated
                         and aggregator.should_broadcast()):
@@ -253,7 +276,32 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
 
             while not learner.outqueue.empty():
                 count = learner.outqueue.get()
-                train_timesteps += count
+                train_timesteps[ws_id] += count
 
-        # TODO as you can see that the return stats is not correct.
         return sample_timesteps, train_timesteps
+
+
+def wrap_dict_list(dict_list):
+    assert isinstance(dict_list, list)
+    data = defaultdict(list)
+
+    for d in dict_list:
+        for k, v in d.items():
+            data[k].append(v)
+
+    ret = {}
+    for k, v in data.items():
+        if all(np.isscalar(item) for item in v):
+            # average the stats
+            ret[k] = np.mean(v)
+        else:
+            if all(isinstance(item, dict) for item in v):
+                # Nested dict
+                ret[k] = wrap_dict_list(v)
+            elif all(isinstance(item, list) for item in v):
+                # Flatten list
+                ret[k] = [data_point for item in v for data_point in item]
+            else:
+                raise ValueError("Data format incorrect! {}".format(v))
+
+    return ret

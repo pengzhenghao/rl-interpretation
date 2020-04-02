@@ -272,31 +272,7 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
 
     # Build the loss for diversity
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-
-        # TODO so we do not consider vtrace diversity loss at all
-
-        # if we don't use DVN, we don't have diversity values, so the
-        # entries of loss object is also changed.
-        # policy.diversity_loss_obj = PPOSurrogateLoss(
-        #     dist_class,
-        #     model,
-        #     train_batch[DIVERSITY_VALUE_TARGETS],
-        #     train_batch[DIVERSITY_ADVANTAGES],
-        #     train_batch[SampleBatch.ACTIONS],
-        #     train_batch[BEHAVIOUR_LOGITS],
-        #     train_batch["action_logp"],
-        #     train_batch[DIVERSITY_VALUES],  ###
-        #     action_dist,
-        #     model.diversity_value_function(),  ###
-        #     policy.kl_coeff,
-        #     mask,
-        #     entropy_coeff=policy.entropy_coeff,
-        #     clip_param=policy.config["clip_param"],
-        #     vf_clip_param=policy.config["vf_clip_param"],
-        #     vf_loss_coeff=policy.config["vf_loss_coeff"],
-        #     use_gae=policy.config["use_gae"]
-        # )
-
+        # We do not consider vtrace diversity loss at all
         policy.diversity_loss = PPOSurrogateLoss(
             prev_actions_logp=make_time_major(prev_action_dist.logp(actions)),
             actions_logp=make_time_major(action_dist.logp(actions)),

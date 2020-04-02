@@ -18,12 +18,14 @@ dice_appo_default_config = merge_dicts(
 
         "tau": 5e-3,
         "callbacks": {
-            # TODO since we do not maintain a policies map anymore, so hard for
+            # TODO(checked) since we do not maintain a policies map anymore,
+            #  so hard for
             #  us to compute the distance between agents.
             #  think about whether we need this or how we make this
             # "on_train_result": on_train_result,
 
-            # TODO remove this counting. please check whether this would harm
+            # TODO(checked) remove this counting. please check whether this
+            #  would harm
             #  the counting
             # "on_postprocess_traj": on_postprocess_traj
         }

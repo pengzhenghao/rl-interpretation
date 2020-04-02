@@ -90,3 +90,11 @@ if __name__ == "__main__":
         num_agents=1,
         local_mode=True
     )
+
+    print("===== Change to 3 agents =====")
+
+    _test_dice(
+        # num_agents=tune.grid_search([1, 3, 5]),
+        num_agents=3,
+        local_mode=True
+    )
