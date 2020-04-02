@@ -19,7 +19,6 @@ from ray.rllib.agents.ppo.appo import APPOTrainer, \
     update_target_and_kl as original_after_optimizer_step, \
     initialize_target as original_after_init
 from ray.rllib.models.catalog import ModelCatalog
-from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dice.appo_impl.dice_policy_appo import DiCEPolicy_APPO
 from toolbox.dice.appo_impl.utils import dice_appo_default_config
@@ -35,14 +34,17 @@ def validate_config(config):
     """Validate the config"""
 
     # create multi-agent environment
-    assert _global_registry.contains(ENV_CREATOR, config["env"])
-    env_creator = _global_registry.get(ENV_CREATOR, config["env"])
-    tmp_env = env_creator(config["env_config"])
-    config["multiagent"]["policies"] = {
-        i: (None, tmp_env.observation_space, tmp_env.action_space, {})
-        for i in tmp_env.agent_ids
-    }
-    config["multiagent"]["policy_mapping_fn"] = lambda x: x
+
+    # Do not using multiple policies anymore.
+
+    # assert _global_registry.contains(ENV_CREATOR, config["env"])
+    # env_creator = _global_registry.get(ENV_CREATOR, config["env"])
+    # tmp_env = env_creator(config["env_config"])
+    # config["multiagent"]["policies"] = {
+    #     i: (None, tmp_env.observation_space, tmp_env.action_space, {})
+    #     for i in tmp_env.agent_ids
+    # }
+    # config["multiagent"]["policy_mapping_fn"] = lambda x: x
 
     # check the model
     if config[USE_DIVERSITY_VALUE_NETWORK]:
@@ -93,23 +95,37 @@ def setup_policies_pool(trainer):
 
     if not trainer.config[DELAY_UPDATE]:
         return
-    assert not trainer.get_policy('agent0').initialized_policies_pool
+    assert not trainer.get_policy().initialized_policies_pool
     # First step, broadcast local weights to remote worker.
-    if trainer.workers.remote_workers():
-        weights = ray.put(trainer.workers.local_worker().get_weights())
-        for e in trainer.workers.remote_workers():
-            e.set_weights.remote(weights)
+    # assert trainer.workers.remote_workers()
+
+    # TODO this checking is necessary, but not now. please uncomment next line
+    # assert len(trainer.workers.remote_workers()) == trainer.config[
+    # "num_agents"]
+
+    trainer._policy_worker_mapping = {}
+
+    def _get_weight(worker, worker_index):
+        return worker.get_weights(), worker_index
+
+    result = trainer.workers.foreach_worker_with_index(_get_weight)
+    for weights, worker_id in result:
+        trainer._policy_worker_mapping[worker_id] = weights
+
+    # print('skdjflkadsjf')
+    # weights = ray.put(trainer.workers.local_worker().get_weights())
+    # for e in trainer.workers.remote_workers():
+    #     e.set_weights.remote(weights)
 
     # Second step, call the _lazy_initialize function of each policy, feeding
     # with the policies map in the trainer.
-    def _init_pool(worker, worker_index):
-        def _init_diversity_policy(policy, my_policy_name):
-            policy.update_target_network(tau=1.0)
-            policy._lazy_initialize(worker.policy_map, my_policy_name)
+    # def _init_pool(worker, worker_index):
+    # def _init_diversity_policy(policy, my_policy_name):
+    #     policy.update_target_network(tau=1.0)
+    #     policy._lazy_initialize(worker.policy_map, my_policy_name)
 
-        worker.foreach_policy(_init_diversity_policy)
-
-    trainer.workers.foreach_worker_with_index(_init_pool)
+    # worker.foreach_policy(_init_diversity_policy)
+    # trainer.workers.foreach_worker_with_index(_init_pool)
 
 
 def after_optimizer_iteration(trainer, fetches):

@@ -132,7 +132,7 @@ class PPOSurrogateDiversityLoss:
                  valid_mask,
                  advantages,
                  # value_targets,
-                 vf_loss_coeff=0.5,
+                 # vf_loss_coeff=0.5,
                  entropy_coeff=0.01,
                  clip_param=0.3,
                  cur_kl_coeff=None,
@@ -346,25 +346,30 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
             cur_kl_coeff=policy.kl_coeff,
             use_kl_loss=policy.config["use_kl_loss"])
     else:
-        policy.diversity_loss_obj = PPOSurrogateDiversityLoss(
-            dist_class,
-            model,
-            train_batch[DIVERSITY_ADVANTAGES],
-            train_batch[SampleBatch.ACTIONS],
-            train_batch[BEHAVIOUR_LOGITS],
-            train_batch["action_logp"],
-            action_dist,
-            policy.kl_coeff,
-            mask,
-            entropy_coeff=policy.entropy_coeff,
-            clip_param=policy.config["clip_param"]
-        )
-
+        policy.diversity_loss = PPOSurrogateDiversityLoss(
+            prev_actions_logp=make_time_major(prev_action_dist.logp(actions)),
+            actions_logp=make_time_major(action_dist.logp(actions)),
+            action_kl=tf.reduce_mean(mean_kl, axis=0)
+            if is_multidiscrete else mean_kl,
+            actions_entropy=make_time_major(action_dist.multi_entropy()),
+            # Diversity value
+            # values=make_time_major(model.diversity_value_function()),
+            valid_mask=make_time_major(mask),
+            # Diversity advantage
+            advantages=make_time_major(train_batch[DIVERSITY_ADVANTAGES]),
+            # Value target
+            # value_targets=make_time_major(
+            #     train_batch[DIVERSITY_VALUE_TARGETS]),
+            # vf_loss_coeff=policy.config["vf_loss_coeff"],
+            entropy_coeff=policy.config["entropy_coeff"],
+            clip_param=policy.config["clip_param"],
+            cur_kl_coeff=policy.kl_coeff,
+            use_kl_loss=policy.config["use_kl_loss"])
     # Add the diversity reward as a stat
     policy.diversity_reward_mean = tf.reduce_mean(
         train_batch[DIVERSITY_REWARDS]
     )
-    return [policy.loss_obj.total_loss, policy.diversity_loss_obj.total_loss]
+    return [policy.loss.total_loss, policy.diversity_loss.total_loss]
     # return policy.loss.total_loss
 
 

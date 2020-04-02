@@ -6,15 +6,45 @@ policies' batches, we fuse the batches collected by this policy and other
 policies. We also compute the diversity reward and diversity advantage of this
 policy.
 """
-from ray.rllib.agents.ppo.appo_policy import \
-    postprocess_trajectory as original_postprocess, BEHAVIOUR_LOGITS
+from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
+# from ray.rllib.agents.ppo.appo_policy import \
+#     postprocess_trajectory as original_postprocess
 from ray.rllib.agents.ppo.ppo_policy import ACTION_LOGP, \
-    SampleBatch, BEHAVIOUR_LOGITS
-from ray.rllib.evaluation.postprocessing import discount
+    BEHAVIOUR_LOGITS
+from ray.rllib.evaluation.postprocessing import discount, compute_advantages
+from ray.rllib.policy.sample_batch import SampleBatch
 
 from toolbox.dice.utils import *
 
 MY_LOGIT = "my_logits"
+
+
+def original_postprocess(policy,
+                         sample_batch,
+                         other_agent_batches=None,
+                         episode=None):
+    if not policy.config["vtrace"]:
+        completed = sample_batch["dones"][-1]
+        if completed:
+            last_r = 0.0
+        else:
+            next_state = []
+            for i in range(policy.num_state_tensors()):
+                next_state.append([sample_batch["state_out_{}".format(i)][-1]])
+            last_r = policy._value(sample_batch[SampleBatch.NEXT_OBS][-1],
+                                   sample_batch[SampleBatch.ACTIONS][-1],
+                                   sample_batch[SampleBatch.REWARDS][-1],
+                                   *next_state)
+        batch = compute_advantages(
+            sample_batch,
+            last_r,
+            policy.config["gamma"],
+            policy.config["lambda"],
+            use_gae=policy.config["use_gae"])
+    else:
+        batch = sample_batch
+    # del batch.data["new_obs"]  # not used, so save some bandwidth
+    return batch
 
 
 # TODO this may be problematic. I don't see clearly how things going
@@ -37,6 +67,13 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
         batches = []
 
     for pid, (other_policy, other_batch_raw) in others_batches.items():
+
+        ##########
+        # This processing is not acceptable. we should remove multiple policies
+        # in system. and use different worker latest agent to serve as a
+        # population.
+        ##########
+
         # other_batch_raw is the data collected by other polices.
         if policy.config[ONLY_TNB]:
             break
@@ -62,6 +99,7 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
     batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
 
+    # TODO we should remove this but this cause error
     del batch.data['new_obs']  # save memory
     del batch.data['action_prob']
     return batch
@@ -70,6 +108,15 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
 def postprocess_diversity(policy, batch, others_batches):
     """Compute the diversity for this policy against other policies using this
     batch."""
+
+    # do not compute the diversity in each worker. instead, compute the
+    # diversity in the aggregation stage (real optimization stage)
+    batch[DIVERSITY_ADVANTAGES] = np.ones_like(batch["rewards"])
+    batch[DIVERSITY_VALUE_TARGETS] = np.ones_like(batch["rewards"])
+    batch[DIVERSITY_REWARDS] = np.ones_like(batch["rewards"])
+    return batch
+
+
 
     # Compute diversity and add a new entry of batch: diversity_reward
     batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch, others_batches)

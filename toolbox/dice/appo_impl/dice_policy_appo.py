@@ -7,7 +7,7 @@ following functions for each policy:
 3. Update the target network for each training iteration.
 """
 from ray.rllib.agents.ppo.appo_policy import AsyncPPOTFPolicy, KLCoeffMixin, \
-    TargetNetworkMixin, ValueNetworkMixin, \
+    ValueNetworkMixin, \
     setup_mixins as original_setup_mixins, \
     add_values_and_logits as original_additional_fetch, stats as original_stats
 from ray.rllib.models import ModelCatalog
@@ -79,18 +79,18 @@ def kl_and_loss_stats_modified(policy, train_batch):
     """Add the diversity-related stats here."""
     ret = original_stats(policy, train_batch)
     ret.update({
-        "diversity_total_loss": policy.diversity_loss_obj.loss,
-        "diversity_policy_loss": policy.diversity_loss_obj.mean_policy_loss,
-        "diversity_vf_loss": policy.diversity_loss_obj.mean_vf_loss,
-        "diversity_kl": policy.diversity_loss_obj.mean_kl,
-        "diversity_entropy": policy.diversity_loss_obj.mean_entropy,
-        "diversity_reward_mean": policy.diversity_reward_mean,
+        "diversity_total_loss": policy.diversity_loss.total_loss,
+        "diversity_policy_loss": policy.diversity_loss.pi_loss,
+        "diversity_kl": policy.diversity_loss.mean_kl,
+        "diversity_entropy": policy.diversity_loss.entropy,
+        "diversity_reward_mean": policy.diversity_reward_mean,  # ?
     })
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret['diversity_vf_explained_var'] = explained_variance(
             train_batch[DIVERSITY_VALUE_TARGETS],
             policy.model.diversity_value_function()
         )
+        ret["diversity_vf_loss"] = policy.diversity_loss.vf_loss
     return ret
 
 
@@ -121,6 +121,7 @@ class ComputeDiversityMixin:
 
     def compute_diversity(self, my_batch, others_batches):
         """Compute the diversity of this agent."""
+        assert self.policies_pool, "Your policies pool is empty!"
         replays = {}
         if self.config[DELAY_UPDATE]:
             # If in DELAY_UPDATE mode, compute diversity against the target
@@ -145,6 +146,7 @@ class ComputeDiversityMixin:
 
         # Compute the diversity loss based on the action distribution of
         # this policy and other polices.
+        assert replays
         if self.config[DIVERSITY_REWARD_TYPE] == "kl":
             return np.mean(
                 [
@@ -231,6 +233,14 @@ class TargetNetworkMixin:
         return self.get_session().run(
             self.update_target_expr, feed_dict={self.tau: tau}
         )
+
+    def update_target(self, tau=None):
+        import warnings
+        warnings.warn(
+            "Please use update_target_network! Current update_target function "
+            "is deprecated.",
+            DeprecationWarning)
+        return self.update_target_network(tau)
 
 
 def setup_mixins_dice(policy, action_space, obs_space, config):

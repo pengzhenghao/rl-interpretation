@@ -13,10 +13,19 @@ dice_appo_default_config = merge_dicts(
         CLIP_DIVERSITY_GRADIENT: True,
         DIVERSITY_REWARD_TYPE: "mse",
         PURE_OFF_POLICY: False,
+
+        "num_agents": 1,  # Control the agent population size
+
         "tau": 5e-3,
         "callbacks": {
-            "on_train_result": on_train_result,
-            "on_postprocess_traj": on_postprocess_traj
+            # TODO since we do not maintain a policies map anymore, so hard for
+            #  us to compute the distance between agents.
+            #  think about whether we need this or how we make this
+            # "on_train_result": on_train_result,
+
+            # TODO remove this counting. please check whether this would harm
+            #  the counting
+            # "on_postprocess_traj": on_postprocess_traj
         }
     }
 )

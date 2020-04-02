@@ -7,7 +7,6 @@ from ray import tune
 from toolbox import initialize_ray
 from toolbox.dice import utils
 from toolbox.dice.appo_impl.dice_appo import DiCETrainer_APPO
-from toolbox.marl import MultiAgentEnvWrapper
 
 num_agents_pair = tune.grid_search([1, 3])
 
@@ -25,15 +24,19 @@ def _test_dice(
     initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
 
     # default config
-    env_config = {"env_name": env_name, "num_agents": num_agents}
+    # env_config = {"env_name": env_name, "num_agents": num_agents}
     config = {
-        "env": MultiAgentEnvWrapper,
-        "env_config": env_config,
+        "env": "BipedalWalker-v2",
+
+        "num_agents": num_agents,
+
+        # "env": MultiAgentEnvWrapper,
+        # "env_config": env_config,
         "num_gpus": num_gpus,
         "log_level": "DEBUG",
         "sample_batch_size": 20,
         "train_batch_size": 100,
-        "sgd_minibatch_size": 60,
+        # "sgd_minibatch_size": 60,
         "num_sgd_iter": 3,
     }
 
@@ -85,5 +88,5 @@ if __name__ == "__main__":
     _test_dice(
         # num_agents=tune.grid_search([1, 3, 5]),
         num_agents=1,
-        local_mode=False
+        local_mode=True
     )
