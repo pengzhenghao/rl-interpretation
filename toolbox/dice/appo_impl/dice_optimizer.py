@@ -6,14 +6,17 @@ import logging
 import time
 
 # from ray.rllib.optimizers.aso_aggregator import SimpleAggregator
-from ray.rllib.optimizers.aso_learner import LearnerThread
-from ray.rllib.optimizers.aso_multi_gpu_learner import TFMultiGPULearner
+# from ray.rllib.optimizers.aso_learner import LearnerThread
 # from ray.rllib.optimizers.aso_tree_aggregator import TreeAggregator
 from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.timer import TimerStat
 
-from toolbox.dice.appo_impl.dice_aggregator import DRAggregator
+from toolbox.dice.appo_impl.dice_actor import DRAggregator
+from toolbox.dice.appo_impl.dice_learner import LearnerThread
+from toolbox.dice.appo_impl.dice_workers import SuperWorkerSet
+
+from ray.rllib.evaluation.metrics import collect_episodes, summarize_episodes
 
 logger = logging.getLogger(__name__)
 
@@ -49,63 +52,73 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         self._last_stats_time = {}
         self._last_stats_sum = {}
 
-        if num_gpus > 1 or num_data_loader_buffers > 1:
-            logger.info(
-                "Enabling multi-GPU mode, {} GPUs, {} parallel loaders".format(
-                    num_gpus, num_data_loader_buffers))
-            if num_data_loader_buffers < minibatch_buffer_size:
-                raise ValueError(
-                    "In multi-gpu mode you must have at least as many "
-                    "parallel data loader buffers as minibatch buffers: "
-                    "{} vs {}".format(num_data_loader_buffers,
-                                      minibatch_buffer_size))
-            self.learner = TFMultiGPULearner(
-                self.workers.local_worker(),
-                lr=lr,
-                num_gpus=num_gpus,
-                train_batch_size=train_batch_size,
-                num_data_loader_buffers=num_data_loader_buffers,
-                minibatch_buffer_size=minibatch_buffer_size,
-                num_sgd_iter=num_sgd_iter,
-                learner_queue_size=learner_queue_size,
-                learner_queue_timeout=learner_queue_timeout,
-                _fake_gpus=_fake_gpus)
-        else:
-            self.learner = LearnerThread(
-                self.workers.local_worker(),
-                minibatch_buffer_size=minibatch_buffer_size,
-                num_sgd_iter=num_sgd_iter,
-                learner_queue_size=learner_queue_size,
-                learner_queue_timeout=learner_queue_timeout)
-        self.learner.start()
+        self.learner_set = {}
+        self.aggregator_set = {}
+
+        assert isinstance(workers, SuperWorkerSet)
+
+        for ws_id, ws in workers.items():
+            if num_gpus > 1 or num_data_loader_buffers > 1:
+                # logger.info(
+                #     "Enabling multi-GPU mode, {} GPUs, {} parallel
+                #     loaders".format(
+                #         num_gpus, num_data_loader_buffers))
+                # if num_data_loader_buffers < minibatch_buffer_size:
+                #     raise ValueError(
+                #         "In multi-gpu mode you must have at least as many "
+                #         "parallel data loader buffers as minibatch buffers: "
+                #         "{} vs {}".format(num_data_loader_buffers,
+                #                           minibatch_buffer_size))
+                # self.learner = TFMultiGPULearner(
+                #     self.workers.local_worker(),
+                #     lr=lr,
+                #     num_gpus=num_gpus,
+                #     train_batch_size=train_batch_size,
+                #     num_data_loader_buffers=num_data_loader_buffers,
+                #     minibatch_buffer_size=minibatch_buffer_size,
+                #     num_sgd_iter=num_sgd_iter,
+                #     learner_queue_size=learner_queue_size,
+                #     learner_queue_timeout=learner_queue_timeout,
+                #     _fake_gpus=_fake_gpus)
+                raise NotImplementedError()
+            else:
+                learner = LearnerThread(
+                    ws.local_worker(),
+                    minibatch_buffer_size=minibatch_buffer_size,
+                    num_sgd_iter=num_sgd_iter,
+                    learner_queue_size=learner_queue_size,
+                    learner_queue_timeout=learner_queue_timeout)
+            learner.start()
+            self.learner_set[ws_id] = learner
+
+            if num_aggregation_workers > 0:
+                raise NotImplementedError()
+                # self.aggregator = TreeAggregator(
+                #     workers,
+                #     num_aggregation_workers,
+                #     replay_proportion=replay_proportion,
+                #     max_sample_requests_in_flight_per_worker=(
+                #         max_sample_requests_in_flight_per_worker),
+                #     replay_buffer_num_slots=replay_buffer_num_slots,
+                #     train_batch_size=train_batch_size,
+                #     sample_batch_size=sample_batch_size,
+                #     broadcast_interval=broadcast_interval)
+            else:
+                aggregator = DRAggregator(
+                    ws,
+                    replay_proportion=replay_proportion,
+                    max_sample_requests_in_flight_per_worker=(
+                        max_sample_requests_in_flight_per_worker),
+                    replay_buffer_num_slots=replay_buffer_num_slots,
+                    train_batch_size=train_batch_size,
+                    sample_batch_size=sample_batch_size,
+                    broadcast_interval=broadcast_interval)
+            self.aggregator_set[ws_id] = aggregator
 
         # Stats
         self._optimizer_step_timer = TimerStat()
         self._stats_start_time = time.time()
         self._last_stats_time = {}
-
-        if num_aggregation_workers > 0:
-            raise NotImplementedError()
-            # self.aggregator = TreeAggregator(
-            #     workers,
-            #     num_aggregation_workers,
-            #     replay_proportion=replay_proportion,
-            #     max_sample_requests_in_flight_per_worker=(
-            #         max_sample_requests_in_flight_per_worker),
-            #     replay_buffer_num_slots=replay_buffer_num_slots,
-            #     train_batch_size=train_batch_size,
-            #     sample_batch_size=sample_batch_size,
-            #     broadcast_interval=broadcast_interval)
-        else:
-            self.aggregator = DRAggregator(
-                workers,
-                replay_proportion=replay_proportion,
-                max_sample_requests_in_flight_per_worker=(
-                    max_sample_requests_in_flight_per_worker),
-                replay_buffer_num_slots=replay_buffer_num_slots,
-                train_batch_size=train_batch_size,
-                sample_batch_size=sample_batch_size,
-                broadcast_interval=broadcast_interval)
 
     def add_stat_val(self, key, val):
         if key not in self._last_stats_sum:
@@ -130,7 +143,11 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
     def step(self):
         if len(self.workers.remote_workers()) == 0:
             raise ValueError("Config num_workers=0 means training will hang!")
-        assert self.learner.is_alive()
+
+        for l_id, learner in self.learner_set.items():
+            assert learner.is_alive(), "{} is dead! ALl learners: {}.".format(
+                l_id, self.learner_set.keys())
+
         with self._optimizer_step_timer:
             sample_timesteps, train_timesteps = self._step()
 
@@ -139,8 +156,47 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         if train_timesteps > 0:
             self.add_stat_val("train_throughput", train_timesteps)
 
+        # TODO different agents may have different stats!
+        # How should we deal with this part?
         self.num_steps_sampled += sample_timesteps
         self.num_steps_trained += train_timesteps
+
+    @override(PolicyOptimizer)
+    def collect_metrics(self,
+                        timeout_seconds,
+                        min_history=100,
+                        selected_workers=None):
+        """Returns worker and optimizer stats.
+
+        Arguments:
+            timeout_seconds (int): Max wait time for a worker before
+                dropping its results. This usually indicates a hung worker.
+            min_history (int): Min history length to smooth results over.
+            selected_workers (list): Override the list of remote workers
+                to collect metrics from.
+
+        Returns:
+            res (dict): A training result dict from worker metrics with
+                `info` replaced with stats from self.
+        """
+
+        for ws_id, workers in self.workers.items():
+
+            episodes, self.to_be_collected = collect_episodes(
+                workers.local_worker(),
+                selected_workers or workers.remote_workers(),
+                self.to_be_collected,
+                timeout_seconds=timeout_seconds)
+            orig_episodes = list(episodes)
+            missing = min_history - len(episodes)
+            if missing > 0:
+                episodes.extend(self.episode_history[-missing:])
+                assert len(episodes) <= min_history
+            self.episode_history.extend(orig_episodes)
+            self.episode_history = self.episode_history[-min_history:]
+            res = summarize_episodes(episodes, orig_episodes)
+            res.update(info=self.stats())
+        return res
 
     @override(PolicyOptimizer)
     def stop(self):
@@ -149,40 +205,55 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
     @override(PolicyOptimizer)
     def reset(self, remote_workers):
         self.workers.reset(remote_workers)
-        self.aggregator.reset(remote_workers)
+
+        for aggregator in self.aggregator_set.values():
+            aggregator.reset(remote_workers)
 
     @override(PolicyOptimizer)
     def stats(self):
         def timer_to_ms(timer):
             return round(1000 * timer.mean, 3)
 
-        stats = self.aggregator.stats()
+        # TODO this is wrong!
+        aggregator = self.aggregator_set[0]
+        learner = self.learner_set[0]
+
+        stats = aggregator.stats()
         stats.update(self.get_mean_stats_and_reset())
         stats["timing_breakdown"] = {
             "optimizer_step_time_ms": timer_to_ms(self._optimizer_step_timer),
-            "learner_grad_time_ms": timer_to_ms(self.learner.grad_timer),
-            "learner_load_time_ms": timer_to_ms(self.learner.load_timer),
+            "learner_grad_time_ms": timer_to_ms(learner.grad_timer),
+            "learner_load_time_ms": timer_to_ms(learner.load_timer),
             "learner_load_wait_time_ms": timer_to_ms(
-                self.learner.load_wait_timer),
-            "learner_dequeue_time_ms": timer_to_ms(self.learner.queue_timer),
+                learner.load_wait_timer),
+            "learner_dequeue_time_ms": timer_to_ms(learner.queue_timer),
         }
-        stats["learner_queue"] = self.learner.learner_queue_size.stats()
-        if self.learner.stats:
-            stats["learner"] = self.learner.stats
+        stats["learner_queue"] = learner.learner_queue_size.stats()
+        if learner.stats:
+            stats["learner"] = learner.stats
         return dict(PolicyOptimizer.stats(self), **stats)
 
     def _step(self):
         sample_timesteps, train_timesteps = 0, 0
 
-        for train_batch in self.aggregator.iter_train_batches():
-            sample_timesteps += train_batch.count
-            self.learner.inqueue.put(train_batch)
-            if (self.learner.weights_updated
-                    and self.aggregator.should_broadcast()):
-                self.aggregator.broadcast_new_weights()
+        assert not hasattr(self, "aggregator")
+        assert not hasattr(self, "learner")
 
-        while not self.learner.outqueue.empty():
-            count = self.learner.outqueue.get()
-            train_timesteps += count
+        for (ws_id, aggregator), (ws_id2, learner) in zip(
+                self.aggregator_set.items(),
+                self.learner_set.items()):
+            assert ws_id == ws_id2
 
+            for train_batch in aggregator.iter_train_batches():
+                sample_timesteps += train_batch.count
+                learner.inqueue.put(train_batch)
+                if (learner.weights_updated
+                        and aggregator.should_broadcast()):
+                    aggregator.broadcast_new_weights()
+
+            while not learner.outqueue.empty():
+                count = learner.outqueue.get()
+                train_timesteps += count
+
+        # TODO as you can see that the return stats is not correct.
         return sample_timesteps, train_timesteps

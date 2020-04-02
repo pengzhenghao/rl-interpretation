@@ -13,11 +13,9 @@ policy if necessary.
 We also validate the config of the DiCE trainer in this file.
 """
 
-import ray
 from ray.rllib.agents.impala.impala import validate_config as original_validate
-from ray.rllib.agents.ppo.appo import APPOTrainer, \
-    update_target_and_kl as original_after_optimizer_step, \
-    initialize_target as original_after_init
+from ray.rllib.agents.ppo.appo import APPOTrainer, update_kl
+# update_target_and_kl as original_after_optimizer_step
 from ray.rllib.models.catalog import ModelCatalog
 
 from toolbox.dice.appo_impl.dice_optimizer import AsyncSamplesOptimizer
@@ -91,8 +89,23 @@ def validate_config(config):
 
 def setup_policies_pool(trainer):
     """Initialize the team of agents by calling the function in each policy"""
+
+    # FIXME temporarily disable this function
+    # return
+
     # Original initialization
-    original_after_init(trainer)
+    # TODO should we maintain the concept of target network?? How we deal
+    #  with the policy map?
+    # The next line is not commented in original code
+    # trainer.workers.local_worker().foreach_trainable_policy(
+    #     lambda p, _: p.update_target())
+    trainer.target_update_frequency = trainer.config["num_sgd_iter"] \
+                                      * trainer.config["minibatch_buffer_size"]
+
+    # FIXME
+    return
+
+
 
     if not trainer.config[DELAY_UPDATE]:
         return
@@ -131,21 +144,42 @@ def setup_policies_pool(trainer):
 
 def after_optimizer_iteration(trainer, fetches):
     """Update the policies pool in each policy."""
-    original_after_optimizer_step(trainer, fetches)  # original APPO procedure
+    # original_after_optimizer_step(trainer, fetches)  # original APPO procedure
+
+    # Original APPO
+    # Update the KL coeff depending on how many steps LearnerThread has stepped
+    # through
+    # TODO Wrong!
+    learner_steps = trainer.optimizer.learner_set[0].num_steps
+    # learner_steps = trainer.optimizer.learner.num_steps
+    if learner_steps >= trainer.target_update_frequency:
+
+        # Update Target Network
+        for learner in trainer.optimizer.learner_set.values():
+            learner.num_steps = 0
+        trainer.workers.local_worker().foreach_trainable_policy(
+            lambda p, _: p.update_target())
+
+        # Also update KL Coeff
+        if trainer.config["use_kl_loss"]:
+            # TODO wrong!
+            # update_kl(trainer, trainer.optimizer.learner.stats)
+            update_kl(trainer, trainer.optimizer.learner_set[0].stats)
 
     # only update the policies pool if used DELAY_UPDATE, otherwise
     # the policies_pool in each policy is simply not used, so we don't
     # need to update it.
-    if trainer.config[DELAY_UPDATE]:
-        if trainer.workers.remote_workers():
-            weights = ray.put(trainer.workers.local_worker().get_weights())
-            for e in trainer.workers.remote_workers():
-                e.set_weights.remote(weights)
-
-            def _delay_update_for_worker(worker, worker_index):
-                worker.foreach_policy(lambda p, _: p.update_target_network())
-
-            trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
+    # if trainer.config[DELAY_UPDATE]:
+    #     if trainer.workers.remote_workers():
+    #         weights = ray.put(trainer.workers.local_worker().get_weights())
+    #         for e in trainer.workers.remote_workers():
+    #             e.set_weights.remote(weights)
+    #
+    #         def _delay_update_for_worker(worker, worker_index):
+    #             worker.foreach_policy(lambda p, _: p.update_target_network())
+    #
+    #         trainer.workers.foreach_worker_with_index(
+    #         _delay_update_for_worker)
 
 
 def make_aggregators_and_optimizer(workers, config):
@@ -183,13 +217,30 @@ def make_aggregators_and_optimizer(workers, config):
     return optimizer
 
 
+from toolbox.dice.appo_impl.dice_workers import SuperWorkerSet
+
+
+def make_workers(trainer, env_creator, policy, config):
+    # (DICE) at the init stage, the remote workers is set to zero.
+    # all workers are then setup at make_aggregators_and_optimizer
+    return SuperWorkerSet(
+        config["num_agents"],
+        env_creator,
+        policy,
+        config,
+        num_workers_per_set=0,
+        logdir=trainer.logdir
+    )
+
+
 DiCETrainer_APPO = APPOTrainer.with_updates(
     name="DiCETrainer_APPO",
     default_config=dice_appo_default_config,
     default_policy=DiCEPolicy_APPO,
     get_policy_class=lambda _: DiCEPolicy_APPO,
     validate_config=validate_config,
-    # make_policy_optimizer=make_policy_optimizer_tnbes,  # TODO
+    make_workers=make_workers,
+    make_policy_optimizer=make_aggregators_and_optimizer,
     after_init=setup_policies_pool,
     after_optimizer_step=after_optimizer_iteration,
 )

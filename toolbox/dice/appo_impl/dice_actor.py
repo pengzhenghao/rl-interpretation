@@ -47,7 +47,10 @@ class DRAggregatorBase:
         # Kick off async background sampling
         self.sample_tasks = TaskPool()
         for ev in self.remote_workers:
-            ev.set_weights.remote(self.broadcasted_weights)
+
+            # (DICE) Do not sync the initiali weights
+            # ev.set_weights.remote(self.broadcasted_weights)
+
             for _ in range(max_sample_requests_in_flight_per_worker):
                 self.sample_tasks.add(ev, ev.sample.remote())
 
@@ -70,7 +73,7 @@ class DRAggregatorBase:
                 cycle. Setting this avoids iter_train_batches returning too
                 much data at once.
         """
-
+        # ev is the rollout worker
         for ev, sample_batch in self._augment_with_replay(
                 self.sample_tasks.completed_prefetch(
                     blocking_wait=True, max_yield=max_yield)):
@@ -86,6 +89,7 @@ class DRAggregatorBase:
                     train_batch = self.batch_buffer[0].concat_samples(
                         self.batch_buffer)
                 yield train_batch
+
                 self.batch_buffer = []
 
             # If the batch was replayed, skip the update below.
@@ -101,8 +105,10 @@ class DRAggregatorBase:
                     self.replay_index += 1
                     self.replay_index %= self.replay_buffer_num_slots
 
-            ev.set_weights.remote(self.broadcasted_weights)
-            self.num_weight_syncs += 1
+            # (DICE) Do not sync the weights
+            # ev.set_weights.remote(self.broadcasted_weights)
+            # self.num_weight_syncs += 1
+
             self.num_sent_since_broadcast += 1
 
             # Kick off another sample request
