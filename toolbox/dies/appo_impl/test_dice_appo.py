@@ -141,7 +141,7 @@ def _test_dice(
         "sample_batch_size": 20,
         "train_batch_size": 100,
         "num_sgd_iter": 10,
-        "num_workers": 1
+        "num_workers": 3
     }
 
     if extra_config:
@@ -187,4 +187,5 @@ class DiCETest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    pytest.main(["-v"])
+    # pytest.main(["-v"])
+    _test_dice(local_mode=True, t=6000)

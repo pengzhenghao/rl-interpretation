@@ -118,6 +118,10 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         self._stats_start_time = time.time()
         self._last_stats_time = {}
 
+        # TODO Check the data container above!
+        self.episode_history = {ws_id: [] for ws_id, _ in self.workers.items()}
+        self.to_be_collected = {ws_id: [] for ws_id, _ in self.workers.items()}
+
     def add_stat_val(self, key, val):
         if key not in self._last_stats_sum:
             self._last_stats_sum[key] = 0
@@ -185,24 +189,27 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             res (dict): A training result dict from worker metrics with
                 `info` replaced with stats from self.
         """
-
+        return_stats = {}
         for ws_id, workers in self.workers.items():
-            episodes, self.to_be_collected = collect_episodes(
+            episodes, self.to_be_collected[ws_id] = collect_episodes(
                 workers.local_worker(),
                 selected_workers or workers.remote_workers(),
-                self.to_be_collected,
+                self.to_be_collected[ws_id],
                 timeout_seconds=timeout_seconds)
             orig_episodes = list(episodes)
             missing = min_history - len(episodes)
             if missing > 0:
-                episodes.extend(self.episode_history[-missing:])
+                episodes.extend(self.episode_history[ws_id][-missing:])
                 assert len(episodes) <= min_history
-            self.episode_history.extend(orig_episodes)
-            self.episode_history = self.episode_history[-min_history:]
+            self.episode_history[ws_id].extend(orig_episodes)
+            self.episode_history[ws_id] = self.episode_history[ws_id][
+                                          -min_history:]
             res = summarize_episodes(episodes, orig_episodes)
-            res.update(info=self.stats())
-        # FIXME this is a bug!!!!
-        return res
+            return_stats[ws_id] = res
+        return_stats = parse_stats(return_stats)
+        return_stats.update(info=self.stats())
+        return_stats["info"]["learner_queue"].pop("size_quantiles")
+        return return_stats
 
     @override(PolicyOptimizer)
     def stop(self):
@@ -283,11 +290,9 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
 def wrap_dict_list(dict_list):
     assert isinstance(dict_list, list)
     data = defaultdict(list)
-
     for d in dict_list:
         for k, v in d.items():
             data[k].append(v)
-
     ret = {}
     for k, v in data.items():
         if all(np.isscalar(item) for item in v):
@@ -302,5 +307,58 @@ def wrap_dict_list(dict_list):
                 ret[k] = [data_point for item in v for data_point in item]
             else:
                 raise ValueError("Data format incorrect! {}".format(v))
+    return ret
 
+
+def parse_stats(stat_dict):
+    ret = {}
+    rewards_max = {
+        "policy{}".format(ws_id): r["episode_reward_max"]
+        for ws_id, r in stat_dict.items()
+        if np.isfinite(r["episode_reward_max"])
+    }
+    rewards_mean = {
+        "policy{}".format(ws_id): r["episode_reward_mean"]
+        for ws_id, r in stat_dict.items()
+        if np.isfinite(r["episode_reward_mean"])
+    }
+    rewards_min = {
+        "policy{}".format(ws_id): r["episode_reward_min"]
+        for ws_id, r in stat_dict.items()
+        if np.isfinite(r["episode_reward_min"])
+    }
+    ret["episode_reward_max"] = max(
+        rewards_max.values()) if rewards_max else np.nan
+    ret["episode_reward_min"] = min(
+        rewards_min.values()) if rewards_min else np.nan
+    ret["episode_reward_mean"] = np.mean(
+        list(rewards_mean.values())) if rewards_mean else np.nan
+    ret["episode_len_mean"] = np.mean(
+        [r["episode_len_mean"] for r in stat_dict.values()])
+    ret["episodes_this_iter"] = sum(
+        r["episodes_this_iter"] for r in stat_dict.values())
+    ret["policy_reward_mean"] = {
+        "policy{}".format(ws_id): rewards_mean["policy{}".format(ws_id)]
+        if "policy{}".format(ws_id) in rewards_mean else np.nan
+        for ws_id in stat_dict.keys()
+    }
+    ret["policy_reward_min"] = {
+        "policy{}".format(ws_id): rewards_min["policy{}".format(ws_id)]
+        if "policy{}".format(ws_id) in rewards_min else np.nan
+        for ws_id in stat_dict.keys()
+    }
+    ret["policy_reward_max"] = {
+        "policy{}".format(ws_id): rewards_max["policy{}".format(ws_id)]
+        if "policy{}".format(ws_id) in rewards_max else np.nan
+        for ws_id in stat_dict.keys()
+    }
+    first_dict = next(iter(stat_dict.values()))
+    ret["sampler_perf"] = wrap_dict_list(
+        [r["sampler_perf"] for r in stat_dict.values()]
+    )
+    assert not first_dict["off_policy_estimator"]
+    ret["off_policy_estimator"] = {}
+    assert not first_dict["custom_metrics"]
+    ret["custom_metrics"] = {}
+    assert len(first_dict) == 11, "stat dict format not correct"
     return ret
