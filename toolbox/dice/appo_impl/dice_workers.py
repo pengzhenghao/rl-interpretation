@@ -37,6 +37,9 @@ class _RolloutWorkerSetContainer:
             ret.append(w.foreach_trainable_policy(func))
         return ret
 
+    def get_policy(self, idx="default_policy"):
+        return [w.get_policy(idx) for w in self.workers]
+
 
 class SuperWorkerSet:
 

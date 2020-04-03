@@ -31,6 +31,7 @@ from toolbox.dice.utils import *
 logger = logging.getLogger(__name__)
 DEFAULT_POLICY_ID = "default_policy"
 
+
 def validate_config(config):
     """Validate the config"""
 
@@ -64,6 +65,11 @@ def validate_config(config):
     original_validate(config)
 
 
+def convert_weights(weights, new_name, old_name=DEFAULT_POLICY_ID):
+    assert isinstance(weights, dict)
+    return {k.replace(old_name, new_name): v for k, v in weights.items()}
+
+
 def setup_policies_pool(trainer):
     """Initialize the team of agents by calling the function in each policy"""
 
@@ -78,17 +84,39 @@ def setup_policies_pool(trainer):
 
     assert len(trainer.workers.items()) == trainer.config["num_agents"]
 
-    # Aggregate all policy in each worker set to build central policy pool
-    trainer._central_policy_pool = {}
+    refer_policy = trainer.get_policy()[0]
+    act_space = refer_policy.action_space
+    obs_space = refer_policy.observation_space
+    policy_map_config = copy.deepcopy(trainer.config)
+    policy_map_config["num_agents"] = 0  # TODO num agent is not used in policy?
+    policy_map_config["num_gpus"] = 0
+    policy_map_config["num_workers"] = 0
+
+    # Aggregate all policy in each worker set to build central policy weight
+    # storage. But we do not maintain a real polices pool in trainer.
+    trainer._central_policy_weights = {}
     for ws_id, worker_set in trainer.workers.items():
         weights = worker_set.local_worker().get_weights()[DEFAULT_POLICY_ID]
-        trainer._central_policy_pool[ws_id] = weights
+        trainer._central_policy_weights[ws_id] = weights
 
-    # Maintain a copy of central policy pool in each local worker set
+    # Maintain a copy of central policy pool in each local worker set,
+    # alongside with a local policies weights storage
     for ws_id, worker_set in trainer.workers.items():
-        worker_set.local_worker()._local_policy_pool = copy.deepcopy(
-            trainer._central_policy_pool
+        ws_local_worker = worker_set.local_worker()
+        ws_local_worker._local_policy_weights = copy.deepcopy(
+            trainer._central_policy_weights
         )
+
+        ws_local_worker._local_policy_pool = {}
+        for policy_id, weights in ws_local_worker._local_policy_weights.items():
+            policy_name = "workerset{}_cloned_policy{}".format(ws_id, policy_id)
+            with tf.variable_scope(policy_name):
+                policy = trainer._policy(
+                    obs_space, act_space, policy_map_config)
+                policy.set_weights(convert_weights(weights, policy_name))
+                ws_local_worker._local_policy_pool[policy_id] = policy
+
+        # for
 
     # print("1902ls")
     # if not trainer.config[DELAY_UPDATE]:
@@ -139,27 +167,34 @@ def after_optimizer_iteration(trainer, fetches):
         if trainer.config[DELAY_UPDATE]:
             tau = trainer.config["tau"]
 
-            trainer._central_policy_pool[ws_id] = {
+            trainer._central_policy_weights[ws_id] = {
                 k: w * tau + (1 - tau) * old_w
                 for (k, w), old_w in zip(
                     weights.items(),
-                    trainer._central_policy_pool[ws_id].values())
+                    trainer._central_policy_weights[ws_id].values())
             }
 
-            # trainer._central_policy_pool[ws_id] = \
-            #     weights * tau + (1 - tau) * trainer._central_policy_pool[ws_id]
+            # trainer._central_policy_weights[ws_id] = \
+            #     weights * tau + (1 - tau) *
+            #     trainer._central_policy_weights[ws_id]
         else:
-            trainer._central_policy_pool[ws_id] = weights
+            trainer._central_policy_weights[ws_id] = weights
 
         tmp[ws_id] = weights
 
     # Bradcast the latest policy map to each workerset
     for ws_id, worker_set in trainer.workers.items():
-        worker_set.local_worker()._local_policy_pool = copy.deepcopy(
-            trainer._central_policy_pool
+        ws_local_worker = worker_set.local_worker()
+        ws_local_worker._local_policy_weights = copy.deepcopy(
+            trainer._central_policy_weights
         )
 
-    print("ssss")
+        for policy_id, weights in ws_local_worker._local_policy_weights.items():
+            policy_name = "workerset{}_cloned_policy{}".format(ws_id, policy_id)
+            ws_local_worker._local_policy_pool[policy_id].set_weights(
+                convert_weights(weights, policy_name))
+
+    # print("ssss")
     # TODO revisit the usage of target network, should we have anything related
     #  to this? If no, then we should remove all related codes.
     # Original APPO

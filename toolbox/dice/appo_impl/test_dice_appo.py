@@ -14,6 +14,8 @@ num_agents_pair = tune.grid_search([1, 3])
 
 true_false_pair = tune.grid_search([True, False])
 
+DEFAULT_POLICY_NAME = "default_policy"
+
 
 @pytest.fixture(params=[1, 3])
 def dice_trainer(request):
@@ -24,26 +26,40 @@ def dice_trainer(request):
     ))
 
 
+def assert_weights_equal(w1, w2):
+    assert isinstance(w1, dict)
+    assert isinstance(w2, dict)
+    for (wid1, arr1), (wid2, arr2) in zip(
+            w1.items(), w2.items()
+    ):
+        assert arr1 == pytest.approx(arr2)
+        if wid1.startswith(DEFAULT_POLICY_NAME) and \
+                wid2.startswith(DEFAULT_POLICY_NAME):
+            assert wid1 == wid2
+
+
 @pytest.mark.unittest
 def test_policy_pool_sync(dice_trainer):
-    init_policy_pool = copy.deepcopy(dice_trainer._central_policy_pool)
+    init_policy_pool = copy.deepcopy(dice_trainer._central_policy_weights)
 
+    # Assert policy map in all workerset are synced
     for _, ws in dice_trainer.workers.items():
-        for (pid1, w1), (pid2, w2) in zip(
-                ws.local_worker()._local_policy_pool.items(),
-                init_policy_pool.items()
+        for (pid1, w1), (pid2, w2), (pid3, po) in zip(
+                ws.local_worker()._local_policy_weights.items(),
+                init_policy_pool.items(),
+                ws.local_worker()._local_policy_pool.items()
         ):
             assert pid1 == pid2
-            for (wid1, arr1), (wid2, arr2) in zip(
-                    w1.items(), w2.items()
-            ):
-                assert arr1 == pytest.approx(arr2)
-                assert wid1 == wid2
+            assert_weights_equal(w1, w2)
 
+            assert pid3 == pid1
+            assert_weights_equal(w1, po.get_weights())
+
+    # Step forward
     dice_trainer.train()
+    new_policy_pool = copy.deepcopy(dice_trainer._central_policy_weights)
 
-    new_policy_pool = copy.deepcopy(dice_trainer._central_policy_pool)
-
+    # Assert the policies is changed, so old one should not equal to the new
     for (pid1, w1), (pid2, w2) in zip(
             init_policy_pool.items(),
             new_policy_pool.items()
@@ -55,17 +71,18 @@ def test_policy_pool_sync(dice_trainer):
             assert arr1 != pytest.approx(arr2)
             assert wid1 == wid2
 
+    # Assert policy map in all workerset are synced
     for _, ws in dice_trainer.workers.items():
-        for (pid1, w1), (pid2, w2) in zip(
-                ws.local_worker()._local_policy_pool.items(),
-                new_policy_pool.items()
+        for (pid1, w1), (pid2, w2), (pid3, po) in zip(
+                ws.local_worker()._local_policy_weights.items(),
+                new_policy_pool.items(),
+                ws.local_worker()._local_policy_pool.items()
         ):
             assert pid1 == pid2
-            for (wid1, arr1), (wid2, arr2) in zip(
-                    w1.items(), w2.items()
-            ):
-                assert arr1 == pytest.approx(arr2)
-                assert wid1 == wid2
+            assert_weights_equal(w1, w2)
+
+            assert pid3 == pid1
+            assert_weights_equal(w1, po.get_weights())
 
 
 def _test_dice(
