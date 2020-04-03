@@ -20,10 +20,10 @@ from ray.rllib.utils import try_import_tf
 from ray.rllib.utils.explained_variance import explained_variance
 from ray.rllib.utils.tf_ops import make_tf_callable
 
-from toolbox.dice.appo_impl.constants import *
-from toolbox.dice.appo_impl.dice_loss_appo import build_appo_surrogate_loss, \
+from toolbox.dies.appo_impl.constants import *
+from toolbox.dies.appo_impl.dice_loss_appo import build_appo_surrogate_loss, \
     dice_gradient, BEHAVIOUR_LOGITS
-from toolbox.dice.appo_impl.dice_postprocess_appo import postprocess_dice, \
+from toolbox.dies.appo_impl.dice_postprocess_appo import postprocess_dice, \
     MY_LOGIT
 from toolbox.distance import get_kl_divergence
 

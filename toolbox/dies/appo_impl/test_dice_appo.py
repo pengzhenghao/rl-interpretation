@@ -8,7 +8,7 @@ from ray import tune
 
 from toolbox import initialize_ray
 from toolbox.dice import utils
-from toolbox.dice.appo_impl.dice_appo import DiCETrainer_APPO
+from toolbox.dies.appo_impl.dice_appo import DiCETrainer_APPO
 
 num_agents_pair = tune.grid_search([1, 3])
 

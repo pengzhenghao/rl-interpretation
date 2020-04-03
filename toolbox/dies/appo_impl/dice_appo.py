@@ -22,9 +22,9 @@ from ray.rllib.agents.ppo.appo import APPOTrainer
 from ray.rllib.models.catalog import ModelCatalog
 from ray.rllib.utils import try_import_tf
 
-from toolbox.dice.appo_impl.constants import *
-from toolbox.dice.appo_impl.dice_optimizer import AsyncSamplesOptimizer
-from toolbox.dice.appo_impl.dice_policy_appo import DiCEPolicy_APPO
+from toolbox.dies.appo_impl.constants import *
+from toolbox.dies.appo_impl.dice_optimizer import AsyncSamplesOptimizer
+from toolbox.dies.appo_impl.dice_policy_appo import DiCEPolicy_APPO
 from toolbox.dice.dice_model import ActorDoubleCriticNetwork
 
 tf = try_import_tf()
@@ -248,7 +248,7 @@ def make_aggregators_and_optimizer(workers, config):
     return optimizer
 
 
-from toolbox.dice.appo_impl.dice_workers import SuperWorkerSet
+from toolbox.dies.appo_impl.dice_workers import SuperWorkerSet
 
 
 def make_workers(trainer, env_creator, policy, config):
