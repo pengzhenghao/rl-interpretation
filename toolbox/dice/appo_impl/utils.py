@@ -2,6 +2,8 @@ from ray.rllib.agents.ppo.appo import DEFAULT_CONFIG as APPO_DEFAULT
 
 from toolbox.dice.utils import *
 
+I_AM_CLONE = "_i_am_clone"
+
 dice_appo_default_config = merge_dicts(
     APPO_DEFAULT, {
         USE_BISECTOR: True,

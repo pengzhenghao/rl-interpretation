@@ -190,7 +190,6 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         """
 
         for ws_id, workers in self.workers.items():
-
             episodes, self.to_be_collected = collect_episodes(
                 workers.local_worker(),
                 selected_workers or workers.remote_workers(),
@@ -205,11 +204,13 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             self.episode_history = self.episode_history[-min_history:]
             res = summarize_episodes(episodes, orig_episodes)
             res.update(info=self.stats())
+        # FIXME this is a bug!!!!
         return res
 
     @override(PolicyOptimizer)
     def stop(self):
-        self.learner.stopped = True
+        for learner in self.learner_set.values():
+            learner.stopped = True
 
     @override(PolicyOptimizer)
     def reset(self, remote_workers):

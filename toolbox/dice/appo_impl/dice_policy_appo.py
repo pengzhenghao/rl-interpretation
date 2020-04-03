@@ -20,13 +20,15 @@ from toolbox.dice.appo_impl.dice_loss_appo import build_appo_surrogate_loss, \
     dice_gradient, BEHAVIOUR_LOGITS
 from toolbox.dice.appo_impl.dice_postprocess_appo import postprocess_dice, \
     MY_LOGIT
-from toolbox.dice.appo_impl.utils import dice_appo_default_config
-from toolbox.dice.utils import *
+from toolbox.dice.appo_impl.utils import *
 
 logger = logging.getLogger(__name__)
 
 
 def grad_stats_fn(policy, batch, grads):
+    if policy.config.get(I_AM_CLONE, False):
+        return {}
+
     if policy.config[USE_BISECTOR]:
         ret = {
             "cos_similarity": policy.gradient_cosine_similarity,
@@ -77,6 +79,10 @@ def additional_fetches(policy):
 
 def kl_and_loss_stats_modified(policy, train_batch):
     """Add the diversity-related stats here."""
+
+    if policy.config.get(I_AM_CLONE, False):
+        return {}
+
     ret = original_stats(policy, train_batch)
     ret.update({
         "diversity_total_loss": policy.diversity_loss.total_loss,
@@ -231,8 +237,10 @@ def setup_mixins_dice(policy, action_space, obs_space, config):
 
 
 def setup_late_mixins(policy, obs_space, action_space, config):
-    if config[DELAY_UPDATE]:
-        TargetNetworkMixin.__init__(policy, obs_space, action_space, config)
+    # TODO (DICE) Disable target network
+    pass
+    # if config[DELAY_UPDATE]:
+    #     TargetNetworkMixin.__init__(policy, obs_space, action_space, config)
 
 
 DiCEPolicy_APPO = AsyncPPOTFPolicy.with_updates(

@@ -18,12 +18,11 @@ class _SetGlobalVarsFunc:
         self.workers = workers
 
     def __call__(self, vars):
-        for w in self.workers:
-            return w.set_global_vars(vars)
+        return {wid: w.set_global_vars(vars) for wid, w in self.workers.items()}
 
     def remote(self, vars):
-        for w in self.workers:
-            return w.set_global_vars.remote(vars)
+        return {wid: w.set_global_vars.remote(vars) for wid, w in
+                self.workers.items()}
 
 
 class _RolloutWorkerSetContainer:
@@ -32,13 +31,18 @@ class _RolloutWorkerSetContainer:
         self.set_global_vars = _SetGlobalVarsFunc(workers)
 
     def foreach_trainable_policy(self, func):
-        ret = []
-        for w in self.workers:
-            ret.append(w.foreach_trainable_policy(func))
-        return ret
+        return {
+            wid: w.foreach_trainable_policy(func)
+            for wid, w in self.workers.items()
+        }
 
     def get_policy(self, idx="default_policy"):
-        return [w.get_policy(idx) for w in self.workers]
+        return {wid: w.get_policy(idx) for wid, w in self.workers.items()}
+
+    def save(self):
+        raise NotImplementedError("In our design, this function should never "
+                                  "be called. So please check!")
+    #     return {wid: w.save() for wid, w in self.workers.items()}
 
 
 class SuperWorkerSet:
@@ -71,15 +75,19 @@ class SuperWorkerSet:
     def local_worker(self, worker_set_id=None):
         if worker_set_id is None:
             return _RolloutWorkerSetContainer(
-                [ws.local_worker() for ws in self._worker_sets.values()])
+                {wid: ws.local_worker() for wid, ws in self._worker_sets.items()
+                 })
         else:
             self._check_worker_set_id(worker_set_id)
             return self._worker_sets[worker_set_id].local_worker()
 
     def remote_workers(self, worker_set_id=None):
         if worker_set_id is None:
-            return [_RolloutWorkerSetContainer(ws.remote_workers())
-                    for ws in self._worker_sets.values()]
+            return [
+                _RolloutWorkerSetContainer({
+                    i: w for i, w in enumerate(ws.remote_workers())
+                }) for ws in self._worker_sets.values()
+            ]
         else:
             self._check_worker_set_id(worker_set_id)
             return self._worker_sets[worker_set_id].remote_workers()

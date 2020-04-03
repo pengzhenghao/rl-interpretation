@@ -15,7 +15,8 @@ from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models.tf.tf_action_dist import Categorical
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from toolbox.dice.utils import *
+# from toolbox.dice.utils import *
+from toolbox.dice.appo_impl.utils import *
 
 tf = try_import_tf()
 logger = logging.getLogger(__name__)
@@ -157,6 +158,11 @@ class PPOSurrogateDiversityLoss:
 
 def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     model_out, _ = model.from_batch(train_batch)
+
+    # A workaround for policy that is clone
+    if policy.config.get(I_AM_CLONE, False):
+        return tf.reduce_sum(model_out)
+
     action_dist = dist_class(model_out, model)
 
     if isinstance(policy.action_space, gym.spaces.Discrete):
@@ -179,20 +185,13 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     rewards = train_batch[SampleBatch.REWARDS]
     behaviour_logits = train_batch[BEHAVIOUR_LOGITS]
 
-    target_model_out, _ = policy.target_model.from_batch(train_batch)
-    old_policy_behaviour_logits = tf.stop_gradient(target_model_out)
-
     unpacked_behaviour_logits = tf.split(
         behaviour_logits, output_hidden_shape, axis=1)
-    unpacked_old_policy_behaviour_logits = tf.split(
-        old_policy_behaviour_logits, output_hidden_shape, axis=1)
     unpacked_outputs = tf.split(model_out, output_hidden_shape, axis=1)
-    old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
     prev_action_dist = dist_class(behaviour_logits, policy.model)
     values = policy.model.value_function()
 
     policy.model_vars = policy.model.variables()
-    policy.target_model_vars = policy.target_model.variables()
 
     if policy.is_recurrent():
         max_seq_len = tf.reduce_max(train_batch["seq_lens"]) - 1
@@ -203,6 +202,16 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
 
     if policy.config["vtrace"]:
         logger.debug("Using V-Trace surrogate loss (vtrace=True)")
+
+        policy.target_model_vars = policy.target_model.variables()
+
+        target_model_out, _ = policy.target_model.from_batch(train_batch)
+        old_policy_behaviour_logits = tf.stop_gradient(target_model_out)
+
+        unpacked_old_policy_behaviour_logits = tf.split(
+            old_policy_behaviour_logits, output_hidden_shape, axis=1)
+
+        old_policy_action_dist = dist_class(old_policy_behaviour_logits, model)
 
         # Prepare actions for loss
         loss_actions = actions if is_multidiscrete else tf.expand_dims(
@@ -422,6 +431,11 @@ def dice_gradient(policy, optimizer, loss):
     """Implement the idea of gradients bisector to fuse the task gradients
     with the diversity gradient.
     """
+
+    # A workaround to deal with cloned policy
+    if policy.config.get(I_AM_CLONE, False):
+        return optimizer.compute_gradients(loss)
+
     if not policy.config[USE_BISECTOR]:
         # For ablation study. If don't use bisector, we simply return the
         # task gradient.

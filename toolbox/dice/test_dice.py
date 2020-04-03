@@ -78,4 +78,9 @@ class DiCETest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    # unittest.main(verbosity=2)
+    _test_dice(
+        num_agents=10,
+        local_mode=False,
+        t=300000
+    )

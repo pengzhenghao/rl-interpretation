@@ -73,6 +73,7 @@ def _build_cloned_policy_config(config):
     policy_config["num_agents"] = 0  # TODO num agent is not used in policy?
     policy_config["num_gpus"] = 0
     policy_config["num_workers"] = 0
+    policy_config["_i_am_clone"] = True
     return policy_config
 
 
@@ -107,6 +108,7 @@ def setup_policies_pool(trainer):
 
     central_policy_weights_id = ray.put(central_policy_weights)
     trainer._central_policy_weights = central_policy_weights
+    policy_class = trainer._policy
 
     # Maintain a copy of central policy pool in each local worker set,
     # alongside with a local policies weights storage
@@ -118,10 +120,11 @@ def setup_policies_pool(trainer):
                 policy_name = "workerset{}_worker{}_cloned_policy{}".format(
                     ws_id, worker_index, policy_id
                 )
+                logger.info("Start creating policy <{}> in worker <{}> "
+                            "in workerset <{}>"
+                            "".format(policy_name, worker_index, ws_id))
                 with tf.variable_scope(policy_name):
-                    policy = trainer._policy(
-                        obs_space, act_space, policy_config
-                    )
+                    policy = policy_class(obs_space, act_space, policy_config)
                     policy.set_weights(_convert_weights(weights, policy_name))
                     worker._local_policy_pool[policy_id] = policy
 
@@ -130,7 +133,7 @@ def setup_policies_pool(trainer):
                 # policy.update_target_network(tau=1.0)
                 policy._lazy_initialize(worker._local_policy_pool)
                 logger.info("Finish single task of <{}> in worker <{}> in "
-                      "workerset <{}>".format(
+                            "workerset <{}>".format(
                     my_policy_name, worker_index, ws_id))
 
             worker.foreach_trainable_policy(_init_diversity_policy)

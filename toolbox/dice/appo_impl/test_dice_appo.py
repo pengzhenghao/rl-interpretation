@@ -169,14 +169,14 @@ class DiCETest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    pytest.main(["-v", "-m", "unittest"])
+    # pytest.main(["-v", "-m", "unittest"])
     # unittest.main(verbosity=2)
 
     # print("===== 3 agents =====")
     # _test_dice(
     #     # num_agents=tune.grid_search([1, 3, 5]),
     #     num_agents=3,
-    #     local_mode=True
+    #     local_mode=False
     # )
 
     # print("===== 1 agents =====")
@@ -187,3 +187,9 @@ if __name__ == "__main__":
     # )
 
     # pytest.main(["-v -m unittest test_dice_appo.py"])
+
+    _test_dice(
+        num_agents=10,
+        local_mode=False,
+        t=300000
+    )
