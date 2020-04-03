@@ -65,9 +65,17 @@ def validate_config(config):
     original_validate(config)
 
 
-def convert_weights(weights, new_name, old_name=DEFAULT_POLICY_ID):
+def _convert_weights(weights, new_name, old_name=DEFAULT_POLICY_ID):
     assert isinstance(weights, dict)
     return {k.replace(old_name, new_name): v for k, v in weights.items()}
+
+
+def _build_cloned_policy_config(config):
+    policy_config = copy.deepcopy(config)
+    policy_config["num_agents"] = 0  # TODO num agent is not used in policy?
+    policy_config["num_gpus"] = 0
+    policy_config["num_workers"] = 0
+    return policy_config
 
 
 def setup_policies_pool(trainer):
@@ -79,6 +87,9 @@ def setup_policies_pool(trainer):
     # The next line is not commented in original code
     # trainer.workers.local_worker().foreach_trainable_policy(
     #     lambda p, _: p.update_target())
+    # TODO I am not sure why target network is used in APPO, if we don't update
+    #  it, what would happen? Where is it used?
+
     trainer.target_update_frequency = \
         trainer.config["num_sgd_iter"] * trainer.config["minibatch_buffer_size"]
 
@@ -87,10 +98,7 @@ def setup_policies_pool(trainer):
     refer_policy = trainer.get_policy()[0]
     act_space = refer_policy.action_space
     obs_space = refer_policy.observation_space
-    policy_map_config = copy.deepcopy(trainer.config)
-    policy_map_config["num_agents"] = 0  # TODO num agent is not used in policy?
-    policy_map_config["num_gpus"] = 0
-    policy_map_config["num_workers"] = 0
+    policy_config = _build_cloned_policy_config(trainer.config)
 
     # Aggregate all policy in each worker set to build central policy weight
     # storage. But we do not maintain a real polices pool in trainer.
@@ -112,8 +120,8 @@ def setup_policies_pool(trainer):
             policy_name = "workerset{}_cloned_policy{}".format(ws_id, policy_id)
             with tf.variable_scope(policy_name):
                 policy = trainer._policy(
-                    obs_space, act_space, policy_map_config)
-                policy.set_weights(convert_weights(weights, policy_name))
+                    obs_space, act_space, policy_config)
+                policy.set_weights(_convert_weights(weights, policy_name))
                 ws_local_worker._local_policy_pool[policy_id] = policy
 
         # for
@@ -158,45 +166,37 @@ def after_optimizer_iteration(trainer, fetches):
     """
 
     # Receive all latest policies and update the central policy pool
-
-    tmp = dict()
-
     for ws_id, worker_set in trainer.workers.items():
         weights = worker_set.local_worker().get_weights()[DEFAULT_POLICY_ID]
         weights = copy.deepcopy(weights)
         if trainer.config[DELAY_UPDATE]:
             tau = trainer.config["tau"]
-
             trainer._central_policy_weights[ws_id] = {
                 k: w * tau + (1 - tau) * old_w
                 for (k, w), old_w in zip(
                     weights.items(),
                     trainer._central_policy_weights[ws_id].values())
             }
-
-            # trainer._central_policy_weights[ws_id] = \
-            #     weights * tau + (1 - tau) *
-            #     trainer._central_policy_weights[ws_id]
         else:
             trainer._central_policy_weights[ws_id] = weights
 
-        tmp[ws_id] = weights
-
-    # Bradcast the latest policy map to each workerset
+    # Broadcast the latest policy map to each workerset
     for ws_id, worker_set in trainer.workers.items():
+        # Set the local policy weights
         ws_local_worker = worker_set.local_worker()
-        ws_local_worker._local_policy_weights = copy.deepcopy(
-            trainer._central_policy_weights
-        )
+        # Assign weight one-by-one, I guess this can help improve efficiency
+        for policy_id, weights in trainer._central_policy_weights:
+            for w_id, w in weights:
+                ws_local_worker._local_policy_weights[policy_id][w_id] = w
 
         for policy_id, weights in ws_local_worker._local_policy_weights.items():
             policy_name = "workerset{}_cloned_policy{}".format(ws_id, policy_id)
             ws_local_worker._local_policy_pool[policy_id].set_weights(
-                convert_weights(weights, policy_name))
+                _convert_weights(weights, policy_name))
 
-    # print("ssss")
-    # TODO revisit the usage of target network, should we have anything related
-    #  to this? If no, then we should remove all related codes.
+    if trainer.config["use_kl_loss"]:
+        raise NotImplementedError("KL loss not used.")
+
     # Original APPO
     # Update the KL coeff depending on how many steps LearnerThread has stepped
     # through
@@ -212,8 +212,7 @@ def after_optimizer_iteration(trainer, fetches):
     #     lambda p, _: p.update_target())
 
     # Also update KL Coeff
-    # if trainer.config["use_kl_loss"]:
-    #     raise NotImplementedError("KL loss not used.")
+
     # update_kl(trainer, trainer.optimizer.learner.stats)
     # update_kl(trainer, trainer.optimizer.learner_set[0].stats)
 
