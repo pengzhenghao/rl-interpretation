@@ -7,8 +7,6 @@ policies. We also compute the diversity reward and diversity advantage of this
 policy.
 """
 from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
-# from ray.rllib.agents.ppo.appo_policy import \
-#     postprocess_trajectory as original_postprocess
 from ray.rllib.agents.ppo.ppo_policy import ACTION_LOGP, \
     BEHAVIOUR_LOGITS
 from ray.rllib.evaluation.postprocessing import discount, compute_advantages
@@ -43,11 +41,9 @@ def original_postprocess(policy,
             use_gae=policy.config["use_gae"])
     else:
         batch = sample_batch
-    # del batch.data["new_obs"]  # not used, so save some bandwidth
     return batch
 
 
-# TODO this may be problematic. I don't see clearly how things going
 def postprocess_dice(policy, sample_batch, others_batches, episode):
     if not policy.loss_initialized():
         batch = original_postprocess(policy, sample_batch)
@@ -57,49 +53,15 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
         batch['other_action_logp'] = batch[ACTION_LOGP].copy()
         return batch
 
-    if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
-        batch = sample_batch.copy()
-        batch = original_postprocess(policy, batch)
-        batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
-        batch = postprocess_diversity(policy, batch, others_batches)
-        batches = [batch]
-    else:
-        batches = []
+    # if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
+    batch = sample_batch.copy()
+    batch = original_postprocess(policy, batch)
+    batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
+    batch = postprocess_diversity(policy, batch, others_batches)
 
-    for pid, (other_policy, other_batch_raw) in others_batches.items():
+    assert not others_batches, "In our under standing, there should never be " \
+                               "other batches."
 
-        ##########
-        # This processing is not acceptable. we should remove multiple policies
-        # in system. and use different worker latest agent to serve as a
-        # population.
-        ##########
-
-        # other_batch_raw is the data collected by other polices.
-        if policy.config[ONLY_TNB]:
-            break
-        if other_batch_raw is None:
-            continue
-        other_batch_raw = other_batch_raw.copy()
-
-        # Replay this policy to get the action distribution of this policy.
-        replay_result = policy.compute_actions(
-            other_batch_raw[SampleBatch.CUR_OBS]
-        )[2]
-        other_batch_raw[MY_LOGIT] = replay_result[BEHAVIOUR_LOGITS]
-
-        # Compute the diversity reward and diversity advantage of this batch.
-        other_batch_raw = postprocess_diversity(
-            policy, other_batch_raw, others_batches
-        )
-
-        # Compute the task advantage of this batch.
-        batches.append(original_postprocess(policy, other_batch_raw))
-
-    # Merge all batches.
-    batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
-        else batches[0]
-
-    # TODO we should remove this but this cause error
     del batch.data['new_obs']  # save memory
     del batch.data['action_prob']
     return batch
@@ -108,16 +70,6 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
 def postprocess_diversity(policy, batch, others_batches):
     """Compute the diversity for this policy against other policies using this
     batch."""
-
-    # do not compute the diversity in each worker. instead, compute the
-    # diversity in the aggregation stage (real optimization stage)
-    # batch[DIVERSITY_ADVANTAGES] = np.ones_like(batch["rewards"])
-    # batch[DIVERSITY_VALUE_TARGETS] = np.ones_like(batch["rewards"])
-    # batch[DIVERSITY_REWARDS] = np.ones_like(batch["rewards"])
-    # return batch
-
-
-
     # Compute diversity and add a new entry of batch: diversity_reward
     batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch)
 

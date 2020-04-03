@@ -70,7 +70,7 @@ def _convert_weights(weights, new_name, old_name=DEFAULT_POLICY_ID):
 
 def _build_cloned_policy_config(config):
     policy_config = copy.deepcopy(config)
-    policy_config["num_agents"] = 0  # TODO num agent is not used in policy?
+    policy_config["num_agents"] = 0
     policy_config["num_gpus"] = 0
     policy_config["num_workers"] = 0
     policy_config["_i_am_clone"] = True
@@ -79,18 +79,10 @@ def _build_cloned_policy_config(config):
 
 def setup_policies_pool(trainer):
     """Initialize the team of agents by calling the function in each policy"""
-
-    # Original initialization
-    # TODO should we maintain the concept of target network?? How we deal
-    #  with the policy map?
-    # The next line is not commented in original code
-    # trainer.workers.local_worker().foreach_trainable_policy(
-    #     lambda p, _: p.update_target())
-
-    # TODO I am not sure why target network is used in APPO, if we don't update
-    #  it, what would happen? Where is it used?
-    trainer.target_update_frequency = \
-        trainer.config["num_sgd_iter"] * trainer.config["minibatch_buffer_size"]
+    # Target only used in vtrace
+    # trainer.target_update_frequency = \
+    #     trainer.config["num_sgd_iter"] * trainer.config[
+    #     "minibatch_buffer_size"]
 
     assert len(trainer.workers.items()) == trainer.config["num_agents"]
 
@@ -129,7 +121,7 @@ def setup_policies_pool(trainer):
                     worker._local_policy_pool[policy_id] = policy
 
             def _init_diversity_policy(policy, my_policy_name):
-                # TODO we don't have target network at all
+                # We don't have target network at all
                 # policy.update_target_network(tau=1.0)
                 policy._lazy_initialize(worker._local_policy_pool)
                 logger.info("Finish single task of <{}> in worker <{}> in "
@@ -139,44 +131,6 @@ def setup_policies_pool(trainer):
             worker.foreach_trainable_policy(_init_diversity_policy)
 
         worker_set.foreach_worker_with_index(_setup_policy_pool)
-
-        # for
-
-    # print("1902ls")
-    # if not trainer.config[DELAY_UPDATE]:
-    #     return
-    # assert not trainer.get_policy().initialized_policies_pool
-    # First step, broadcast local weights to remote worker.
-    # assert trainer.workers.remote_workers()
-
-    # trainer._policy_worker_mapping = {}
-
-    # def _get_weight(worker, worker_index):
-    #     return worker.get_weights(), worker_index
-
-    # result = trainer.workers.foreach_worker_with_index(_get_weight)
-    # for weights, worker_id in result:
-    #     trainer._policy_worker_mapping[worker_id] = weights
-
-    # print('skdjflkadsjf')
-    # weights = ray.put(trainer.workers.local_worker().get_weights())
-    # for e in trainer.workers.remote_workers():
-    #     e.set_weights.remote(weights)
-
-    # Second step, call the _lazy_initialize function of each policy, feeding
-    # with the policies map in the trainer.
-    # trainer.workers.foreach_worker_with_index(_init_pool)
-
-    # for ws_id, worker_set in trainer.workers.items():
-    #     ws_local_worker = worker_set.local_worker()
-    #
-    #     policy_map = ws_local_worker._local_policy_pool
-    #
-    #     def _init_diversity_policy(policy, my_policy_name):
-    #         # TODO we don't have target network at all
-    #         # policy.update_target_network(tau=1.0)
-    #         policy._lazy_initialize(policy_map)
-    # ws_local_worker.foreach_trainable_policy(_init_diversity_policy)
 
 
 def after_optimizer_iteration(trainer, fetches):
