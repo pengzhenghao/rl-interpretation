@@ -5,119 +5,20 @@ in this file.
 First we compute the task loss and the diversity loss in dice_loss. Then we
 implement the Diversity Regularization module in dice_gradient.
 """
+import logging
+
 import gym
 from ray.rllib.agents.ppo.appo_policy import PPOSurrogateLoss, \
     VTraceSurrogateLoss, _make_time_major, BEHAVIOUR_LOGITS
-# from ray.rllib.agents.impala.vtrace_policy import _make_time_major, \
-#     BEHAVIOUR_LOGITS
-# from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, PPOLoss
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models.tf.tf_action_dist import Categorical
 from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.utils import try_import_tf
 
-# from toolbox.dice.utils import *
-from toolbox.dice.appo_impl.utils import *
+from toolbox.dice.appo_impl.constants import *
 
 tf = try_import_tf()
 logger = logging.getLogger(__name__)
-
-
-# class PPOLossTwoSideDiversity(object):
-#     """Compute the PPO loss for diversity without diversity value network"""
-#
-#     def __init__(
-#             self,
-#             dist_class,
-#             model,
-#             advantages,
-#             actions,
-#             prev_logits,
-#             prev_actions_logp,
-#             curr_action_dist,
-#             cur_kl_coeff,
-#             valid_mask,
-#             entropy_coeff=0,
-#             clip_param=0.1
-#     ):
-#         def reduce_mean_valid(t):
-#             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
-#
-#         prev_dist = dist_class(prev_logits, model)
-#         logp_ratio = tf.exp(curr_action_dist.logp(actions) -
-#         prev_actions_logp)
-#         action_kl = prev_dist.kl(curr_action_dist)
-#         self.mean_kl = reduce_mean_valid(action_kl)
-#         curr_entropy = curr_action_dist.entropy()
-#         self.mean_entropy = reduce_mean_valid(curr_entropy)
-#         new_surrogate_loss = advantages * tf.minimum(
-#             logp_ratio, 1 + clip_param
-#         )
-#         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
-#         self.mean_vf_loss = tf.constant(0.0)
-#         loss = reduce_mean_valid(
-#             -new_surrogate_loss + cur_kl_coeff * action_kl -
-#             entropy_coeff * curr_entropy
-#         )
-#         self.loss = loss
-
-#
-# class PPOLossTwoSideClip(object):
-#     def __init__(self,
-#                  _useless,
-#                  dist_class,
-#                  model,
-#                  value_targets,
-#                  advantages,
-#                  actions,
-#                  prev_logits,
-#                  prev_actions_logp,
-#                  vf_preds,
-#                  curr_action_dist,
-#                  value_fn,
-#                  cur_kl_coeff,
-#                  valid_mask,
-#                  entropy_coeff=0,
-#                  clip_param=0.1,
-#                  vf_clip_param=0.1,
-#                  vf_loss_coeff=1.0,
-#                  use_gae=True
-#                  ):
-#         def reduce_mean_valid(t):
-#             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
-#
-#         prev_dist = dist_class(prev_logits, model)
-#         # Make loss functions.
-#         logp_ratio = tf.exp(curr_action_dist.logp(actions) -
-#         prev_actions_logp)
-#         action_kl = prev_dist.kl(curr_action_dist)
-#         self.mean_kl = reduce_mean_valid(action_kl)
-#         curr_entropy = curr_action_dist.entropy()
-#         self.mean_entropy = reduce_mean_valid(curr_entropy)
-#
-#         new_surrogate_loss = advantages * tf.minimum(
-#             logp_ratio, 1 + clip_param
-#         )
-#         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
-#
-#         if use_gae:
-#             vf_loss1 = tf.square(value_fn - value_targets)
-#             vf_clipped = vf_preds + tf.clip_by_value(
-#                 value_fn - vf_preds, -vf_clip_param, vf_clip_param
-#             )
-#             vf_loss2 = tf.square(vf_clipped - value_targets)
-#             vf_loss = tf.maximum(vf_loss1, vf_loss2)
-#             self.mean_vf_loss = reduce_mean_valid(vf_loss)
-#             loss = reduce_mean_valid(
-#                 -new_surrogate_loss + cur_kl_coeff * action_kl +
-#                 vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
-#             )
-#         else:
-#             self.mean_vf_loss = tf.constant(0.0)
-#             loss = reduce_mean_valid(
-#                 -new_surrogate_loss + cur_kl_coeff * action_kl -
-#                 entropy_coeff * curr_entropy
-#             )
-#         self.loss = loss
 
 
 class PPOSurrogateDiversityLoss:
@@ -149,9 +50,6 @@ class PPOSurrogateDiversityLoss:
         self.pi_loss = -reduce_mean_valid(surrogate_loss)
         self.entropy = reduce_mean_valid(actions_entropy)
         self.total_loss = self.pi_loss - self.entropy * entropy_coeff
-        # self.total_loss = (self.pi_loss + self.vf_loss * vf_loss_coeff -
-        #                    self.entropy * entropy_coeff)
-        # Optional additional KL Loss
         if use_kl_loss:
             self.total_loss += cur_kl_coeff * self.mean_kl
 
@@ -336,90 +234,6 @@ def build_appo_surrogate_loss(policy, model, dist_class, train_batch):
     )
     return [policy.loss.total_loss, policy.diversity_loss.total_loss]
     # return policy.loss.total_loss
-
-
-# def dice_loss(policy, model, dist_class, train_batch):
-#     """Compute the task loss and the diversity loss for gradients
-#     computing."""
-#     logits, state = model.from_batch(train_batch)
-#     action_dist = dist_class(logits, model)
-#
-#     if state:
-#         max_seq_len = tf.reduce_max(train_batch["seq_lens"])
-#         mask = tf.sequence_mask(train_batch["seq_lens"], max_seq_len)
-#         mask = tf.reshape(mask, [-1])
-#     else:
-#         mask = tf.ones_like(
-#             train_batch[Postprocessing.ADVANTAGES], dtype=tf.bool
-#         )
-#
-#     loss_cls = PPOLossTwoSideClip \
-#         if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
-#
-#     policy.loss_obj = loss_cls(
-#         None,
-#         dist_class,
-#         model,
-#         train_batch[Postprocessing.VALUE_TARGETS],
-#         train_batch[Postprocessing.ADVANTAGES],
-#         train_batch[SampleBatch.ACTIONS],
-#         train_batch[BEHAVIOUR_LOGITS],
-#         train_batch["action_logp"],
-#         train_batch[SampleBatch.VF_PREDS],
-#         action_dist,
-#         model.value_function(),
-#         policy.kl_coeff,
-#         mask,
-#         entropy_coeff=policy.entropy_coeff,
-#         clip_param=policy.config["clip_param"],
-#         vf_clip_param=policy.config["vf_clip_param"],
-#         vf_loss_coeff=policy.config["vf_loss_coeff"],
-#         use_gae=policy.config["use_gae"]
-#     )
-#
-#     # Build the loss for diversity
-#     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-#         # if we don't use DVN, we don't have diversity values, so the
-#         # entries of loss object is also changed.
-#         policy.diversity_loss_obj = loss_cls(
-#             dist_class,
-#             model,
-#             train_batch[DIVERSITY_VALUE_TARGETS],
-#             train_batch[DIVERSITY_ADVANTAGES],
-#             train_batch[SampleBatch.ACTIONS],
-#             train_batch[BEHAVIOUR_LOGITS],
-#             train_batch["action_logp"],
-#             train_batch[DIVERSITY_VALUES],
-#             action_dist,
-#             model.diversity_value_function(),
-#             policy.kl_coeff,
-#             mask,
-#             entropy_coeff=policy.entropy_coeff,
-#             clip_param=policy.config["clip_param"],
-#             vf_clip_param=policy.config["vf_clip_param"],
-#             vf_loss_coeff=policy.config["vf_loss_coeff"],
-#             use_gae=policy.config["use_gae"]
-#         )
-#     else:
-#         policy.diversity_loss_obj = PPOLossTwoSideDiversity(
-#             dist_class,
-#             model,
-#             train_batch[DIVERSITY_ADVANTAGES],
-#             train_batch[SampleBatch.ACTIONS],
-#             train_batch[BEHAVIOUR_LOGITS],
-#             train_batch["action_logp"],
-#             action_dist,
-#             policy.kl_coeff,
-#             mask,
-#             entropy_coeff=policy.entropy_coeff,
-#             clip_param=policy.config["clip_param"]
-#         )
-#
-#     # Add the diversity reward as a stat
-#     policy.diversity_reward_mean = tf.reduce_mean(
-#         train_batch[DIVERSITY_REWARDS]
-#     )
-#     return [policy.loss_obj.loss, policy.diversity_loss_obj.loss]
 
 
 def _flatten(tensor):

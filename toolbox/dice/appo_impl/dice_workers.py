@@ -50,9 +50,6 @@ class SuperWorkerSet:
     def __init__(self, num_sets, env_creator, policy, trainer_config=None,
                  num_workers_per_set=0, logdir=None, _setup=True):
         self._worker_sets = {}
-
-        # What is policy? a class or an instance?
-
         for i in range(num_sets):
             self._worker_sets[i] = WorkerSet(
                 env_creator, policy, trainer_config, num_workers_per_set,

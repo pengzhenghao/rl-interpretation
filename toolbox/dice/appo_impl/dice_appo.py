@@ -14,17 +14,20 @@ We also validate the config of the DiCE trainer in this file.
 """
 
 import copy
+import logging
 
 import ray
 from ray.rllib.agents.impala.impala import validate_config as original_validate
 from ray.rllib.agents.ppo.appo import APPOTrainer
 from ray.rllib.models.catalog import ModelCatalog
+from ray.rllib.utils import try_import_tf
 
+from toolbox.dice.appo_impl.constants import *
 from toolbox.dice.appo_impl.dice_optimizer import AsyncSamplesOptimizer
 from toolbox.dice.appo_impl.dice_policy_appo import DiCEPolicy_APPO
-from toolbox.dice.appo_impl.utils import dice_appo_default_config
 from toolbox.dice.dice_model import ActorDoubleCriticNetwork
-from toolbox.dice.utils import *
+
+tf = try_import_tf()
 
 logger = logging.getLogger(__name__)
 DEFAULT_POLICY_ID = "default_policy"
@@ -32,20 +35,6 @@ DEFAULT_POLICY_ID = "default_policy"
 
 def validate_config(config):
     """Validate the config"""
-
-    # create multi-agent environment
-
-    # Do not using multiple policies anymore.
-
-    # assert _global_registry.contains(ENV_CREATOR, config["env"])
-    # env_creator = _global_registry.get(ENV_CREATOR, config["env"])
-    # tmp_env = env_creator(config["env_config"])
-    # config["multiagent"]["policies"] = {
-    #     i: (None, tmp_env.observation_space, tmp_env.action_space, {})
-    #     for i in tmp_env.agent_ids
-    # }
-    # config["multiagent"]["policy_mapping_fn"] = lambda x: x
-
     # check the model
     if config[USE_DIVERSITY_VALUE_NETWORK]:
         ModelCatalog.register_custom_model(

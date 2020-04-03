@@ -17,9 +17,7 @@ from toolbox.dice.utils import *
 MY_LOGIT = "my_logits"
 
 
-def original_postprocess(policy,
-                         sample_batch,
-                         other_agent_batches=None,
+def original_postprocess(policy, sample_batch, other_agent_batches=None,
                          episode=None):
     if not policy.config["vtrace"]:
         completed = sample_batch["dones"][-1]

@@ -8,9 +8,6 @@ from collections import defaultdict
 
 import numpy as np
 from ray.rllib.evaluation.metrics import collect_episodes, summarize_episodes
-# from ray.rllib.optimizers.aso_aggregator import SimpleAggregator
-# from ray.rllib.optimizers.aso_learner import LearnerThread
-# from ray.rllib.optimizers.aso_tree_aggregator import TreeAggregator
 from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.timer import TimerStat
