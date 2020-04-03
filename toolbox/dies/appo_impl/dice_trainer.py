@@ -22,10 +22,11 @@ from ray.rllib.agents.ppo.appo import APPOTrainer
 from ray.rllib.models.catalog import ModelCatalog
 from ray.rllib.utils import try_import_tf
 
+from toolbox.dice.dice_model import ActorDoubleCriticNetwork
 from toolbox.dies.appo_impl.constants import *
 from toolbox.dies.appo_impl.dice_optimizer import AsyncSamplesOptimizer
 from toolbox.dies.appo_impl.dice_policy_appo import DiCEPolicy_APPO
-from toolbox.dice.dice_model import ActorDoubleCriticNetwork
+from toolbox.dies.appo_impl.dice_workers import SuperWorkerSet
 
 tf = try_import_tf()
 
@@ -128,7 +129,6 @@ def after_optimizer_iteration(trainer, fetches):
     2. Update the policies in local trainer
     3. Broadcast the latest policy map to each workerset
     """
-
     # Receive all latest policies and update the central policy pool
     for ws_id, worker_set in trainer.workers.items():
         weights = worker_set.local_worker().get_weights()[DEFAULT_POLICY_ID]
@@ -160,57 +160,8 @@ def after_optimizer_iteration(trainer, fetches):
 
         worker_set.foreach_worker_with_index(_sync_policy_pool)
 
-    # # Broadcast the latest policy map to each workerset
-    # for ws_id, worker_set in trainer.workers.items():
-    #     # Set the local policy weights
-    #     ws_local_worker = worker_set.local_worker()
-    #     # Assign weight one-by-one, I guess this can help improve efficiency
-    #     # for policy_id, weights in trainer._central_policy_weights.items():
-    #     #     for w_id, w in weights.items():
-    #     #         ws_local_worker._local_policy_weights[policy_id][w_id] = w
-    #
-    #     for policy_id, weights in trainer._central_policy_weights.items():
-    #         policy_name = "workerset{}_cloned_policy{}".format(ws_id,
-    #         policy_id)
-    #         ws_local_worker._local_policy_pool[policy_id].set_weights(
-    #             _convert_weights(weights, policy_name))
-
     if trainer.config["use_kl_loss"]:
         raise NotImplementedError("KL loss not used.")
-
-    # Original APPO
-    # Update the KL coeff depending on how many steps LearnerThread has stepped
-    # through
-
-    # learner_steps = trainer.optimizer.learner_set[0].num_steps
-    # learner_steps = trainer.optimizer.learner.num_steps
-    # if learner_steps >= trainer.target_update_frequency:
-
-    # Update Target Network
-    # for learner in trainer.optimizer.learner_set.values():
-    #     learner.num_steps = 0
-    # trainer.workers.local_worker().foreach_trainable_policy(
-    #     lambda p, _: p.update_target())
-
-    # Also update KL Coeff
-
-    # update_kl(trainer, trainer.optimizer.learner.stats)
-    # update_kl(trainer, trainer.optimizer.learner_set[0].stats)
-
-    # only update the policies pool if used DELAY_UPDATE, otherwise
-    # the policies_pool in each policy is simply not used, so we don't
-    # need to update it.
-    # if trainer.config[DELAY_UPDATE]:
-    #     if trainer.workers.remote_workers():
-    #         weights = ray.put(trainer.workers.local_worker().get_weights())
-    #         for e in trainer.workers.remote_workers():
-    #             e.set_weights.remote(weights)
-    #
-    #         def _delay_update_for_worker(worker, worker_index):
-    #             worker.foreach_policy(lambda p, _: p.update_target_network())
-    #
-    #         trainer.workers.foreach_worker_with_index(
-    #         _delay_update_for_worker)
 
 
 def make_aggregators_and_optimizer(workers, config):
@@ -246,9 +197,6 @@ def make_aggregators_and_optimizer(workers, config):
         # Assign the pre-created aggregators to the optimizer
         optimizer.aggregator.init(aggregators)
     return optimizer
-
-
-from toolbox.dies.appo_impl.dice_workers import SuperWorkerSet
 
 
 def make_workers(trainer, env_creator, policy, config):

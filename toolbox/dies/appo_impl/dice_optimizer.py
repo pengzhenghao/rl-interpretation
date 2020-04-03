@@ -244,14 +244,9 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
 
             stats_list.append(stats)
 
-        print("stop here")
-
         ret_stat = wrap_dict_list(stats_list)
-
         original_stat = PolicyOptimizer.stats(self)
-
         original_stat.update(ret_stat)
-
         return original_stat
         # return dict(PolicyOptimizer.stats(self), **ret_stat)
 

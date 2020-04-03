@@ -59,10 +59,22 @@ class SuperWorkerSet:
         return self._worker_sets.items()
 
     def add_workers(self, num_workers):
+        assert num_workers % len(self._worker_sets) == 0, \
+            "We assume num_workers = num_agents * num_workers_per_agent, " \
+            "and we will assign num_workers_per_agent to each workerset. " \
+            "So that the total number of remote workers is equal to what you" \
+            " set while each agent has integer number of workers to use. " \
+            "However, you have {} agents who share totally {} workers.".format(
+                len(self._worker_sets), num_workers
+            )
+
+        num_workers_per_agent = int(num_workers // len(self._worker_sets))
+
         for ws_id, ws in self._worker_sets.items():
-            ws.add_workers(num_workers)
+            ws.add_workers(num_workers_per_agent)
             logger.info(
-                "Add {} workers to worker set {}".format(num_workers, ws_id))
+                "Add {} workers to worker set {}".format(
+                    num_workers_per_agent, ws_id))
 
     def _check_worker_set_id(self, worker_set_id):
         assert worker_set_id in self._worker_sets, \

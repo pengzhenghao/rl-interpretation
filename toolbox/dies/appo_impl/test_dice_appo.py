@@ -3,12 +3,13 @@ import shutil
 import tempfile
 import unittest
 
+import numpy as np
 import pytest
 from ray import tune
 
 from toolbox import initialize_ray
 from toolbox.dice import utils
-from toolbox.dies.appo_impl.dice_appo import DiCETrainer_APPO
+from toolbox.dies.appo_impl.dice_trainer import DiCETrainer_APPO
 
 num_agents_pair = tune.grid_search([1, 3])
 
@@ -19,7 +20,7 @@ DEFAULT_POLICY_NAME = "default_policy"
 
 @pytest.fixture(params=[1, 3])
 def dice_trainer(request):
-    initialize_ray(test_mode=True, local_mode=True)
+    initialize_ray(test_mode=True, local_mode=False)
     return DiCETrainer_APPO(env="BipedalWalker-v2", config=dict(
         num_agents=request.param,
         delay_update=False
@@ -42,6 +43,8 @@ def assert_weights_equal(w1, w2):
 def test_policy_pool_sync(dice_trainer):
     init_policy_pool = copy.deepcopy(dice_trainer._central_policy_weights)
 
+    logits = {}
+    fake_data = np.random.random([500, 24])
     # Assert policy map in all workerset are synced
     for _, ws in dice_trainer.workers.items():
         for (pid1, w1), (pid3, po), (pid4, po4) in zip(
@@ -62,6 +65,15 @@ def test_policy_pool_sync(dice_trainer):
             assert pid4 == pid1
             assert_weights_equal(po.get_weights(), po4.get_weights())
 
+            l = po4.compute_actions(fake_data)[2]["behaviour_logits"].copy()
+            assert po.compute_actions(fake_data)[2]["behaviour_logits"] == \
+                   pytest.approx(l)
+
+            if pid1 not in logits:
+                logits[pid1] = l
+            else:
+                assert pytest.approx(l) == logits[pid1]
+
     # Step forward
     dice_trainer.train()
     new_policy_pool = copy.deepcopy(dice_trainer._central_policy_weights)
@@ -79,6 +91,8 @@ def test_policy_pool_sync(dice_trainer):
             assert wid1 == wid2
 
     # Assert policy map in all workerset are synced
+    logits = {}
+    fake_data = np.random.random([500, 24])
     for _, ws in dice_trainer.workers.items():
         for (pid1, w1), (pid3, po), (pid4, po4) in zip(
                 # ws.local_worker()._local_policy_weights.items(),
@@ -98,6 +112,15 @@ def test_policy_pool_sync(dice_trainer):
             assert pid4 == pid1
             assert_weights_equal(po.get_weights(), po4.get_weights())
 
+            l = po4.compute_actions(fake_data)[2]["behaviour_logits"].copy()
+            assert po.compute_actions(fake_data)[2]["behaviour_logits"] == \
+                   pytest.approx(l)
+
+            if pid1 not in logits:
+                logits[pid1] = l
+            else:
+                assert pytest.approx(l) == logits[pid1]
+
 
 def _test_dice(
         extra_config={},
@@ -110,19 +133,13 @@ def _test_dice(
     initialize_ray(test_mode=True, local_mode=local_mode, num_gpus=num_gpus)
 
     # default config
-    # env_config = {"env_name": env_name, "num_agents": num_agents}
     config = {
-        "env": "BipedalWalker-v2",
-
+        "env": env_name,
         "num_agents": num_agents,
-
-        # "env": MultiAgentEnvWrapper,
-        # "env_config": env_config,
         "num_gpus": num_gpus,
         "log_level": "DEBUG",
         "sample_batch_size": 20,
         "train_batch_size": 100,
-        # "sgd_minibatch_size": 60,
         "num_sgd_iter": 10,
         "num_workers": 1
     }
@@ -170,27 +187,4 @@ class DiCETest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # pytest.main(["-v", "-m", "unittest"])
-    # unittest.main(verbosity=2)
-
-    # print("===== 3 agents =====")
-    # _test_dice(
-    #     # num_agents=tune.grid_search([1, 3, 5]),
-    #     num_agents=3,
-    #     local_mode=False
-    # )
-
-    # print("===== 1 agents =====")
-    # _test_dice(
-    #     # num_agents=tune.grid_search([1, 3, 5]),
-    #     num_agents=1,
-    #     local_mode=True
-    # )
-
-    # pytest.main(["-v -m unittest test_dice_appo.py"])
-
-    _test_dice(
-        num_agents=5,
-        local_mode=False,
-        t=100000
-    )
+    pytest.main(["-v"])

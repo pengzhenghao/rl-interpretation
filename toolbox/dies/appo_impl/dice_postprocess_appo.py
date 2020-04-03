@@ -55,7 +55,7 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
     batch = sample_batch.copy()
     batch = original_postprocess(policy, batch)
     batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
-    batch = postprocess_diversity(policy, batch, others_batches)
+    batch = postprocess_diversity(policy, batch)
 
     assert not others_batches, "In our under standing, there should never be " \
                                "other batches."
@@ -65,7 +65,7 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
     return batch
 
 
-def postprocess_diversity(policy, batch, others_batches):
+def postprocess_diversity(policy, batch):
     """Compute the diversity for this policy against other policies using this
     batch."""
     # Compute diversity and add a new entry of batch: diversity_reward
