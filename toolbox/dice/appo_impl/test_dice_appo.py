@@ -44,16 +44,23 @@ def test_policy_pool_sync(dice_trainer):
 
     # Assert policy map in all workerset are synced
     for _, ws in dice_trainer.workers.items():
-        for (pid1, w1), (pid2, w2), (pid3, po) in zip(
+        for (pid1, w1), (pid2, w2), (pid3, po), (pid4, po4) in zip(
                 ws.local_worker()._local_policy_weights.items(),
                 init_policy_pool.items(),
-                ws.local_worker()._local_policy_pool.items()
+                ws.local_worker()._local_policy_pool.items(),
+                ws.local_worker().get_policy().policy_pool.items()
         ):
+            # central weights equal to local weights
             assert pid1 == pid2
             assert_weights_equal(w1, w2)
 
+            # central weights equal to local worker-owned pool's weights
             assert pid3 == pid1
             assert_weights_equal(w1, po.get_weights())
+
+            # central weights equal to local policy-owned pool's weights
+            assert pid4 == pid1
+            assert_weights_equal(po.get_weights(), po4.get_weights())
 
     # Step forward
     dice_trainer.train()
@@ -73,16 +80,20 @@ def test_policy_pool_sync(dice_trainer):
 
     # Assert policy map in all workerset are synced
     for _, ws in dice_trainer.workers.items():
-        for (pid1, w1), (pid2, w2), (pid3, po) in zip(
+        for (pid1, w1), (pid2, w2), (pid3, po), (pid4, po4) in zip(
                 ws.local_worker()._local_policy_weights.items(),
                 new_policy_pool.items(),
-                ws.local_worker()._local_policy_pool.items()
+                ws.local_worker()._local_policy_pool.items(),
+                ws.local_worker().get_policy().policy_pool.items()
         ):
             assert pid1 == pid2
             assert_weights_equal(w1, w2)
 
             assert pid3 == pid1
             assert_weights_equal(w1, po.get_weights())
+
+            assert pid4 == pid1
+            assert_weights_equal(po.get_weights(), po4.get_weights())
 
 
 def _test_dice(

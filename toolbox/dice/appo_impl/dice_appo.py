@@ -149,13 +149,19 @@ def setup_policies_pool(trainer):
 
     # Second step, call the _lazy_initialize function of each policy, feeding
     # with the policies map in the trainer.
-    # def _init_pool(worker, worker_index):
-    # def _init_diversity_policy(policy, my_policy_name):
-    #     policy.update_target_network(tau=1.0)
-    #     policy._lazy_initialize(worker.policy_map, my_policy_name)
-
-    # worker.foreach_policy(_init_diversity_policy)
     # trainer.workers.foreach_worker_with_index(_init_pool)
+
+    for ws_id, worker_set in trainer.workers.items():
+        ws_local_worker = worker_set.local_worker()
+
+        policy_map = ws_local_worker._local_policy_pool
+
+        def _init_diversity_policy(policy, my_policy_name):
+            # TODO we don't have target network at all
+            # policy.update_target_network(tau=1.0)
+            policy._lazy_initialize(policy_map)
+
+        ws_local_worker.foreach_trainable_policy(_init_diversity_policy)
 
 
 def after_optimizer_iteration(trainer, fetches):
@@ -185,8 +191,8 @@ def after_optimizer_iteration(trainer, fetches):
         # Set the local policy weights
         ws_local_worker = worker_set.local_worker()
         # Assign weight one-by-one, I guess this can help improve efficiency
-        for policy_id, weights in trainer._central_policy_weights:
-            for w_id, w in weights:
+        for policy_id, weights in trainer._central_policy_weights.items():
+            for w_id, w in weights.items():
                 ws_local_worker._local_policy_weights[policy_id][w_id] = w
 
         for policy_id, weights in ws_local_worker._local_policy_weights.items():

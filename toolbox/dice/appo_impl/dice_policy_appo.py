@@ -106,27 +106,28 @@ class ComputeDiversityMixin:
 
     def __init__(self):
         self.initialized_policies_pool = False
-        self.policies_pool = {}
+        self.policy_pool = {}
 
-    def _lazy_initialize(self, policies_pool, my_name):
+    def _lazy_initialize(self, policies_pool):
         """Initialize the reference of policies pool within this policy."""
-        assert self.config[DELAY_UPDATE]
-        self.policies_pool = {
-            agent_name: other_policy
-            for agent_name, other_policy in policies_pool.items()
-            # if agent_name != my_name
-        }  # Since it must in DELAY_UPDATE mode, we allow reuse all polices.
-        self.num_of_policies = len(self.policies_pool)
+        # assert self.config[DELAY_UPDATE]
+        self.policy_pool = policies_pool
+        # {
+        #     agent_name: other_policy
+        #     for agent_name, other_policy in policies_pool.items()
+        #     if agent_name != my_name
+        # }  # Since it must in DELAY_UPDATE mode, we allow reuse all polices.
+        self.num_of_policies = len(self.policy_pool)
         self.initialized_policies_pool = True
 
     def compute_diversity(self, my_batch, others_batches):
         """Compute the diversity of this agent."""
-        assert self.policies_pool, "Your policies pool is empty!"
+        assert self.policy_pool, "Your policies pool is empty!"
         replays = {}
         if self.config[DELAY_UPDATE]:
             # If in DELAY_UPDATE mode, compute diversity against the target
             # network of each policies.
-            for other_name, other_policy in self.policies_pool.items():
+            for other_name, other_policy in self.policy_pool.items():
                 logits = other_policy._compute_clone_network_logits(
                     my_batch[SampleBatch.CUR_OBS]
                 )
