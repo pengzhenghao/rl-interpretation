@@ -44,25 +44,27 @@ class DRAggregatorBase:
                     replay_buffer_num_slots, sample_batch_size,
                     train_batch_size)
 
-        # Kick off async background sampling
-        self.sample_tasks = TaskPool()
-        for ev in self.remote_workers:
-
-            # (DICE) Do not sync the initiali weights
-            # ev.set_weights.remote(self.broadcasted_weights)
-
-            for _ in range(max_sample_requests_in_flight_per_worker):
-                self.sample_tasks.add(ev, ev.sample.remote())
-
         self.batch_buffer = []
 
         self.replay_proportion = replay_proportion
         self.replay_buffer_num_slots = replay_buffer_num_slots
+        self.max_sample_requests_in_flight_per_worker = \
+            max_sample_requests_in_flight_per_worker
+        self.started = False
         self.replay_batches = []
         self.replay_index = 0
         self.num_sent_since_broadcast = 0
         self.num_weight_syncs = 0
         self.num_replayed = 0
+
+    def start(self):
+        # Kick off async background sampling
+        self.sample_tasks = TaskPool()
+        for ev in self.remote_workers:
+            ev.set_weights.remote(self.broadcasted_weights)
+            for _ in range(self.max_sample_requests_in_flight_per_worker):
+                self.sample_tasks.add(ev, ev.sample.remote())
+        self.started = True
 
     @override(Aggregator)
     def iter_train_batches(self, max_yield=999):
@@ -73,6 +75,7 @@ class DRAggregatorBase:
                 cycle. Setting this avoids iter_train_batches returning too
                 much data at once.
         """
+        assert self.started
         # ev is the rollout worker
         for ev, sample_batch in self._augment_with_replay(
                 self.sample_tasks.completed_prefetch(

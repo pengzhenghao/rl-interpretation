@@ -15,19 +15,17 @@ We also validate the config of the DiCE trainer in this file.
 
 import copy
 
+import ray
 from ray.rllib.agents.impala.impala import validate_config as original_validate
 from ray.rllib.agents.ppo.appo import APPOTrainer
-# update_target_and_kl as original_after_optimizer_step
 from ray.rllib.models.catalog import ModelCatalog
 
 from toolbox.dice.appo_impl.dice_optimizer import AsyncSamplesOptimizer
 from toolbox.dice.appo_impl.dice_policy_appo import DiCEPolicy_APPO
 from toolbox.dice.appo_impl.utils import dice_appo_default_config
 from toolbox.dice.dice_model import ActorDoubleCriticNetwork
-# from toolbox.dice.dice_policy import DiCEPolicy
 from toolbox.dice.utils import *
 
-# validate_config as validate_config_original
 logger = logging.getLogger(__name__)
 DEFAULT_POLICY_ID = "default_policy"
 
@@ -87,9 +85,9 @@ def setup_policies_pool(trainer):
     # The next line is not commented in original code
     # trainer.workers.local_worker().foreach_trainable_policy(
     #     lambda p, _: p.update_target())
+
     # TODO I am not sure why target network is used in APPO, if we don't update
     #  it, what would happen? Where is it used?
-
     trainer.target_update_frequency = \
         trainer.config["num_sgd_iter"] * trainer.config["minibatch_buffer_size"]
 
@@ -102,27 +100,42 @@ def setup_policies_pool(trainer):
 
     # Aggregate all policy in each worker set to build central policy weight
     # storage. But we do not maintain a real polices pool in trainer.
-    trainer._central_policy_weights = {}
+    central_policy_weights = {}
     for ws_id, worker_set in trainer.workers.items():
         weights = worker_set.local_worker().get_weights()[DEFAULT_POLICY_ID]
-        trainer._central_policy_weights[ws_id] = weights
+        central_policy_weights[ws_id] = weights
+
+    central_policy_weights_id = ray.put(central_policy_weights)
+    trainer._central_policy_weights = central_policy_weights
 
     # Maintain a copy of central policy pool in each local worker set,
     # alongside with a local policies weights storage
     for ws_id, worker_set in trainer.workers.items():
-        ws_local_worker = worker_set.local_worker()
-        ws_local_worker._local_policy_weights = copy.deepcopy(
-            trainer._central_policy_weights
-        )
+        def _setup_policy_pool(worker, worker_index):
+            worker._local_policy_pool = {}
+            central_weights = ray.get(central_policy_weights_id)
+            for policy_id, weights in central_weights.items():
+                policy_name = "workerset{}_worker{}_cloned_policy{}".format(
+                    ws_id, worker_index, policy_id
+                )
+                with tf.variable_scope(policy_name):
+                    policy = trainer._policy(
+                        obs_space, act_space, policy_config
+                    )
+                    policy.set_weights(_convert_weights(weights, policy_name))
+                    worker._local_policy_pool[policy_id] = policy
 
-        ws_local_worker._local_policy_pool = {}
-        for policy_id, weights in ws_local_worker._local_policy_weights.items():
-            policy_name = "workerset{}_cloned_policy{}".format(ws_id, policy_id)
-            with tf.variable_scope(policy_name):
-                policy = trainer._policy(
-                    obs_space, act_space, policy_config)
-                policy.set_weights(_convert_weights(weights, policy_name))
-                ws_local_worker._local_policy_pool[policy_id] = policy
+            def _init_diversity_policy(policy, my_policy_name):
+                # TODO we don't have target network at all
+                # policy.update_target_network(tau=1.0)
+                policy._lazy_initialize(worker._local_policy_pool)
+                logger.info("Finish single task of <{}> in worker <{}> in "
+                      "workerset <{}>".format(
+                    my_policy_name, worker_index, ws_id))
+
+            worker.foreach_trainable_policy(_init_diversity_policy)
+
+        worker_set.foreach_worker_with_index(_setup_policy_pool)
 
         # for
 
@@ -151,17 +164,16 @@ def setup_policies_pool(trainer):
     # with the policies map in the trainer.
     # trainer.workers.foreach_worker_with_index(_init_pool)
 
-    for ws_id, worker_set in trainer.workers.items():
-        ws_local_worker = worker_set.local_worker()
-
-        policy_map = ws_local_worker._local_policy_pool
-
-        def _init_diversity_policy(policy, my_policy_name):
-            # TODO we don't have target network at all
-            # policy.update_target_network(tau=1.0)
-            policy._lazy_initialize(policy_map)
-
-        ws_local_worker.foreach_trainable_policy(_init_diversity_policy)
+    # for ws_id, worker_set in trainer.workers.items():
+    #     ws_local_worker = worker_set.local_worker()
+    #
+    #     policy_map = ws_local_worker._local_policy_pool
+    #
+    #     def _init_diversity_policy(policy, my_policy_name):
+    #         # TODO we don't have target network at all
+    #         # policy.update_target_network(tau=1.0)
+    #         policy._lazy_initialize(policy_map)
+    # ws_local_worker.foreach_trainable_policy(_init_diversity_policy)
 
 
 def after_optimizer_iteration(trainer, fetches):
@@ -186,19 +198,36 @@ def after_optimizer_iteration(trainer, fetches):
         else:
             trainer._central_policy_weights[ws_id] = weights
 
-    # Broadcast the latest policy map to each workerset
-    for ws_id, worker_set in trainer.workers.items():
-        # Set the local policy weights
-        ws_local_worker = worker_set.local_worker()
-        # Assign weight one-by-one, I guess this can help improve efficiency
-        for policy_id, weights in trainer._central_policy_weights.items():
-            for w_id, w in weights.items():
-                ws_local_worker._local_policy_weights[policy_id][w_id] = w
+    central_policy_weights_id = ray.put(trainer._central_policy_weights)
 
-        for policy_id, weights in ws_local_worker._local_policy_weights.items():
-            policy_name = "workerset{}_cloned_policy{}".format(ws_id, policy_id)
-            ws_local_worker._local_policy_pool[policy_id].set_weights(
-                _convert_weights(weights, policy_name))
+    # Sync the weights in each worker
+    for ws_id, worker_set in trainer.workers.items():
+        def _sync_policy_pool(worker, worker_index):
+            central_weights = ray.get(central_policy_weights_id)
+            for policy_id, weights in central_weights.items():
+                policy_name = "workerset{}_worker{}_cloned_policy{}".format(
+                    ws_id, worker_index, policy_id
+                )
+                worker._local_policy_pool[policy_id].set_weights(
+                    _convert_weights(weights, policy_name)
+                )
+
+        worker_set.foreach_worker_with_index(_sync_policy_pool)
+
+    # # Broadcast the latest policy map to each workerset
+    # for ws_id, worker_set in trainer.workers.items():
+    #     # Set the local policy weights
+    #     ws_local_worker = worker_set.local_worker()
+    #     # Assign weight one-by-one, I guess this can help improve efficiency
+    #     # for policy_id, weights in trainer._central_policy_weights.items():
+    #     #     for w_id, w in weights.items():
+    #     #         ws_local_worker._local_policy_weights[policy_id][w_id] = w
+    #
+    #     for policy_id, weights in trainer._central_policy_weights.items():
+    #         policy_name = "workerset{}_cloned_policy{}".format(ws_id,
+    #         policy_id)
+    #         ws_local_worker._local_policy_pool[policy_id].set_weights(
+    #             _convert_weights(weights, policy_name))
 
     if trainer.config["use_kl_loss"]:
         raise NotImplementedError("KL loss not used.")

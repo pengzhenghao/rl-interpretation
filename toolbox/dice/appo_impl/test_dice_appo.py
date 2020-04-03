@@ -44,15 +44,15 @@ def test_policy_pool_sync(dice_trainer):
 
     # Assert policy map in all workerset are synced
     for _, ws in dice_trainer.workers.items():
-        for (pid1, w1), (pid2, w2), (pid3, po), (pid4, po4) in zip(
-                ws.local_worker()._local_policy_weights.items(),
+        for (pid1, w1), (pid3, po), (pid4, po4) in zip(
+                # ws.local_worker()._local_policy_weights.items(),
                 init_policy_pool.items(),
                 ws.local_worker()._local_policy_pool.items(),
                 ws.local_worker().get_policy().policy_pool.items()
         ):
             # central weights equal to local weights
-            assert pid1 == pid2
-            assert_weights_equal(w1, w2)
+            # assert pid1 == pid2
+            # assert_weights_equal(w1, w2)
 
             # central weights equal to local worker-owned pool's weights
             assert pid3 == pid1
@@ -80,18 +80,21 @@ def test_policy_pool_sync(dice_trainer):
 
     # Assert policy map in all workerset are synced
     for _, ws in dice_trainer.workers.items():
-        for (pid1, w1), (pid2, w2), (pid3, po), (pid4, po4) in zip(
-                ws.local_worker()._local_policy_weights.items(),
+        for (pid1, w1), (pid3, po), (pid4, po4) in zip(
+                # ws.local_worker()._local_policy_weights.items(),
                 new_policy_pool.items(),
                 ws.local_worker()._local_policy_pool.items(),
                 ws.local_worker().get_policy().policy_pool.items()
         ):
-            assert pid1 == pid2
-            assert_weights_equal(w1, w2)
+            # assert pid1 == pid2
+            # assert_weights_equal(w1, w2)
 
             assert pid3 == pid1
             assert_weights_equal(w1, po.get_weights())
 
+            # since the policy-owned policy pool only take the reference of
+            # the local worker-owned policy pool, so they are automatically
+            # synced.
             assert pid4 == pid1
             assert_weights_equal(po.get_weights(), po4.get_weights())
 
@@ -175,7 +178,7 @@ if __name__ == "__main__":
     #     num_agents=3,
     #     local_mode=True
     # )
-    #
+
     # print("===== 1 agents =====")
     # _test_dice(
     #     # num_agents=tune.grid_search([1, 3, 5]),

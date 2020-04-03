@@ -142,6 +142,12 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
 
     @override(PolicyOptimizer)
     def step(self):
+
+        # workaround to start all sampling jobs
+        if not self.aggregator_set[0].started:
+            for aggregator in self.aggregator_set.values():
+                aggregator.start()
+
         if len(self.workers.remote_workers()) == 0:
             raise ValueError("Config num_workers=0 means training will hang!")
 

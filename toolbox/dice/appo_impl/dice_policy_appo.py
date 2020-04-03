@@ -110,40 +110,19 @@ class ComputeDiversityMixin:
 
     def _lazy_initialize(self, policies_pool):
         """Initialize the reference of policies pool within this policy."""
-        # assert self.config[DELAY_UPDATE]
         self.policy_pool = policies_pool
-        # {
-        #     agent_name: other_policy
-        #     for agent_name, other_policy in policies_pool.items()
-        #     if agent_name != my_name
-        # }  # Since it must in DELAY_UPDATE mode, we allow reuse all polices.
         self.num_of_policies = len(self.policy_pool)
         self.initialized_policies_pool = True
 
-    def compute_diversity(self, my_batch, others_batches):
+    def compute_diversity(self, my_batch):
         """Compute the diversity of this agent."""
         assert self.policy_pool, "Your policies pool is empty!"
         replays = {}
-        if self.config[DELAY_UPDATE]:
-            # If in DELAY_UPDATE mode, compute diversity against the target
-            # network of each policies.
-            for other_name, other_policy in self.policy_pool.items():
-                logits = other_policy._compute_clone_network_logits(
-                    my_batch[SampleBatch.CUR_OBS]
-                )
-                replays[other_name] = logits
-        else:
-            # Otherwise compute the diversity against other latest policies
-            # contained in other_batches.
-            if not others_batches:
-                return np.zeros_like(
-                    my_batch[SampleBatch.REWARDS], dtype=np.float32
-                )
-            for other_name, (other_policy, _) in others_batches.items():
-                _, _, info = other_policy.compute_actions(
-                    my_batch[SampleBatch.CUR_OBS]
-                )
-                replays[other_name] = info[BEHAVIOUR_LOGITS]
+        for other_name, other_policy in self.policy_pool.items():
+            _, _, info = other_policy.compute_actions(
+                my_batch[SampleBatch.CUR_OBS]
+            )
+            replays[other_name] = info[BEHAVIOUR_LOGITS]
 
         # Compute the diversity loss based on the action distribution of
         # this policy and other polices.

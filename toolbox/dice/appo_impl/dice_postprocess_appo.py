@@ -111,15 +111,15 @@ def postprocess_diversity(policy, batch, others_batches):
 
     # do not compute the diversity in each worker. instead, compute the
     # diversity in the aggregation stage (real optimization stage)
-    batch[DIVERSITY_ADVANTAGES] = np.ones_like(batch["rewards"])
-    batch[DIVERSITY_VALUE_TARGETS] = np.ones_like(batch["rewards"])
-    batch[DIVERSITY_REWARDS] = np.ones_like(batch["rewards"])
-    return batch
+    # batch[DIVERSITY_ADVANTAGES] = np.ones_like(batch["rewards"])
+    # batch[DIVERSITY_VALUE_TARGETS] = np.ones_like(batch["rewards"])
+    # batch[DIVERSITY_REWARDS] = np.ones_like(batch["rewards"])
+    # return batch
 
 
 
     # Compute diversity and add a new entry of batch: diversity_reward
-    batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch, others_batches)
+    batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch)
 
     # Compute the diversity advantage. We mock the computing of task advantage
     # but simply replace the task reward with the diversity reward.
