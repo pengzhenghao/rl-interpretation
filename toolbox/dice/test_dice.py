@@ -34,7 +34,8 @@ def _test_dice(
         "sample_batch_size": 20,
         "train_batch_size": 100,
         "sgd_minibatch_size": 60,
-        "num_sgd_iter": 3,
+        "num_sgd_iter": 10,
+        "num_workers": 5
     }
 
     if extra_config:
@@ -80,7 +81,7 @@ class DiCETest(unittest.TestCase):
 if __name__ == "__main__":
     # unittest.main(verbosity=2)
     _test_dice(
-        num_agents=10,
+        num_agents=5,
         local_mode=False,
-        t=300000
+        t=100000
     )

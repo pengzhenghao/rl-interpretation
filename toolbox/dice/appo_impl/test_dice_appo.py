@@ -123,7 +123,8 @@ def _test_dice(
         "sample_batch_size": 20,
         "train_batch_size": 100,
         # "sgd_minibatch_size": 60,
-        "num_sgd_iter": 3,
+        "num_sgd_iter": 10,
+        "num_workers": 1
     }
 
     if extra_config:
@@ -189,7 +190,7 @@ if __name__ == "__main__":
     # pytest.main(["-v -m unittest test_dice_appo.py"])
 
     _test_dice(
-        num_agents=10,
+        num_agents=5,
         local_mode=False,
-        t=300000
+        t=100000
     )
