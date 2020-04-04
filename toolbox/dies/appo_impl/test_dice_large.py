@@ -1,6 +1,7 @@
 import argparse
 import shutil
 import tempfile
+import time
 
 from ray import tune
 
@@ -17,6 +18,7 @@ if __name__ == '__main__':
     local_mode = False
     env_name = "BipedalWalker-v2"
     dir_path = tempfile.mkdtemp()
+    now = time.time()
 
     initialize_ray(test_mode=False, local_mode=local_mode, num_gpus=1)
 
@@ -64,3 +66,4 @@ if __name__ == '__main__':
             max_failures=0
         )
     shutil.rmtree(dir_path, ignore_errors=True)
+    print("Test finished! Cost time: ", time.time() - now)
