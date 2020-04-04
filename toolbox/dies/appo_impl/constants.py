@@ -31,6 +31,7 @@ dice_appo_default_config = merge_dicts(
         "max_sample_requests_in_flight_per_worker": 1,  # originally 2
         "replay_buffer_num_slots": 0,  # disable replay
         "vf_loss_coeff": 1.0,
-
+        "train_batch_size": 500,
+        "sample_batch_size": 50
     }
 )
