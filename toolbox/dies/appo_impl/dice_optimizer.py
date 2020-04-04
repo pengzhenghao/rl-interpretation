@@ -112,6 +112,7 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                     sample_batch_size=sample_batch_size,
                     broadcast_interval=broadcast_interval)
             self.aggregator_set[ws_id] = aggregator
+        self.train_batch_size = train_batch_size
 
         # Stats
         self._optimizer_step_timer = TimerStat()
@@ -250,6 +251,8 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                 learner_info["policy{}".format(ws_id)] = learner.stats
                 learner_info["policy{}".format(ws_id)]["sample_timesteps"] = \
                     stats["sample_timesteps"]
+                learner_info["policy{}".format(ws_id)]["training_iteration"] = \
+                    int(stats["sample_timesteps"] // self.train_batch_size)
             stats.pop("sample_timesteps")
 
             stats_list.append(stats)

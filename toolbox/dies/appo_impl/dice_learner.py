@@ -69,8 +69,8 @@ class LearnerThread(threading.Thread):
             self.weights_updated = True
             self.stats.update(get_learner_stats(fetches))
             self.stats["train_timesteps"] += batch.count
+            self.num_steps += 1
             self.stats["update_steps"] = self.num_steps
 
-        self.num_steps += 1
         self.outqueue.put(batch.count)
         self.learner_queue_size.push(self.inqueue.qsize())

@@ -110,7 +110,6 @@ class DRAggregatorBase:
                     self.replay_index += 1
                     self.replay_index %= self.replay_buffer_num_slots
 
-            # (DICE) Do not sync the weights
             ev.set_weights.remote(self.broadcasted_weights)
             self.num_weight_syncs += 1
 

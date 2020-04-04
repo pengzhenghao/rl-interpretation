@@ -188,4 +188,4 @@ class DiCETest(unittest.TestCase):
 
 if __name__ == "__main__":
     # pytest.main(["-v"])
-    _test_dice(local_mode=True, t=6000)
+    _test_dice({"lr": 0.01}, local_mode=True, t=20000, env_name='CartPole-v0')
