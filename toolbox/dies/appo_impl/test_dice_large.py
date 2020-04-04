@@ -1,31 +1,69 @@
 import argparse
+import shutil
+import tempfile
 
-from toolbox.dice import utils as old_const
-from toolbox.dice.test_dice import _test_dice as _test_dice_old
-from toolbox.dies.appo_impl.test_dice_appo import _test_dice
+from ray import tune
+
+from toolbox import initialize_ray
+from toolbox.dice import utils as old_const, DiCETrainer
+from toolbox.dies.appo_impl.dice_trainer import DiCETrainer_APPO
+from toolbox.marl import MultiAgentEnvWrapper
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--old", action="store_true")
     args = parser.parse_args()
 
+    local_mode = False
+    stop = {"timesteps_total": 20000}
+    env_name = "CartPole-v0"
+    dir_path = tempfile.mkdtemp()
+
+    initialize_ray(test_mode=False, local_mode=local_mode, num_gpus=1)
+
     if args.old:
-        _test_dice_old({
+        env_config = {"env_name": env_name, "num_agents": 5}
+        config = {
+            "env": MultiAgentEnvWrapper,
+            "env_config": env_config,
+            "num_gpus": 1,
+            "num_sgd_iter": 10,
+            "train_batch_size": 4000,
+            "sample_batch_size": 200,
+            "num_workers": 5,
+            "lr": 0.01,
             old_const.ONLY_TNB: True,
             old_const.USE_DIVERSITY_VALUE_NETWORK: False,
             old_const.NORMALIZE_ADVANTAGE: True,
             old_const.TWO_SIDE_CLIP_LOSS: False,
-            "lr": 0.01
-        },
-            num_agents=5,
-            local_mode=False,
-            t=20000
+        }
+        ret = tune.run(
+            DiCETrainer,
+            local_dir=dir_path,
+            name="DELETEME_OLD_IMPL_DICE",
+            stop=stop,
+            config=config,
+            verbose=2,
+            max_failures=0
         )
     else:
-        _test_dice({
+        config = {
+            "env": env_name,
+            "num_gpus": 1,
+            "num_sgd_iter": 10,
             "train_batch_size": 4000,
             "sample_batch_size": 200,
             "num_workers": 5,
             "num_agents": 5,
             "lr": 0.01,
-        }, t=100000, env_name="CartPole-v0")
+        }
+        ret = tune.run(
+            DiCETrainer_APPO,
+            local_dir=dir_path,
+            name="DELETEME_NEW_IMPL_DICE",
+            stop=stop,
+            config=config,
+            verbose=2,
+            max_failures=0
+        )
+    shutil.rmtree(dir_path, ignore_errors=True)
