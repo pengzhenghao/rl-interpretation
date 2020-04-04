@@ -190,6 +190,9 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                 `info` replaced with stats from self.
         """
         return_stats = {}
+
+        episode_storage = {}
+
         for ws_id, workers in self.workers.items():
             episodes, self.to_be_collected[ws_id] = collect_episodes(
                 workers.local_worker(),
@@ -204,9 +207,11 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             self.episode_history[ws_id].extend(orig_episodes)
             self.episode_history[ws_id] = self.episode_history[ws_id][
                                           -min_history:]
+
+            episode_storage[ws_id] = episodes
             res = summarize_episodes(episodes, orig_episodes)
             return_stats[ws_id] = res
-        return_stats = parse_stats(return_stats)
+        return_stats = parse_stats(return_stats, episode_storage)
         return_stats.update(info=self.stats())
         return_stats["info"]["learner_queue"].pop("size_quantiles")
         return return_stats
@@ -317,48 +322,37 @@ def wrap_dict_list(dict_list):
     return ret
 
 
-def parse_stats(stat_dict):
+def parse_stats(stat_dict, episode_storage):
     ret = {}
-    rewards_max = {
-        "policy{}".format(ws_id): r["episode_reward_max"]
-        for ws_id, r in stat_dict.items()
-        if np.isfinite(r["episode_reward_max"])
+
+    default_key = ("agent0", "default_policy")
+
+    # Assume each workerset only maintain one agent one policy, that's why we
+    # use default_key
+    policy_reward = {
+        "policy{}".format(pid): [ep.agent_rewards[default_key] for ep in eps]
+        for pid, eps in episode_storage.items()
     }
-    rewards_mean = {
-        "policy{}".format(ws_id): r["episode_reward_mean"]
-        for ws_id, r in stat_dict.items()
-        if np.isfinite(r["episode_reward_mean"])
-    }
-    rewards_min = {
-        "policy{}".format(ws_id): r["episode_reward_min"]
-        for ws_id, r in stat_dict.items()
-        if np.isfinite(r["episode_reward_min"])
-    }
-    ret["episode_reward_max"] = max(
-        rewards_max.values()) if rewards_max else np.nan
-    ret["episode_reward_min"] = min(
-        rewards_min.values()) if rewards_min else np.nan
-    ret["episode_reward_mean"] = np.mean(
-        list(rewards_mean.values())) if rewards_mean else np.nan
+
+    rewards_max = {pid: max(rews) for pid, rews in policy_reward.items()}
+    rewards_mean = {pid: np.mean(rews) for pid, rews in policy_reward.items()}
+    rewards_min = {pid: min(rews) for pid, rews in policy_reward.items()}
+
+    flatten_rewards = [d for v in policy_reward.values() for d in v]
+
+    ret["episode_reward_max"] = np.max(flatten_rewards)
+    ret["episode_reward_min"] = np.min(flatten_rewards)
+    ret["episode_reward_mean"] = np.mean(flatten_rewards)
+
     ret["episode_len_mean"] = np.mean(
         [r["episode_len_mean"] for r in stat_dict.values()])
     ret["episodes_this_iter"] = sum(
         r["episodes_this_iter"] for r in stat_dict.values())
-    ret["policy_reward_mean"] = {
-        "policy{}".format(ws_id): rewards_mean["policy{}".format(ws_id)]
-        if "policy{}".format(ws_id) in rewards_mean else np.nan
-        for ws_id in stat_dict.keys()
-    }
-    ret["policy_reward_min"] = {
-        "policy{}".format(ws_id): rewards_min["policy{}".format(ws_id)]
-        if "policy{}".format(ws_id) in rewards_min else np.nan
-        for ws_id in stat_dict.keys()
-    }
-    ret["policy_reward_max"] = {
-        "policy{}".format(ws_id): rewards_max["policy{}".format(ws_id)]
-        if "policy{}".format(ws_id) in rewards_max else np.nan
-        for ws_id in stat_dict.keys()
-    }
+
+    ret["policy_reward_mean"] = rewards_mean
+    ret["policy_reward_min"] = rewards_min
+    ret["policy_reward_max"] = rewards_max
+
     first_dict = next(iter(stat_dict.values()))
     ret["sampler_perf"] = wrap_dict_list(
         [r["sampler_perf"] for r in stat_dict.values()]
