@@ -51,6 +51,7 @@ class DRAggregatorBase:
         self.max_sample_requests_in_flight_per_worker = \
             max_sample_requests_in_flight_per_worker
         self.started = False
+        self.sample_tasks = TaskPool()
         self.replay_batches = []
         self.replay_index = 0
         self.num_sent_since_broadcast = 0
@@ -60,7 +61,6 @@ class DRAggregatorBase:
 
     def start(self):
         # Kick off async background sampling
-        self.sample_tasks = TaskPool()
         for ev in self.remote_workers:
             ev.set_weights.remote(self.broadcasted_weights)
             for _ in range(self.max_sample_requests_in_flight_per_worker):
@@ -111,8 +111,8 @@ class DRAggregatorBase:
                     self.replay_index %= self.replay_buffer_num_slots
 
             # (DICE) Do not sync the weights
-            # ev.set_weights.remote(self.broadcasted_weights)
-            # self.num_weight_syncs += 1
+            ev.set_weights.remote(self.broadcasted_weights)
+            self.num_weight_syncs += 1
 
             self.num_sent_since_broadcast += 1
 
