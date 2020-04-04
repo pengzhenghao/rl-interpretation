@@ -51,9 +51,9 @@ if __name__ == '__main__':
         config = {
             "env": env_name,
             "num_gpus": 1,
-            "num_sgd_iter": 10,
-            "train_batch_size": 4000,
-            "sample_batch_size": 200,
+            # "num_sgd_iter": 10,
+            "train_batch_size": 1000,
+            "sample_batch_size": 50,
             "num_workers": 5,
             "num_agents": 5,
             "num_envs_per_worker": 10,

@@ -27,8 +27,10 @@ dice_appo_default_config = merge_dicts(
         "tau": 5e-3,
         "clip_param": 0.3,
         "lr": 1e-4,
-        "num_sgd_iter": 1,  # In PPO this is 10
+        "num_sgd_iter": 2,  # In PPO this is 10
         "max_sample_requests_in_flight_per_worker": 1,  # originally 2
-        "replay_buffer_num_slots": 0  # disable replay
+        "replay_buffer_num_slots": 0,  # disable replay
+        "vf_loss_coeff": 1.0,
+
     }
 )
