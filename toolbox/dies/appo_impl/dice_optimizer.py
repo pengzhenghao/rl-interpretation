@@ -334,9 +334,12 @@ def parse_stats(stat_dict, episode_storage):
         for pid, eps in episode_storage.items()
     }
 
-    rewards_max = {pid: max(rews) for pid, rews in policy_reward.items()}
-    rewards_mean = {pid: np.mean(rews) for pid, rews in policy_reward.items()}
-    rewards_min = {pid: min(rews) for pid, rews in policy_reward.items()}
+    rewards_max = {pid: max(rews) if rews else np.nan
+                   for pid, rews in policy_reward.items()}
+    rewards_mean = {pid: np.mean(rews) if rews else np.nan
+                    for pid, rews in policy_reward.items()}
+    rewards_min = {pid: min(rews) if rews else np.nan
+                   for pid, rews in policy_reward.items()}
 
     flatten_rewards = [d for v in policy_reward.values() for d in v]
 
