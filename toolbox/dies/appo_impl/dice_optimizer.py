@@ -153,7 +153,7 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             raise ValueError("Config num_workers=0 means training will hang!")
 
         for l_id, learner in self.learner_set.items():
-            assert learner.is_alive(), "{} is dead! ALl learners: {}.".format(
+            assert learner.is_alive(), "{} is dead! All learners: {}.".format(
                 l_id, self.learner_set.keys())
 
         with self._optimizer_step_timer:
