@@ -118,7 +118,6 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         self._stats_start_time = time.time()
         self._last_stats_time = {}
 
-        # TODO Check the data container above!
         self.episode_history = {ws_id: [] for ws_id, _ in self.workers.items()}
         self.to_be_collected = {ws_id: [] for ws_id, _ in self.workers.items()}
 
@@ -229,6 +228,7 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             return round(1000 * timer.mean, 3)
 
         stats_list = []
+        learner_info = {}
 
         for ws_id in self.aggregator_set.keys():
             aggregator = self.aggregator_set[ws_id]
@@ -247,15 +247,15 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             }
             stats["learner_queue"] = learner.learner_queue_size.stats()
             if learner.stats:
-                stats["learner"] = learner.stats
+                learner_info["policy{}".format(ws_id)] = learner.stats
 
             stats_list.append(stats)
 
         ret_stat = wrap_dict_list(stats_list)
+        ret_stat["learner"] = learner_info
         original_stat = PolicyOptimizer.stats(self)
         original_stat.update(ret_stat)
         return original_stat
-        # return dict(PolicyOptimizer.stats(self), **ret_stat)
 
     def _step(self):
         sample_timesteps = {}
@@ -280,6 +280,7 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                         and aggregator.should_broadcast()):
                     aggregator.broadcast_new_weights()
 
+        for ws_id, learner in self.learner_set.items():
             while not learner.outqueue.empty():
                 count = learner.outqueue.get()
                 train_timesteps[ws_id] += count
