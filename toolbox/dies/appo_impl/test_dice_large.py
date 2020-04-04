@@ -15,8 +15,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     local_mode = False
-    stop = {"timesteps_total": 20000}
-    env_name = "CartPole-v0"
+    env_name = "BipedalWalker-v0"
     dir_path = tempfile.mkdtemp()
 
     initialize_ray(test_mode=False, local_mode=local_mode, num_gpus=1)
@@ -31,7 +30,6 @@ if __name__ == '__main__':
             "train_batch_size": 4000,
             "sample_batch_size": 200,
             "num_workers": 5,
-            "lr": 0.01,
             old_const.ONLY_TNB: True,
             old_const.USE_DIVERSITY_VALUE_NETWORK: False,
             old_const.NORMALIZE_ADVANTAGE: True,
@@ -41,7 +39,7 @@ if __name__ == '__main__':
             DiCETrainer,
             local_dir=dir_path,
             name="DELETEME_OLD_IMPL_DICE",
-            stop=stop,
+            stop={"timesteps_total": 500000},
             config=config,
             verbose=2,
             max_failures=0
@@ -55,13 +53,12 @@ if __name__ == '__main__':
             "sample_batch_size": 200,
             "num_workers": 5,
             "num_agents": 5,
-            "lr": 0.01,
         }
         ret = tune.run(
             DiCETrainer_APPO,
             local_dir=dir_path,
             name="DELETEME_NEW_IMPL_DICE",
-            stop=stop,
+            stop={"timesteps_total": 2500000},
             config=config,
             verbose=2,
             max_failures=0
