@@ -51,7 +51,7 @@ if __name__ == '__main__':
     else:
         config = {
             "env": env_name,
-            "num_gpus": 1,
+            # "num_gpus": 1,
             "train_batch_size": 500,
             "sample_batch_size": 50,
             "num_workers": 5,

@@ -257,9 +257,23 @@ def dice_gradient(policy, optimizer, loss):
         with tf.control_dependencies([loss[1]]):
             policy_grad = optimizer.compute_gradients(loss[0])
         if policy.config["grad_clip"] is not None:
-            clipped_grads = tf.clip_by_global_norm([g for g, _ in policy_grad],
-                                                   policy.config["grad_clip"])
-            return [(g, v) for g, (_, v) in zip(clipped_grads, policy_grad)]
+            clipped_grads, _ = tf.clip_by_global_norm([
+                g for g, _ in policy_grad if g is not None
+            ], policy.config["grad_clip"]
+            )
+            # Reorder the gradients since some are None and can't be clipped
+            ret = []
+            clipped_g_id = 0
+            for org_g, v in policy_grad:
+                if org_g is None:
+                    ret.append((org_g, v))
+                else:
+                    if clipped_g_id >= len(clipped_grads):
+                        print('ss')
+                    ret.append((clipped_grads[clipped_g_id], v))
+                    clipped_g_id += 1
+            return ret
+
         else:
             return policy_grad
 
@@ -326,8 +340,8 @@ def dice_gradient(policy, optimizer, loss):
         return_gradients[var] = (tf.reshape(grad, org_shape), var)
         count += size
 
-    ret_grads = [return_gradients[var][0] for _, var in policy_grad]
     if policy.config["grad_clip"] is not None:
+        ret_grads = [return_gradients[var][0] for _, var in policy_grad]
         clipped_grads, _ = tf.clip_by_global_norm(
             ret_grads, policy.config["grad_clip"])
         return [(g, return_gradients[var][1])
