@@ -343,9 +343,12 @@ def parse_stats(stat_dict, episode_storage):
 
     flatten_rewards = [d for v in policy_reward.values() for d in v]
 
-    ret["episode_reward_max"] = np.max(flatten_rewards)
-    ret["episode_reward_min"] = np.min(flatten_rewards)
-    ret["episode_reward_mean"] = np.mean(flatten_rewards)
+    ret["episode_reward_max"] = np.max(
+        flatten_rewards) if flatten_rewards else np.nan
+    ret["episode_reward_min"] = np.min(
+        flatten_rewards) if flatten_rewards else np.nan
+    ret["episode_reward_mean"] = np.mean(
+        flatten_rewards) if flatten_rewards else np.nan
 
     ret["episode_len_mean"] = np.mean(
         [r["episode_len_mean"] for r in stat_dict.values()])
