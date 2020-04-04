@@ -8,6 +8,7 @@ implement the Diversity Regularization module in dice_gradient.
 import logging
 
 import gym
+import numpy as np
 from ray.rllib.agents.ppo.appo_policy import PPOSurrogateLoss, \
     VTraceSurrogateLoss, _make_time_major, BEHAVIOUR_LOGITS
 from ray.rllib.evaluation.postprocessing import Postprocessing
@@ -255,9 +256,12 @@ def dice_gradient(policy, optimizer, loss):
         # task gradient.
         with tf.control_dependencies([loss[1]]):
             policy_grad = optimizer.compute_gradients(loss[0])
-        clipped_grads = tf.clip_by_global_norm([g for g, _ in policy_grad],
-                                               policy.config["grad_clip"])
-        return [(g, v) for g, (_, v) in zip(clipped_grads, policy_grad)]
+        if policy.config["grad_clip"] is not None:
+            clipped_grads = tf.clip_by_global_norm([g for g, _ in policy_grad],
+                                                   policy.config["grad_clip"])
+            return [(g, v) for g, (_, v) in zip(clipped_grads, policy_grad)]
+        else:
+            return policy_grad
 
     policy_grad = optimizer.compute_gradients(loss[0])
     diversity_grad = optimizer.compute_gradients(loss[1])
@@ -323,7 +327,10 @@ def dice_gradient(policy, optimizer, loss):
         count += size
 
     ret_grads = [return_gradients[var][0] for _, var in policy_grad]
-    clipped_grads, _ = tf.clip_by_global_norm(ret_grads,
-                                              policy.config["grad_clip"])
-    return [(g, return_gradients[var][1])
-            for g, (_, var) in zip(clipped_grads, policy_grad)]
+    if policy.config["grad_clip"] is not None:
+        clipped_grads, _ = tf.clip_by_global_norm(
+            ret_grads, policy.config["grad_clip"])
+        return [(g, return_gradients[var][1])
+                for g, (_, var) in zip(clipped_grads, policy_grad)]
+    else:
+        return [return_gradients[var] for _, var in policy_grad]
