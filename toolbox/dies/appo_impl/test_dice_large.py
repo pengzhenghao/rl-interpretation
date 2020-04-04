@@ -15,7 +15,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     local_mode = False
-    env_name = "BipedalWalker-v0"
+    env_name = "BipedalWalker-v2"
     dir_path = tempfile.mkdtemp()
 
     initialize_ray(test_mode=False, local_mode=local_mode, num_gpus=1)
