@@ -16,7 +16,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     local_mode = False
-    env_name = "BipedalWalker-v2"
+    env_name = "MountainCarContinuous-v0"
     dir_path = tempfile.mkdtemp()
     now = time.time()
 
