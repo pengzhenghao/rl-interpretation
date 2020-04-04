@@ -2,12 +2,11 @@
 
 import threading
 
-from six.moves import queue
-
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers.aso_minibatch_buffer import MinibatchBuffer
 from ray.rllib.utils.timer import TimerStat
 from ray.rllib.utils.window_stat import WindowStat
+from six.moves import queue
 
 
 class LearnerThread(threading.Thread):
@@ -53,7 +52,7 @@ class LearnerThread(threading.Thread):
         self.load_wait_timer = TimerStat()
         self.daemon = True
         self.weights_updated = False
-        self.stats = {}
+        self.stats = {"train_timesteps": 0}
         self.stopped = False
         self.num_steps = 0
 
@@ -68,7 +67,9 @@ class LearnerThread(threading.Thread):
         with self.grad_timer:
             fetches = self.local_worker.learn_on_batch(batch)
             self.weights_updated = True
-            self.stats = get_learner_stats(fetches)
+            self.stats.update(get_learner_stats(fetches))
+            self.stats["train_timesteps"] += batch.count
+            self.stats["update_steps"] = self.num_steps
 
         self.num_steps += 1
         self.outqueue.put(batch.count)

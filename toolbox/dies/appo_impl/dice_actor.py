@@ -56,6 +56,7 @@ class DRAggregatorBase:
         self.num_sent_since_broadcast = 0
         self.num_weight_syncs = 0
         self.num_replayed = 0
+        self.sample_timesteps = 0
 
     def start(self):
         # Kick off async background sampling
@@ -91,6 +92,7 @@ class DRAggregatorBase:
                 else:
                     train_batch = self.batch_buffer[0].concat_samples(
                         self.batch_buffer)
+                self.sample_timesteps += train_batch.count
                 yield train_batch
 
                 self.batch_buffer = []
@@ -122,6 +124,7 @@ class DRAggregatorBase:
         return {
             "num_weight_syncs": self.num_weight_syncs,
             "num_steps_replayed": self.num_replayed,
+            "sample_timesteps": self.sample_timesteps
         }
 
     @override(Aggregator)

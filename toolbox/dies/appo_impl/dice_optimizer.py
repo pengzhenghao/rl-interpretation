@@ -248,6 +248,9 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             stats["learner_queue"] = learner.learner_queue_size.stats()
             if learner.stats:
                 learner_info["policy{}".format(ws_id)] = learner.stats
+                learner_info["policy{}".format(ws_id)]["sample_timesteps"] = \
+                    stats["sample_timesteps"]
+            stats.pop("sample_timesteps")
 
             stats_list.append(stats)
 
