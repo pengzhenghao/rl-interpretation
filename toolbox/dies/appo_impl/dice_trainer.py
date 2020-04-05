@@ -176,10 +176,10 @@ def make_aggregators_and_optimizer(workers, config):
 
     optimizer = AsyncSamplesOptimizer(
         workers,
-        lr=config["lr"],
-        num_gpus=config["num_gpus"],
-        sample_batch_size=config["sample_batch_size"],
         train_batch_size=config["train_batch_size"],
+        sample_batch_size=config["sample_batch_size"],
+        # lr=config["lr"],
+        num_gpus=config["num_gpus"],
         replay_buffer_num_slots=config["replay_buffer_num_slots"],
         replay_proportion=config["replay_proportion"],
         num_data_loader_buffers=config["num_data_loader_buffers"],
@@ -187,10 +187,13 @@ def make_aggregators_and_optimizer(workers, config):
             "max_sample_requests_in_flight_per_worker"],
         broadcast_interval=config["broadcast_interval"],
         num_sgd_iter=config["num_sgd_iter"],
-        minibatch_buffer_size=config["minibatch_buffer_size"],
-        num_aggregation_workers=config["num_aggregation_workers"],
+        sgd_minibatch_size=config["sgd_minibatch_size"],
+        # minibatch_buffer_size=config["minibatch_buffer_size"],
         learner_queue_size=config["learner_queue_size"],
         learner_queue_timeout=config["learner_queue_timeout"],
+        num_aggregation_workers=config["num_aggregation_workers"],
+        shuffle_sequences=config["shuffle_sequences"],
+        sync_sampling=config["sync_sampling"],
         **config["optimizer"])
 
     if aggregators:

@@ -24,14 +24,27 @@ dice_appo_default_config = merge_dicts(
         DIVERSITY_REWARD_TYPE: "mse",
 
         "num_agents": 1,  # Control the agent population size
+        "num_sgd_iter": 10,  # In PPO this is 10
+        # "minibatch_buffer_size": 1,
+        "train_batch_size": 500,
+        "sample_batch_size": 50,
+
         "tau": 5e-3,
         "clip_param": 0.3,
-        "lr": 1e-4,
-        "num_sgd_iter": 2,  # In PPO this is 10
-        "max_sample_requests_in_flight_per_worker": 1,  # originally 2
-        "replay_buffer_num_slots": 0,  # disable replay
-        "vf_loss_coeff": 1.0,
-        "train_batch_size": 500,
-        "sample_batch_size": 50
+
+        "lr": 5e-4,
+        "max_sample_requests_in_flight_per_worker": 2,  # originally 2
+        "shuffle_sequences": True,
+
+        "sgd_minibatch_size": 128,
+
+        "sync_sampling": False
+
+        # "replay_buffer_num_slots": 0,  # disable replay
+        # "broadcast_interval": 1,
+        # "num_data_loader_buffers": 1,
+        # "vf_loss_coeff": 0.5,
+        # "vtrace": False,
+
     }
 )

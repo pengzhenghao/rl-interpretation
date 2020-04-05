@@ -30,19 +30,21 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                  workers,
                  train_batch_size=500,
                  sample_batch_size=50,
-                 num_envs_per_worker=1,
+                 # num_envs_per_worker=1,
                  num_gpus=0,
-                 lr=0.0005,
+                 # lr=0.0005,
                  replay_buffer_num_slots=0,
                  replay_proportion=0.0,
                  num_data_loader_buffers=1,
                  max_sample_requests_in_flight_per_worker=2,
                  broadcast_interval=1,
                  num_sgd_iter=1,
-                 minibatch_buffer_size=1,
+                 sgd_minibatch_size=1,
                  learner_queue_size=16,
                  learner_queue_timeout=300,
                  num_aggregation_workers=0,
+                 shuffle_sequences=True,
+                 sync_sampling=False,
                  _fake_gpus=False):
         PolicyOptimizer.__init__(self, workers)
 
@@ -82,10 +84,14 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             else:
                 learner = LearnerThread(
                     ws.local_worker(),
-                    minibatch_buffer_size=minibatch_buffer_size,
+                    sgd_minibatch_size=sgd_minibatch_size,
+                    # minibatch_buffer_size=minibatch_buffer_size,
                     num_sgd_iter=num_sgd_iter,
                     learner_queue_size=learner_queue_size,
-                    learner_queue_timeout=learner_queue_timeout)
+                    learner_queue_timeout=learner_queue_timeout,
+                    train_batch_size=train_batch_size,
+                    sync_sampling=sync_sampling
+                )
             learner.start()
             self.learner_set[ws_id] = learner
 
@@ -110,9 +116,15 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                     replay_buffer_num_slots=replay_buffer_num_slots,
                     train_batch_size=train_batch_size,
                     sample_batch_size=sample_batch_size,
-                    broadcast_interval=broadcast_interval)
+                    broadcast_interval=broadcast_interval,
+                    sync_sampling=sync_sampling
+                )
             self.aggregator_set[ws_id] = aggregator
         self.train_batch_size = train_batch_size
+        self.shuffle_sequences = shuffle_sequences
+        self.sync_sampling = sync_sampling
+        print("===== Do you in sync sampling mode? {} =====".format(
+            sync_sampling))
 
         # Stats
         self._optimizer_step_timer = TimerStat()
@@ -145,7 +157,8 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
     def step(self):
 
         # workaround to start all sampling jobs
-        if not self.aggregator_set[0].started:
+        if not self.aggregator_set[0].started or self.sync_sampling:
+            print("Kick off the sampling from optimizer.step")
             for aggregator in self.aggregator_set.values():
                 aggregator.start()
 
@@ -284,16 +297,21 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             sample_timesteps[ws_id] = 0
             train_timesteps[ws_id] = 0
 
+            batch_count = 0
             for train_batch in aggregator.iter_train_batches():
+                batch_count += 1
                 sample_timesteps[ws_id] += train_batch.count
                 learner.inqueue.put(train_batch)
+
                 if (learner.weights_updated
                         and aggregator.should_broadcast()):
                     aggregator.broadcast_new_weights()
 
         for ws_id, learner in self.learner_set.items():
+            batch_count = 0
             while not learner.outqueue.empty():
                 count = learner.outqueue.get()
+                batch_count += 1
                 train_timesteps[ws_id] += count
 
         return sample_timesteps, train_timesteps

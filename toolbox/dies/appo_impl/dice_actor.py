@@ -16,7 +16,8 @@ class DRAggregatorBase:
 
     def __init__(self, initial_weights_obj_id, remote_workers,
                  max_sample_requests_in_flight_per_worker, replay_proportion,
-                 replay_buffer_num_slots, train_batch_size, sample_batch_size):
+                 replay_buffer_num_slots, train_batch_size, sample_batch_size,
+                 sync_sampling=False):
         """Initialize an aggregator.
 
         Arguments:
@@ -59,6 +60,8 @@ class DRAggregatorBase:
         self.num_replayed = 0
         self.sample_timesteps = 0
 
+        self.sync_sampling = sync_sampling
+
     def start(self):
         # Kick off async background sampling
         for ev in self.remote_workers:
@@ -83,8 +86,7 @@ class DRAggregatorBase:
                     blocking_wait=True, max_yield=max_yield)):
             sample_batch.decompress_if_needed()
             self.batch_buffer.append(sample_batch)
-            if sum(b.count
-                   for b in self.batch_buffer) >= self.train_batch_size:
+            if sum(b.count for b in self.batch_buffer) >= self.train_batch_size:
                 if len(self.batch_buffer) == 1:
                     # make a defensive copy to avoid sharing plasma memory
                     # across multiple threads
@@ -93,7 +95,14 @@ class DRAggregatorBase:
                     train_batch = self.batch_buffer[0].concat_samples(
                         self.batch_buffer)
                 self.sample_timesteps += train_batch.count
-                yield train_batch
+
+                if self.sync_sampling:
+                    # If sync sampling is set, return batch and then stop.
+                    # You need to call start at the outside.
+                    # return [train_batch]
+                    yield train_batch
+                else:
+                    yield train_batch
 
                 self.batch_buffer = []
 
@@ -112,10 +121,10 @@ class DRAggregatorBase:
 
             ev.set_weights.remote(self.broadcasted_weights)
             self.num_weight_syncs += 1
-
             self.num_sent_since_broadcast += 1
 
             # Kick off another sample request
+            print("Yes we kick off sampling now!")
             self.sample_tasks.add(ev, ev.sample.remote())
 
     @override(Aggregator)
@@ -159,7 +168,9 @@ class DRAggregator(DRAggregatorBase, Aggregator):
                  replay_buffer_num_slots=0,
                  train_batch_size=500,
                  sample_batch_size=50,
-                 broadcast_interval=5):
+                 broadcast_interval=5,
+                 sync_sampling=False
+                 ):
         self.workers = workers
         self.local_worker = workers.local_worker()
         self.broadcast_interval = broadcast_interval
@@ -167,7 +178,8 @@ class DRAggregator(DRAggregatorBase, Aggregator):
         DRAggregatorBase.__init__(
             self, self.broadcasted_weights, self.workers.remote_workers(),
             max_sample_requests_in_flight_per_worker, replay_proportion,
-            replay_buffer_num_slots, train_batch_size, sample_batch_size)
+            replay_buffer_num_slots, train_batch_size, sample_batch_size,
+            sync_sampling)
 
     @override(Aggregator)
     def broadcast_new_weights(self):

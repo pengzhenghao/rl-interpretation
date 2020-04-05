@@ -15,7 +15,7 @@ if __name__ == '__main__':
     parser.add_argument("--old", action="store_true")
     args = parser.parse_args()
 
-    local_mode = False
+    local_mode = True
     env_name = "MountainCarContinuous-v0"
     dir_path = tempfile.mkdtemp()
     now = time.time()
@@ -52,11 +52,11 @@ if __name__ == '__main__':
         config = {
             "env": env_name,
             # "num_gpus": 1,
-            "train_batch_size": 500,
-            "sample_batch_size": 50,
-            "num_workers": 5,
-            "num_agents": 5,
-            "num_envs_per_worker": 10,
+            "train_batch_size": 100,
+            "sample_batch_size": 20,
+            "num_workers": 1,
+            "num_agents": 1,
+            "num_envs_per_worker": 1,
             old_const.USE_BISECTOR: False
         }
         ret = tune.run(

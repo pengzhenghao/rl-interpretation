@@ -141,7 +141,7 @@ def _test_dice(
         "sample_batch_size": 20,
         "train_batch_size": 100,
         "num_sgd_iter": 10,
-        "num_workers": 3
+        "num_workers": num_agents
     }
 
     if extra_config:
@@ -188,4 +188,14 @@ class DiCETest(unittest.TestCase):
 
 if __name__ == "__main__":
     # pytest.main(["-v"])
-    _test_dice({"lr": 0.01}, local_mode=True, t=20000, env_name='CartPole-v0')
+    _test_dice(dict(
+        num_envs_per_worker=5,
+        sample_batch_size=10,
+        train_batch_size=50,
+        sgd_minibatch_size=10
+    ),
+        local_mode=True,
+        t=500000,
+        num_agents=1,
+        env_name='CartPole-v0'
+    )
