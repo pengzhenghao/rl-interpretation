@@ -20,6 +20,7 @@ def train(
         suffix="",
         checkpoint_freq=10,
         keep_checkpoints_num=None,
+        start_seed=0,
         **kwargs
 ):
     # initialize ray
@@ -27,7 +28,8 @@ def train(
 
     # prepare config
     config = {
-        "seed": tune.grid_search([i * 100 for i in range(num_seeds)]),
+        "seed": tune.grid_search(
+            [i * 100 + start_seed for i in range(num_seeds)]),
         "log_level": "DEBUG" if test_mode else "INFO"
     }
     if extra_config:

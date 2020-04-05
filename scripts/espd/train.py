@@ -72,8 +72,8 @@ if __name__ == '__main__':
 
     algo_specify_stop = {
         "PPO": 1e7,
-        "ES": 5e8,
-        "ARS": 5e8,
+        "ES": 1e9,
+        "ARS": 1e9,
         "A2C": 5e7,
         "A3C": 5e7,
         "IMPALA": 5e7
@@ -87,14 +87,14 @@ if __name__ == '__main__':
         "vf_share_layers": False,
         "custom_action_dist": GaussianMixture.name,
         "custom_options": {
-            "num_components": tune.grid_search([2, 3])
+            "num_components": tune.grid_search([2, 3, 5])
         }
     }
 
     if algo in ["ES", "ARS"]:
         config["num_gpus"] = 0
         config["num_cpus_per_worker"] = 0.5
-        config["num_workers"] = 10
+        config["num_workers"] = 20
 
     train(
         get_dynamic_trainer(algo),
