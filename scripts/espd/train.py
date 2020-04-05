@@ -29,14 +29,12 @@ def get_dynamic_trainer(algo):
 if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--algo", type=str, required=True)
-    parser.add_argument("--init-seed", type=int, default=2020)
     args = parser.parse_args()
 
     algo = args.algo
     test = args.test
-    exp_name = "{}-{}-initseed{}-{}seeds".format(args.exp_name, algo,
-                                                 args.init_seed,
-                                                 args.num_seeds)
+    exp_name = "{}-{}-{}-{}seeds".format(args.exp_name, algo,
+                                         args.env_name, args.num_seeds)
 
     algo_specify_config = {
         "PPO": {
@@ -90,6 +88,8 @@ if __name__ == '__main__':
             "num_components": tune.grid_search([2, 3, 5])
         }
     }
+
+    config["env"] = args.env_name
 
     if algo in ["ES", "ARS"]:
         config["num_gpus"] = 0
