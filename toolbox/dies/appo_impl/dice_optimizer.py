@@ -13,7 +13,8 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.utils.timer import TimerStat
 
 from toolbox.dies.appo_impl.dice_actor import DRAggregator
-from toolbox.dies.appo_impl.dice_learner import LearnerThread
+from toolbox.dies.appo_impl.dice_learner import AsyncLearnerThread, \
+    SyncLearnerThread
 from toolbox.dies.appo_impl.dice_workers import SuperWorkerSet
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                  num_aggregation_workers=0,
                  shuffle_sequences=True,
                  sync_sampling=False,
+                 minibatch_buffer_size=1,
                  _fake_gpus=False):
         PolicyOptimizer.__init__(self, workers)
 
@@ -54,6 +56,8 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
 
         self.learner_set = {}
         self.aggregator_set = {}
+
+        self.sync_sampling = sync_sampling
 
         assert isinstance(workers, SuperWorkerSet)
 
@@ -82,16 +86,25 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                 #     _fake_gpus=_fake_gpus)
                 raise NotImplementedError()
             else:
-                learner = LearnerThread(
-                    ws.local_worker(),
-                    sgd_minibatch_size=sgd_minibatch_size,
-                    # minibatch_buffer_size=minibatch_buffer_size,
-                    num_sgd_iter=num_sgd_iter,
-                    learner_queue_size=learner_queue_size,
-                    learner_queue_timeout=learner_queue_timeout,
-                    train_batch_size=train_batch_size,
-                    sync_sampling=sync_sampling
-                )
+                if self.sync_sampling:
+                    learner = SyncLearnerThread(
+                        ws.local_worker(),
+                        minibatch_buffer_size=minibatch_buffer_size,
+                        num_sgd_iter=num_sgd_iter,
+                        learner_queue_size=learner_queue_size,
+                        learner_queue_timeout=learner_queue_timeout,
+                        num_gpus=num_gpus,
+                        sgd_batch_size=sgd_minibatch_size
+                    )
+                    print("==11== Set up sync learner! ==11==")
+                else:
+                    learner = AsyncLearnerThread(
+                        ws.local_worker(),
+                        minibatch_buffer_size=minibatch_buffer_size,
+                        num_sgd_iter=num_sgd_iter,
+                        learner_queue_size=learner_queue_size,
+                        learner_queue_timeout=learner_queue_timeout,
+                    )
             learner.start()
             self.learner_set[ws_id] = learner
 
@@ -122,7 +135,6 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             self.aggregator_set[ws_id] = aggregator
         self.train_batch_size = train_batch_size
         self.shuffle_sequences = shuffle_sequences
-        self.sync_sampling = sync_sampling
         print("===== Do you in sync sampling mode? {} =====".format(
             sync_sampling))
 
@@ -269,9 +281,10 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             stats["learner_queue"] = learner.learner_queue_size.stats()
             if learner.stats:
                 learner_info["policy{}".format(ws_id)] = learner.stats
-                learner_info["policy{}".format(ws_id)]["train_timesteps"] = \
-                    int(learner.stats[
-                            "train_timesteps"] // learner.num_sgd_iter)
+                if not self.sync_sampling:
+                    learner_info["policy{}".format(ws_id)]["train_timesteps"] \
+                        = int(learner.stats[
+                                  "train_timesteps"] // learner.num_sgd_iter)
                 learner_info["policy{}".format(ws_id)]["sample_timesteps"] = \
                     stats["sample_timesteps"]
                 learner_info["policy{}".format(ws_id)]["training_iteration"] = \
@@ -318,7 +331,9 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             batch_count, step_count = \
                 _get_train_result_from_learner(learner, self.sync_sampling)
 
-            train_timesteps[ws_id] += int(step_count // learner.num_sgd_iter)
+            if not self.sync_sampling:
+                train_timesteps[ws_id] += int(
+                    step_count // learner.num_sgd_iter)
 
         if self.sync_sampling:
             print("Kick off the sampling from optimizer.step")
@@ -360,8 +375,6 @@ def _get_train_result_from_learner(learner, force_sychronize=False):
                 print("Get {} batch from learner output queue.".format(
                     batch_count))
                 step_count += count
-
-        time.sleep(5.0)
 
         if (not force_sychronize) or learner_finished:
             break

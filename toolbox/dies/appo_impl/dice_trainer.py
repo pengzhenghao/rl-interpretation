@@ -52,6 +52,15 @@ def validate_config(config):
     # validate other elements of IMPALA config
     original_validate(config)
 
+    # sgd_minibatch_size should be divisible by the sample_batch_size in
+    # sync mode.
+    if config["sync_sampling"]:
+        assert config['sgd_minibatch_size'] % (
+            config['sample_batch_size']) == 0, \
+            "sgd_minibatch_size: {}, num_agents: {}, sample_batch_size: {}" \
+            "".format(config['sgd_minibatch_size'], config['num_agents'],
+                      config['sample_batch_size'])
+
 
 def _convert_weights(weights, new_name, old_name=DEFAULT_POLICY_ID):
     assert isinstance(weights, dict)
@@ -188,7 +197,7 @@ def make_aggregators_and_optimizer(workers, config):
         broadcast_interval=config["broadcast_interval"],
         num_sgd_iter=config["num_sgd_iter"],
         sgd_minibatch_size=config["sgd_minibatch_size"],
-        # minibatch_buffer_size=config["minibatch_buffer_size"],
+        minibatch_buffer_size=config["minibatch_buffer_size"],
         learner_queue_size=config["learner_queue_size"],
         learner_queue_timeout=config["learner_queue_timeout"],
         num_aggregation_workers=config["num_aggregation_workers"],

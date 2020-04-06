@@ -32,10 +32,12 @@ dice_appo_default_config = merge_dicts(
         "clip_param": 0.3,
 
         "lr": 5e-4,
+        # TODO maybe we should force this to 1 in sync mode.
         "max_sample_requests_in_flight_per_worker": 2,  # originally 2
+
         "shuffle_sequences": True,
 
-        "sgd_minibatch_size": 128,
+        "sgd_minibatch_size": 200,
 
         "sync_sampling": False
 

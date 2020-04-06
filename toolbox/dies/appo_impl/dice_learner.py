@@ -1,19 +1,37 @@
 """Helper class for AsyncSamplesOptimizer."""
 
 import logging
+import math
 import threading
 import time
+from collections import defaultdict
 
-from ray.rllib.evaluation.metrics import get_learner_stats
+import numpy as np
+from ray.rllib.evaluation.metrics import LEARNER_STATS_KEY, get_learner_stats
 # from ray.rllib.optimizers.aso_minibatch_buffer import MinibatchBuffer
+from ray.rllib.optimizers.multi_gpu_impl import LocalSyncParallelOptimizer
+from ray.rllib.policy.sample_batch import SampleBatch, DEFAULT_POLICY_ID, \
+    MultiAgentBatch
+from ray.rllib.utils import try_import_tf
 from ray.rllib.utils.timer import TimerStat
 from ray.rllib.utils.window_stat import WindowStat
 from six.moves import queue
 
+
+def _averaged(kv):
+    out = {}
+    for k, v in kv.items():
+        if v[0] is not None and not isinstance(v[0], dict):
+            out[k] = np.mean(v)
+    return out
+
+
+tf = try_import_tf()
+
 logger = logging.getLogger(__file__)
 
 
-class LearnerThread(threading.Thread):
+class AsyncLearnerThread(threading.Thread):
     """Background thread that updates the local model from sample trajectories.
 
     This is for use with AsyncSamplesOptimizer.
@@ -24,9 +42,8 @@ class LearnerThread(threading.Thread):
     improves overall throughput.
     """
 
-    def __init__(self, local_worker, sgd_minibatch_size, num_sgd_iter,
-                 learner_queue_size, learner_queue_timeout, train_batch_size=1,
-                 sync_sampling=False):
+    def __init__(self, local_worker, minibatch_buffer_size, num_sgd_iter,
+                 learner_queue_size, learner_queue_timeout):
         """Initialize the learner thread.
 
         Arguments:
@@ -45,27 +62,12 @@ class LearnerThread(threading.Thread):
         self.local_worker = local_worker
         self.inqueue = queue.Queue(maxsize=learner_queue_size)
         self.outqueue = queue.Queue()
-
-        # self.num_batches = max(
-        #     1, int(train_batch_size) // int(sgd_minibatch_size))
-
-        if not sync_sampling:
-            self.minibatch_buffer = MinibatchBuffer(
-                inqueue=self.inqueue,
-                size=1,  # TODO this is set to 1
-                timeout=learner_queue_timeout,
-                num_sgd_iter=num_sgd_iter,
-                init_num_passes=num_sgd_iter)
-        else:
-            # TODO change the name of this buffer
-            self.minibatch_buffer = MinibatchBufferNew(
-                inqueue=self.inqueue,
-                train_batch_size=train_batch_size,
-                timeout=learner_queue_timeout,
-                num_sgd_iter=num_sgd_iter,
-                shuffle=True,  # TODO set a flog for this
-                mini_batch_size=sgd_minibatch_size
-            )
+        self.minibatch_buffer = MinibatchBuffer(
+            inqueue=self.inqueue,
+            size=minibatch_buffer_size,
+            timeout=learner_queue_timeout,
+            num_sgd_iter=num_sgd_iter,
+            init_num_passes=num_sgd_iter)
 
         self.queue_timer = TimerStat()
         self.grad_timer = TimerStat()
@@ -76,9 +78,7 @@ class LearnerThread(threading.Thread):
         self.stats = {"train_timesteps": 0}
         self.stopped = False
         self.num_steps = 0
-
         self.num_sgd_iter = num_sgd_iter
-        self.sync_sampling = sync_sampling
 
     def run(self):
         while not self.stopped:
@@ -87,7 +87,6 @@ class LearnerThread(threading.Thread):
     def step(self):
         with self.queue_timer:
             batch, _ = self.minibatch_buffer.get()
-
         with self.grad_timer:
             fetches = self.local_worker.learn_on_batch(batch)
             self.weights_updated = True
@@ -95,20 +94,157 @@ class LearnerThread(threading.Thread):
             self.stats["train_timesteps"] += batch.count
             self.num_steps += 1
             self.stats["update_steps"] = self.num_steps
-
-        # self.outqueue.put(batch.count)
-
-        # Since all batch are repeated num_sgd_iter times, so as a workaround,
-        # we divide the reported trained steps by num_sgd_iter
         self.outqueue.put(batch.count)
         self.learner_queue_size.push(self.inqueue.qsize())
 
-        print("Finish {} steps in learner. Current minibatch size: {}. "
-              "This batch size {}".format(
-            self.num_steps, self.minibatch_buffer._debug_size(), batch.count
-        ))
 
-        if self.sync_sampling and self.minibatch_buffer.is_empty():
+class SyncLearnerThread(threading.Thread):
+    """Background thread that updates the local model from sample trajectories.
+
+    PZH: We wish to mock the behavior of a normal PPO pipeline. This mean that,
+    allowing multiple SGD epochs and mini-batching within each SGD epochs.
+    These requirements are not supported by current APPO implementation.
+
+    The learner thread communicates with the main thread through Queues. This
+    is needed since Ray operations can only be run on the main thread. In
+    addition, moving heavyweight gradient ops session runs off the main thread
+    improves overall throughput.
+    """
+
+    def __init__(self, local_worker, minibatch_buffer_size, num_sgd_iter,
+                 learner_queue_size, learner_queue_timeout, num_gpus,
+                 sgd_batch_size):
+        threading.Thread.__init__(self)
+        self.learner_queue_size = WindowStat("size", 50)
+        self.local_worker = local_worker
+        self.inqueue = queue.Queue(maxsize=learner_queue_size)
+        self.outqueue = queue.Queue()
+
+        self.minibatch_buffer = MinibatchBuffer(
+            inqueue=self.inqueue,
+            size=1,
+            # size=minibatch_buffer_size,
+            timeout=learner_queue_timeout,
+            # num_sgd_iter=num_sgd_iter,
+            num_sgd_iter=1,
+            init_num_passes=1)
+
+        self.queue_timer = TimerStat()
+        self.grad_timer = TimerStat()
+        self.load_timer = TimerStat()
+        self.load_wait_timer = TimerStat()
+        self.daemon = True
+        self.weights_updated = False
+        self.stats = {"train_timesteps": 0}
+        self.stopped = False
+        self.num_steps = 0
+        self.num_sgd_iter = num_sgd_iter
+
+        # ===== Copied the initialization in multi_gpu_optimizer
+        if not num_gpus:
+            self.devices = ["/cpu:0"]
+        else:
+            self.devices = [
+                "/gpu:{}".format(i) for i in range(int(math.ceil(num_gpus)))
+            ]
+
+        self.batch_size = int(sgd_batch_size / len(self.devices)) * len(
+            self.devices)
+        assert self.batch_size % len(self.devices) == 0
+        assert self.batch_size >= len(self.devices), "batch size too small"
+        self.per_device_batch_size = int(self.batch_size / len(self.devices))
+
+        self.policies = dict(
+            local_worker.foreach_trainable_policy(lambda p, i: (i, p)))
+
+        self.optimizers = {}
+        with local_worker.tf_sess.graph.as_default():
+            with local_worker.tf_sess.as_default():
+                for policy_id, policy in self.policies.items():
+                    with tf.variable_scope(policy_id, reuse=tf.AUTO_REUSE):
+                        if policy._state_inputs:
+                            rnn_inputs = policy._state_inputs + [
+                                policy._seq_lens
+                            ]
+                        else:
+                            rnn_inputs = []
+                        self.optimizers[policy_id] = (
+                            LocalSyncParallelOptimizer(
+                                policy._optimizer, self.devices,
+                                [v
+                                 for _, v in policy._loss_inputs], rnn_inputs,
+                                self.per_device_batch_size, policy.copy))
+                self.sess = local_worker.tf_sess
+                self.sess.run(tf.global_variables_initializer())
+
+    def run(self):
+        while not self.stopped:
+            self.step()
+
+    def step(self):
+        with self.queue_timer:
+            batch, _ = self.minibatch_buffer.get()
+            # Handle everything as if multiagent
+            if isinstance(batch, SampleBatch):
+                batch = MultiAgentBatch({
+                    DEFAULT_POLICY_ID: batch
+                }, batch.count)
+
+            # TODO maybe we should do the normalization here
+
+        num_loaded_tuples = {}
+        with self.load_timer:
+            for policy_id, batch in batch.policy_batches.items():
+                if policy_id not in self.policies:
+                    continue
+
+                policy = self.policies[policy_id]
+                policy._debug_vars()
+                tuples = policy._get_loss_inputs_dict(
+                    batch, shuffle=True)
+                data_keys = [ph for _, ph in policy._loss_inputs]
+                if policy._state_inputs:
+                    state_keys = policy._state_inputs + [policy._seq_lens]
+                else:
+                    state_keys = []
+                num_loaded_tuples[policy_id] = (
+                    self.optimizers[policy_id].load_data(
+                        self.sess, [tuples[k] for k in data_keys],
+                        [tuples[k] for k in state_keys]))
+
+        fetches = {}
+        with self.grad_timer:
+            for policy_id, tuples_per_device in num_loaded_tuples.items():
+                optimizer = self.optimizers[policy_id]
+                num_batches = max(
+                    1,
+                    int(tuples_per_device) // int(self.per_device_batch_size))
+                logger.debug("== sgd epochs for {} ==".format(policy_id))
+                print("== sgd epochs for {} ==".format(policy_id))
+                for i in range(self.num_sgd_iter):
+                    iter_extra_fetches = defaultdict(list)
+                    permutation = np.random.permutation(num_batches)
+                    for batch_index in range(num_batches):
+                        batch_fetches = optimizer.optimize(
+                            self.sess, permutation[batch_index] *
+                                       self.per_device_batch_size)
+                        for k, v in batch_fetches[LEARNER_STATS_KEY].items():
+                            iter_extra_fetches[k].append(v)
+                    logger.debug(
+                        "{} {}".format(i, _averaged(iter_extra_fetches)))
+                    print("{} {}".format(i, _averaged(iter_extra_fetches)))
+                fetches[policy_id] = _averaged(iter_extra_fetches)
+
+        # Not support multiagent recording now.
+        self.stats.update(fetches["default_policy"])
+        self.stats["train_timesteps"] += tuples_per_device
+        self.num_steps += 1
+        self.stats["update_steps"] = self.num_steps
+
+        self.outqueue.put(batch.count)
+        self.learner_queue_size.push(self.inqueue.qsize())
+
+        if self.minibatch_buffer.is_empty():
             # Send signal to optimizer
             self.outqueue.put(None)
 
@@ -161,8 +297,11 @@ class MinibatchBuffer:
         self.idx = (self.idx + 1) % len(self.buffers)
         return buf, released
 
+    def is_empty(self):
+        return all(d is None for d in self.buffers)
 
-class MinibatchBufferNew:
+
+class MinibatchBufferNewDeprecated:
     """Ring buffer of recent data batches for minibatch SGD.
 
     This is for use with AsyncSamplesOptimizer.
