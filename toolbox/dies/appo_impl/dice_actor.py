@@ -124,9 +124,6 @@ class DRAggregatorBase:
                     self.replay_index %= self.replay_buffer_num_slots
 
             if already_sent_out and self.sync_sampling:
-                print(
-                    "In actor, we detect you have already sent out training "
-                    "batch. So we stop launching more sampling.")
                 continue
 
             ev.set_weights.remote(self.broadcasted_weights)
@@ -134,16 +131,10 @@ class DRAggregatorBase:
             self.num_sent_since_broadcast += 1
 
             # Kick off another sample request
-            print("In actor, Yes we kick off sampling now!")
             self.sample_tasks.add(ev, ev.sample.remote())
 
         if self.sync_sampling and (not _recursive_called):
-            print("DEBUG ===== We are tryting to exhaust the task pool! "
-                  "Current count: ", self.sample_tasks.count)
-            debug_cnt = 0
             while self.sample_tasks.count > 0:
-                debug_cnt += 1
-                print("DEBUG ===== retry {} times.".format(debug_cnt))
                 # A tricky way to force exhaust the task pool
                 for train_batch in self.iter_train_batches(
                         max_yield, _recursive_called=True):

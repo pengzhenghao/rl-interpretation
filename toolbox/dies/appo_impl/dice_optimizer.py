@@ -96,7 +96,6 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                         num_gpus=num_gpus,
                         sgd_batch_size=sgd_minibatch_size
                     )
-                    print("==11== Set up sync learner! ==11==")
                 else:
                     learner = AsyncLearnerThread(
                         ws.local_worker(),
@@ -136,7 +135,7 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             self.aggregator_set[ws_id] = aggregator
         self.train_batch_size = train_batch_size
         self.shuffle_sequences = shuffle_sequences
-        print("===== Do you in sync sampling mode? {} =====".format(
+        logger.debug("===== Do you in sync sampling mode? {} =====".format(
             sync_sampling))
 
         # Stats
@@ -173,7 +172,7 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         # TODO you need to make sure even in sync mode the sampling is launch
         # automatically, after waiting for learner to finish one iter.
         if not self.aggregator_set[0].started:
-            print("Kick off the sampling from optimizer.step")
+            logger.debug("Kick off the sampling from optimizer.step")
             for aggregator in self.aggregator_set.values():
                 aggregator.start()
 
@@ -312,26 +311,18 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                 self.learner_set.items()
         ):
             assert ws_id == ws_id2
-
             sample_timesteps[ws_id] = 0
             train_timesteps[ws_id] = 0
 
-            # while True:
             batch_count, step_count = _send_train_batch_to_learner(
                 aggregator, learner)
-
             if self.sync_sampling:
-                assert batch_count > 0
-                assert step_count > 0
-
-            print("Send {} batch with {} steps to learner".format(
-                batch_count, step_count))
+                assert batch_count > 0 and step_count > 0
             sample_timesteps[ws_id] += step_count
 
         for ws_id, learner in self.learner_set.items():
             batch_count, step_count = \
                 _get_train_result_from_learner(learner, self.sync_sampling)
-
             if not self.sync_sampling:
                 train_timesteps[ws_id] += int(
                     step_count // learner.num_sgd_iter)
@@ -339,7 +330,6 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                 train_timesteps[ws_id] += int(step_count)
 
         if self.sync_sampling:
-            print("Kick off the sampling from optimizer.step")
             for aggregator in self.aggregator_set.values():
                 aggregator.start()
 
@@ -360,32 +350,22 @@ def _send_train_batch_to_learner(aggregator, learner):
     return batch_count, step_count
 
 
-def _get_train_result_from_learner(learner, force_sychronize=False):
+def _get_train_result_from_learner(learner, sync_sampling):
     batch_count = 0
     step_count = 0
     learner_finished = False
     while True:
-        while not learner.outqueue.empty():
-            count = learner.outqueue.get()
-            if count is None:
-                # This only happen in sync mode when train batch is exhaust
-                # trained!
-                # return batch_count, step_count, True
-                learner_finished = True
-                assert learner.outqueue.empty()
-            else:
-                batch_count += 1
-                print("Get {} batch from learner output queue.".format(
-                    batch_count))
-                step_count += count
-
-        if (not force_sychronize) or learner_finished:
+        count = learner.outqueue.get(block=True)
+        if count is None:
+            # This only happen in sync mode when train batch is exhaust
+            # trained!
+            learner_finished = True
+            assert learner.outqueue.empty()
+        else:
+            batch_count += 1
+            step_count += count
+        if (not sync_sampling) or learner_finished:
             break
-    print(
-        "Return now. We have {} batches and {} steps during this learning "
-        "iter.".format(
-            batch_count, step_count
-        ))
     return batch_count, step_count
 
 

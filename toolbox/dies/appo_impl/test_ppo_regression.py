@@ -34,6 +34,7 @@ if __name__ == '__main__':
             "num_workers": 1,
             "num_gpus": num_gpus,
             "num_envs_per_worker": 10,
+            "sgd_minibatch_size": 200
         }
         ret = tune.run(
             "PPO",
@@ -78,6 +79,11 @@ if __name__ == '__main__':
             "num_envs_per_worker": 10,
             old_const.USE_BISECTOR: False,
             "lr": 5e-5,
+
+            # PPO config
+            "grad_clip": None,
+            "vf_loss_coeff": 1.0,
+            "entropy_coeff": 0.0,
 
             # Special setting for sync sampling mode
             "sync_sampling": True,

@@ -3,7 +3,6 @@
 import logging
 import math
 import threading
-import time
 from collections import defaultdict
 
 import numpy as np
@@ -241,7 +240,6 @@ class SyncLearnerThread(threading.Thread):
 
         self.outqueue.put(batch.count)
         self.learner_queue_size.push(self.inqueue.qsize())
-
         self.weights_updated = True
 
         if self.minibatch_buffer.is_empty():
@@ -299,112 +297,3 @@ class MinibatchBuffer:
 
     def is_empty(self):
         return all(d is None for d in self.buffers)
-
-
-class MinibatchBufferNewDeprecated:
-    """Ring buffer of recent data batches for minibatch SGD.
-
-    This is for use with AsyncSamplesOptimizer.
-
-    Copied from ray/rllib/optimizers/aso_minibatch_buffer.py
-    Rewrite to allow mini batching in one SGD epoch
-    """
-
-    def __init__(self, inqueue, train_batch_size, timeout, num_sgd_iter,
-                 # init_num_passes=1,
-                 shuffle=False, mini_batch_size=1):
-        """Initialize a minibatch buffer.
-
-        Arguments:
-           inqueue: Queue to populate the internal ring buffer from.
-           size: Max number of data items to buffer.
-           timeout: Queue timeout
-           num_sgd_iter: Max num times each data item should be emitted.
-           init_num_passes: Initial max passes for each data item
-       """
-        self.inqueue = inqueue
-
-        self.mini_batch_size = mini_batch_size
-        self.train_batch_size = train_batch_size
-        self.num_minibatch = max(
-            1, int(train_batch_size) // int(mini_batch_size))
-
-        print("***** Number of minibatch: {} *****".format(self.num_minibatch))
-        print("***** Number of sgd iter: {} *****".format(num_sgd_iter))
-
-        self.timeout = timeout
-        self.max_ttl = num_sgd_iter
-        # self.cur_max_ttl = init_num_passes
-        self.buffers = [None] * self.num_minibatch
-        self.ttl = [0] * self.num_minibatch
-        self.idx = 0
-        self.shuffle = shuffle
-
-        self._debug_count = 0
-        self._debug_count_batch = 0
-        self._debug_time = time.time()
-
-    def load(self):
-        """Split the train batch into mini batches"""
-
-        # print("***** ===== Current {} ===== *****".format(self._debug_count))
-
-        self._debug_count_batch += 1
-
-        # Get data
-        train_batch = self.inqueue.get(timeout=self.timeout)
-        print("***** Receive {} batches from input queue. after getting {} "
-              "minibatches. Used time {}. This batch size {}.".format(
-            self._debug_count_batch, self._debug_count,
-            time.time() - self._debug_time, train_batch.count))
-        self._debug_count = 0
-        self._debug_time = time.time()
-
-        # Shuffle is necessary
-        if self.shuffle:
-            train_batch.shuffle()
-
-        # Split
-        assert train_batch.count == self.train_batch_size
-
-        for i in range(self.num_minibatch):
-            self.buffers[i] = train_batch.slice(i * self.mini_batch_size,
-                                                (i + 1) * self.mini_batch_size)
-            self.ttl[i] = self.max_ttl
-
-        self.idx = 0
-
-    def is_empty(self):
-        return all(d is None for d in self.buffers)
-
-    def _debug_size(self):
-        # TODO remove this
-        return sum(int(d is not None) for d in self.buffers)
-
-    def get(self):
-        """Get a new batch from the internal ring buffer.
-
-        Returns:
-           buf: Data item saved from inqueue.
-           released: True if the item is now removed from the ring buffer.
-        """
-        # if self.ttl[self.idx] <= 0:
-        # self.buffers[self.idx] = self.inqueue.get(timeout=self.timeout)
-        # self.ttl[self.idx] = self.cur_max_ttl
-        # if self.cur_max_ttl < self.max_ttl:
-        #     self.cur_max_ttl += 1
-
-        if self.is_empty():
-            self.load()
-
-        self._debug_count += 1
-
-        buf = self.buffers[self.idx]
-        self.ttl[self.idx] -= 1
-
-        released = self.ttl[self.idx] <= 0
-        if released:
-            self.buffers[self.idx] = None
-
-        self.idx = (self.idx + 1) % len(self.buffers)
-        return buf, released
