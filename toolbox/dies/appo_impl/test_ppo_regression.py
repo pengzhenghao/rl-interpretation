@@ -13,6 +13,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--algo", type=str, help="In ppo, appo, dice")
     parser.add_argument("--local-mode", action="store_true")
+    parser.add_argument("--num-agents", type=int, default=1)
     args = parser.parse_args()
 
     print(args)
@@ -74,8 +75,8 @@ if __name__ == '__main__':
             "num_gpus": num_gpus,
             "train_batch_size": 4000,
             "sample_batch_size": 200,
-            "num_workers": 1,
-            "num_agents": 1,
+            "num_workers": args.num_agents,
+            "num_agents": args.num_agents,
             "num_envs_per_worker": 10,
             old_const.USE_BISECTOR: False,
             "lr": 5e-5,
@@ -104,8 +105,8 @@ if __name__ == '__main__':
             "num_gpus": num_gpus,
             "train_batch_size": 4000,
             "sample_batch_size": 200,
-            "num_workers": 1,
-            "num_agents": 1,
+            "num_workers":  args.num_agents,
+            "num_agents":  args.num_agents,
             "num_envs_per_worker": 10,
             old_const.USE_BISECTOR: False,
 
