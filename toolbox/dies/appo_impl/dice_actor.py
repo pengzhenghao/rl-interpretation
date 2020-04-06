@@ -71,10 +71,12 @@ class DRAggregatorBase:
         self.started = True
 
     @override(Aggregator)
-    def iter_train_batches(self, max_yield=999):
+    def iter_train_batches(self, force_yield_all=False, max_yield=999):
         """Iterate over train batches.
 
         Arguments:
+            force_yield_all (bool): Whether to return all batches until task
+                pool is drained.
             max_yield (int): Max number of batches to iterate over in this
                 cycle. Setting this avoids iter_train_batches returning too
                 much data at once.
@@ -134,6 +136,14 @@ class DRAggregatorBase:
             # Kick off another sample request
             print("Yes we kick off sampling now!")
             self.sample_tasks.add(ev, ev.sample.remote())
+
+        if force_yield_all and self.sample_tasks.count > 0:
+            print("DEBUG ===== We are tryting to exhaust the task pool! "
+                  "Current count: ", self.sample_tasks.count)
+            # A tricky way to force exhaust the task pool
+            for train_batch in self.iter_train_batches(
+                    force_yield_all, max_yield):
+                yield train_batch
 
     @override(Aggregator)
     def stats(self):

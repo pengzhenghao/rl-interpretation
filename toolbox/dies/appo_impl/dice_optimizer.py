@@ -157,7 +157,9 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
     def step(self):
 
         # workaround to start all sampling jobs
-        if not self.aggregator_set[0].started or self.sync_sampling:
+        # TODO you need to make sure even in sync mode the sampling is launch
+        # automatically, after waiting for learner to finish one iter.
+        if not self.aggregator_set[0].started:
             print("Kick off the sampling from optimizer.step")
             for aggregator in self.aggregator_set.values():
                 aggregator.start()
@@ -297,49 +299,55 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             sample_timesteps[ws_id] = 0
             train_timesteps[ws_id] = 0
 
-            while True:
-                batch_count, step_count = _send_train_batch_to_learner(
-                    aggregator, learner)
-                print("Send {} batch with {} steps to learner".format(
-                    batch_count, step_count))
-                if (batch_count > 0) or (not self.sync_sampling):
-                    break
+            # while True:
+            batch_count, step_count = _send_train_batch_to_learner(
+                aggregator, learner, self.sync_sampling)
+            print("Send {} batch with {} steps to learner".format(
+                batch_count, step_count))
+
+            # TODO why we need this?
+            #  We should remove this while True
+
+            # if (batch_count > 0) or (not self.sync_sampling):
+            #     break
+
             sample_timesteps[ws_id] += step_count
 
         for ws_id, learner in self.learner_set.items():
             batch_count = 0
-            if self.sync_sampling:
-
-                while learner.outqueue.empty():
-                    time.sleep(0.02)
-
-                while not learner.outqueue.empty():
-                    count = learner.outqueue.get()
-                    if count is None:
-                        print("****************** We receive None!!!")
-                        break
-                    batch_count += 1
-                    print(
-                        "Get {} batch from learner output queue. This "
-                        "batch contain {} steps.".format(
-                            batch_count, count))
-                    train_timesteps[ws_id] += count
-
-            else:
-                while not learner.outqueue.empty():
-                    count = learner.outqueue.get()
-                    batch_count += 1
-                    print("Get {} batch from learner output queue.".format(
-                        batch_count))
-                    train_timesteps[ws_id] += count
+            # if self.sync_sampling:
+            #
+            #     while learner.outqueue.empty():
+            #         time.sleep(0.02)
+            #
+            #     while not learner.outqueue.empty():
+            #         count = learner.outqueue.get()
+            #         if count is None:
+            #             print("****************** We receive None!!!")
+            #             break
+            #         batch_count += 1
+            #         print(
+            #             "Get {} batch from learner output queue. This "
+            #             "batch contain {} steps.".format(
+            #                 batch_count, count))
+            #         train_timesteps[ws_id] += count
+            #
+            # else:
+            while not learner.outqueue.empty():
+                count = learner.outqueue.get()
+                batch_count += 1
+                # TODO remove print
+                print("Get {} batch from learner output queue.".format(
+                    batch_count))
+                train_timesteps[ws_id] += count
 
         return sample_timesteps, train_timesteps
 
 
-def _send_train_batch_to_learner(aggregator, learner):
+def _send_train_batch_to_learner(aggregator, learner, force_yield_all):
     batch_count = 0
     step_count = 0
-    for train_batch in aggregator.iter_train_batches():
+    for train_batch in aggregator.iter_train_batches(force_yield_all):
         batch_count += 1
         step_count += train_batch.count
         learner.inqueue.put(train_batch)
