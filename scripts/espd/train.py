@@ -29,6 +29,7 @@ def get_dynamic_trainer(algo):
 if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--algo", type=str, required=True)
+    parser.add_argument("--start_seed", default=0, type=int)
     args = parser.parse_args()
 
     algo = args.algo
@@ -104,5 +105,6 @@ if __name__ == '__main__':
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
         test_mode=test,
-        keep_checkpoints_num=5
+        keep_checkpoints_num=5,
+        start_seed=args.start_seed
     )
