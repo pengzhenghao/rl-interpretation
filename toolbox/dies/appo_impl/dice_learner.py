@@ -232,7 +232,7 @@ class SyncLearnerThread(threading.Thread):
                             iter_extra_fetches[k].append(v)
                     logger.debug(
                         "{} {}".format(i, _averaged(iter_extra_fetches)))
-                    print("{} {}".format(i, _averaged(iter_extra_fetches)))
+                    # print("{} {}".format(i, _averaged(iter_extra_fetches)))
                 fetches[policy_id] = _averaged(iter_extra_fetches)
 
         # Not support multiagent recording now.
@@ -243,6 +243,8 @@ class SyncLearnerThread(threading.Thread):
 
         self.outqueue.put(batch.count)
         self.learner_queue_size.push(self.inqueue.qsize())
+
+        self.weights_updated = True
 
         if self.minibatch_buffer.is_empty():
             # Send signal to optimizer

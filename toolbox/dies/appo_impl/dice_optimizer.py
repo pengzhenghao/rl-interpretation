@@ -334,6 +334,8 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             if not self.sync_sampling:
                 train_timesteps[ws_id] += int(
                     step_count // learner.num_sgd_iter)
+            else:
+                train_timesteps[ws_id] += int(step_count)
 
         if self.sync_sampling:
             print("Kick off the sampling from optimizer.step")
