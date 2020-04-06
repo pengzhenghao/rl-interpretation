@@ -71,7 +71,7 @@ class DRAggregatorBase:
         self.started = True
 
     @override(Aggregator)
-    def iter_train_batches(self, force_yield_all=False, max_yield=999):
+    def iter_train_batches(self, max_yield=999, _recursive_called=False):
         """Iterate over train batches.
 
         Arguments:
@@ -134,16 +134,20 @@ class DRAggregatorBase:
             self.num_sent_since_broadcast += 1
 
             # Kick off another sample request
-            print("Yes we kick off sampling now!")
+            print("In actor, Yes we kick off sampling now!")
             self.sample_tasks.add(ev, ev.sample.remote())
 
-        if force_yield_all and self.sample_tasks.count > 0:
+        if self.sync_sampling and (not _recursive_called):
             print("DEBUG ===== We are tryting to exhaust the task pool! "
                   "Current count: ", self.sample_tasks.count)
-            # A tricky way to force exhaust the task pool
-            for train_batch in self.iter_train_batches(
-                    force_yield_all, max_yield):
-                yield train_batch
+            debug_cnt = 0
+            while self.sample_tasks.count > 0:
+                debug_cnt += 1
+                print("DEBUG ===== retry {} times.".format(debug_cnt))
+                # A tricky way to force exhaust the task pool
+                for train_batch in self.iter_train_batches(
+                        max_yield, _recursive_called=True):
+                    yield train_batch
 
     @override(Aggregator)
     def stats(self):

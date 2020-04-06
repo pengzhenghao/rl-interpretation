@@ -100,8 +100,13 @@ class LearnerThread(threading.Thread):
 
         # Since all batch are repeated num_sgd_iter times, so as a workaround,
         # we divide the reported trained steps by num_sgd_iter
-        self.outqueue.put(batch.count / self.num_sgd_iter)
+        self.outqueue.put(batch.count)
         self.learner_queue_size.push(self.inqueue.qsize())
+
+        print("Finish {} steps in learner. Current minibatch size: {}. "
+              "This batch size {}".format(
+            self.num_steps, self.minibatch_buffer._debug_size(), batch.count
+        ))
 
         if self.sync_sampling and self.minibatch_buffer.is_empty():
             # Send signal to optimizer
@@ -232,6 +237,10 @@ class MinibatchBufferNew:
 
     def is_empty(self):
         return all(d is None for d in self.buffers)
+
+    def _debug_size(self):
+        # TODO remove this
+        return sum(int(d is not None) for d in self.buffers)
 
     def get(self):
         """Get a new batch from the internal ring buffer.

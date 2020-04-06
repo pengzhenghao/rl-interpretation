@@ -12,11 +12,12 @@ from toolbox.dies.appo_impl.dice_trainer import DiCETrainer_APPO
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--algo", type=str, help="In ppo, appo, dice")
+    parser.add_argument("--local-mode", action="store_true")
     args = parser.parse_args()
 
     print(args)
 
-    local_mode = False
+    local_mode = args.local_mode
     env_name = "CartPole-v0"
     dir_path = tempfile.mkdtemp()
     now = time.time()
@@ -66,7 +67,7 @@ if __name__ == '__main__':
     elif args.algo in ["DICE", "dice", "DiCE"]:
         config = {
             "env": env_name,
-            "num_sgd_iter": 10,
+            "num_sgd_iter": 2,
             "num_gpus": num_gpus,
             "train_batch_size": 4000,
             "sample_batch_size": 200,

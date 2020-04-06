@@ -269,6 +269,9 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             stats["learner_queue"] = learner.learner_queue_size.stats()
             if learner.stats:
                 learner_info["policy{}".format(ws_id)] = learner.stats
+                learner_info["policy{}".format(ws_id)]["train_timesteps"] = \
+                    int(learner.stats[
+                            "train_timesteps"] // learner.num_sgd_iter)
                 learner_info["policy{}".format(ws_id)]["sample_timesteps"] = \
                     stats["sample_timesteps"]
                 learner_info["policy{}".format(ws_id)]["training_iteration"] = \
@@ -301,58 +304,72 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
 
             # while True:
             batch_count, step_count = _send_train_batch_to_learner(
-                aggregator, learner, self.sync_sampling)
+                aggregator, learner)
+
+            if self.sync_sampling:
+                assert batch_count > 0
+                assert step_count > 0
+
             print("Send {} batch with {} steps to learner".format(
                 batch_count, step_count))
-
-            # TODO why we need this?
-            #  We should remove this while True
-
-            # if (batch_count > 0) or (not self.sync_sampling):
-            #     break
-
             sample_timesteps[ws_id] += step_count
 
         for ws_id, learner in self.learner_set.items():
-            batch_count = 0
-            # if self.sync_sampling:
-            #
-            #     while learner.outqueue.empty():
-            #         time.sleep(0.02)
-            #
-            #     while not learner.outqueue.empty():
-            #         count = learner.outqueue.get()
-            #         if count is None:
-            #             print("****************** We receive None!!!")
-            #             break
-            #         batch_count += 1
-            #         print(
-            #             "Get {} batch from learner output queue. This "
-            #             "batch contain {} steps.".format(
-            #                 batch_count, count))
-            #         train_timesteps[ws_id] += count
-            #
-            # else:
-            while not learner.outqueue.empty():
-                count = learner.outqueue.get()
-                batch_count += 1
-                # TODO remove print
-                print("Get {} batch from learner output queue.".format(
-                    batch_count))
-                train_timesteps[ws_id] += count
+            batch_count, step_count = \
+                _get_train_result_from_learner(learner, self.sync_sampling)
+
+            train_timesteps[ws_id] += int(step_count // learner.num_sgd_iter)
+
+        if self.sync_sampling:
+            print("Kick off the sampling from optimizer.step")
+            for aggregator in self.aggregator_set.values():
+                aggregator.start()
 
         return sample_timesteps, train_timesteps
 
 
-def _send_train_batch_to_learner(aggregator, learner, force_yield_all):
+def _send_train_batch_to_learner(aggregator, learner):
     batch_count = 0
     step_count = 0
-    for train_batch in aggregator.iter_train_batches(force_yield_all):
+    for train_batch in aggregator.iter_train_batches():
         batch_count += 1
         step_count += train_batch.count
         learner.inqueue.put(train_batch)
         if (learner.weights_updated and aggregator.should_broadcast()):
             aggregator.broadcast_new_weights()
+
+    # TODO In sync mode, should we expect batch_count to always be one???
+    return batch_count, step_count
+
+
+def _get_train_result_from_learner(learner, force_sychronize=False):
+    batch_count = 0
+    step_count = 0
+    learner_finished = False
+    while True:
+        while not learner.outqueue.empty():
+            count = learner.outqueue.get()
+            if count is None:
+                # This only happen in sync mode when train batch is exhaust
+                # trained!
+                # return batch_count, step_count, True
+                learner_finished = True
+                assert learner.outqueue.empty()
+            else:
+                batch_count += 1
+                print("Get {} batch from learner output queue.".format(
+                    batch_count))
+                step_count += count
+
+        time.sleep(5.0)
+
+        if (not force_sychronize) or learner_finished:
+            break
+    print(
+        "Return now. We have {} batches and {} steps during this learning "
+        "iter.".format(
+            batch_count, step_count
+        ))
     return batch_count, step_count
 
 
