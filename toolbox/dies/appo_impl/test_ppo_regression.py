@@ -79,17 +79,8 @@ if __name__ == '__main__':
             old_const.USE_BISECTOR: False,
             "lr": 5e-5,
 
-            "vf_loss_coeff": 1.0,
-            "entropy_coeff": 0.0,
-
-            "grad_clip": None,
-
-            "model": {"vf_share_layers": False},
-
-
             # Special setting for sync sampling mode
             "sync_sampling": True,
-            "max_sample_requests_in_flight_per_worker": 1
         }
         ret = tune.run(
             DiCETrainer_APPO,
@@ -112,10 +103,8 @@ if __name__ == '__main__':
             "num_envs_per_worker": 10,
             old_const.USE_BISECTOR: False,
 
-            "model": {"vf_share_layers": False},
             # Special setting for sync sampling mode
             "sync_sampling": False,
-            "max_sample_requests_in_flight_per_worker": 2
         }
         ret = tune.run(
             DiCETrainer_APPO,

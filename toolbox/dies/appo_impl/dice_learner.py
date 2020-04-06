@@ -220,7 +220,6 @@ class SyncLearnerThread(threading.Thread):
                     1,
                     int(tuples_per_device) // int(self.per_device_batch_size))
                 logger.debug("== sgd epochs for {} ==".format(policy_id))
-                print("== sgd epochs for {} ==".format(policy_id))
                 for i in range(self.num_sgd_iter):
                     iter_extra_fetches = defaultdict(list)
                     permutation = np.random.permutation(num_batches)
@@ -232,7 +231,6 @@ class SyncLearnerThread(threading.Thread):
                             iter_extra_fetches[k].append(v)
                     logger.debug(
                         "{} {}".format(i, _averaged(iter_extra_fetches)))
-                    # print("{} {}".format(i, _averaged(iter_extra_fetches)))
                 fetches[policy_id] = _averaged(iter_extra_fetches)
 
         # Not support multiagent recording now.

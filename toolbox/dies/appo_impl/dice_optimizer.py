@@ -125,7 +125,8 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                     ws,
                     replay_proportion=replay_proportion,
                     max_sample_requests_in_flight_per_worker=(
-                        max_sample_requests_in_flight_per_worker),
+                        max_sample_requests_in_flight_per_worker if not
+                        self.sync_sampling else 1),
                     replay_buffer_num_slots=replay_buffer_num_slots,
                     train_batch_size=train_batch_size,
                     sample_batch_size=sample_batch_size,

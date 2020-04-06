@@ -37,6 +37,7 @@ DEFAULT_POLICY_ID = "default_policy"
 def validate_config(config):
     """Validate the config"""
     # check the model
+    config["model"]["vf_share_layers"] = config["vf_share_layers"]
     if config[USE_DIVERSITY_VALUE_NETWORK]:
         ModelCatalog.register_custom_model(
             "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
