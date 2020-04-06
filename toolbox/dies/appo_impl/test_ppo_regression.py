@@ -53,7 +53,9 @@ if __name__ == '__main__':
             "num_workers": 1,
             "num_envs_per_worker": 10,
             "num_gpus": num_gpus,
-            "vtrace": False
+            "vtrace": False,
+
+            "model": {"vf_share_layers": False},
         }
         ret = tune.run(
             "APPO",
@@ -80,6 +82,10 @@ if __name__ == '__main__':
             "vf_loss_coeff": 1.0,
             "entropy_coeff": 0.0,
 
+            "grad_clip": None,
+
+            "model": {"vf_share_layers": False},
+
 
             # Special setting for sync sampling mode
             "sync_sampling": True,
@@ -97,7 +103,7 @@ if __name__ == '__main__':
     elif args.algo in ["ADICE", "adice", "ADiCE"]:
         config = {
             "env": env_name,
-            "num_sgd_iter": 2,
+            "num_sgd_iter": 10,
             "num_gpus": num_gpus,
             "train_batch_size": 4000,
             "sample_batch_size": 200,
@@ -106,6 +112,7 @@ if __name__ == '__main__':
             "num_envs_per_worker": 10,
             old_const.USE_BISECTOR: False,
 
+            "model": {"vf_share_layers": False},
             # Special setting for sync sampling mode
             "sync_sampling": False,
             "max_sample_requests_in_flight_per_worker": 2
