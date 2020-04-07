@@ -6,70 +6,70 @@ policies' batches, we fuse the batches collected by this policy and other
 policies. We also compute the diversity reward and diversity advantage of this
 policy.
 """
-from ray.rllib.agents.impala.vtrace_policy import BEHAVIOUR_LOGITS
-from ray.rllib.agents.ppo.ppo_policy import ACTION_LOGP, \
-    BEHAVIOUR_LOGITS
-from ray.rllib.evaluation.postprocessing import discount, compute_advantages
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.agents.ppo.ppo_policy import postprocess_ppo_gae, ACTION_LOGP, \
+    SampleBatch, BEHAVIOUR_LOGITS
+from ray.rllib.evaluation.postprocessing import discount
 
-from toolbox.dice.utils import *
+from toolbox.dice.old_impl.utils import *
 
 MY_LOGIT = "my_logits"
 
 
-def original_postprocess(policy, sample_batch, other_agent_batches=None,
-                         episode=None):
-    if not policy.config["vtrace"]:
-        completed = sample_batch["dones"][-1]
-        if completed:
-            last_r = 0.0
-        else:
-            next_state = []
-            for i in range(policy.num_state_tensors()):
-                next_state.append([sample_batch["state_out_{}".format(i)][-1]])
-            last_r = policy._value(sample_batch[SampleBatch.NEXT_OBS][-1],
-                                   sample_batch[SampleBatch.ACTIONS][-1],
-                                   sample_batch[SampleBatch.REWARDS][-1],
-                                   *next_state)
-        batch = compute_advantages(
-            sample_batch,
-            last_r,
-            policy.config["gamma"],
-            policy.config["lambda"],
-            use_gae=policy.config["use_gae"])
-    else:
-        batch = sample_batch
-    return batch
-
-
 def postprocess_dice(policy, sample_batch, others_batches, episode):
     if not policy.loss_initialized():
-        batch = original_postprocess(policy, sample_batch)
+        batch = postprocess_ppo_gae(policy, sample_batch)
         batch[DIVERSITY_REWARDS] = batch["advantages"].copy()
         batch[DIVERSITY_VALUE_TARGETS] = batch["advantages"].copy()
         batch[DIVERSITY_ADVANTAGES] = batch["advantages"].copy()
         batch['other_action_logp'] = batch[ACTION_LOGP].copy()
         return batch
 
-    # if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
-    batch = sample_batch.copy()
-    batch = original_postprocess(policy, batch)
-    batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
-    batch = postprocess_diversity(policy, batch)
+    if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
+        batch = sample_batch.copy()
+        batch = postprocess_ppo_gae(policy, batch)
+        batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
+        batch = postprocess_diversity(policy, batch, others_batches)
+        batches = [batch]
+    else:
+        batches = []
 
-    assert not others_batches, "In our under standing, there should never be " \
-                               "other batches."
+    for pid, (other_policy, other_batch_raw) in others_batches.items():
+        # other_batch_raw is the data collected by other polices.
+        if policy.config[ONLY_TNB]:
+            break
+        if other_batch_raw is None:
+            continue
+        other_batch_raw = other_batch_raw.copy()
+
+        # Replay this policy to get the action distribution of this policy.
+        replay_result = policy.compute_actions(
+            other_batch_raw[SampleBatch.CUR_OBS]
+        )[2]
+        other_batch_raw[MY_LOGIT] = replay_result[BEHAVIOUR_LOGITS]
+
+        # Compute the diversity reward and diversity advantage of this batch.
+        other_batch_raw = postprocess_diversity(
+            policy, other_batch_raw, others_batches
+        )
+
+        # Compute the task advantage of this batch.
+        batches.append(postprocess_ppo_gae(policy, other_batch_raw))
+
+    # Merge all batches.
+    batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
+        else batches[0]
 
     del batch.data['new_obs']  # save memory
     del batch.data['action_prob']
     return batch
 
 
-def postprocess_diversity(policy, batch):
+def postprocess_diversity(policy, batch, others_batches):
     """Compute the diversity for this policy against other policies using this
     batch."""
+
     # Compute diversity and add a new entry of batch: diversity_reward
-    batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch)
+    batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch, others_batches)
 
     # Compute the diversity advantage. We mock the computing of task advantage
     # but simply replace the task reward with the diversity reward.

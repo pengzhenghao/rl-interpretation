@@ -1,6 +1,6 @@
 from ray import tune
 
-from toolbox.dies.dies import DiESTrainer
+from toolbox.dies import DiESTrainer
 from toolbox.dies.ppo_es import PPOESTrainer
 from toolbox.marl import get_marl_env_config
 from toolbox.train import train, get_train_parser

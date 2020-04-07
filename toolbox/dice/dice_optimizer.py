@@ -12,10 +12,10 @@ from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.timer import TimerStat
 
-from toolbox.dies.appo_impl.dice_actor import DRAggregator
-from toolbox.dies.appo_impl.dice_learner import AsyncLearnerThread, \
+from toolbox.dice.dice_actor import DRAggregator
+from toolbox.dice.dice_learner import AsyncLearnerThread, \
     SyncLearnerThread
-from toolbox.dies.appo_impl.dice_workers import SuperWorkerSet
+from toolbox.dice.dice_workers import SuperWorkerSet
 
 logger = logging.getLogger(__name__)
 

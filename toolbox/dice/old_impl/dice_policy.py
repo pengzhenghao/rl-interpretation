@@ -16,9 +16,9 @@ from ray.rllib.policy.tf_policy import LearningRateSchedule
 from ray.rllib.utils.explained_variance import explained_variance
 from ray.rllib.utils.tf_ops import make_tf_callable
 
-from toolbox.dice.dice_loss import dice_loss, dice_gradient
-from toolbox.dice.dice_postprocess import postprocess_dice, MY_LOGIT
-from toolbox.dice.utils import *
+from toolbox.dice.old_impl.dice_loss import dice_loss, dice_gradient
+from toolbox.dice.old_impl.dice_postprocess import postprocess_dice, MY_LOGIT
+from toolbox.dice.old_impl.utils import *
 
 logger = logging.getLogger(__name__)
 

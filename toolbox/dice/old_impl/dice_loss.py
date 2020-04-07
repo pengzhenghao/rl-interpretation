@@ -9,7 +9,7 @@ from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, PPOLoss
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from toolbox.dice.utils import *
+from toolbox.dice.old_impl.utils import *
 
 tf = try_import_tf()
 logger = logging.getLogger(__name__)

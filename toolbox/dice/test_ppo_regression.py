@@ -6,8 +6,8 @@ import time
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.dice import utils as old_const
-from toolbox.dies.appo_impl.dice_trainer import DiCETrainer_APPO
+from toolbox.dice.old_impl import utils as old_const
+from toolbox.dice.dice_trainer import DiCETrainer_APPO
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

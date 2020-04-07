@@ -22,11 +22,11 @@ from ray.rllib.agents.ppo.appo import APPOTrainer
 from ray.rllib.models.catalog import ModelCatalog
 from ray.rllib.utils import try_import_tf
 
-from toolbox.dice.dice_model import ActorDoubleCriticNetwork
-from toolbox.dies.appo_impl.constants import *
-from toolbox.dies.appo_impl.dice_optimizer import AsyncSamplesOptimizer
-from toolbox.dies.appo_impl.dice_policy_appo import DiCEPolicy_APPO
-from toolbox.dies.appo_impl.dice_workers import SuperWorkerSet
+from toolbox.dice.old_impl.dice_model import ActorDoubleCriticNetwork
+from toolbox.dice.constants import *
+from toolbox.dice.dice_optimizer import AsyncSamplesOptimizer
+from toolbox.dice.dice_policy_appo import DiCEPolicy_APPO
+from toolbox.dice.dice_workers import SuperWorkerSet
 
 tf = try_import_tf()
 

@@ -5,8 +5,8 @@ import unittest
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.dice.dice import DiCETrainer
-from toolbox.dice.utils import *
+from toolbox.dice.old_impl.dice import DiCETrainer
+from toolbox.dice.old_impl.utils import *
 from toolbox.marl import MultiAgentEnvWrapper
 
 num_agents_pair = tune.grid_search([1, 3])

@@ -1,8 +1,9 @@
 from ray.tune.utils import merge_dicts
 
 from toolbox import initialize_ray, train
-from toolbox.dice import DiCETrainer, utils as dice_utils
-from toolbox.dice.utils import dice_default_config
+from toolbox.dice import DiCETrainer
+from toolbox.dice.old_impl import utils as dice_utils
+from toolbox.dice.old_impl.utils import dice_default_config
 from toolbox.dies.es_utils import run_evolution_strategies
 from toolbox.marl import get_marl_env_config
 

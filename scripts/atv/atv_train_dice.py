@@ -1,6 +1,6 @@
 from ray import tune
 
-from toolbox.dice.dice import DiCETrainer
+from toolbox.dice import DiCETrainer
 from toolbox.marl import get_marl_env_config
 from toolbox.train import train, get_train_parser
 

@@ -1,1 +1,1 @@
-from toolbox.dice.dice import DiCETrainer
+from toolbox.dice.old_impl.dice import DiCETrainer

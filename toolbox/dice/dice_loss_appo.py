@@ -16,7 +16,7 @@ from ray.rllib.models.tf.tf_action_dist import Categorical
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils import try_import_tf
 
-from toolbox.dies.appo_impl.constants import *
+from toolbox.dice.constants import *
 
 tf = try_import_tf()
 logger = logging.getLogger(__name__)

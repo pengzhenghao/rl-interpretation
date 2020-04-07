@@ -19,9 +19,9 @@ from ray.rllib.models.catalog import ModelCatalog
 from ray.rllib.optimizers import LocalMultiGPUOptimizer
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
-from toolbox.dice.dice_model import ActorDoubleCriticNetwork
-from toolbox.dice.dice_policy import DiCEPolicy
-from toolbox.dice.utils import *
+from toolbox.dice.old_impl.dice_model import ActorDoubleCriticNetwork
+from toolbox.dice.old_impl.dice_policy import DiCEPolicy
+from toolbox.dice.old_impl.utils import *
 
 logger = logging.getLogger(__name__)
 
