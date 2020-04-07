@@ -9,9 +9,9 @@ from ray.rllib.agents.ppo.appo import DEFAULT_CONFIG as APPO_DEFAULT, \
     APPOTrainer, AsyncPPOTFPolicy
 from ray.rllib.utils import try_import_tf
 
-from toolbox.ppo_pipeline.pipeline import PPOPipeline
-from toolbox.ppo_pipeline.utils import WorkersConfig
+from toolbox.ppo_pipeline.optimizer import AsyncSamplesOptimizer
 from toolbox.ppo_pipeline.ppo_loss import build_appo_surrogate_loss
+from toolbox.ppo_pipeline.super_workers import SuperWorkerSet
 from toolbox.utils import merge_dicts
 
 tf = try_import_tf()
@@ -48,17 +48,14 @@ ppo_pipeline_default_config = merge_dicts(
 def make_workers(trainer, env_creator, policy, config):
     # (DICE) at the init stage, the remote workers is set to zero.
     # all workers are then setup at make_aggregators_and_optimizer
-    return WorkersConfig(
-        env_creator, policy, config, trainer.logdir
+    return SuperWorkerSet(
+        config["num_agents"],
+        env_creator,
+        policy,
+        config,
+        num_workers_per_set=0,
+        logdir=trainer.logdir
     )
-    # return SuperWorkerSet(
-    #     config["num_agents"],
-    #     env_creator,
-    #     policy,
-    #     config,
-    #     num_workers_per_set=0,
-    #     logdir=trainer.logdir
-    # )
 
 
 def validate_config(config):
@@ -80,18 +77,16 @@ def validate_config(config):
 
 
 def make_aggregators_and_optimizer(workers, config):
-    # if config["num_aggregation_workers"] > 0:
-    #     # Create co-located aggregator actors first for placement pref
-    #     # aggregators = TreeAggregator.precreate_aggregators(
-    #     #     config["num_aggregation_workers"])
-    #     raise NotImplementedError()
-    # else:
-    #     aggregators = None
-    # workers.add_workers(config["num_workers"])
+    if config["num_aggregation_workers"] > 0:
+        # Create co-located aggregator actors first for placement pref
+        # aggregators = TreeAggregator.precreate_aggregators(
+        #     config["num_aggregation_workers"])
+        raise NotImplementedError()
+    else:
+        aggregators = None
+    workers.add_workers(config["num_workers"])
 
-    PPOPipelineRemote = PPOPipeline.as_remote()
-
-    optimizer = PPOPipelineRemote.remote(
+    optimizer = AsyncSamplesOptimizer(
         workers,
         train_batch_size=config["train_batch_size"],
         sample_batch_size=config["sample_batch_size"],
@@ -113,10 +108,10 @@ def make_aggregators_and_optimizer(workers, config):
         sync_sampling=config["sync_sampling"],
         **config["optimizer"])
 
-    # if aggregators:
-    #     # Assign the pre-created aggregators to the optimizer
-    #     optimizer.aggregator.init(aggregators)
-    # return optimizer
+    if aggregators:
+        # Assign the pre-created aggregators to the optimizer
+        optimizer.aggregator.init(aggregators)
+    return optimizer
 
 
 def initialize_target(trainer):
