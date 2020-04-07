@@ -355,6 +355,8 @@ def _get_train_result_from_learner(learner, sync_sampling):
     step_count = 0
     learner_finished = False
     while True:
+        if (not sync_sampling) and learner.outqueue.empty():
+            break
         count = learner.outqueue.get(block=True)
         if count is None:
             # This only happen in sync mode when train batch is exhaust
