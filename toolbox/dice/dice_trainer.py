@@ -26,7 +26,7 @@ from toolbox.dice.old_impl.dice_model import ActorDoubleCriticNetwork
 from toolbox.dice.constants import *
 from toolbox.dice.dice_policy_appo import DiCEPolicy_APPO
 from toolbox.ppo_pipeline.super_workers import SuperWorkerSet
-from toolbox.ppo_pipeline.optimizer import AsyncSamplesOptimizer
+from toolbox.ppo_pipeline.optimizer_deprecated import AsyncSamplesOptimizer
 
 tf = try_import_tf()
 

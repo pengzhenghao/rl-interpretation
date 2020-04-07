@@ -6,12 +6,14 @@ import time
 from ray import tune
 
 from toolbox import initialize_ray
+# from toolbox.ppo_pipeline.ppo_pipeline_trainer_deprecated import \
+# PPOPipelineTrainer
 from toolbox.ppo_pipeline.ppo_pipeline_trainer import PPOPipelineTrainer
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--not-sync-sampling", "-ns", action="store_true")
-    parser.add_argument("--local-mode", action="store_true")
+    parser.add_argument("--local-mode", "-lm", action="store_true")
     args = parser.parse_args()
 
     local_mode = args.local_mode

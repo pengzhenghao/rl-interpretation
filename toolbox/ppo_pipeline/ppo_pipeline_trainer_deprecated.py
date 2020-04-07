@@ -9,7 +9,7 @@ from ray.rllib.agents.ppo.appo import DEFAULT_CONFIG as APPO_DEFAULT, \
     APPOTrainer, AsyncPPOTFPolicy
 from ray.rllib.utils import try_import_tf
 
-from toolbox.ppo_pipeline.optimizer import AsyncSamplesOptimizer
+from toolbox.ppo_pipeline.optimizer_deprecated import AsyncSamplesOptimizer
 from toolbox.ppo_pipeline.ppo_loss import build_appo_surrogate_loss
 from toolbox.ppo_pipeline.super_workers import SuperWorkerSet
 from toolbox.utils import merge_dicts

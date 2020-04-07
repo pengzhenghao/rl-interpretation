@@ -9,9 +9,10 @@ from ray.rllib.agents.ppo.appo import DEFAULT_CONFIG as APPO_DEFAULT, \
     APPOTrainer, AsyncPPOTFPolicy
 from ray.rllib.utils import try_import_tf
 
+from toolbox.ppo_pipeline.coordinator import Coordinator
 from toolbox.ppo_pipeline.pipeline import PPOPipeline
-from toolbox.ppo_pipeline.utils import WorkersConfig
 from toolbox.ppo_pipeline.ppo_loss import build_appo_surrogate_loss
+from toolbox.ppo_pipeline.utils import WorkersConfig, PipelineInterface
 from toolbox.utils import merge_dicts
 
 tf = try_import_tf()
@@ -79,7 +80,7 @@ def validate_config(config):
                       config['sample_batch_size'])
 
 
-def make_aggregators_and_optimizer(workers, config):
+def make_aggregators_and_optimizer(workers_config, config):
     # if config["num_aggregation_workers"] > 0:
     #     # Create co-located aggregator actors first for placement pref
     #     # aggregators = TreeAggregator.precreate_aggregators(
@@ -91,27 +92,38 @@ def make_aggregators_and_optimizer(workers, config):
 
     PPOPipelineRemote = PPOPipeline.as_remote()
 
-    optimizer = PPOPipelineRemote.remote(
-        workers,
-        train_batch_size=config["train_batch_size"],
-        sample_batch_size=config["sample_batch_size"],
-        # lr=config["lr"],
-        num_gpus=config["num_gpus"],
-        replay_buffer_num_slots=config["replay_buffer_num_slots"],
-        replay_proportion=config["replay_proportion"],
-        num_data_loader_buffers=config["num_data_loader_buffers"],
-        max_sample_requests_in_flight_per_worker=config[
-            "max_sample_requests_in_flight_per_worker"],
-        broadcast_interval=config["broadcast_interval"],
-        num_sgd_iter=config["num_sgd_iter"],
-        sgd_minibatch_size=config["sgd_minibatch_size"],
-        minibatch_buffer_size=config["minibatch_buffer_size"],
-        learner_queue_size=config["learner_queue_size"],
-        learner_queue_timeout=config["learner_queue_timeout"],
-        num_aggregation_workers=config["num_aggregation_workers"],
-        shuffle_sequences=config["shuffle_sequences"],
-        sync_sampling=config["sync_sampling"],
-        **config["optimizer"])
+    def make_pipeline():
+        # Though the input progress_callback_id is a object id,
+        # in remote pipeline the progress_callback_id is automatically
+        # transform to a function.
+        interface = PipelineInterface.remote()
+        pipeline = PPOPipelineRemote.remote(
+            workers_config,
+            pipeline_interface=interface,
+            train_batch_size=config["train_batch_size"],
+            sample_batch_size=config["sample_batch_size"],
+            # lr=config["lr"],
+            num_gpus=config["num_gpus"],
+            replay_buffer_num_slots=config["replay_buffer_num_slots"],
+            replay_proportion=config["replay_proportion"],
+            num_data_loader_buffers=config["num_data_loader_buffers"],
+            max_sample_requests_in_flight_per_worker=config[
+                "max_sample_requests_in_flight_per_worker"],
+            broadcast_interval=config["broadcast_interval"],
+            num_sgd_iter=config["num_sgd_iter"],
+            sgd_minibatch_size=config["sgd_minibatch_size"],
+            minibatch_buffer_size=config["minibatch_buffer_size"],
+            learner_queue_size=config["learner_queue_size"],
+            learner_queue_timeout=config["learner_queue_timeout"],
+            num_aggregation_workers=config["num_aggregation_workers"],
+            shuffle_sequences=config["shuffle_sequences"],
+            sync_sampling=config["sync_sampling"],
+            **config["optimizer"])
+        return pipeline, interface
+
+    # TODO change num_agents to num_pipelines
+    return Coordinator(workers_config, make_pipeline, config["num_agents"],
+                       config["sync_sampling"])
 
     # if aggregators:
     #     # Assign the pre-created aggregators to the optimizer
