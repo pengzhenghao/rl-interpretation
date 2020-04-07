@@ -47,19 +47,8 @@ ppo_pipeline_default_config = merge_dicts(
 
 
 def make_workers(trainer, env_creator, policy, config):
-    # (DICE) at the init stage, the remote workers is set to zero.
-    # all workers are then setup at make_aggregators_and_optimizer
-    return WorkersConfig(
-        env_creator, policy, config, trainer.logdir
-    )
-    # return SuperWorkerSet(
-    #     config["num_agents"],
-    #     env_creator,
-    #     policy,
-    #     config,
-    #     num_workers_per_set=0,
-    #     logdir=trainer.logdir
-    # )
+    """Return a fake worker set."""
+    return WorkersConfig(env_creator, policy, config, trainer.logdir)
 
 
 def validate_config(config):

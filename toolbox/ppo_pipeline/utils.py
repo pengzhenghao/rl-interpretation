@@ -19,6 +19,9 @@ class WorkersConfig:
             self.logdir
         )
 
+    def stop(self):
+        pass
+
 
 @ray.remote
 class PipelineInterface:

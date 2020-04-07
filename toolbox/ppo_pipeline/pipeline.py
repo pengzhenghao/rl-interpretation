@@ -2,12 +2,13 @@ import logging
 import time
 
 import ray
+from ray.rllib.evaluation.metrics import collect_episodes, summarize_episodes
 from ray.rllib.utils.timer import TimerStat
 
 from toolbox.ppo_pipeline.actor import DRAggregator
 from toolbox.ppo_pipeline.learner import AsyncLearnerThread, \
     SyncLearnerThread
-from toolbox.ppo_pipeline.utils import WorkersConfig, PipelineInterface
+from toolbox.ppo_pipeline.utils import WorkersConfig
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,12 @@ class Pipeline:
 
     def __init__(self, pipeline_interface):
         self.pipeline_interface = pipeline_interface
-        pass
+
+        self.num_steps_sampled = 0
+        self.num_steps_trained = 0
+
+        self._last_stats_time = {}
+        self._last_stats_sum = {}
 
     def start(self):
         pass
@@ -45,9 +51,25 @@ class Pipeline:
     def push_progress(self, progress):
         self.pipeline_interface.push_progress.remote(progress)
 
+    def get_mean_stats_and_reset(self):
+        now = time.time()
+        mean_stats = {
+            key: round(val / (now - self._last_stats_time[key]), 3)
+            for key, val in self._last_stats_sum.items()
+        }
+        for key in self._last_stats_sum.keys():
+            self._last_stats_sum[key] = 0
+            self._last_stats_time[key] = time.time()
+        return mean_stats
+
+    def add_stat_val(self, key, val):
+        if key not in self._last_stats_sum:
+            self._last_stats_sum[key] = 0
+            self._last_stats_time[key] = self._stats_start_time
+        self._last_stats_sum[key] += val
+
 
 class PPOPipeline(Pipeline):
-
     def __init__(self,
                  worker_set_config,
                  pipeline_interface,
@@ -75,8 +97,6 @@ class PPOPipeline(Pipeline):
 
         self.workers = worker_set_config.make_workers()
         self.sync_sampling = sync_sampling
-        # print("===!!! progress_callback_id", progress_callback)
-        # self.submit_progress = progress_callback
 
         # Setup learner
         if num_gpus > 1 or num_data_loader_buffers > 1:
@@ -136,59 +156,67 @@ class PPOPipeline(Pipeline):
         self._debug_time = time.time()
         self._debug_cnt = 0
 
+        self.num_sgd_iter = num_sgd_iter
+        self.train_batch_size = train_batch_size
+
     def run(self):
         while not self.stopped:
             self.step()
 
+    def stop(self):
+        self.workers.stop()
+
     def step(self):
-        self.push_progress(
-            "Hi! I am in pipeline at {} iteration! Elapse {} s.".format(
-                self._debug_cnt, time.time() - self._debug_time
-            ))
-        self._debug_time = time.time()
-        self._debug_cnt += 1
-        time.sleep(0.5)
-        return
+        """
+        Conduct a step of learning. Push the latest learning progress to
+        interface.
+        """
+
+        signal = self.pull_signal()
+
+        if signal == "STOP":
+            logger.info("Receive signal: STOP. Terminate workers.")
+            self.stop()
+            return self.num_steps_sampled, self.num_steps_trained
 
         # workaround to start all sampling jobs
-        # TODO you need to make sure even in sync mode the sampling is launch
-        # automatically, after waiting for learner to finish one iter.
         if not self.actor.started:
             logger.debug("Kick off the sampling from optimizer.step")
             self.actor.start()
 
+        # Check
         if len(self.workers.remote_workers()) == 0:
             raise ValueError("Config num_workers=0 means training will hang!")
-
         assert self.learner.is_alive()
 
+        # Conduct a step of learning
         with self._optimizer_step_timer:
             sample_timesteps, train_timesteps = self._step()
 
+        # Push the latest progress to interface
+        self.num_steps_sampled += sample_timesteps
+        self.num_steps_trained += train_timesteps
+        progress = {}
+        progress["collect_metrics"], progress["episodes"], progress["stats"] = \
+            self.collect_metrics(timeout_seconds=180, min_history=100)
+        progress["num_steps_sampled"] = progress["stats"]["num_steps_sampled"]
+        progress["num_steps_trained"] = progress["stats"]["num_steps_trained"]
+        self.push_progress(progress)
+
         return sample_timesteps, train_timesteps
 
-        # if sample_timesteps > 0:
-        #     self.add_stat_val("sample_throughput", sample_timesteps)
-        # if train_timesteps > 0:
-        #     self.add_stat_val("train_throughput", train_timesteps)
-        #
-        # self.num_steps_sampled += sample_timesteps
-        # self.num_steps_trained += train_timesteps
-
     def _step(self):
-
-        assert not hasattr(self, "aggregator")
-        assert not hasattr(self, "learner")
-
         sample_timesteps = 0
         train_timesteps = 0
 
+        # Collect data
         batch_count, step_count = _send_train_batch_to_learner(
             self.actor, self.learner)
         if self.sync_sampling:
             assert batch_count > 0 and step_count > 0
         sample_timesteps += step_count
 
+        # Conduct learning
         batch_count, step_count = \
             _get_train_result_from_learner(self.learner, self.sync_sampling)
         if not self.sync_sampling:
@@ -197,10 +225,56 @@ class PPOPipeline(Pipeline):
         else:
             train_timesteps += int(step_count)
 
+        # Start sampling if necessary
         if self.sync_sampling:
             self.actor.start()
 
         return sample_timesteps, train_timesteps
+
+    def collect_metrics(self, timeout_seconds, min_history=100,
+                        selected_workers=None):
+        episodes, self.to_be_collected = collect_episodes(
+            self.workers.local_worker(),
+            selected_workers or self.workers.remote_workers(),
+            self.to_be_collected,
+            timeout_seconds=timeout_seconds)
+        orig_episodes = list(episodes)
+        missing = min_history - len(episodes)
+        if missing > 0:
+            episodes.extend(self.episode_history[-missing:])
+            assert len(episodes) <= min_history
+        self.episode_history.extend(orig_episodes)
+        self.episode_history = self.episode_history[-min_history:]
+        res = summarize_episodes(episodes, orig_episodes)
+        # res.update(info=self.stats)
+        return res, episodes, self.stats()
+
+    def stats(self):
+        def timer_to_ms(timer):
+            return round(1000 * timer.mean, 3)
+
+        stats = self.actor.stats()
+        stats.update(self.get_mean_stats_and_reset())
+        stats["timing_breakdown"] = {
+            "optimizer_step_time_ms": timer_to_ms(self._optimizer_step_timer),
+            "learner_grad_time_ms": timer_to_ms(self.learner.grad_timer),
+            "learner_load_time_ms": timer_to_ms(self.learner.load_timer),
+            "learner_load_wait_time_ms": timer_to_ms(
+                self.learner.load_wait_timer),
+            "learner_dequeue_time_ms": timer_to_ms(self.learner.queue_timer),
+        }
+        stats["learner_queue"] = self.learner.learner_queue_size.stats()
+        if self.learner.stats:
+            stats["learner"] = self.learner.stats
+        stats.update(
+            num_steps_trained=self.num_steps_trained,
+            num_steps_sampled=self.num_steps_sampled,
+            training_iteration=int(
+                self.num_steps_sampled // self.train_batch_size)
+        )
+        if not self.sync_sampling:
+            stats["num_steps_trained"] /= self.num_sgd_iter
+        return stats
 
 
 def _send_train_batch_to_learner(aggregator, learner):

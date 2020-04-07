@@ -8,10 +8,8 @@ from collections import defaultdict
 
 import numpy as np
 import ray
-from ray.rllib.evaluation.metrics import collect_episodes, summarize_episodes
 from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
 from ray.rllib.utils.annotations import override
-from ray.rllib.utils.timer import TimerStat
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +43,8 @@ class Coordinator(PolicyOptimizer):
 
     This class coordinates the data transfers between the learner thread
     and remote workers (IMPALA actors).
+
+    TODO Current implementation do not support local mode.
     """
 
     def __init__(self, workers_config, make_pipeline, num_pipelines,
@@ -56,24 +56,17 @@ class Coordinator(PolicyOptimizer):
         PolicyOptimizer.__init__(self, use_less_workers)
 
         self._stats_start_time = time.time()
-        self._last_stats_time = {}
-        self._last_stats_sum = {}
+        self._last_progress_dict = {}
 
         self.sync_sampling = sync_sampling
 
         pipeline_names = ["pipeline{}".format(i) for i in range(num_pipelines)]
-        # self.progress_monitor = ProgressMonitor.remote(pipeline_names)
         self.pipelines = {}
         self.pipeline_interfaces = {}
         for pipeline_id in pipeline_names:
-            # A ray object id, representing the progress reporting function
-            # callback_id = self.progress_monitor.get_pipeline_callback.remote(
-            #     pipeline_id)
             pipeline, interface = make_pipeline()
             self.pipelines[pipeline_id] = pipeline
             self.pipeline_interfaces[pipeline_id] = interface
-
-        print("Suop: ", self.pipeline_interfaces)
 
         for pipeline in self.pipelines.values():
             pipeline.run.remote()
@@ -82,20 +75,9 @@ class Coordinator(PolicyOptimizer):
             sync_sampling))
 
         # Stats
-        # TODO useless?
-        self._optimizer_step_timer = TimerStat()
         self._stats_start_time = time.time()
         self._last_stats_time = {}
-
-        # TODO useless?
-        # self.episode_history = {ws_id: [] for ws_id,
-        # _ in self.workers.items()}
-        # self.to_be_collected = {ws_id: [] for ws_id,
-        # _ in self.workers.items()}
-
-    # def push_progress(self, pipeline_id, progress):
-    #     assert pipeline_id in self.progress_ids
-    #     self.progress_ids[pipeline_id] = progress
+        self._last_stats_sum = {}
 
     def add_stat_val(self, key, val):
         if key not in self._last_stats_sum:
@@ -109,17 +91,21 @@ class Coordinator(PolicyOptimizer):
             key: round(val / (now - self._last_stats_time[key]), 3)
             for key, val in self._last_stats_sum.items()
         }
-
         for key in self._last_stats_sum.keys():
             self._last_stats_sum[key] = 0
             self._last_stats_time[key] = time.time()
-
         return mean_stats
 
-    def pull_progress(self, pipeline_id):
-        assert pipeline_id in self.pipeline_interfaces
-        return ray.get(
-            self.pipeline_interfaces[pipeline_id].pull_progress.remote())
+    def pull_progress(self, pipeline_id=None):
+        if pipeline_id is None:
+            return {
+                pid: self.pull_progress(pid)
+                for pid in self.pipeline_interfaces.keys()
+            }
+        else:
+            assert pipeline_id in self.pipeline_interfaces
+            return ray.get(
+                self.pipeline_interfaces[pipeline_id].pull_progress.remote())
 
     def push_signal(self, signal, pipeline_id=None):
         if pipeline_id is None:
@@ -131,18 +117,24 @@ class Coordinator(PolicyOptimizer):
 
     @override(PolicyOptimizer)
     def step(self):
-        print("=== current progress: ", self.pull_progress("pipeline0"))
-        time.sleep(1)
-        return
+        progress_dict = self.pull_progress()
+        self._last_progress_dict = progress_dict
 
-        for pl_id, pipeline in self.pipelines.items():
-            pass
-
-        sample_timesteps, train_timesteps = self._step()
+        if all(progress is None for progress in progress_dict.values()):
+            # The first iteration is not started.
+            time.sleep(1)
+            logger.debug("The first iter is not here. wait for 1 second.")
+            return self.step()
 
         # We use the summation of all agents as these two stats
-        sample_timesteps = sum(sample_timesteps.values())
-        train_timesteps = sum(train_timesteps.values())
+        sample_timesteps = sum(
+            p["num_steps_sampled"]
+            for p in progress_dict.values()
+        )
+        train_timesteps = sum(
+            p["num_steps_trained"]
+            for p in progress_dict.values()
+        )
 
         if sample_timesteps > 0:
             self.add_stat_val("sample_throughput", sample_timesteps)
@@ -170,91 +162,118 @@ class Coordinator(PolicyOptimizer):
             res (dict): A training result dict from worker metrics with
                 `info` replaced with stats from self.
         """
-        return {"timesteps_total": 0, "episode_reward_mean": 0}
+        # return {"timesteps_total": 0, "episode_reward_mean": 0}
         # TODO This function should run in each pipeline.
 
-        return_stats = {}
+        # return_stats = {}
+        #
+        # episode_storage = {}
+        #
+        # for ws_id, workers in self.workers.items():
+        #     episodes, self.to_be_collected[ws_id] = collect_episodes(
+        #         workers.local_worker(),
+        #         selected_workers or workers.remote_workers(),
+        #         self.to_be_collected[ws_id],
+        #         timeout_seconds=timeout_seconds)
+        #     orig_episodes = list(episodes)
+        #     missing = min_history - len(episodes)
+        #     if missing > 0:
+        #         episodes.extend(self.episode_history[ws_id][-missing:])
+        #         assert len(episodes) <= min_history
+        #     self.episode_history[ws_id].extend(orig_episodes)
+        #     self.episode_history[ws_id] = self.episode_history[ws_id][
+        #                                   -min_history:]
+        #
+        #     episode_storage[ws_id] = episodes
+        #     res = summarize_episodes(episodes, orig_episodes)
+        #     return_stats[ws_id] = res
 
-        episode_storage = {}
+        original_stat = PolicyOptimizer.stats(self)
+        if self._last_progress_dict and (
+                "episodes" in self._last_progress_dict["pipeline0"]):
+            return_stats = parse_stats(
+                {
+                    pid: progress["collect_metrics"]
+                    for pid, progress in self._last_progress_dict.items()
+                }, {
+                    pid: progress["episodes"]
+                    for pid, progress in self._last_progress_dict.items()
+                }
+            )
+            stats_list = [
+                progress["stats"] for progress in
+                self._last_progress_dict.values()
+            ]
+            ret_stat = wrap_dict_list(stats_list)
+            learner_info = {p_id: progress["stats"]
+                            for p_id, progress in
+                            self._last_progress_dict.items()}
 
-        for ws_id, workers in self.workers.items():
-            episodes, self.to_be_collected[ws_id] = collect_episodes(
-                workers.local_worker(),
-                selected_workers or workers.remote_workers(),
-                self.to_be_collected[ws_id],
-                timeout_seconds=timeout_seconds)
-            orig_episodes = list(episodes)
-            missing = min_history - len(episodes)
-            if missing > 0:
-                episodes.extend(self.episode_history[ws_id][-missing:])
-                assert len(episodes) <= min_history
-            self.episode_history[ws_id].extend(orig_episodes)
-            self.episode_history[ws_id] = self.episode_history[ws_id][
-                                          -min_history:]
-
-            episode_storage[ws_id] = episodes
-            res = summarize_episodes(episodes, orig_episodes)
-            return_stats[ws_id] = res
-        return_stats = parse_stats(return_stats, episode_storage)
-        return_stats.update(info=self.stats())
-        return_stats["info"]["learner_queue"].pop("size_quantiles")
+            ret_stat["learner"] = learner_info
+            original_stat.update(ret_stat)
+        else:
+            return_stats = {}
+        return_stats["info"] = original_stat
+        print("Hi!!! This is the return stats: ", return_stats)
         return return_stats
 
     @override(PolicyOptimizer)
     def stop(self):
-        for learner in self.learner_set.values():
-            learner.stopped = True
+        self.push_signal("STOP")
 
     @override(PolicyOptimizer)
     def reset(self, remote_workers):
+        # TODO use signal system to do this
+        raise NotImplementedError()
         self.workers.reset(remote_workers)
-
         for aggregator in self.aggregator_set.values():
             aggregator.reset(remote_workers)
 
-    @override(PolicyOptimizer)
-    def stats(self):
-        def timer_to_ms(timer):
-            return round(1000 * timer.mean, 3)
-
-        stats_list = []
-        learner_info = {}
-
-        for ws_id in self.aggregator_set.keys():
-            aggregator = self.aggregator_set[ws_id]
-            learner = self.learner_set[ws_id]
-
-            stats = aggregator.stats()
-            stats.update(self.get_mean_stats_and_reset())
-            stats["timing_breakdown"] = {
-                "optimizer_step_time_ms": timer_to_ms(
-                    self._optimizer_step_timer),
-                "learner_grad_time_ms": timer_to_ms(learner.grad_timer),
-                "learner_load_time_ms": timer_to_ms(learner.load_timer),
-                "learner_load_wait_time_ms": timer_to_ms(
-                    learner.load_wait_timer),
-                "learner_dequeue_time_ms": timer_to_ms(learner.queue_timer),
-            }
-            stats["learner_queue"] = learner.learner_queue_size.stats()
-            if learner.stats:
-                learner_info["policy{}".format(ws_id)] = learner.stats
-                if not self.sync_sampling:
-                    learner_info["policy{}".format(ws_id)]["train_timesteps"] \
-                        = int(learner.stats[
-                                  "train_timesteps"] // learner.num_sgd_iter)
-                learner_info["policy{}".format(ws_id)]["sample_timesteps"] = \
-                    stats["sample_timesteps"]
-                learner_info["policy{}".format(ws_id)]["training_iteration"] = \
-                    int(stats["sample_timesteps"] // self.train_batch_size)
-            stats.pop("sample_timesteps")
-
-            stats_list.append(stats)
-
-        ret_stat = wrap_dict_list(stats_list)
-        ret_stat["learner"] = learner_info
-        original_stat = PolicyOptimizer.stats(self)
-        original_stat.update(ret_stat)
-        return original_stat
+    # @override(PolicyOptimizer)
+    # def stats(self):
+    #     def timer_to_ms(timer):
+    #         return round(1000 * timer.mean, 3)
+    #
+    #     stats_list = []
+    #     learner_info = {}
+    #
+    #     for ws_id in self.aggregator_set.keys():
+    #         aggregator = self.aggregator_set[ws_id]
+    #         learner = self.learner_set[ws_id]
+    #
+    #         stats = aggregator.stats()
+    #         stats.update(self.get_mean_stats_and_reset())
+    #         stats["timing_breakdown"] = {
+    #             "optimizer_step_time_ms": timer_to_ms(
+    #                 self._optimizer_step_timer),
+    #             "learner_grad_time_ms": timer_to_ms(learner.grad_timer),
+    #             "learner_load_time_ms": timer_to_ms(learner.load_timer),
+    #             "learner_load_wait_time_ms": timer_to_ms(
+    #                 learner.load_wait_timer),
+    #             "learner_dequeue_time_ms": timer_to_ms(learner.queue_timer),
+    #         }
+    #         stats["learner_queue"] = learner.learner_queue_size.stats()
+    #         if learner.stats:
+    #             learner_info["policy{}".format(ws_id)] = learner.stats
+    #             if not self.sync_sampling:
+    #                 learner_info["policy{}".format(ws_id)][
+    #                 "train_timesteps"] \
+    #                     = int(learner.stats[
+    #                               "train_timesteps"] // learner.num_sgd_iter)
+    #             learner_info["policy{}".format(ws_id)]["sample_timesteps"] = \
+    #                 stats["sample_timesteps"]
+    #             learner_info["policy{}".format(ws_id)][
+    #             "training_iteration"] = \
+    #                 int(stats["sample_timesteps"] // self.train_batch_size)
+    #         stats.pop("sample_timesteps")
+    #
+    #         stats_list.append(stats)
+    #
+    #     ret_stat = wrap_dict_list(stats_list)
+    #     ret_stat["learner"] = learner_info
+    #     original_stat = PolicyOptimizer.stats(self)
+    #     original_stat.update(ret_stat)
+    #     return original_stat
 
 
 def wrap_dict_list(dict_list):
