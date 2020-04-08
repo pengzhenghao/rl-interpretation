@@ -8,8 +8,7 @@ from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
 from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
 from toolbox.train import train, get_train_parser
-
-
+from toolbox import initialize_ray
 def get_dynamic_trainer(algo):
     if algo == "PPO":
         base = PPOTrainer
@@ -105,6 +104,9 @@ if __name__ == '__main__':
     if args.use_tanh:
         print("We are using tanh as the output layer activation now!")
         config["model"]["custom_model"] = "fc_with_tanh"
+    else:
+        raise ValueError(
+            "You are not using tanh activation in the output layer!")
 
     if algo in ["ES", "ARS"]:
         config["num_gpus"] = 0
@@ -115,7 +117,7 @@ if __name__ == '__main__':
     # # test
     # config["model"]["custom_options"]["num_components"] = 2
     # initialize_ray(test_mode=True, local_mode=True)
-    # trainer = GaussianESTrainer(config=config, env=config["env"])
+    # trainer = GaussianESTrainer(config=config, env="BipedalWalker-v2")
 
     train(
         get_dynamic_trainer(algo),
