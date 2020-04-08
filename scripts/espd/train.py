@@ -97,7 +97,10 @@ if __name__ == '__main__':
             "num_components": tune.grid_search([2, 3, 5])
         }
     }
-    config["env"] = args.env_name
+    # config["env"] = args.env_name
+    config["env"] = tune.grid_search([
+        "BipedalWalker-v2", "Walker2d-v3", "HalfCheetah-v3"
+    ])
 
     if args.use_tanh:
         print("We are using tanh as the output layer activation now!")
@@ -106,7 +109,8 @@ if __name__ == '__main__':
     if algo in ["ES", "ARS"]:
         config["num_gpus"] = 0
         config["num_cpus_per_worker"] = 0.5
-        config["num_workers"] = 20
+        config["num_workers"] = 15
+        config["num_cpus_for_driver"] = 0.5
 
     # # test
     # config["model"]["custom_options"]["num_components"] = 2
