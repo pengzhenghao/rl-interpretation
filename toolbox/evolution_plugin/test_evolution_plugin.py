@@ -4,14 +4,15 @@ from ray import tune
 
 from toolbox import initialize_ray
 from toolbox.evolution_plugin.evolution_plugin import EPTrainer
+from toolbox.evolution_plugin.fuse_gradient import HARD_FUSE, SOFT_FUSE
 
 true_false_pair = tune.grid_search([True, False])
 
 DEFAULT_POLICY_NAME = "default_policy"
 
 
-@pytest.fixture()
-def ep_trainer():
+@pytest.fixture(params=[HARD_FUSE, SOFT_FUSE])
+def ep_trainer(request):
     initialize_ray(test_mode=True, local_mode=False)
     return EPTrainer(env="BipedalWalker-v2", config=dict(
         num_sgd_iter=2,
@@ -20,7 +21,8 @@ def ep_trainer():
             episodes_per_batch=20,
             train_batch_size=400,
             noise_size=20000000
-        )
+        ),
+        fuse_mode=request.param
     ))
 
 
@@ -45,7 +47,7 @@ def test_plugin_step(ep_trainer):
     assert old_weights["default_policy"] == pytest.approx(
         reported_old_weight["default_policy"])
     assert old_weights["default_policy"] != pytest.approx(
-        new_weight["default_policy"])
+        new_weight)
     assert train_result["timesteps_this_iter"] > 0
     print("One evolution step take {} seconds to finish {} episodes and {}"
           " steps.".format(
@@ -54,8 +56,18 @@ def test_plugin_step(ep_trainer):
         train_result["timesteps_this_iter"]
     ))
 
+    assert ep_trainer.get_policy()._variables.get_flat() == pytest.approx(
+        ep_trainer._previous_master_weights
+    )
+
     # Test 2: Assert trainer.train() is bug-free
-    ep_trainer.train()
+    result = ep_trainer.train()
+
+    assert ep_trainer.get_policy()._variables.get_flat() == pytest.approx(
+        ep_trainer._previous_master_weights
+    )
+
+    print("Train result: ", result)
 
 
 if __name__ == "__main__":
