@@ -13,7 +13,8 @@ if __name__ == '__main__':
     parser.add_argument("--soft", action="store_true")  # default hard
     parser.add_argument("--ppo", action="store_true")
     parser.add_argument("--es", action="store_true")
-    parser.add_argument("--local-mode", action="store_true")
+    parser.add_argument("--es-optimizer", type=str, default="adam")
+    parser.add_argument("--local-mode", "-lm", action="store_true")
     args = parser.parse_args()
 
     print(args)
@@ -36,7 +37,8 @@ if __name__ == '__main__':
         "lr": 0.005,
         "evolution": {
             "train_batch_size": 4000,  # The same as PPO
-            "num_workers": 10  # default is 10
+            "num_workers": 10,  # default is 10,
+            "optimizer_type": args.es_optimizer
         }
     }
 
