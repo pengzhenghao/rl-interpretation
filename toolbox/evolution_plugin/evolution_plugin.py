@@ -6,6 +6,7 @@ import ray
 from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG, \
     validate_config as original_validate
 from ray.rllib.utils.memory import ray_get_and_free
+from ray.rllib.utils.timer import TimerStat
 from ray.tune.utils import merge_dicts
 
 from toolbox import initialize_ray, train
@@ -47,6 +48,7 @@ def after_init(trainer):
             if _test_return_old_weights:
                 old_weights = copy.deepcopy(self.get_weights())
             train_result = self.train()
+            train_result = train_result["info"]
             weights = self.get_policy().get_weights()  # flatten weights
             if _test_return_old_weights:
                 return train_result, weights, old_weights
@@ -60,6 +62,7 @@ def after_init(trainer):
     trainer._previous_master_weights = _get_flat(trainer)
     trainer._evolution_start_time = time.time()
     trainer._evolution_result = trainer._evolution_plugin.step.remote()
+    trainer._fuse_timer = TimerStat()
 
 
 def after_optimizer_step(trainer, fetches):
@@ -67,6 +70,8 @@ def after_optimizer_step(trainer, fetches):
     launch new evolution iteration"""
     evolution_train_result, new_weights = \
         ray_get_and_free(trainer._evolution_result)
+    evolution_train_result["evolution_time"] = \
+        time.time() - trainer._evolution_start_time
 
     evolution_diff = trainer._previous_master_weights - new_weights
 
@@ -74,10 +79,12 @@ def after_optimizer_step(trainer, fetches):
     master_diff = trainer._previous_master_weights - current_master_weights
 
     # Compute the fuse gradient
-    new_grad, stats = fuse_gradient(
-        master_diff, evolution_diff, trainer.config["fuse_mode"],
-        max_grad_norm=trainer.config["grad_clip"])
-    updated_weights = trainer._previous_master_weights + new_grad
+    with trainer._fuse_timer:
+        new_grad, stats = fuse_gradient(
+            master_diff, evolution_diff, trainer.config["fuse_mode"],
+            max_grad_norm=trainer.config["grad_clip"])
+        updated_weights = trainer._previous_master_weights + new_grad
+    stats["fuse_time"] = trainer._fuse_timer.mean
 
     # Sync the latest weights
     _set_flat(trainer, updated_weights)
@@ -86,10 +93,10 @@ def after_optimizer_step(trainer, fetches):
 
     # Launch a new ES epoch
     trainer._evolution_result = trainer._evolution_plugin.step.remote()
-
-    stats["evolution_time"] = time.time() - trainer._evolution_start_time
-    fetches["fuse_gradient"] = stats
     trainer._evolution_start_time = time.time()
+
+    fetches["fuse_gradient"] = stats
+    fetches["evolution"] = evolution_train_result
 
 
 def _sync_weights(trainer, plugin):

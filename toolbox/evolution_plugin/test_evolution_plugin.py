@@ -1,6 +1,7 @@
 import pytest
 import ray
 from ray import tune
+from ray.tune.logger import pretty_print
 
 from toolbox import initialize_ray
 from toolbox.evolution_plugin.evolution_plugin import EPTrainer
@@ -48,26 +49,20 @@ def test_plugin_step(ep_trainer):
         reported_old_weight["default_policy"])
     assert old_weights["default_policy"] != pytest.approx(
         new_weight)
-    assert train_result["timesteps_this_iter"] > 0
-    print("One evolution step take {} seconds to finish {} episodes and {}"
-          " steps.".format(
-        train_result["time_this_iter_s"],
-        train_result["info"]["episodes_this_iter"],
-        train_result["timesteps_this_iter"]
+    print("One evolution step finish {} episodes.".format(
+        train_result["episodes_this_iter"]
     ))
-
     assert ep_trainer.get_policy()._variables.get_flat() == pytest.approx(
         ep_trainer._previous_master_weights
     )
 
     # Test 2: Assert trainer.train() is bug-free
     result = ep_trainer.train()
-
     assert ep_trainer.get_policy()._variables.get_flat() == pytest.approx(
         ep_trainer._previous_master_weights
     )
 
-    print("Train result: ", result)
+    print("Train result: ", pretty_print(result))
 
 
 if __name__ == "__main__":
