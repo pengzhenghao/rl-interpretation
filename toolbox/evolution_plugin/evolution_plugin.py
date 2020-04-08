@@ -35,9 +35,7 @@ def after_optimizer_step(trainer, feteches):
 
 
 def after_init(trainer):
-    """
-    TODO: Launch the first ES task here
-    """
+    """Setup evolution plugin, sync weight and start first training."""
     base = ESPlugin
 
     @ray.remote(num_gpus=0)
@@ -58,12 +56,21 @@ def after_init(trainer):
 
     _sync_weights(trainer, trainer._evolution_plugin)
 
+    # TODO start first training
+
 
 def _sync_weights(trainer, plugin):
-    # FIXME never sync the weights of value network.
     plugin.sync_weights.remote(
-        trainer.get_policy().get_weights()
+        filter_weights(trainer.get_policy().get_weights())
     )
+
+
+def filter_weights(weights):
+    """Filter out the weights of value network"""
+    assert isinstance(weights, dict)
+    return {
+        wid: w for wid, w in weights.items() if "value" not in wid
+    }
 
 
 EPTrainer = PPOTrainer.with_updates(

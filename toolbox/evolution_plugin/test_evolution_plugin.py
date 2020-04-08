@@ -2,7 +2,7 @@ import pytest
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.evolution_plugin.evolution_plugin import EPTrainer
+from toolbox.evolution_plugin.evolution_plugin import EPTrainer, filter_weights
 import ray
 true_false_pair = tune.grid_search([True, False])
 
@@ -32,15 +32,17 @@ def assert_weights_equal(w1, w2):
 
 def test_plugin_weight_sync(ep_trainer):
     assert_weights_equal(
-        ep_trainer.get_policy().get_weights(),
-        ray.get(ep_trainer._evolution_plugin.retrieve_weights.remote())
+        filter_weights(ep_trainer.get_policy().get_weights()),
+        filter_weights(ray.get(
+            ep_trainer._evolution_plugin.retrieve_weights.remote()))
     )
 
     ep_trainer.train()
 
     assert_weights_equal(
-        ep_trainer.get_policy().get_weights(),
-        ray.get(ep_trainer._evolution_plugin.retrieve_weights.remote())
+        filter_weights(ep_trainer.get_policy().get_weights()),
+        filter_weights(ray.get(
+            ep_trainer._evolution_plugin.retrieve_weights.remote()))
     )
 
 
