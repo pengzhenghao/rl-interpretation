@@ -21,8 +21,15 @@ ESPlugin = GaussianESTrainer
 
 ppo_es_default_config = merge_dicts(
     DEFAULT_CONFIG,
-    dict(evolution=es_config, fuse_mode=HARD_FUSE, grad_clip=40)
-)
+    dict(
+        # set episodes_per_batch to 1 so that only train_batch_size control ES
+        # learning steps in each epoch
+        evolution=merge_dicts(es_config, dict(
+            episodes_per_batch=1, train_batch_size=4000
+        )),
+        fuse_mode=HARD_FUSE,
+        grad_clip=40
+    ))
 
 
 def validate_config(config):
@@ -48,7 +55,9 @@ def after_init(trainer):
             if _test_return_old_weights:
                 old_weights = copy.deepcopy(self.get_weights())
             train_result = self.train()
+            timesteps_this_iter = train_result["timesteps_this_iter"]
             train_result = train_result["info"]
+            train_result["timesteps_this_iter"] = timesteps_this_iter
             weights = self.get_policy().get_weights()  # flatten weights
             if _test_return_old_weights:
                 return train_result, weights, old_weights
@@ -73,10 +82,10 @@ def after_optimizer_step(trainer, fetches):
     evolution_train_result["evolution_time"] = \
         time.time() - trainer._evolution_start_time
 
-    evolution_diff = trainer._previous_master_weights - new_weights
+    evolution_diff = new_weights - trainer._previous_master_weights
 
     current_master_weights = _get_flat(trainer)
-    master_diff = trainer._previous_master_weights - current_master_weights
+    master_diff = current_master_weights - trainer._previous_master_weights
 
     # Compute the fuse gradient
     with trainer._fuse_timer:
