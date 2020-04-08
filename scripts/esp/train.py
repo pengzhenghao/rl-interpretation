@@ -16,6 +16,7 @@ if __name__ == '__main__':
         "entropy_coeff": 0.001,
         "lambda": 0.95,
         "lr": 2.5e-4,
+        "num_gpus": 1,  # Force to run 2 concurrently
         "evolution": {
             "train_batch_size": 4000,  # The same as PPO
             "num_workers": 10,  # default is 10,
@@ -30,7 +31,7 @@ if __name__ == '__main__':
         exp_name=exp_name,
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
-        test_mode=args.test_mode,
+        test_mode=args.test,
         keep_checkpoints_num=5,
         start_seed=args.start_seed
     )
