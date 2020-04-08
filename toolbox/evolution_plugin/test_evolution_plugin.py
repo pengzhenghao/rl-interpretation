@@ -1,9 +1,10 @@
 import pytest
+import ray
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.evolution_plugin.evolution_plugin import EPTrainer, filter_weights
-import ray
+from toolbox.evolution_plugin.evolution_plugin import EPTrainer
+
 true_false_pair = tune.grid_search([True, False])
 
 DEFAULT_POLICY_NAME = "default_policy"
@@ -11,10 +12,15 @@ DEFAULT_POLICY_NAME = "default_policy"
 
 @pytest.fixture()
 def ep_trainer():
-    initialize_ray(test_mode=True, local_mode=True)
+    initialize_ray(test_mode=True, local_mode=False)
     return EPTrainer(env="BipedalWalker-v2", config=dict(
         num_sgd_iter=2,
-        train_batch_size=400
+        train_batch_size=400,
+        evolution=dict(
+            episodes_per_batch=20,
+            train_batch_size=400,
+            noise_size=20000000
+        )
     ))
 
 
@@ -30,20 +36,26 @@ def assert_weights_equal(w1, w2):
             assert wid1 == wid2
 
 
-def test_plugin_weight_sync(ep_trainer):
-    assert_weights_equal(
-        filter_weights(ep_trainer.get_policy().get_weights()),
-        filter_weights(ray.get(
-            ep_trainer._evolution_plugin.retrieve_weights.remote()))
-    )
+def test_plugin_step(ep_trainer):
+    # Test 1: Assert plugin.step() change the weights
+    plugin = ep_trainer._evolution_plugin
+    old_weights = ray.get(plugin.get_weights.remote())
+    train_result, new_weight, reported_old_weight = \
+        ray.get(plugin.step.remote(True))
+    assert old_weights["default_policy"] == pytest.approx(
+        reported_old_weight["default_policy"])
+    assert old_weights["default_policy"] != pytest.approx(
+        new_weight["default_policy"])
+    assert train_result["timesteps_this_iter"] > 0
+    print("One evolution step take {} seconds to finish {} episodes and {}"
+          " steps.".format(
+        train_result["time_this_iter_s"],
+        train_result["info"]["episodes_this_iter"],
+        train_result["timesteps_this_iter"]
+    ))
 
+    # Test 2: Assert trainer.train() is bug-free
     ep_trainer.train()
-
-    assert_weights_equal(
-        filter_weights(ep_trainer.get_policy().get_weights()),
-        filter_weights(ray.get(
-            ep_trainer._evolution_plugin.retrieve_weights.remote()))
-    )
 
 
 if __name__ == "__main__":

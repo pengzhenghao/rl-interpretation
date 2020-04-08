@@ -4,7 +4,7 @@ import ray
 from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG, \
     validate_config as original_validate
 from ray.tune.utils import merge_dicts
-
+from ray.rllib.utils.memory import ray_get_and_free
 from toolbox import initialize_ray, train
 from toolbox.evolution import GaussianESTrainer
 from toolbox.evolution.modified_es import DEFAULT_CONFIG as es_config
@@ -29,7 +29,11 @@ def validate_config(config):
     assert not config["evolution"]["model"]["vf_share_layers"]
 
 
-def after_optimizer_step(trainer, feteches):
+def after_optimizer_step(trainer, fetches):
+    """Collect gradients, gradient fusing, update master weights, sync weights,
+    launch new evolution iteration"""
+    evolution_result = ray_get_and_free(trainer._evolution_result)
+
     print("sss")
     pass
 
@@ -46,17 +50,19 @@ def after_init(trainer):
         def retrieve_weights(self):
             return self.get_policy().variables.get_weights()
 
-        def step(self):
+        def step(self, _test_return_old_weights=False):
+            if _test_return_old_weights:
+                old_weights = copy.deepcopy(self.get_weights())
             train_result = self.train()
             weights = self.get_weights()  # flatten weights
+            if _test_return_old_weights:
+                return train_result, weights, old_weights
             return train_result, weights
 
     trainer._evolution_plugin = EvolutionPluginRemote.remote(
         trainer.config["evolution"], trainer.config["env"])
-
     _sync_weights(trainer, trainer._evolution_plugin)
-
-    # TODO start first training
+    trainer._evolution_result = trainer._evolution_plugin.step.remote()
 
 
 def _sync_weights(trainer, plugin):
