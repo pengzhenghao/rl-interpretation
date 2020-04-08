@@ -37,6 +37,9 @@ def train(
 
     if isinstance(config["env"], str):
         env_name = config["env"]
+    elif isinstance(config["env"], dict):
+        assert "grid_search" in config["env"]
+        assert len(config["env"]) == 1
     else:
         assert config["env"] is MultiAgentEnvWrapper
         env_name = config["env_config"]["env_name"]
