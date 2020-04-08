@@ -1,3 +1,5 @@
+import copy
+
 import ray
 from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG, \
     validate_config as original_validate
@@ -6,7 +8,7 @@ from ray.tune.utils import merge_dicts
 from toolbox import initialize_ray, train
 from toolbox.evolution import GaussianESTrainer
 from toolbox.evolution.modified_es import DEFAULT_CONFIG as es_config
-import copy
+
 # TODO support ARS default config
 
 ESPlugin = GaussianESTrainer
@@ -43,6 +45,9 @@ def after_init(trainer):
         def sync_weights(self, weights):
             self.get_policy().variables.set_weights(weights)
 
+        def retrieve_weights(self):
+            return self.get_policy().variables.get_weights()
+
         def step(self):
             train_result = self.train()
             weights = self.get_weights()  # flatten weights
@@ -52,8 +57,6 @@ def after_init(trainer):
         trainer.config["evolution"], trainer.config["env"])
 
     _sync_weights(trainer, trainer._evolution_plugin)
-
-
 
 
 def _sync_weights(trainer, plugin):
@@ -74,7 +77,7 @@ EPTrainer = PPOTrainer.with_updates(
 
 if __name__ == '__main__':
     env_name = "CartPole-v0"
-    num_agents = 3
+    # num_agents = 3
     config = {
         "env": env_name,
         "num_sgd_iter": 2,
