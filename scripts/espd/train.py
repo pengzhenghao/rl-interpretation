@@ -1,5 +1,7 @@
+from fcnet_tanh import FullyConnectedNetworkTanh
 from ray import tune
 from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.models import ModelCatalog
 
 from toolbox.action_distribution import GaussianMixture
 from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
@@ -26,10 +28,15 @@ def get_dynamic_trainer(algo):
     return base
 
 
+ModelCatalog.register_custom_model(
+    "fc_with_tanh", FullyConnectedNetworkTanh
+)
+
 if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--algo", type=str, required=True)
-    parser.add_argument("--start_seed", default=0, type=int)
+    parser.add_argument("--start-seed", default=0, type=int)
+    parser.add_argument("--use-tanh", action="store_true")
     args = parser.parse_args()
 
     algo = args.algo
@@ -84,18 +91,27 @@ if __name__ == '__main__':
     # Update model config (Remove all model config above)
     config["model"] = {
         "vf_share_layers": False,
+        # "custom_model": "fc_with_tanh",
         "custom_action_dist": GaussianMixture.name,
         "custom_options": {
             "num_components": tune.grid_search([2, 3, 5])
         }
     }
-
     config["env"] = args.env_name
+
+    if args.use_tanh:
+        print("We are using tanh as the output layer activation now!")
+        config["model"]["custom_model"] = "fc_with_tanh"
 
     if algo in ["ES", "ARS"]:
         config["num_gpus"] = 0
         config["num_cpus_per_worker"] = 0.5
         config["num_workers"] = 20
+
+    # # test
+    # config["model"]["custom_options"]["num_components"] = 2
+    # initialize_ray(test_mode=True, local_mode=True)
+    # trainer = GaussianESTrainer(config=config, env=config["env"])
 
     train(
         get_dynamic_trainer(algo),
