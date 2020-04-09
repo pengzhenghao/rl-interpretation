@@ -20,7 +20,6 @@ if __name__ == '__main__':
         "evolution": {
             "train_batch_size": 4000,  # The same as PPO
             "num_workers": 10,  # default is 10,
-            "optimizer_type": "adam",
             "num_cpus_per_worker": 0.5,
         }
     }

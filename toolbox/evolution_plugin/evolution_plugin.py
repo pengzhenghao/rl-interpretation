@@ -30,10 +30,12 @@ ppo_es_default_config = merge_dicts(
         # set episodes_per_batch to 1 so that only train_batch_size control ES
         # learning steps in each epoch
         evolution=merge_dicts(es_config, dict(
-            episodes_per_batch=1, train_batch_size=4000
+            episodes_per_batch=1, train_batch_size=4000,
+            optimizer_type="sgd"  # must in [adam, sgd]
         )),
         fuse_mode=HARD_FUSE,
-        grad_clip=40
+        grad_clip=40,
+        master_optimizer_type="sgd"  # must in [adam, sgd]
     ))
 
 
@@ -165,8 +167,14 @@ def after_optimizer_step(trainer, fetches):
 
 
 def sgd_optimizer(policy, config):
-    print("You are using SGD optimizer!")
-    return tf.train.GradientDescentOptimizer(config["lr"])
+    if config["master_optimizer_type"] == "adam":
+        print("You are using ADAM optimizer!")
+        return tf.train.AdamOptimizer(config["lr"])
+    elif config["master_optimizer_type"] == "sgd":
+        print("You are using SGD optimizer!")
+        return tf.train.GradientDescentOptimizer(config["lr"])
+    else:
+        raise ValueError("master_optimizer_type must in [adam, sgd].")
 
 
 EPPolicy = PPOTFPolicy.with_updates(
