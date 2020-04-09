@@ -20,7 +20,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     local_mode = args.local_mode
-    env_name = "CartPole-v0"
     dir_path = tempfile.mkdtemp()
     now = time.time()
     num_gpus = 0
@@ -28,7 +27,7 @@ if __name__ == '__main__':
     assert int(args.ppo) + int(args.es) + int(args.es_large) == 1
     if args.ppo:
         config = {
-            "env": env_name,
+            "env": args.env_name,
             "num_sgd_iter": 10,
             "num_gpus": num_gpus,
             "train_batch_size": 4000,
@@ -40,7 +39,8 @@ if __name__ == '__main__':
         config = {
             "train_batch_size": 4000,
             "num_workers": 10,
-            "optimizer_type": args.es_optimizer, "env": env_name,
+            "optimizer_type": args.es_optimizer,
+            "env": args.env_name,
             "lr": 2.5e-4,
             "episodes_per_batch": 1,
             "num_cpus_per_worker": 0.5
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         run = GaussianESTrainer
         if args.es_large:
             config.update({
-                "episodes_per_batch": 1000,
+                "episodes_per_batch": 1,
                 "train_batch_size": 10000
             })
     train(
