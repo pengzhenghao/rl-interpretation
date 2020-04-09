@@ -1,17 +1,16 @@
 """
 This file only provide training for baseline
 """
-import argparse
 import shutil
 import tempfile
 import time
 
 from toolbox import initialize_ray
 from toolbox.evolution import GaussianESTrainer
-from toolbox.train import train
+from toolbox.train import train, get_train_parser
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = get_train_parser()
     parser.add_argument("--ppo", action="store_true")
     parser.add_argument("--es", action="store_true")
     parser.add_argument("--es-large", action="store_true")
