@@ -32,5 +32,6 @@ if __name__ == '__main__':
         num_gpus=args.num_gpus,
         test_mode=args.test,
         keep_checkpoints_num=5,
-        start_seed=args.start_seed
+        start_seed=args.start_seed,
+        verbose=2
     )
