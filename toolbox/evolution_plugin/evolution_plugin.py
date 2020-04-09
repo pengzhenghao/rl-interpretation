@@ -111,13 +111,17 @@ def after_init(trainer):
                 old_weights = copy.deepcopy(
                     self.get_policy().variables.get_weights())
             train_result = self.train()
-            timesteps_this_iter = train_result["timesteps_this_iter"]
-            train_result = train_result["info"]
-            train_result["timesteps_this_iter"] = timesteps_this_iter
+            ret_train_result = train_result["info"]
+            ret_train_result["timesteps_this_iter"] = train_result[
+                "timesteps_this_iter"]
+            ret_train_result["timesteps_total"] = train_result[
+                "timesteps_total"]
+            ret_train_result["episode_reward_mean"] = train_result[
+                "episode_reward_mean"]
             weights = self.get_policy().variables.get_weights()  # dict weights
             if _test_return_old_weights:
-                return train_result, weights, old_weights
-            return train_result, weights
+                return ret_train_result, weights, old_weights
+            return ret_train_result, weights
 
     trainer._evolution_plugin = EvolutionPluginRemote.remote(
         trainer.config["evolution"], trainer.config["env"])
