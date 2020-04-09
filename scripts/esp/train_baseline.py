@@ -39,9 +39,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     local_mode = args.local_mode
-    dir_path = tempfile.mkdtemp()
     now = time.time()
-    num_gpus = 0
     initialize_ray(test_mode=False, local_mode=local_mode, num_gpus=1)
     assert int(args.ppo) + int(args.es) + int(args.es_large) == 1
     if args.ppo:
@@ -49,7 +47,7 @@ if __name__ == '__main__':
         config = {
             "env": args.env_name,
             "num_sgd_iter": 10,
-            "num_gpus": num_gpus,
+            "num_gpus": 1 if args.num_gpus > 0 else 0,
             "train_batch_size": 4000,
             "sample_batch_size": 200,
             "num_envs_per_worker": 8,
@@ -76,5 +74,4 @@ if __name__ == '__main__':
         run, stop=int(args.stop), verbose=2, extra_config=config,
         exp_name=args.exp_name, num_seeds=args.num_seeds, num_gpus=args.num_gpus
     )
-    shutil.rmtree(dir_path, ignore_errors=True)
     print("Test finished! Cost time: ", time.time() - now)
