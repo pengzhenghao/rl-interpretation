@@ -4,7 +4,10 @@ from toolbox.evolution_plugin import EPTrainer, HARD_FUSE, SOFT_FUSE
 from toolbox.train import train, get_train_parser
 
 if __name__ == '__main__':
-    args = get_train_parser().parse_args()
+    parser = get_train_parser()
+    parser.add_argument("--checkpoint-freq", "-cf", default=10, type=int)
+    parser.add_argument("--adam-optimizer", action="store_true")
+    args = parser.parse_args()
     exp_name = "{}-{}".format(args.exp_name, args.env_name)
     config = {
         "env": args.env_name,
@@ -21,6 +24,7 @@ if __name__ == '__main__':
             "train_batch_size": 4000,  # The same as PPO
             "num_workers": 10,  # default is 10,
             "num_cpus_per_worker": 0.5,
+            "optimizer_type": "adam" if args.adam_optimizer else "sgd"
         }
     }
     train(
@@ -31,7 +35,7 @@ if __name__ == '__main__':
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
         test_mode=args.test,
-        keep_checkpoints_num=5,
+        checkpoint_freq=args.checkpoint_freq,
         start_seed=args.start_seed,
         verbose=2
     )
