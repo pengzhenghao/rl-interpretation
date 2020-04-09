@@ -131,6 +131,8 @@ def after_optimizer_step(trainer, fetches):
     launch new evolution iteration"""
     evolution_train_result, new_weights = \
         ray_get_and_free(trainer._evolution_result)
+    trainer.state["plugin"] = ray_get_and_free(
+        trainer._evolution_plugin.__getstate__.remote())
     evolution_train_result["evolution_time"] = \
         time.time() - trainer._evolution_start_time
 
@@ -161,9 +163,9 @@ def after_optimizer_step(trainer, fetches):
     # Launch a new ES epoch
     trainer._evolution_result = trainer._evolution_plugin.step.remote()
     trainer._evolution_start_time = time.time()
+    fetches["evolution"] = evolution_train_result
 
     fetches["fuse_gradient"] = stats
-    fetches["evolution"] = evolution_train_result
 
 
 def sgd_optimizer(policy, config):

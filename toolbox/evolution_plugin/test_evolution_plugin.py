@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import pytest
 import ray
@@ -16,7 +18,7 @@ DEFAULT_POLICY_NAME = "default_policy"
 
 @pytest.fixture(params=[HARD_FUSE, SOFT_FUSE])
 def ep_trainer(request):
-    initialize_ray(test_mode=True, local_mode=False)
+    initialize_ray(test_mode=True, local_mode=True)
     return EPTrainer(env="BipedalWalker-v2", config=dict(
         num_sgd_iter=2,
         train_batch_size=400,
@@ -39,6 +41,15 @@ def assert_weights_equal(w1, w2):
         if wid1.startswith(DEFAULT_POLICY_NAME) and \
                 wid2.startswith(DEFAULT_POLICY_NAME):
             assert wid1 == wid2
+
+
+def test_getstate(ep_trainer):
+    ep_trainer.train()
+    path = ep_trainer.save()
+    with open(path, "rb") as f:
+        state = pickle.load(f)
+    assert "plugin" in state["trainer_state"]
+    assert isinstance(state["trainer_state"]["plugin"], dict)
 
 
 def test_plugin_step(ep_trainer):
