@@ -9,6 +9,7 @@ from ray.rllib.agents.ppo.ppo import PPOTrainer, DEFAULT_CONFIG, \
 from ray.rllib.utils import try_import_tf
 from ray.rllib.utils.memory import ray_get_and_free
 from ray.rllib.utils.timer import TimerStat
+from ray.tune.resources import Resources
 from ray.tune.utils import merge_dicts
 
 from toolbox import initialize_ray, train
@@ -30,8 +31,12 @@ ppo_es_default_config = merge_dicts(
         # set episodes_per_batch to 1 so that only train_batch_size control ES
         # learning steps in each epoch
         evolution=merge_dicts(es_config, dict(
-            episodes_per_batch=1, train_batch_size=4000,
-            optimizer_type="sgd"  # must in [adam, sgd]
+            episodes_per_batch=1,
+            train_batch_size=4000,
+            num_cpus_per_worker=0.5,
+            # faster if more workers are used
+            num_workers=10,  # 6 CPU for evolution plugin
+            optimizer_type="sgd",  # must in [adam, sgd]
         )),
         fuse_mode=HARD_FUSE,
         grad_clip=40,
@@ -83,7 +88,6 @@ def _filter_weights(weights):
 
 
 def _check_shapes(shapes1, shapes2):
-    # TODO remove this function
     for (n1, s1), (n2, s2) in zip(shapes1.items(), shapes2.items()):
         assert n1 == n2
         assert s1 == s2
@@ -129,6 +133,7 @@ def after_init(trainer):
 def after_optimizer_step(trainer, fetches):
     """Collect gradients, gradient fusing, update master weights, sync weights,
     launch new evolution iteration"""
+    # Receive the evolution result and store the latest plugin weights
     evolution_train_result, new_weights = \
         ray_get_and_free(trainer._evolution_result)
     trainer.state["plugin"] = ray_get_and_free(
@@ -136,12 +141,12 @@ def after_optimizer_step(trainer, fetches):
     evolution_train_result["evolution_time"] = \
         time.time() - trainer._evolution_start_time
 
-    evolution_diff, shapes2 = _get_diff(new_weights,
-                                        trainer._previous_master_weights)
+    # Compute the difference compared to master weights
+    evolution_diff, shapes2 = _get_diff(
+        new_weights, trainer._previous_master_weights)
     current_master_weights = trainer.get_policy().get_weights()
-    master_diff, shapes = _get_diff(current_master_weights,
-                                    trainer._previous_master_weights)
-
+    master_diff, shapes = _get_diff(
+        current_master_weights, trainer._previous_master_weights)
     _check_shapes(shapes, shapes2)
 
     # Compute the fuse gradient
@@ -164,19 +169,39 @@ def after_optimizer_step(trainer, fetches):
     trainer._evolution_result = trainer._evolution_plugin.step.remote()
     trainer._evolution_start_time = time.time()
     fetches["evolution"] = evolution_train_result
-
     fetches["fuse_gradient"] = stats
 
 
 def sgd_optimizer(policy, config):
     if config["master_optimizer_type"] == "adam":
-        print("You are using ADAM optimizer!")
+        logger.info("You are using Adam optimizer!")
         return tf.train.AdamOptimizer(config["lr"])
     elif config["master_optimizer_type"] == "sgd":
-        print("You are using SGD optimizer!")
+        logger.info("You are using SGD optimizer!")
         return tf.train.GradientDescentOptimizer(config["lr"])
     else:
         raise ValueError("master_optimizer_type must in [adam, sgd].")
+
+
+class OverrideDefaultResourceRequest:
+    """Copied from IMPALA trainer. Add evolution plugin CPUs to original."""
+
+    @classmethod
+    def default_resource_request(cls, config):
+        cf = merge_dicts(cls._default_config, config)
+        return Resources(
+            cpu=cf["num_cpus_for_driver"] + cf["evolution"][
+                "num_cpus_for_driver"],
+            gpu=cf["num_gpus"],
+            memory=cf["memory"],
+            object_store_memory=cf["object_store_memory"],
+            extra_cpu=cf["num_cpus_per_worker"] * cf["num_workers"] +
+                      cf["evolution"]["num_cpus_per_worker"] * cf["evolution"][
+                          "num_workers"],  # <<== Add plugin CPUs
+            extra_gpu=cf["num_gpus_per_worker"] * cf["num_workers"],
+            extra_memory=cf["memory_per_worker"] * cf["num_workers"],
+            extra_object_store_memory=cf["object_store_memory_per_worker"] *
+                                      cf["num_workers"])
 
 
 EPPolicy = PPOTFPolicy.with_updates(
@@ -192,25 +217,13 @@ EPTrainer = PPOTrainer.with_updates(
     default_config=ppo_es_default_config,
     after_init=after_init,
     after_optimizer_step=after_optimizer_step,
-    # after_train_result=run_evolution_strategies,
-    validate_config=validate_config
+    validate_config=validate_config,
+    mixins=[OverrideDefaultResourceRequest]
 )
 
 if __name__ == '__main__':
-    env_name = "CartPole-v0"
-    # num_agents = 3
-    config = {
-        "env": env_name,
-        "num_sgd_iter": 2,
-        "train_batch_size": 400,
-        # "update_steps": 1000,
-        # **get_marl_env_config(env_name, num_agents)
-    }
+    config = {"env": "CartPole-v0", "num_sgd_iter": 2, "train_batch_size": 400,
+              "evolution": {"num_workers": 3}}
     initialize_ray(test_mode=True, local_mode=True)
-    train(
-        EPTrainer,
-        config,
-        exp_name="DELETE_ME_TEST",
-        stop={"timesteps_total": 10000},
-        test_mode=True
-    )
+    train(EPTrainer, config, exp_name="DELETE_ME_TEST", test_mode=True,
+          stop={"timesteps_total": 10000})
