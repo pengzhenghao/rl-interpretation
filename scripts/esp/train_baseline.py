@@ -40,7 +40,6 @@ if __name__ == '__main__':
     print(args)
     local_mode = args.local_mode
     now = time.time()
-    initialize_ray(test_mode=False, local_mode=local_mode, num_gpus=1)
     assert int(args.ppo) + int(args.es) + int(args.es_large) == 1
     if args.ppo:
         run = PPOSGDTrainer
