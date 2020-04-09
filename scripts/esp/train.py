@@ -15,6 +15,7 @@ if __name__ == '__main__':
         "train_batch_size": 4000,
         "sample_batch_size": 200,
         "fuse_mode": tune.grid_search([SOFT_FUSE, HARD_FUSE]),
+        "equal_norm": tune.grid_search([True, False]),
         "num_envs_per_worker": 8,
         "entropy_coeff": 0.001,
         "lambda": 0.95,

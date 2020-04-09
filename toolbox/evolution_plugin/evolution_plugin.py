@@ -38,10 +38,18 @@ ppo_es_default_config = merge_dicts(
             num_workers=10,  # 6 CPU for evolution plugin
             optimizer_type="sgd",  # must in [adam, sgd]
         )),
-        fuse_mode=HARD_FUSE,
         grad_clip=40,
-        master_optimizer_type="sgd"  # must in [adam, sgd]
-    ))
+
+        # must in [HARD_FUSE, SOFT_FUSE]
+        fuse_mode=HARD_FUSE,
+
+        # must in [adam, sgd]
+        master_optimizer_type="sgd",
+
+        # if True, then force evolution diff and master diff to have equal norm
+        equal_norm=False
+    )
+)
 
 
 def _flatten(weights):
@@ -157,7 +165,9 @@ def after_optimizer_step(trainer, fetches):
     with trainer._fuse_timer:
         new_grad, stats = fuse_gradient(
             master_diff, evolution_diff, trainer.config["fuse_mode"],
-            max_grad_norm=trainer.config["grad_clip"])
+            max_grad_norm=trainer.config["grad_clip"],
+            equal_norm=trainer.config["equal_norm"]
+        )
         updated_weights = _flatten(_filter_weights(
             trainer._previous_master_weights))[0] + new_grad
         updated_weights = _unflatten(updated_weights, shapes)
