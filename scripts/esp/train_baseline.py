@@ -15,6 +15,7 @@ if __name__ == '__main__':
     parser.add_argument("--es", action="store_true")
     parser.add_argument("--es-large", action="store_true")
     parser.add_argument("--es-optimizer", type=str, default="sgd")
+    parser.add_argument("--stop", type=float, default=1e7)
     parser.add_argument("--local-mode", "-lm", action="store_true")
     args = parser.parse_args()
     print(args)
@@ -51,7 +52,7 @@ if __name__ == '__main__':
                 "train_batch_size": 10000
             })
     train(
-        run, stop=1e-7, verbose=2, extra_config=config,
+        run, stop=int(args.stop), verbose=2, extra_config=config,
         exp_name=args.exp_name, num_seeds=args.num_seeds, num_gpus=args.num_gpus
     )
     shutil.rmtree(dir_path, ignore_errors=True)
