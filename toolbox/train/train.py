@@ -85,6 +85,7 @@ def get_train_parser():
     parser.add_argument("--exp-name", type=str, required=True)
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-seeds", type=int, default=3)
+    parser.add_argument("--start-seed", type=int, default=0)
     parser.add_argument("--num-cpus-per-worker", type=float, default=1.0)
     parser.add_argument("--num-cpus-for-driver", type=float, default=1.0)
     parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
