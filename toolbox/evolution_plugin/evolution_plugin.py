@@ -186,7 +186,7 @@ def after_optimizer_step(trainer, fetches):
     fetches["fuse_gradient"] = stats
 
 
-def sgd_optimizer(policy, config):
+def choose_optimzier(policy, config):
     if config["master_optimizer_type"] == "adam":
         logger.info("You are using Adam optimizer!")
         return tf.train.AdamOptimizer(config["lr"])
@@ -221,7 +221,7 @@ class OverrideDefaultResourceRequest:
 EPPolicy = PPOTFPolicy.with_updates(
     name="EvolutionPluginTFPolicy",
     get_default_config=lambda: ppo_es_default_config,
-    optimizer_fn=sgd_optimizer
+    optimizer_fn=choose_optimzier
 )
 
 EPTrainer = PPOTrainer.with_updates(
