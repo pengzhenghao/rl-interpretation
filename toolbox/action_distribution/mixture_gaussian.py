@@ -17,10 +17,6 @@ class GaussianMixture(TFActionDistribution):
     def __init__(self, inputs, model):
         self.k = model.model_config['custom_options']['num_components']
         input_length = inputs.shape.as_list()[1]
-
-        # if model.model_config["std_mode"] in ["free", "zero"]:
-
-
         action_length = int((input_length / self.k - 1) / 2)
         num_splits = [action_length * self.k, action_length * self.k, self.k]
 
