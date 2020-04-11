@@ -231,7 +231,8 @@ if __name__ == '__main__':
     parser.add_argument("--max-num-agents", type=int, default=5)
     args = parser.parse_args()
 
-    env_name = "{}-{}".format(args.env_name, args.env_name)
+    exp_name = "{}-{}".format(args.exp_name, args.env_name)
+    env_name = args.env_name
 
     num_gpus = 1 if not args.test else 0
     print("Force to use 1 gpu.")
@@ -251,7 +252,7 @@ if __name__ == '__main__':
         stop = int(5e6)
 
     config = {
-        "env": args.env_name,
+        "env": env_name,
         "kl_coeff": 1.0,
         "num_sgd_iter": 10,
         "lr": 0.0001,
@@ -267,9 +268,9 @@ if __name__ == '__main__':
     }
 
     main(
-        exp_name=args.exp_name,
+        exp_name=exp_name,
         max_num_agents=args.max_num_agents,
-        timesteps_total=int(args.timesteps),
+        timesteps_total=int(stop),
         common_config=config,
         ray_init=ray_init,
         test_mode=args.test,
