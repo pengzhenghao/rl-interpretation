@@ -10,7 +10,7 @@ import numpy as np
 import ray
 from ray import tune
 
-from toolbox import initialize_ray
+from toolbox import initialize_ray, get_train_parser
 from toolbox.ipd.train_tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
 
@@ -226,25 +226,18 @@ def main(
 
 
 if __name__ == '__main__':
-    import argparse
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--exp-name", type=str, default="")
+    parser = get_train_parser()
     parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--timesteps", type=float, default=1e6)
     parser.add_argument("--max-num-agents", type=int, default=5)
-    parser.add_argument("--test-mode", action="store_true")
-    parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
-
     args = parser.parse_args()
-    env_name = args.env_name
+
+    env_name = "{}-{}".format(args.env_name, args.env_name)
 
 
     def ray_init():
         ray.shutdown()
-        initialize_ray(test_mode=args.test_mode,
-                       num_gpus=args.num_gpus if not args.address else None)
+        initialize_ray(test_mode=args.test_mode, num_gpus=args.num_gpus)
 
 
     large = env_name in ["Walker2d-v3", "Hopper-v3"]
