@@ -11,7 +11,7 @@ import ray
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.ipd.tnb import TNBTrainer
+from toolbox.task_novelty_bisector.tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
 """
 TNB-ES training basic workflow:
@@ -85,8 +85,8 @@ def train_one_iteration(
         test_mode=False,
         disable_early_stop=False
 ):
-    """Conduct one iteration of evolution. Maximum generated agents is defined
-     by max_num_agents"""
+    """Conduct one iteration of evolution. Maximum number of generated agents
+     is defined by max_num_agents"""
     local_dir = osp.join(osp.expanduser("~/ray_results"), exp_name)
     os.makedirs(local_dir, exist_ok=True)
 

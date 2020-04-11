@@ -3,7 +3,7 @@ from ray.rllib.agents.ppo.ppo_policy import SampleBatch, \
     BEHAVIOUR_LOGITS, PPOLoss
 from ray.rllib.evaluation.postprocessing import Postprocessing
 
-from toolbox.ipd.tnb_utils import *
+from toolbox.task_novelty_bisector.tnb_utils import *
 
 
 class PPOLossNovelty(object):

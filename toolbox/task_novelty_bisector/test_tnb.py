@@ -2,7 +2,7 @@ import ray
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.ipd.tnb import TNBTrainer
+from toolbox.task_novelty_bisector.tnb import TNBTrainer
 from toolbox.ipd.train_tnb import main as tnb_es
 
 
@@ -51,4 +51,4 @@ def test_tnbes(local_mode=False):
 
 if __name__ == '__main__':
     # test_train_ipd(local_mode=True)
-    test_tnbes(local_mode=False)
+    test_tnbes(local_mode=True)

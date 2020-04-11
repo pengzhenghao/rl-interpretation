@@ -3,8 +3,8 @@ import logging
 from ray.rllib.agents.ppo.ppo import PPOTrainer, LocalMultiGPUOptimizer, \
     SyncSamplesOptimizer, validate_config as validate_config_original
 
-from toolbox.ipd.tnb_policy import TNBPolicy, NOVELTY_ADVANTAGES, \
-    tnb_default_config
+from toolbox.task_novelty_bisector.tnb_policy import NOVELTY_ADVANTAGES, \
+    tnb_default_config, TNBPolicy
 
 logger = logging.getLogger(__name__)
 
