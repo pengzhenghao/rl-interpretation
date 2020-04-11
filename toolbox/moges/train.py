@@ -29,7 +29,6 @@ def get_dynamic_trainer(algo):
 if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--algo", type=str, required=True)
-    parser.add_argument("--start-seed", default=0, type=int)
     parser.add_argument("--use-tanh", action="store_true")
     args = parser.parse_args()
 
