@@ -63,70 +63,52 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--exp-name", type=str, default="")
-    # parser.add_argument("--num-seeds", type=int, default=1)
-    parser.add_argument("--num-gpus", type=int, default=4)
+    parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--timesteps", type=float, default=1e6)
-    parser.add_argument("--num-iterations", type=int, default=100)
     parser.add_argument("--max-num-agents", type=int, default=5)
     parser.add_argument("--test-mode", action="store_true")
     parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
 
-    # parser.add_argument("--address", type=str, default="")
-
-    # You may need to grid search
-    # parser.add_argument("--novelty-threshold", type=float, default=0.5)
-    # parser.add_argument("--use-preoccupied-agent", action="store_true")
-    # parser.add_argument("--disable-tnb", action="store_true")
-    # parser.add_argument("--use-tnb-plus", action="store_true")
-    # parser.add_argument("--max-not-improve-iterations", type=int, default=3)
-
     args = parser.parse_args()
-
-    if not args.test_mode:
-        assert args.exp_name
+    env_name = args.env_name
 
 
     def ray_init():
         ray.shutdown()
-        initialize_ray(
-            test_mode=args.test_mode,
-            local_mode=False,
-            num_gpus=args.num_gpus if not args.address else None,
-            redis_address=args.address if args.address else None
-        )
+        initialize_ray(test_mode=args.test_mode,
+                       num_gpus=args.num_gpus if not args.address else None)
 
 
-    walker_config = {
-        "use_preoccupied_agent": args.use_preoccupied_agent,
-        "disable_tnb": args.disable_tnb,
-        "env": args.env_name,
-        "use_tnb_plus": args.use_tnb_plus,
-        "novelty_threshold": args.novelty_threshold,
-        # "novelty_threshold": 1.1,
-        "kl_coeff": 1.0,
-        "num_sgd_iter": 20,
-        "lr": 0.0001,
-        'sample_batch_size': 256,
-        'sgd_minibatch_size': 4096,
-        'train_batch_size': 65536,
-        "num_gpus": 0.4,
-        "num_cpus_per_worker": 0.4,
-        "num_cpus_for_driver": 0.4,
-        "num_envs_per_worker": 16,
-        'num_workers': 8,
-    }
-
-    if args.env_name == "Walker2d-v3":
-        common_config = walker_config
+    large = env_name in ["Walker2d-v3", "Hopper-v3"]
+    if large:
+        stop = int(2e7)
+    elif env_name == "Humanoid-v3":
+        stop = int(2e7)
     else:
-        raise NotImplementedError()
+        stop = int(5e6)
+
+    config = {
+        "env": args.env_name,
+        "kl_coeff": 1.0,
+        "num_sgd_iter": 10,
+        "lr": 0.0001,
+        'sample_batch_size': 200 if large else 50,
+        'sgd_minibatch_size': 100 if large else 64,
+        'train_batch_size': 10000 if large else 2048,
+        "num_gpus": 1,
+        "num_cpus_per_worker": 2,
+        "num_cpus_for_driver": 1 if large else 2,
+        "num_envs_per_worker": 8 if large else 5,
+        'num_workers': 8 if large else 1,
+        "use_tnb_plus": False
+    }
 
     main(
         exp_name=args.exp_name,
         num_iterations=args.num_iterations,
         max_num_agents=args.max_num_agents,
         timesteps_total=int(args.timesteps),
-        common_config=common_config,
+        common_config=config,
         max_not_improve_iterations=args.max_not_improve_iterations,
         ray_init=ray_init,
         test_mode=args.test_mode
