@@ -16,13 +16,13 @@ from toolbox.train import get_train_parser
 ppo_sgd_config = merge_dicts(DEFAULT_CONFIG, dict(master_optimizer_type="sgd"))
 
 PPOSGDPolicy = PPOTFPolicy.with_updates(
-    name="EvolutionPluginTFPolicy",
+    name="PPOSGDPolicy",
     get_default_config=lambda: ppo_sgd_config,
     optimizer_fn=choose_optimzier
 )
 
 PPOSGDTrainer = PPOTrainer.with_updates(
-    name="EvolutionPlugin",
+    name="PPOSGD",
     default_config=ppo_sgd_config,
     default_policy=PPOSGDPolicy,
     get_policy_class=lambda _: PPOSGDPolicy
