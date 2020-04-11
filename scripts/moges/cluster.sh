@@ -14,7 +14,8 @@
 
 # ===== Define variables =====
 worker_num=1
-num_gpus=0
+num_gpus=1  # per node
+num_cpus=64 # per node
 
 # module load Langs/Python/3.6.4 # This will vary depending on your environment
 # source venv/bin/activate
@@ -49,13 +50,13 @@ echo "ip_head"
 echo $ip_head
 
 # ===== Start the head node =====
-srun --nodes=1 --ntasks=1 -w $node1 ray start --block --head --redis-port=6379 --redis-password=$redis_password --num-gpus=$num_gpus &# Starting the head
+srun --nodes=1 --ntasks=1 -w $node1 ray start --block --head --redis-port=6379 --redis-password=$redis_password --num-gpus=$num_gpus --num-cpus=$num_cpus &# Starting the head
 sleep 30
 
 # ===== Start worker node =====
 for ((i = 1; i <= $worker_num; i++)); do
   node2=${nodes_array[$i]}
-  srun --nodes=1 --ntasks=1 -w $node2 ray start --block --address=$ip_head --redis-password=$redis_password --num-gpus=$num_gpus &# Starting the workers
+  srun --nodes=1 --ntasks=1 -w $node2 ray start --block --address=$ip_head --redis-password=$redis_password --num-gpus=$num_gpus --num-cpus=$num_cpus &# Starting the workers
   sleep 30
 done
 

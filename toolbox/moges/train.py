@@ -1,14 +1,18 @@
 from ray import tune
 from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.models import ModelCatalog
 
 from toolbox.action_distribution import GaussianMixture
 from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
 from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
-from toolbox.moges.fcnet_tanh import register_tanh_model
+from toolbox.moges.fcnet_tanh import TANH_MODEL, FullyConnectedNetworkTanh
 from toolbox.train import train, get_train_parser
 
-register_tanh_model()
+ModelCatalog.register_custom_model(
+    TANH_MODEL, FullyConnectedNetworkTanh
+)
+print("Successfully registered tanh model!")
 
 
 def get_dynamic_trainer(algo):
