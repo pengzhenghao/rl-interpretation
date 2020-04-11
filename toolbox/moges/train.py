@@ -124,8 +124,10 @@ if __name__ == '__main__':
 
     if args.redis_password:
         from toolbox import initialize_ray
+        import os
 
-        initialize_ray(test_mode=args.test, redis_password=args.redis_password,
+        initialize_ray(address=os.environ["ip_head"], test_mode=args.test,
+                       redis_password=args.redis_password,
                        num_cpus=args.num_cpus, num_gpus=args.num_gpus)
 
     train(
