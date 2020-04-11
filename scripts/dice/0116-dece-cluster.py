@@ -99,7 +99,7 @@ tune.run("PPO", config={'num_gpus': 1, 'env': "Walker2DBulletEnv-v0",
 #     # }
 #     #
 #     # train(
-#     #     extra_config=walker_config,
+#     #     config=walker_config,
 #     #     trainer=DECETrainer,
 #     #     env_name=walker_config['env_config']['env_name'],
 #     #     stop={"timesteps_total": int(5e7)},
