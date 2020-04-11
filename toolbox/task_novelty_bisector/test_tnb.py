@@ -2,8 +2,8 @@ import ray
 from ray import tune
 
 from toolbox import initialize_ray
-from toolbox.task_novelty_bisector.tnb import TNBTrainer
 from toolbox.ipd.train_tnb import main as tnb_es
+from toolbox.task_novelty_bisector.tnb import TNBTrainer
 
 
 def test_train_ipd(local_mode=False):
