@@ -11,9 +11,18 @@ class FullyConnectedNetworkTanh(TFModelV2):
 
     def __init__(self, obs_space, action_space, num_outputs, model_config,
                  name):
+
+        assert ("std_mode" in model_config) and (
+                model_config["std_mode"] in ["zero", "free", "normal"]), \
+            "You should set `std_mode` in config['model']['std_mode']=" \
+            "['zero', 'free', 'normal']"
+
+        if model_config["std_mode"] in ["zero", "free"]:
+            assert num_outputs % 2 == 0
+            num_outputs = num_outputs // 2
+
         super(FullyConnectedNetworkTanh, self).__init__(
             obs_space, action_space, num_outputs, model_config, name)
-
         activation = get_activation_fn(model_config.get("fcnet_activation"))
         hiddens = model_config.get("fcnet_hiddens")
         no_final_linear = model_config.get("no_final_linear")
@@ -26,19 +35,20 @@ class FullyConnectedNetworkTanh(TFModelV2):
         i = 1
 
         if no_final_linear:
-            # the last layer is adjusted to be of size num_outputs
-            for size in hiddens[:-1]:
-                last_layer = tf.keras.layers.Dense(
-                    size,
-                    name="fc_{}".format(i),
-                    activation=activation,
-                    kernel_initializer=normc_initializer(1.0))(last_layer)
-                i += 1
-            layer_out = tf.keras.layers.Dense(
-                num_outputs,
-                name="fc_out",
-                activation=activation,
-                kernel_initializer=normc_initializer(1.0))(last_layer)
+            raise NotImplementedError("no_final_linear should be set to False.")
+            # # the last layer is adjusted to be of size num_outputs
+            # for size in hiddens[:-1]:
+            #     last_layer = tf.keras.layers.Dense(
+            #         size,
+            #         name="fc_{}".format(i),
+            #         activation=activation,
+            #         kernel_initializer=normc_initializer(1.0))(last_layer)
+            #     i += 1
+            # layer_out = tf.keras.layers.Dense(
+            #     num_outputs,
+            #     name="fc_out",
+            #     activation=activation,
+            #     kernel_initializer=normc_initializer(1.0))(last_layer)
         else:
             # the last layer is a linear to size num_outputs
             for size in hiddens:
