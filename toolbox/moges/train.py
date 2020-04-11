@@ -114,6 +114,11 @@ if __name__ == '__main__':
     # initialize_ray(test_mode=True, local_mode=True)
     # trainer = GaussianESTrainer(config=config, env="BipedalWalker-v2")
 
+    if args.redis_password:
+        from toolbox import initialize_ray
+
+        initialize_ray(test_mode=args.test, redis_password=args.redis_password)
+
     train(
         get_dynamic_trainer(algo),
         config=config,

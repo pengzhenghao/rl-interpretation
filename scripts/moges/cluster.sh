@@ -8,7 +8,7 @@
 #SBATCH --nodes=2
 #SBATCH --cpus-per-task=60
 #SBATCH --tasks-per-node 1
-#SBATCH --gres=gpu:0
+#SBATCH --gres=gpu:1
 #SBATCH --exclusive
 #SBATCH --partition=$MY_PARTITION_NAME
 
@@ -63,4 +63,4 @@ done
 
 cd ~/novel-rl/
 
-python -u toolbox/moges/train.py --use-tanh --algo ES --exp-name moges_0411 --num-gpus 0 $redis_password 128 # Pass the total number of allocated CPUs
+python -u toolbox/moges/train.py --use-tanh --algo ES --exp-name moges_0411 --num-gpus 0 --redis-password $redis_password

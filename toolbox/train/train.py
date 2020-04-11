@@ -92,6 +92,7 @@ def get_train_parser():
     parser.add_argument("--num-cpus-for-driver", type=float, default=1.0)
     parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
     parser.add_argument("--test", action="store_true")
+    parser.add_argument("--redis-password", type=str, default="")
     return parser
 
 
