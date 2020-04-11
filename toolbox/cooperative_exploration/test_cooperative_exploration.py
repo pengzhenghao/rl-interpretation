@@ -73,7 +73,7 @@ def test_ceppo(local_mode=False):
             # new config:
             "clip_action_prob_kl": 0.0
         },
-        # extra_config={"mode": DIVERSITY_ENCOURAGING},
+        # config={"mode": DIVERSITY_ENCOURAGING},
         env_name="Pendulum-v0",
         t=10000
     )
@@ -161,6 +161,6 @@ if __name__ == '__main__':
     # _base(
     #     CEPPOTrainer,
     #     True,
-    #     extra_config={"mode": "disable"},
+    #     config={"mode": "disable"},
     #     env_name="CartPole-v0"
     # )

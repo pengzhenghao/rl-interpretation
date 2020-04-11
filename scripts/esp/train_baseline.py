@@ -52,7 +52,7 @@ if __name__ == '__main__':
                 "train_batch_size": 10000
             })
     train(
-        run, stop=int(args.stop), verbose=2, extra_config=config,
+        run, stop=int(args.stop), verbose=2, config=config,
         exp_name=args.exp_name, num_seeds=args.num_seeds, num_gpus=args.num_gpus
     )
     shutil.rmtree(dir_path, ignore_errors=True)
