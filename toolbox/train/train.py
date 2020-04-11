@@ -35,7 +35,7 @@ def train(
     }
     if config:
         used_config.update(config)
-    config = copy.deedcopy(used_config)
+    config = copy.deepcopy(used_config)
 
     if isinstance(config["env"], str):
         env_name = config["env"]
