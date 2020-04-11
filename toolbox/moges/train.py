@@ -127,8 +127,7 @@ if __name__ == '__main__':
         import os
 
         initialize_ray(address=os.environ["ip_head"], test_mode=args.test,
-                       redis_password=args.redis_password,
-                       num_cpus=args.num_cpus, num_gpus=args.num_gpus)
+                       redis_password=args.redis_password)
 
     train(
         get_dynamic_trainer(algo),
