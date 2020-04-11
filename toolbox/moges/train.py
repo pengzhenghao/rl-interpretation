@@ -5,7 +5,10 @@ from toolbox.action_distribution import GaussianMixture
 from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
 from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
+from toolbox.moges.fcnet_tanh import register_tanh_model
 from toolbox.train import train, get_train_parser
+
+register_tanh_model()
 
 
 def get_dynamic_trainer(algo):
@@ -117,7 +120,8 @@ if __name__ == '__main__':
     if args.redis_password:
         from toolbox import initialize_ray
 
-        initialize_ray(test_mode=args.test, redis_password=args.redis_password)
+        initialize_ray(test_mode=args.test, redis_password=args.redis_password,
+                       num_cpus=args.num_cpus, num_gpus=args.num_gpus)
 
     train(
         get_dynamic_trainer(algo),

@@ -63,4 +63,11 @@ done
 
 cd ~/novel-rl/
 
-python -u toolbox/moges/train.py --use-tanh --algo ES --exp-name moges_0411 --num-gpus 0 --redis-password $redis_password
+python -u toolbox/moges/train.py \
+  --use-tanh \
+  --algo ES \
+  --exp-name moges_0412 \
+  --num-gpus 0 \
+  --redis-password $redis_password \
+  --num-gpus 2 \
+  --num-cpus 128
