@@ -10,7 +10,7 @@
 #SBATCH --tasks-per-node 1
 #SBATCH --gres=gpu:1
 #SBATCH --exclusive
-#SBATCH --partition=$MY_PARTITION_NAME
+#SBATCH --partition=VI_SP_Y_1080TI
 
 # ===== Define variables =====
 worker_num=1
