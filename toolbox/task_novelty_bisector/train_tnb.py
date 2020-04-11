@@ -11,8 +11,8 @@ import ray
 from ray import tune
 
 from toolbox import initialize_ray, get_train_parser
-from toolbox.ipd.train_tnb import TNBTrainer
 from toolbox.process_data import get_latest_checkpoint
+from toolbox.task_novelty_bisector import TNBTrainer
 
 logger = logging.getLogger(__name__)
 
