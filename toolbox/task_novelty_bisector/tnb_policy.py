@@ -147,12 +147,13 @@ class AgentPoolMixin(object):
                 "num_workers": 0,
                 "num_cpus_per_worker": 0,
                 "num_cpus_for_driver": 0.2,
-                "num_gpus": 0.1,
+                "num_gpus": 0,
             }
         )
         for i, (agent_name, checkpoint_info) in \
                 enumerate(self.checkpoint_dict.items()):
             # build the policy and restore the weights.
+            print("Setup agent {} in policy map.".format(agent_name))
             with tf.variable_scope(agent_name, reuse=tf.AUTO_REUSE):
                 policy = TNBPolicy(
                     self.observation_space, self.action_space, tmp_config
@@ -162,6 +163,10 @@ class AgentPoolMixin(object):
                         os.path.expanduser(checkpoint_info['path'])
                     )
                     state = _restore_state(path)
+                    state = {
+                        k.replace("default_policy", agent_name): v
+                        for k, v in state.items()
+                    }
                     policy.set_weights(state)
                 else:  # for test purpose
                     checkpoint_info = {'path': "N/A", 'reward': float('nan')}

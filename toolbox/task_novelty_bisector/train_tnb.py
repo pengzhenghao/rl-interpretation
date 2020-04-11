@@ -227,17 +227,19 @@ def main(
 
 if __name__ == '__main__':
     parser = get_train_parser()
-    parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--timesteps", type=float, default=1e6)
     parser.add_argument("--max-num-agents", type=int, default=5)
     args = parser.parse_args()
 
     env_name = "{}-{}".format(args.env_name, args.env_name)
 
+    num_gpus = 1 if not args.test else 0
+    print("Force to use 1 gpu.")
+
 
     def ray_init():
         ray.shutdown()
-        initialize_ray(test_mode=args.test_mode, num_gpus=args.num_gpus)
+        initialize_ray(test_mode=args.test, num_gpus=num_gpus, local_mode=False)
 
 
     large = env_name in ["Walker2d-v3", "Hopper-v3"]
@@ -266,11 +268,10 @@ if __name__ == '__main__':
 
     main(
         exp_name=args.exp_name,
-        num_iterations=args.num_iterations,
         max_num_agents=args.max_num_agents,
         timesteps_total=int(args.timesteps),
         common_config=config,
-        max_not_improve_iterations=args.max_not_improve_iterations,
         ray_init=ray_init,
-        test_mode=args.test_mode
+        test_mode=args.test,
+        disable_early_stop=True
     )
