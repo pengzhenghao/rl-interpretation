@@ -33,6 +33,7 @@ if __name__ == '__main__':
 
         "evaluation_interval": 1,
         "metrics_smoothing_episodes": 5,
+        "num_cpus_for_driver": 2,
     }
 
     train(
@@ -41,5 +42,6 @@ if __name__ == '__main__':
         keep_checkpoints_num=5,
         stop=stop,
         config=sac_config,
-        num_gpus=args.num_gpus
+        num_gpus=args.num_gpus,
+        num_seeds=args.num_seeds
     )
