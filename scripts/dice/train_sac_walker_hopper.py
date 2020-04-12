@@ -7,16 +7,16 @@ if __name__ == '__main__':
 
     exp_name = args.exp_name  # It's "12230-ppo..." previously....
     env_name = args.env_name
-    stop = int(1e6)
+    stop = int(2e6)
     num_gpus = args.num_gpus
 
     sac_config = {
         "env": tune.grid_search([
-            "HalfCheetah-v3",
-            # "Walker2d-v3",
-            "Ant-v3",
-            # "Hopper-v3",
-            "Humanoid-v3"
+            # "HalfCheetah-v3",
+            "Walker2d-v3",
+            # "Ant-v3",
+            "Hopper-v3",
+            # "Humanoid-v3"
         ]),
 
         "horizon": 1000,
