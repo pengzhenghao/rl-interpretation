@@ -37,7 +37,7 @@ def grad_stats_fn(policy, batch, grads):
 
 class DiversityValueNetworkMixin:
     def __init__(self, obs_space, action_space, config):
-        if config["use_gae"] and config[USE_DIVERSITY_VALUE_NETWORK]:
+        if config.get("use_gae") and config[USE_DIVERSITY_VALUE_NETWORK]:
 
             @make_tf_callable(self.get_session())
             def diversity_value(ob, prev_action, prev_reward, *state):
@@ -119,7 +119,7 @@ class ComputeDiversityMixin:
         self.initialized_policies_pool = False
         self.policies_pool = {}
 
-    def _lazy_initialize(self, policies_pool, my_name):
+    def _lazy_initialize(self, policies_pool, my_name=None):
         """Initialize the reference of policies pool within this policy."""
         assert self.config[DELAY_UPDATE]
         self.policies_pool = {
@@ -244,8 +244,8 @@ class TargetNetworkMixin:
         )
 
 
-def setup_mixins_dice(policy, action_space, obs_space, config):
-    setup_mixins(policy, action_space, obs_space, config)
+def setup_mixins_dice(policy, obs_space, action_space, config):
+    setup_mixins(policy, obs_space, action_space, config)
     DiversityValueNetworkMixin.__init__(policy, obs_space, action_space,
                                         config)
     ComputeDiversityMixin.__init__(policy)

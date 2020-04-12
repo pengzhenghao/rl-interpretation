@@ -1,7 +1,7 @@
 """
 Implement the Collaborative Exploration here.
 
-In postprocess_dice, which is called for each policy with input other
+In postprocess_dice_sac, which is called for each policy with input other
 policies' batches, we fuse the batches collected by this policy and other
 policies. We also compute the diversity reward and diversity advantage of this
 policy.
