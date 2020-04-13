@@ -2,7 +2,6 @@ import ray
 from ray.rllib.agents.ppo.ppo import PPOTrainer, update_kl, \
     validate_config as validate_config_original
 from ray.rllib.models.catalog import ModelCatalog
-from ray.rllib.utils.memory import ray_get_and_free
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dece.dece_policy import DECEPolicy

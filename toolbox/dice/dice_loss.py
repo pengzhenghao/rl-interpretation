@@ -5,7 +5,7 @@ in this file.
 First we compute the task loss and the diversity loss in dice_loss. Then we
 implement the Diversity Regularization module in dice_gradient.
 """
-from ray.rllib.agents.ppo.ppo_policy import BEHAVIOUR_LOGITS, PPOLoss
+from ray.rllib.agents.ppo.ppo_tf_policy import BEHAVIOUR_LOGITS, PPOLoss
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.policy.sample_batch import SampleBatch
 
