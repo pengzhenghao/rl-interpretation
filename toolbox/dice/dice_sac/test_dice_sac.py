@@ -56,14 +56,21 @@ def regression_test():
     local_dir = tempfile.mkdtemp()
     initialize_ray(test_mode=True, local_mode=False)
     train(DiCESACTrainer,
-          dict(
-              # train_batch_size=50,
-              # learning_starts=200,
+          {
+              "gamma": 0.95,
+              "target_network_update_freq": 32,
+              "tau": 1.0,
+              "train_batch_size": 32,
+              "optimization": {
+                  "actor_learning_rate": 0.005,
+                  "critic_learning_rate": 0.005,
+                  "entropy_learning_rate": 0.0001
+              },
               **get_marl_env_config(
                   "CartPole-v0", num_agents, normalize_actions=True
               )
-          ),
-          {"episode_reward_mean": 195 * num_agents}, exp_name="DELETEME",
+          },
+          {"episode_reward_mean": 150 * num_agents}, exp_name="DELETEME",
           local_dir=local_dir, test_mode=True)
     shutil.rmtree(local_dir, ignore_errors=True)
 
