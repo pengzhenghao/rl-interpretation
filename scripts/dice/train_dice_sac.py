@@ -1,20 +1,24 @@
 from ray import tune
 
+from toolbox.dice.dice_sac import DiCESACTrainer
+from toolbox.marl import get_marl_env_config
 from toolbox.train import train, get_train_parser
 
 if __name__ == '__main__':
-    args = get_train_parser().parse_args()
+    parser = get_train_parser()
+    parser.add_argument("--num-agents", type=int, default=5)
+    args = parser.parse_args()
 
-    exp_name = args.exp_name  # It's "12230-ppo..." previously....
     env_name = args.env_name
+    exp_name = args.exp_name
     stop = int(1e6)
 
-    sac_config = {
+    config = {
         "env": tune.grid_search([
             "HalfCheetah-v3",
-            # "Walker2d-v3",
+            "Walker2d-v3",
             "Ant-v3",
-            # "Hopper-v3",
+            "Hopper-v3",
             "Humanoid-v3"
         ]),
 
@@ -35,12 +39,17 @@ if __name__ == '__main__':
         "num_cpus_for_driver": 2,
     }
 
+    config.update(
+        get_marl_env_config(env_name, tune.grid_search([args.num_agents]))
+    )
+
     train(
-        "SAC",
-        exp_name=exp_name,
-        keep_checkpoints_num=5,
+        DiCESACTrainer,
+        config=config,
         stop=stop,
-        config=sac_config,
+        exp_name=exp_name,
+        num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
-        num_seeds=args.num_seeds
+        test_mode=args.test,
+        keep_checkpoints_num=5
     )
