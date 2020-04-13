@@ -94,7 +94,8 @@ def setup_policies_pool(trainer):
     # with the policies map in the trainer.
     def _init_pool(worker, worker_index):
         def _init_diversity_policy(policy, my_policy_name):
-            policy.update_target_network(tau=1.0)
+            # policy.update_target_network(tau=1.0)
+            policy.update_target(tau=1.0)
             policy._lazy_initialize(worker.policy_map, my_policy_name)
 
         worker.foreach_policy(_init_diversity_policy)

@@ -6,8 +6,9 @@ from toolbox.utils import merge_dicts
 dice_sac_default_config = merge_dicts(
     sac_default_config, {
 
+        # PPO loss for diversity
         "clip_param": 0.3,
-
+        "lambda": 1.0,
         "grad_clip": 40.0,
 
         constants.USE_BISECTOR: True,
@@ -19,6 +20,10 @@ dice_sac_default_config = merge_dicts(
         constants.CLIP_DIVERSITY_GRADIENT: True,
         constants.DIVERSITY_REWARD_TYPE: "mse",
         constants.PURE_OFF_POLICY: False,
+
+        "normalize_actions": False,
+        "env": {"normalize_actions": True},
+
         # "tau": 5e-3,  # <<== SAC already have this
         "callbacks": {
             "on_train_result": constants.on_train_result,

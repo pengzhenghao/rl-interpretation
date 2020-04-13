@@ -1,10 +1,12 @@
+import gym
 import numpy as np
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
+from ray.rllib.env.normalize_actions import NormalizeActionWrapper
 
 from toolbox.env import get_env_maker
 
 
-class MultiAgentEnvWrapper(MultiAgentEnv):
+class MultiAgentEnvWrapper(MultiAgentEnv, gym.Env):
     """This is a brief wrapper to create a mock multi-agent environment"""
 
     def __init__(self, env_config):
@@ -19,6 +21,10 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         self.env_maker = get_env_maker(
             env_config['env_name'], require_render=bool(self._render_policy)
         )
+
+        if env_config.get("normalize_action", False):
+            self.env_maker = lambda: NormalizeActionWrapper(self.env_maker())
+
         self.envs = {}
         if not isinstance(agent_ids, list):
             agent_ids = [agent_ids]
@@ -77,7 +83,7 @@ if __name__ == '__main__':
     mae = MultiAgentEnvWrapper(env_config)
     mae.reset()
     while True:
-        ret = mae.step({i: np.zeros((17, )) for i in range(10)})
+        ret = mae.step({i: np.zeros((17,)) for i in range(10)})
         if ret[2]['__all__']:
             print("Finish! ", ret)
             break

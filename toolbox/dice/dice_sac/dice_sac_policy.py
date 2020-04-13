@@ -1,10 +1,11 @@
 from ray.rllib.agents.sac.sac_policy import SACTFPolicy, TargetNetworkMixin, \
-    ExplorationStateMixin, ActorCriticOptimizerMixin, ComputeTDErrorMixin, \
+    ActorCriticOptimizerMixin, ComputeTDErrorMixin, get_dist_class, \
     postprocess_trajectory, SampleBatch, actor_critic_loss as sac_loss
 from ray.rllib.utils.tf_ops import make_tf_callable
 
 from toolbox.dice.dice_policy import grad_stats_fn, \
-    DiversityValueNetworkMixin, ComputeDiversityMixin
+    DiversityValueNetworkMixin, \
+    ComputeDiversityMixin
 from toolbox.dice.dice_postprocess import ACTION_LOGP, BEHAVIOUR_LOGITS, \
     MY_LOGIT, postprocess_diversity
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
@@ -18,9 +19,10 @@ class PPOLossTwoSideDiversity:
     def __init__(
             self,
             advantages,
-            model_out,
+            policy,
             actions,
-            current_actions_logp,
+            obs,
+            # current_actions_logp,
             prev_actions_logp,
             valid_mask,
             clip_param=0.3
@@ -35,8 +37,16 @@ class PPOLossTwoSideDiversity:
         # This is important
         # logp_ratio = tf.exp(curr_action_dist.logp(actions) -
         # prev_actions_logp)
-        logp_ratio = tf.exp(
-            current_actions_logp([model_out, actions]) - prev_actions_logp)
+        # model_out = policy.model.output
+
+        # A workaround, since the model out is the flatten observation
+        model_out = obs
+        distribution_inputs = policy.model.get_policy_output(model_out)
+        action_dist_class = get_dist_class(policy.config, policy.action_space)
+        current_actions_logp = action_dist_class(
+            distribution_inputs, policy.model).logp(actions)
+
+        logp_ratio = tf.exp(current_actions_logp - prev_actions_logp)
 
         # action_kl = prev_dist.kl(curr_action_dist)
         # self.mean_kl = reduce_mean_valid(action_kl)
@@ -115,8 +125,8 @@ def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
     batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
 
-    del batch.data['new_obs']  # save memory
-    del batch.data['action_prob']
+    # del batch.data['new_obs']  # save memory
+    # del batch.data['action_prob']
     return batch
 
 
@@ -145,9 +155,10 @@ def dice_sac_loss(policy, model, dist_class, train_batch):
     # else:
     policy.diversity_loss = PPOLossTwoSideDiversity(
         train_batch[DIVERSITY_ADVANTAGES],
-        policy.model.model_out,
+        policy,
         train_batch[SampleBatch.ACTIONS],
-        policy.model.log_pis_model,
+        train_batch[SampleBatch.CUR_OBS],
+        # policy._log_likelihood,
         train_batch["action_logp"],
         mask,
         policy.config["clip_param"]
@@ -191,10 +202,13 @@ class DiCETargetNetworkMixin:
         def compute_clone_network_logits(ob):
             feed_dict = {
                 SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
+                # SampleBatch.PREV_ACTIONS: tf.convert_to_tensor(prev_act),
+                # SampleBatch.PREV_REWARDS: tf.convert_to_tensor(prev_rew),
                 "is_training": tf.convert_to_tensor(False)
             }
             model_out, _ = self.target_model(feed_dict)
-            return model_out
+            logits = self.target_model.action_model(model_out)
+            return logits
 
         self._compute_clone_network_logits = compute_clone_network_logits
 
@@ -206,17 +220,52 @@ def after_init(policy, obs_space, action_space, config):
 
 def before_loss_init(policy, obs_space, action_space, config):
     DiversityValueNetworkMixin.__init__(policy, obs_space, action_space, config)
-    ComputeDiversityMixin.__init__(policy)
+    ComputeDiversityMixinModified.__init__(policy)
     ComputeTDErrorMixin.__init__(policy)
 
 
 def extra_action_fetches_fn(policy):
     ret = {
-        BEHAVIOUR_LOGITS: policy.model.actions_model(policy.model.last_output())
+        BEHAVIOUR_LOGITS: policy.model.action_model(policy.model.last_output())
     }
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret[DIVERSITY_VALUES] = policy.model.diversity_value_function()
     return ret
+
+
+class ComputeDiversityMixinModified(ComputeDiversityMixin):
+    def compute_diversity(self, my_batch, others_batches):
+        """Compute the diversity of this agent."""
+        replays = {}
+        if self.config[DELAY_UPDATE]:
+            # If in DELAY_UPDATE mode, compute diversity against the target
+            # network of each policies.
+            for other_name, other_policy in self.policies_pool.items():
+                logits = other_policy._compute_clone_network_logits(
+                    my_batch[SampleBatch.CUR_OBS],
+                    # my_batch[SampleBatch.PREV_ACTIONS],
+                    # my_batch[SampleBatch.PREV_REWARDS]
+                )
+                replays[other_name] = logits
+        else:
+            raise NotImplementedError()
+
+        # Compute the diversity loss based on the action distribution of
+        # this policy and other polices.
+        if self.config[DIVERSITY_REWARD_TYPE] == "mse":
+            replays = [
+                np.split(logit, 2, axis=1)[0] for logit in replays.values()
+            ]
+            my_act = np.split(my_batch[MY_LOGIT], 2, axis=1)[0]
+            return np.mean(
+                [
+                    (np.square(my_act - other_act)).mean(1)
+                    for other_act in replays
+                ],
+                axis=0
+            )
+        else:
+            raise NotImplementedError()
 
 
 DiCESACPolicy = SACTFPolicy.with_updates(
@@ -231,12 +280,13 @@ DiCESACPolicy = SACTFPolicy.with_updates(
     grad_stats_fn=grad_stats_fn,
     before_loss_init=before_loss_init,
     mixins=[
-        TargetNetworkMixin, ExplorationStateMixin, ActorCriticOptimizerMixin,
+        TargetNetworkMixin, ActorCriticOptimizerMixin,
         ComputeTDErrorMixin, DiCETargetNetworkMixin, DiversityValueNetworkMixin,
-        ComputeDiversityMixin
+        ComputeDiversityMixinModified
     ],
     after_init=after_init,
     extra_action_fetches_fn=extra_action_fetches_fn,
+    obs_include_prev_action_reward=True
 
     # Not checked
     # before_init=setup_early_mixins,
