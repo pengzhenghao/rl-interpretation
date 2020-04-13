@@ -10,7 +10,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     exp_name = "{}-{}".format(args.exp_name, args.env_name)
     config = {
-        "env": args.env_name,
+        "env": tune.grid_search([
+            "BreakoutNoFrameskip-v4",
+            "BeamRiderNoFrameskip-v4",
+            "QbertNoFrameskip-v4",
+            "SpaceInvadersNoFrameskip-v4"
+        ]),
         "num_sgd_iter": 10,
         "train_batch_size": 4000,
         "sample_batch_size": 200,
@@ -34,16 +39,25 @@ if __name__ == '__main__':
         "clip_param": 0.1,
         "vf_clip_param": 10.0,
         "entropy_coeff": 0.01,
+        "vf_share_layers": True
+
     }
+
+    if args.redis_password:
+        from toolbox import initialize_ray
+        import os
+
+        initialize_ray(address=os.environ["ip_head"], test_mode=args.test,
+                       redis_password=args.redis_password)
+
     train(
         EPTrainer,
         extra_config=config,
-        stop=1e7,
+        stop=2.5e7,
         exp_name=exp_name,
         num_seeds=args.num_seeds,
-        num_gpus=args.num_gpus,
         test_mode=args.test,
         checkpoint_freq=args.checkpoint_freq,
         start_seed=args.start_seed,
-        verbose=2
+        verbose=1
     )
