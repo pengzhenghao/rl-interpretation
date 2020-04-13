@@ -29,6 +29,9 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         tmp_env = next(iter(self.envs.values()))
         self.observation_space = tmp_env.observation_space
         self.action_space = tmp_env.action_space
+        self.reward_range = tmp_env.reward_range
+        self.metadata = tmp_env.metadata
+        self.spec = tmp_env.spec
 
     def reset(self):
         self.dones = set()

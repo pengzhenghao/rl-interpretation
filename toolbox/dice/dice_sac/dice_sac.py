@@ -1,12 +1,16 @@
 import ray
-from ray.rllib.agents.dqn.dqn import update_target_if_needed
+from ray.rllib.agents.dqn.dqn import update_target_if_needed, \
+    check_config_and_setup_param_noise
 from ray.rllib.agents.sac.sac import SACTrainer
+from ray.rllib.models.catalog import ModelCatalog
+from ray.tune.registry import _global_registry, ENV_CREATOR
 
 import toolbox.dice.utils as constants
-from toolbox.dice.dice import validate_config, setup_policies_pool, \
-    make_policy_optimizer_tnbes
+from toolbox.dice.dice import setup_policies_pool, make_policy_optimizer_tnbes
+from toolbox.dice.dice_model import ActorDoubleCriticNetwork
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
 from toolbox.dice.dice_sac.dice_sac_policy import DiCESACPolicy
+from toolbox.dice.utils import *
 
 
 def after_optimizer_step(trainer, fetches):
@@ -28,10 +32,36 @@ def after_optimizer_step(trainer, fetches):
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 
 
+def validate_config(config):
+    check_config_and_setup_param_noise(config)
+    # create multi-agent environment
+    assert _global_registry.contains(ENV_CREATOR, config["env"])
+    env_creator = _global_registry.get(ENV_CREATOR, config["env"])
+    tmp_env = env_creator(config["env_config"])
+    config["multiagent"]["policies"] = {
+        i: (None, tmp_env.observation_space, tmp_env.action_space, {})
+        for i in tmp_env.agent_ids
+    }
+    config["multiagent"]["policy_mapping_fn"] = lambda x: x
+
+    # check the model
+    if config[USE_DIVERSITY_VALUE_NETWORK]:
+        ModelCatalog.register_custom_model(
+            "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
+        )
+        config['model']['custom_model'] = "ActorDoubleCriticNetwork"
+        config['model']['custom_options'] = {
+            "use_diversity_value_network": config[USE_DIVERSITY_VALUE_NETWORK]
+        }
+    else:
+        config['model']['custom_model'] = None
+        config['model']['custom_options'] = None
+
+
 # TODO the policy is not finish yet.
 
-DiCETrainer = SACTrainer.with_updates(
-    name="DiCETrainer",
+DiCESACTrainer = SACTrainer.with_updates(
+    name="DiCESACTrainer",
     default_config=dice_sac_default_config,
     default_policy=DiCESACPolicy,
     get_policy_class=lambda _: DiCESACPolicy,
