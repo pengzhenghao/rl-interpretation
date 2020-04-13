@@ -1,4 +1,5 @@
 import argparse
+import copy
 import pickle
 
 import numpy as np
@@ -11,7 +12,7 @@ from toolbox.utils import initialize_ray
 
 def train(
         trainer,
-        extra_config,
+        config,
         stop,
         exp_name,
         num_seeds=1,
@@ -27,13 +28,14 @@ def train(
     initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
 
     # prepare config
-    config = {
+    used_config = {
         "seed": tune.grid_search(
             [i * 100 + start_seed for i in range(num_seeds)]),
         "log_level": "DEBUG" if test_mode else "INFO"
     }
-    if extra_config:
-        config.update(extra_config)
+    if config:
+        used_config.update(config)
+    config = copy.deepcopy(used_config)
 
     if isinstance(config["env"], str):
         env_name = config["env"]
@@ -84,12 +86,14 @@ def get_train_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", type=str, required=True)
     parser.add_argument("--num-gpus", type=int, default=4)
+    parser.add_argument("--num-cpus", type=int, default=0)
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--start-seed", type=int, default=0)
     parser.add_argument("--num-cpus-per-worker", type=float, default=1.0)
     parser.add_argument("--num-cpus-for-driver", type=float, default=1.0)
     parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
     parser.add_argument("--test", action="store_true")
+    parser.add_argument("--redis-password", type=str, default="")
     return parser
 
 
