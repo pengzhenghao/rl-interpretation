@@ -39,7 +39,9 @@ if __name__ == '__main__':
         "clip_param": 0.1,
         "vf_clip_param": 10.0,
         "entropy_coeff": 0.01,
-        "vf_share_layers": True
+        "vf_share_layers": False  # <<== I concern the use of shared value
+        # network would harm the learning of PPO. This maybe be a important
+        # factor, which we leave for future investigation.
 
     }
 
