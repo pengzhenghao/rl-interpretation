@@ -7,18 +7,19 @@ from collections import OrderedDict
 
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTFPolicy, DEFAULT_CONFIG
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
-    KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch, \
+from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
+    ValueNetworkMixin, KLCoeffMixin, LearningRateSchedule, \
+    EntropyCoeffSchedule, SampleBatch, \
     BEHAVIOUR_LOGITS, make_tf_callable, kl_and_loss_stats
 from ray.rllib.evaluation.postprocessing import Postprocessing, discount
 from ray.rllib.models import ModelCatalog
 from ray.rllib.utils.explained_variance import explained_variance
-from ray.tune.util import merge_dicts
 
 from toolbox.ipd.tnb_loss import tnb_gradients, tnb_loss
 from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
 from toolbox.ipd.tnb_utils import *
 from toolbox.marl.utils import on_train_result
+from toolbox.utils import merge_dicts
 
 logger = logging.getLogger(__name__)
 
@@ -200,10 +201,10 @@ class AgentPoolMixin(object):
         action = sample_batch[SampleBatch.ACTIONS]
         if not self.initialized_policies_pool:
             if not hasattr(self, "_loss_inputs"):
-                return np.zeros((action.shape[0], ), dtype=np.float32)
+                return np.zeros((action.shape[0],), dtype=np.float32)
 
         if not self.enable_novelty:
-            return np.zeros((action.shape[0], ), dtype=np.float32)
+            return np.zeros((action.shape[0],), dtype=np.float32)
 
         assert self.initialized_policies_pool, self.policies_pool
 
