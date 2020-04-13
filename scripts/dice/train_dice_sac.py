@@ -31,7 +31,7 @@ if __name__ == '__main__':
         "learning_starts": 10000,
 
         "clip_actions": False,
-        "normalize_actions": True,
+        # "normalize_actions": True,  <<== This is handled by MARL env
 
         "evaluation_interval": 1,
         "metrics_smoothing_episodes": 5,
