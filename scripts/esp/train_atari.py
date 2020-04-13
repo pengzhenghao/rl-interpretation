@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     train(
         EPTrainer,
-        extra_config=config,
+        config=config,
         stop=2.5e7,
         exp_name=exp_name,
         num_seeds=args.num_seeds,
