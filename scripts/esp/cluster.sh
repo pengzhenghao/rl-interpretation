@@ -51,19 +51,19 @@ echo $ip_head
 
 # ===== Start the head node =====
 srun --nodes=1 --ntasks=1 -w $node1 ray start --block --head --redis-port=6379 --redis-password=$redis_password --num-gpus=$num_gpus --num-cpus=$num_cpus &# Starting the head
-sleep 20
+sleep 15
 
 # ===== Start worker node =====
 for ((i = 1; i <= $worker_num; i++)); do
   node2=${nodes_array[$i]}
   srun --nodes=1 --ntasks=1 -w $node2 ray start --block --address=$ip_head --redis-password=$redis_password --num-gpus=$num_gpus --num-cpus=$num_cpus &# Starting the workers
-  sleep 20
+  sleep 15
 done
 
 # ===== Submit task =====
 
 cd ~/novel-rl/
 
-python -u toolbox/scripts/train_atari.py \
+python -u scripts/esp/train_atari.py \
   --exp-name esp_atari_0413 \
   --redis-password $redis_password
