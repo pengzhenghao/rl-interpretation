@@ -9,7 +9,6 @@ if __name__ == '__main__':
     parser.add_argument("--num-agents", type=int, default=5)
     args = parser.parse_args()
 
-    env_name = args.env_name
     exp_name = args.exp_name
     stop = int(1e6)
 
@@ -39,9 +38,8 @@ if __name__ == '__main__':
         "num_cpus_for_driver": 2,
     }
 
-    config.update(
-        get_marl_env_config(env_name, tune.grid_search([args.num_agents]))
-    )
+    config.update(get_marl_env_config(config["env"], args.num_agents,
+                                      normalize_actions=True))
 
     train(
         DiCESACTrainer,
