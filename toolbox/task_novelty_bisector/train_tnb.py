@@ -245,7 +245,7 @@ if __name__ == '__main__':
 
     large = env_name in ["Walker2d-v3", "Hopper-v3"]
     if large:
-        stop = int(2e7)
+        stop = int(5e7)
     elif env_name == "Humanoid-v3":
         stop = int(2e7)
     else:
