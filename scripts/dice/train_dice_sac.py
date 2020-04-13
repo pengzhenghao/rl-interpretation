@@ -42,7 +42,7 @@ if __name__ == '__main__':
                                       normalize_actions=True))
 
     config["evaluation_config"] = dict(
-        env_config=config["env_config"],
+        # env_config=config["env_config"],
         explore=False
     )
 
