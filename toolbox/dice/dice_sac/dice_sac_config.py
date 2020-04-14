@@ -11,6 +11,8 @@ dice_sac_default_config = merge_dicts(
         "lambda": 1.0,
         "grad_clip": 40.0,
 
+        "rollout_fragment_length": 50,
+
         constants.USE_BISECTOR: True,
         constants.USE_DIVERSITY_VALUE_NETWORK: False,
         constants.DELAY_UPDATE: True,
