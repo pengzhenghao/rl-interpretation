@@ -56,9 +56,6 @@ class GaussianMixture(TFActionDistribution):
     def required_model_output_shape(action_space, model_config):
         action_length = np.prod(action_space.shape)
         k = model_config["custom_options"]["num_components"]
-        std_mode = model_config["custom_options"].get("std_mode")
-        if std_mode in ["free", "zero"]:
-            return action_length * k + k
         return action_length * 2 * k + k
 
     def deterministic_sample(self):
