@@ -128,6 +128,10 @@ def dice_loss(policy, model, dist_class, train_batch):
     loss_cls = PPOLossTwoSideClip \
         if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
 
+    # FIXME In ray > 0.8.1, the PPO loss has changed its signature
+    #  So we need to make some modification on this to prevent error in
+    #  not two-side clipped loss mode.
+
     policy.loss_obj = loss_cls(
         None,
         dist_class,
