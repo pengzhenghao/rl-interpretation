@@ -12,7 +12,7 @@ if __name__ == '__main__':
     env_name = args.env_name
     exp_name = "{}-{}".format(args.exp_name, env_name)
 
-    large = env_name in ["Walker2d-v3", "Hopper-v3"]
+    large = env_name in ["Walker2d-v3", "Hopper-v3", "FetchPush-v1"]
     if large:
         stop = int(5e7)
     elif env_name == "Humanoid-v3":
