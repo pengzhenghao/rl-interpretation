@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
 
+import copy
 import logging
 import os
 import pickle
@@ -43,7 +44,9 @@ def build_config(
             config_path = os.path.join(config_dir, "../params.pkl")
         if os.path.exists(config_path):
             with open(config_path, "rb") as f:
-                config.update(pickle.load(f))
+                old_config = pickle.load(f)
+                old_config.update(copy.deepcopy(config))
+                config = copy.deepcopy(old_config)
     if "num_workers" in config:
         config["num_workers"] = min(1, config["num_workers"])
     if is_es_agent or (not use_activation_model):
