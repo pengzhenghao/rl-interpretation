@@ -32,7 +32,7 @@ def restore(ckpt, env_name="BipedalWalker-v2"):
 
 
 class MOGESAgent:
-    def __init__(self, ckpt):
+    def __init__(self, ckpt, existing_agent=None):
         if not ray.is_initialized():
             initialize_ray(num_gpus=0)
 
@@ -55,11 +55,15 @@ class MOGESAgent:
         )
 
         assert osp.exists(ckpt)
+        if existing_agent is not None:
+            assert isinstance(existing_agent, MOGESAgent)
+            existing_agent = existing_agent.agent
         agent = restore_agent(
             GaussianESTrainer,
             ckpt,
             "BipedalWalker-v2",
-            config
+            config,
+            existing_agent=existing_agent
         )
         self.agent = agent
 
@@ -77,11 +81,11 @@ class MOGESAgent:
         return self._log_std
 
     def get_action(self, obs):
-        assert self.config_env.observation_space.contaions(obs)
+        assert self.config_env.observation_space.contains(obs)
         return self.agent.get_policy().compute(obs)[0]
 
     def get_logits(self, obs):
-        assert self.config_env.observation_space.contaions(obs)
+        assert self.config_env.observation_space.contains(obs)
         return self.agent.get_policy().compute_actions(obs)
 
     def get_dist(self, obs):
