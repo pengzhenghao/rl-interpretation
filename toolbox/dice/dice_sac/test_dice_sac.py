@@ -55,7 +55,7 @@ def test_trainer(dice_sac_trainer):
 def regression_test():
     num_agents = 3
     local_dir = tempfile.mkdtemp()
-    initialize_ray(test_mode=True, local_mode=False)
+    initialize_ray(test_mode=True, local_mode=True)
     train(DiCESACTrainer,
           {
               "gamma": 0.95,

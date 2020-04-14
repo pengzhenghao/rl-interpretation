@@ -6,7 +6,8 @@ policies' batches, we fuse the batches collected by this policy and other
 policies. We also compute the diversity reward and diversity advantage of this
 policy.
 """
-from ray.rllib.agents.ppo.ppo_tf_policy import postprocess_ppo_gae, ACTION_LOGP, \
+from ray.rllib.agents.ppo.ppo_tf_policy import postprocess_ppo_gae, \
+    ACTION_LOGP, \
     SampleBatch, BEHAVIOUR_LOGITS
 from ray.rllib.evaluation.postprocessing import discount
 
@@ -109,7 +110,15 @@ def _compute_advantages_for_diversity(
         advantage = discount(delta_t, gamma * lambda_)
         value_target = (advantage + values).copy().astype(np.float32)
     else:
-        rewards_plus_v = np.concatenate([rewards, np.array([last_r])])
+        if rewards.size > 0:
+            rewards_plus_v = np.concatenate([rewards, np.array([last_r])])
+        else:  # In this case the rewards is empty array.
+            logger.warning(
+                "********** Current reward is empty: {}. last r {}. values {}"
+                ".".format(
+                    rewards, last_r, values
+                ))
+            rewards_plus_v = np.array([last_r])
         advantage = discount(rewards_plus_v, gamma)[:-1]
         value_target = np.zeros_like(advantage, dtype=np.float32)
     advantage = advantage.copy().astype(np.float32)
