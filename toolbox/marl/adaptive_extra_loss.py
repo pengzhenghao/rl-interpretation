@@ -4,7 +4,7 @@ from collections import deque
 import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import update_kl
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins
+from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins
 
 from toolbox.marl.extra_loss_ppo_trainer import ExtraLossPPOTFPolicy, \
     ExtraLossPPOTrainer, AddLossMixin, DEFAULT_CONFIG, merge_dicts, \

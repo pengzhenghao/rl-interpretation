@@ -1,5 +1,5 @@
 import tensorflow as tf
-from ray.rllib.agents.ppo.ppo_policy import SampleBatch, \
+from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch, \
     BEHAVIOUR_LOGITS, PPOLoss
 from ray.rllib.evaluation.postprocessing import Postprocessing
 
