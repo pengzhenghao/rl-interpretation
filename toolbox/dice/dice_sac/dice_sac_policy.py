@@ -1,13 +1,13 @@
 from ray.rllib.agents.sac.sac_policy import SACTFPolicy, TargetNetworkMixin, \
-    ActorCriticOptimizerMixin, ComputeTDErrorMixin, SampleBatch, \
-    actor_critic_loss as sac_loss, get_dist_class
+    ActorCriticOptimizerMixin, ComputeTDErrorMixin, postprocess_trajectory, \
+    SampleBatch, actor_critic_loss as sac_loss, get_dist_class
 from ray.rllib.utils.tf_ops import make_tf_callable
 
 from toolbox.dice.dice_policy import grad_stats_fn, \
     DiversityValueNetworkMixin, \
     ComputeDiversityMixin
-from toolbox.dice.dice_postprocess import BEHAVIOUR_LOGITS, \
-    MY_LOGIT
+from toolbox.dice.dice_postprocess import ACTION_LOGP, BEHAVIOUR_LOGITS, \
+    MY_LOGIT, postprocess_diversity
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
 from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient
 from toolbox.dice.utils import *
@@ -106,54 +106,54 @@ class PPOLossTwoSideDiversity:
 #         self.actor_loss = actor_loss
 
 
-# def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
-#     if not policy.loss_initialized():
-#         batch = postprocess_trajectory(policy, sample_batch)
-#
-#         batch[DIVERSITY_REWARDS] = batch["rewards"].copy()
-#         batch[DIVERSITY_VALUE_TARGETS] = batch["rewards"].copy()
-#         batch[DIVERSITY_ADVANTAGES] = batch["rewards"].copy()
-#         batch['other_action_logp'] = batch[ACTION_LOGP].copy()
-#         return batch
-#
-#     if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
-#         batch = sample_batch.copy()
-#         batch = postprocess_trajectory(policy, batch)
-#         batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
-#         batch = postprocess_diversity(policy, batch, others_batches)
-#         batches = [batch]
-#     else:
-#         batches = []
-#
-#     for pid, (other_policy, other_batch_raw) in others_batches.items():
-#         # other_batch_raw is the data collected by other polices.
-#         if policy.config[ONLY_TNB]:
-#             break
-#         if other_batch_raw is None:
-#             continue
-#         other_batch_raw = other_batch_raw.copy()
-#
-#         # Replay this policy to get the action distribution of this policy.
-#         replay_result = policy.compute_actions(
-#             other_batch_raw[SampleBatch.CUR_OBS]
-#         )[2]
-#         other_batch_raw[MY_LOGIT] = replay_result[BEHAVIOUR_LOGITS]
-#
-#         # Compute the diversity reward and diversity advantage of this batch.
-#         other_batch_raw = postprocess_diversity(
-#             policy, other_batch_raw, others_batches
-#         )
-#
-#         # Compute the task advantage of this batch.
-#         batches.append(postprocess_trajectory(policy, other_batch_raw))
-#
-#     # Merge all batches.
-#     batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
-#         else batches[0]
-#
-#     # del batch.data['new_obs']  # save memory
-#     # del batch.data['action_prob']
-#     return batch
+def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
+    if not policy.loss_initialized():
+        batch = postprocess_trajectory(policy, sample_batch)
+
+        batch[DIVERSITY_REWARDS] = batch["rewards"].copy()
+        batch[DIVERSITY_VALUE_TARGETS] = batch["rewards"].copy()
+        batch[DIVERSITY_ADVANTAGES] = batch["rewards"].copy()
+        batch['other_action_logp'] = batch[ACTION_LOGP].copy()
+        return batch
+
+    if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
+        batch = sample_batch.copy()
+        batch = postprocess_trajectory(policy, batch)
+        batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
+        batch = postprocess_diversity(policy, batch, others_batches)
+        batches = [batch]
+    else:
+        batches = []
+
+    for pid, (other_policy, other_batch_raw) in others_batches.items():
+        # other_batch_raw is the data collected by other polices.
+        if policy.config[ONLY_TNB]:
+            break
+        if other_batch_raw is None:
+            continue
+        other_batch_raw = other_batch_raw.copy()
+
+        # Replay this policy to get the action distribution of this policy.
+        replay_result = policy.compute_actions(
+            other_batch_raw[SampleBatch.CUR_OBS]
+        )[2]
+        other_batch_raw[MY_LOGIT] = replay_result[BEHAVIOUR_LOGITS]
+
+        # Compute the diversity reward and diversity advantage of this batch.
+        other_batch_raw = postprocess_diversity(
+            policy, other_batch_raw, others_batches
+        )
+
+        # Compute the task advantage of this batch.
+        batches.append(postprocess_trajectory(policy, other_batch_raw))
+
+    # Merge all batches.
+    batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
+        else batches[0]
+
+    # del batch.data['new_obs']  # save memory
+    # del batch.data['action_prob']
+    return batch
 
 
 def dice_sac_loss(policy, model, dist_class, train_batch):
@@ -322,7 +322,7 @@ DiCESACPolicy = SACTFPolicy.with_updates(
     get_default_config=lambda: dice_sac_default_config,
 
     # Finish but not test
-    # postprocess_fn=postprocess_dice_sac,
+    postprocess_fn=postprocess_dice_sac,
     loss_fn=dice_sac_loss,
     gradients_fn=dice_sac_gradient,
     stats_fn=stats_fn,
