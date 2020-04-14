@@ -59,8 +59,9 @@ def get_policy_name(policy_weight_dict):
     return next(iter(policy_weight_dict.keys())).split("/")[0]
 
 
-def get_new_policy_weight(policy_weight_dict, new_name):
+def get_new_policy_weight(policy_weight_dict, policy):
     old_name = get_policy_name(policy_weight_dict)
+    new_name = get_policy_name(policy.get_weights())
     return {
         wid.replace(old_name, new_name): w for wid, w in
         policy_weight_dict.items()
@@ -174,8 +175,7 @@ class AgentPoolMixin(object):
                         os.path.expanduser(checkpoint_info['path'])
                     )
                     state = _restore_state(path)
-                    # old_agent_name = get_policy_name(state)
-                    policy.set_weights(get_new_policy_weight(state, agent_name))
+                    policy.set_weights(get_new_policy_weight(state, policy))
                 else:  # for test purpose
                     checkpoint_info = {'path': "N/A", 'reward': float('nan')}
 
@@ -197,7 +197,8 @@ class AgentPoolMixin(object):
             best_agent_weights = self.policies_pool[best_agent][
                 'policy'].get_weights()
             self.set_weights(
-                get_new_policy_weight(best_agent_weights, "default_policy"))
+                get_new_policy_weight(best_agent_weights,
+                                      get_new_policy_weight))
 
             msg = (
                 "We successfully restore current agent with "
