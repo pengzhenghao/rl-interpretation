@@ -59,7 +59,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
         )
 
     policy.loss_obj = PPOLoss(
-        policy.action_space,
+        # policy.action_space,
         dist_class,
         model,
         train_batch[Postprocessing.VALUE_TARGETS],
@@ -77,7 +77,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"]
+        # model_config=policy.config["model"]
     )
 
     # if policy.enable_novelty:
