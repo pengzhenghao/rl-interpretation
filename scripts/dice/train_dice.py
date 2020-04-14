@@ -12,7 +12,7 @@ if __name__ == '__main__':
     env_name = args.env_name
     exp_name = "{}-{}".format(args.exp_name, env_name)
 
-    large = env_name in ["Walker2d-v3", "Hopper-v3", "FetchPush-v1"]
+    large = env_name in ["Walker2d-v3", "Hopper-v3"]
     if large:
         stop = int(5e7)
     elif env_name == "Humanoid-v3":
@@ -24,7 +24,7 @@ if __name__ == '__main__':
         "kl_coeff": 1.0,
         "num_sgd_iter": 10,
         "lr": 0.0001,
-        'sample_batch_size': 200 if large else 50,
+        'rollout_fragment_length': 200 if large else 50,
         'sgd_minibatch_size': 100 if large else 64,
         'train_batch_size': 10000 if large else 2048,
         "num_gpus": 0.4,
@@ -33,6 +33,15 @@ if __name__ == '__main__':
         "num_envs_per_worker": 8 if large else 5,
         'num_workers': 8 if large else 1,
     }
+
+    if env_name == "FetchPush-v1":
+        stop = int(3e6)
+        config.update(
+            num_workers=8,
+            num_envs_per_worker=10,
+            gamma=0.95,
+            lr=1e-3,
+        )
 
     config.update(
         get_marl_env_config(env_name, tune.grid_search([args.num_agents]))
