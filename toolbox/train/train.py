@@ -67,7 +67,7 @@ def train(
         checkpoint_at_end=True,
         stop=stop,
         config=config,
-        max_failures=20,
+        max_failures=20 if not test_mode else 1,
         reuse_actors=False,
         **kwargs
     )
