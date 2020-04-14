@@ -236,7 +236,7 @@ class TargetNetworkMixin:
 
         self._compute_clone_network_logits = compute_clone_network_logits
 
-    def update_target_network(self, tau=None):
+    def update_target(self, tau=None):
         """Delayed update the target network."""
         tau = tau or self.tau_value
         return self.get_session().run(

@@ -117,7 +117,7 @@ def after_optimizer_iteration(trainer, fetches):
                 e.set_weights.remote(weights)
 
             def _delay_update_for_worker(worker, worker_index):
-                worker.foreach_policy(lambda p, _: p.update_target_network())
+                worker.foreach_policy(lambda p, _: p.update_target())
 
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 
