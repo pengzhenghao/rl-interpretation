@@ -60,5 +60,6 @@ TNBTrainer = PPOTrainer.with_updates(
     make_policy_optimizer=choose_policy_optimizer,
     default_config=tnb_default_config,
     before_train_step=before_train_step,
-    default_policy=TNBPolicy
+    default_policy=TNBPolicy,
+    get_policy_class=lambda _: TNBPolicy
 )
