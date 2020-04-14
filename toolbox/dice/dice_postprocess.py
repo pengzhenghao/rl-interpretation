@@ -113,7 +113,7 @@ def _compute_advantages_for_diversity(
         rewards_plus_v = np.concatenate([
             rewards.reshape(-1), np.array([last_r]).reshape(-1)
         ])
-        if rewards_plus_v <= 2:
+        if rewards_plus_v.size <= 2:
             logger.warning(
                 "********** Current reward is empty: {}. last r {}. values {}"
                 ".".format(
