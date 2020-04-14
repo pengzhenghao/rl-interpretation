@@ -164,7 +164,7 @@ def dice_sac_loss(policy, model, dist_class, train_batch):
         train_batch["action_logp"],
         mask,
         policy.config["clip_param"],
-        policy.config["entropy_coeff"]
+        # policy.config["entropy_coeff"]
     ).loss
 
     # Add the diversity reward as a stat
