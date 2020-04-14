@@ -15,10 +15,10 @@ from ray.rllib.evaluation.postprocessing import Postprocessing, discount
 from ray.rllib.models import ModelCatalog
 from ray.rllib.utils.explained_variance import explained_variance
 
-from toolbox.ipd.tnb_loss import tnb_gradients, tnb_loss
-from toolbox.ipd.tnb_model import ActorDoubleCriticNetwork
-from toolbox.ipd.tnb_utils import *
 from toolbox.marl.utils import on_train_result
+from toolbox.task_novelty_bisector.tnb_loss import tnb_gradients, tnb_loss
+from toolbox.task_novelty_bisector.tnb_model import ActorDoubleCriticNetwork
+from toolbox.task_novelty_bisector.tnb_utils import *
 from toolbox.utils import merge_dicts
 
 logger = logging.getLogger(__name__)
