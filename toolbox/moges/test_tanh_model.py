@@ -11,7 +11,7 @@ tanh_model = register_tanh_model()
 
 @pytest.fixture(params=["zero", "normal", "free"])
 def gaussian_mixture_trainer(request):
-    initialize_ray(test_mode=True, local_mode=False)
+    initialize_ray(test_mode=True, local_mode=False, num_gpus=0)
     trainer = GaussianESTrainer(env="BipedalWalker-v2", config={
         "model": {
             "custom_model": tanh_model,
@@ -20,7 +20,8 @@ def gaussian_mixture_trainer(request):
                 "num_components": 2,
                 "std_mode": request.param
             }},
-        "num_workers": 1,
+        "num_gpus": 0,
+        "num_workers": 2,
         "train_batch_size": 300,
         "sample_batch_size": 100
     })
