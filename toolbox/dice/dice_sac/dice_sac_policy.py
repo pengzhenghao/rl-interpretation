@@ -14,7 +14,8 @@ from toolbox.dice.dice_policy import grad_stats_fn, \
 from toolbox.dice.dice_postprocess import ACTION_LOGP, BEHAVIOUR_LOGITS, \
     MY_LOGIT, postprocess_diversity
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
-from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, dice_sac_loss
+from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, \
+    dice_sac_loss
 from toolbox.dice.dice_sac.dice_sac_model import SACModel
 from toolbox.dice.utils import *
 
@@ -162,6 +163,7 @@ def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
     return batch
 
 
+"""
 def dice_sac_loss(policy, model, dist_class, train_batch):
     ret_sac_loss = dice_sac_loss(policy, model, dist_class, train_batch)
 
@@ -224,6 +226,7 @@ def dice_sac_loss(policy, model, dist_class, train_batch):
         train_batch[DIVERSITY_REWARDS]
     )
     return ret_sac_loss + policy.diversity_loss
+"""
 
 
 def stats_fn(policy, train_batch):
@@ -234,7 +237,8 @@ def stats_fn(policy, train_batch):
         "mean_q": tf.reduce_mean(policy.q_t),
         "max_q": tf.reduce_max(policy.q_t),
         "min_q": tf.reduce_min(policy.q_t),
-        "diversity_total_loss": policy.diversity_loss,
+        "diversity_actor_loss": policy.diversity_actor_loss,
+        "diversity_critic_loss": policy.diversity_critic_loss,
         # "diversity_policy_loss": policy.diversity_loss.mean_policy_loss,
         # "diversity_vf_loss": policy.diversity_loss.mean_vf_loss,
         # "diversity_kl": policy.diversity_loss.mean_kl,

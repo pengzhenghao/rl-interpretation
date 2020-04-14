@@ -35,10 +35,10 @@ def validate_config(config):
     validate_config_and_setup_param_noise(config)
 
     # Hard-coded this setting
-    assert not config["normalize_actions"]
-    assert not config["env_config"]["normalize_actions"]
     # assert not config["normalize_actions"]
-    # assert config["env_config"]["normalize_actions"]
+    # assert not config["env_config"]["normalize_actions"]
+    assert not config["normalize_actions"]
+    assert config["env_config"]["normalize_actions"]
 
     # create multi-agent environment
     assert _global_registry.contains(ENV_CREATOR, config["env"])

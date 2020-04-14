@@ -264,18 +264,41 @@ def dice_sac_gradient(policy, optimizer, loss):
         alpha_grads_and_vars = policy._alpha_optimizer.compute_gradients(
             policy.alpha_loss, var_list=[policy.model.log_alpha])
 
-    policy_grad = actor_grads_and_vars
-
+    # This part we get the diversity gradient
     if policy.config["grad_norm_clipping"] is not None:
-        diversity_grad = minimize_and_clip(
-            optimizer, policy.diversity_loss,
+        diversity_actor_grads_and_vars = minimize_and_clip(
+            optimizer,
+            policy.diversity_actor_loss,
             var_list=policy.model.policy_variables(),
-            clip_val=policy.config["grad_norm_clipping"]
-        )
+            clip_val=policy.config["grad_norm_clipping"])
+        diversity_critic_grads_and_vars = minimize_and_clip(
+            optimizer,
+            policy.diversity_critic_loss[0],
+            var_list=policy.model.diversity_q_variables(),
+            clip_val=policy.config["grad_norm_clipping"])
     else:
-        diversity_grad = policy._actor_optimizer.compute_gradients(
-            policy.diversity_loss, var_list=policy.model.policy_variables()
-        )
+        diversity_actor_grads_and_vars = \
+            policy._actor_optimizer.compute_gradients(
+                policy.diversity_actor_loss,
+                var_list=policy.model.policy_variables())
+        diversity_critic_grads_and_vars = policy._critic_optimizer[
+            0].compute_gradients(
+            policy.diversity_critic_loss[0],
+            var_list=policy.model.diversity_q_variables())
+
+    policy_grad = actor_grads_and_vars
+    diversity_grad = diversity_actor_grads_and_vars
+
+    # if policy.config["grad_norm_clipping"] is not None:
+    #     diversity_grad = minimize_and_clip(
+    #         optimizer, policy.diversity_loss,
+    #         var_list=policy.model.policy_variables(),
+    #         clip_val=policy.config["grad_norm_clipping"]
+    #     )
+    # else:
+    #     diversity_grad = policy._actor_optimizer.compute_gradients(
+    #         policy.diversity_loss, var_list=policy.model.policy_variables()
+    #     )
 
     return_gradients = {}
     policy_grad_flatten = []
@@ -341,24 +364,31 @@ def dice_sac_gradient(policy, optimizer, loss):
         ret_grads = [return_gradients[var][0] for _, var in policy_grad]
         clipped_grads, _ = tf.clip_by_global_norm(
             ret_grads, policy.config["grad_clip"])
-        actor_grads_and_vars = [(g, return_gradients[var][1])
-                                for g, (_, var) in
-                                zip(clipped_grads, policy_grad)]
+        actor_grads_and_vars_fused = [(g, return_gradients[var][1])
+                                      for g, (_, var) in
+                                      zip(clipped_grads, policy_grad)]
     else:
-        actor_grads_and_vars = [
+        actor_grads_and_vars_fused = [
             return_gradients[var] for _, var in policy_grad
         ]
 
     # save these for later use in build_apply_op
-    policy._actor_grads_and_vars = [(g, v) for (g, v) in actor_grads_and_vars
+    policy._actor_grads_and_vars = [(g, v) for (g, v) in
+                                    actor_grads_and_vars_fused
                                     if g is not None]
     policy._critic_grads_and_vars = [(g, v) for (g, v) in critic_grads_and_vars
                                      if g is not None]
+    policy._diversity_critic_grads_and_vars = [(g, v) for (g, v) in
+                                               diversity_critic_grads_and_vars
+                                               if g is not None]
     policy._alpha_grads_and_vars = [(g, v) for (g, v) in alpha_grads_and_vars
                                     if g is not None]
 
     grads_and_vars = (
-            policy._actor_grads_and_vars + policy._critic_grads_and_vars +
-            policy._alpha_grads_and_vars)
+            policy._actor_grads_and_vars +
+            policy._critic_grads_and_vars +
+            policy._diversity_critic_grads_and_vars +
+            policy._alpha_grads_and_vars
+    )
 
     return grads_and_vars
