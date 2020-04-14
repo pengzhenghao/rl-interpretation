@@ -3,8 +3,10 @@ import os.path as osp
 
 import gym
 import numpy as np
+import ray
 from ray.rllib.models import ModelCatalog
 
+from toolbox import initialize_ray
 from toolbox.action_distribution.mixture_gaussian import \
     register_gaussian_mixture
 from toolbox.evaluate import restore_agent
@@ -30,8 +32,10 @@ def restore(ckpt, env_name="BipedalWalker-v2"):
 
 
 class MOGESAgent:
-
     def __init__(self, ckpt):
+        if not ray.is_initialized():
+            initialize_ray(num_gpus=0)
+
         with open(osp.join(osp.dirname(osp.dirname(ckpt)), "params.json"),
                   "rb") as f:
             config = json.load(f)
@@ -93,10 +97,14 @@ class MOGESAgent:
                 logits,
                 [self.action_dim * self.k])
             if self.std_mode == "zero":
-                log_std = np.zeros_like(mean)
+                log_std = np.ones_like(mean)
             elif self.std_mode == "free":
                 log_std = self._get_std()
             else:
                 raise NotImplementedError()
         assert len(weight) == self.k
-        return mean, log_std, weight
+        return dict(
+            mean=mean,
+            log_std=log_std,
+            weight=weight
+        )
