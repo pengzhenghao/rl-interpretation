@@ -58,6 +58,10 @@ class GaussianMixture(TFActionDistribution):
         k = model_config["custom_options"]["num_components"]
         return action_length * 2 * k + k
 
+    def deterministic_sample(self):
+        # This is a workaround. The return is not really deterministic.
+        return self.gaussian_mixture_model.sample()
+
 
 def register_gaussian_mixture():
     ModelCatalog.register_custom_action_dist(
