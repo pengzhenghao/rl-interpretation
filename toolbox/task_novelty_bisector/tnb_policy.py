@@ -55,6 +55,18 @@ def get_action_mean(logits):
     return np.split(logits, 2, axis=1)[0]
 
 
+def get_policy_name(policy_weight_dict):
+    return next(iter(policy_weight_dict.keys())).split("/")[0]
+
+
+def get_new_policy_weight(policy_weight_dict, new_name):
+    old_name = get_policy_name(policy_weight_dict)
+    return {
+        wid.replace(old_name, new_name): w for wid, w in
+        policy_weight_dict.items()
+    }
+
+
 def postprocess_tnb(policy, sample_batch, other_batches, episode):
     completed = sample_batch["dones"][-1]
     sample_batch[NOVELTY_REWARDS] = policy.compute_novelty(
@@ -162,12 +174,8 @@ class AgentPoolMixin(object):
                         os.path.expanduser(checkpoint_info['path'])
                     )
                     state = _restore_state(path)
-
-                    old_agent_name = next(iter(state.keys())).split("/")[0]
-                    policy.set_weights({
-                        w_name.replace(old_agent_name, agent_name): w
-                        for w_name, w in state.items()
-                    })
+                    # old_agent_name = get_policy_name(state)
+                    policy.set_weights(get_new_policy_weight(state, agent_name))
                 else:  # for test purpose
                     checkpoint_info = {'path': "N/A", 'reward': float('nan')}
 
@@ -185,9 +193,12 @@ class AgentPoolMixin(object):
                 key=lambda k: self.checkpoint_dict[k]['reward']
             )
             assert next(iter(self.checkpoint_dict.keys())) == best_agent
+
+            best_agent_weights = self.policies_pool[best_agent][
+                'policy'].get_weights()
             self.set_weights(
-                self.policies_pool[best_agent]['policy'].get_weights()
-            )
+                get_new_policy_weight(best_agent_weights, "default_policy"))
+
             msg = (
                 "We successfully restore current agent with "
                 " best agent <{}>, it's reward {}. ".format(
