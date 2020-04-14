@@ -198,7 +198,7 @@ class AgentPoolMixin(object):
                 'policy'].get_weights()
             self.set_weights(
                 get_new_policy_weight(best_agent_weights,
-                                      get_new_policy_weight))
+                                      self))
 
             msg = (
                 "We successfully restore current agent with "
