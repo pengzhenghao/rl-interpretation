@@ -7,6 +7,7 @@ from toolbox.train import train, get_train_parser
 if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--num-agents", type=int, default=5)
+    parser.add_argument("--no-delay-update", action="store_true")
     args = parser.parse_args()
 
     env_name = args.env_name
@@ -40,7 +41,8 @@ if __name__ == '__main__':
             num_workers=8,
             num_envs_per_worker=10,
             gamma=0.95,
-            lr=1e-3,
+            lr=5e-4,
+            delay_update=not args.no_delay_update
         )
 
     config.update(

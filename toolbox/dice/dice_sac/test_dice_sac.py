@@ -61,7 +61,8 @@ def regression_test():
               "gamma": 0.95,
               "target_network_update_freq": 32,
               "tau": 1.0,
-              "train_batch_size": 32,
+              "train_batch_size": 200,
+              "rollout_fragment_length": 50,
               "optimization": {
                   "actor_learning_rate": 0.005,
                   "critic_learning_rate": 0.005,
