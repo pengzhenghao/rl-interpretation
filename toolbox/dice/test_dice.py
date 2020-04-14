@@ -31,7 +31,7 @@ def _test_dice(
         "env_config": env_config,
         "num_gpus": num_gpus,
         "log_level": "DEBUG",
-        "sample_batch_size": 20,
+        "rollout_fragment_length": 20,
         "train_batch_size": 100,
         "sgd_minibatch_size": 60,
         "num_sgd_iter": 10,
