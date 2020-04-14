@@ -88,7 +88,7 @@ if __name__ == '__main__':
         "custom_action_dist": GaussianMixture.name,
         "custom_options": {
             "num_components": tune.grid_search([2, 3, 5]),
-            "std_norm": tune.grid_search(["free", "normal", "zero"])
+            "std_mode": tune.grid_search(["free", "normal", "zero"])
         }
     }
     config["env"] = args.env_name

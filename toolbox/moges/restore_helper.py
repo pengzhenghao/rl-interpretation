@@ -19,18 +19,6 @@ ModelCatalog.register_custom_model(
 )
 
 
-def restore(ckpt, env_name="BipedalWalker-v2"):
-    config = {}
-
-    agent = restore_agent(
-        GaussianESTrainer,
-        ckpt,
-        env_name,
-        config
-    )
-    return agent
-
-
 class MOGESAgent:
     def __init__(self, ckpt, existing_agent=None):
         if not ray.is_initialized():
@@ -91,21 +79,10 @@ class MOGESAgent:
     def get_dist(self, obs):
         logits = self.get_logits(obs)
         assert logits.ndim == 1
+        mean, log_std, weight = np.split(
+            logits,
+            [self.action_dim * self.k, 2 * self.action_dim * self.k])
 
-        if self.std_mode == "normal":
-            mean, log_std, weight = np.split(
-                logits,
-                [self.action_dim * self.k, 2 * self.action_dim * self.k])
-        else:
-            mean, weight = np.split(
-                logits,
-                [self.action_dim * self.k])
-            if self.std_mode == "zero":
-                log_std = np.ones_like(mean)
-            elif self.std_mode == "free":
-                log_std = self._get_std()
-            else:
-                raise NotImplementedError()
         assert len(weight) == self.k
         return dict(
             mean=mean,

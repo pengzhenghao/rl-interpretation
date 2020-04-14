@@ -26,7 +26,9 @@ class FullyConnectedNetworkTanh(TFModelV2):
         action_length = (num_outputs // k - 1) // 2
         assert num_outputs % k == 0
         assert (num_outputs // k - 1) % 2 == 0
-        insert_log_std = False
+
+        assert "std_norm" not in model_config["custom_optionis"]
+
         if model_config["custom_options"].get("std_mode") == "free":
             # learnable parameters
             log_stds = tf.get_variable(
@@ -35,11 +37,9 @@ class FullyConnectedNetworkTanh(TFModelV2):
                 initializer=tf.zeros_initializer
             )
             num_outputs -= k * action_length
-            insert_log_std = True
         elif model_config["custom_options"].get("std_mode") == "zero":
             log_stds = tf.ones(name="log_std", shape=[k * action_length])
             num_outputs -= k * action_length
-            insert_log_std = True
 
         # we are using obs_flat, so take the flattened shape as input
         inputs = tf.keras.layers.Input(
