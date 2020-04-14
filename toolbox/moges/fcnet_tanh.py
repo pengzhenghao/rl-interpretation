@@ -27,7 +27,7 @@ class FullyConnectedNetworkTanh(TFModelV2):
         assert num_outputs % k == 0
         assert (num_outputs // k - 1) % 2 == 0
 
-        assert "std_norm" not in model_config["custom_optionis"]
+        assert "std_norm" not in model_config["custom_options"]
 
         if model_config["custom_options"].get("std_mode") == "free":
             # learnable parameters
