@@ -29,7 +29,8 @@ def test_policy(dice_sac_policy):
     assert info["action_prob"].shape[0] == 400
     assert np.all(info["action_prob"] >= 0.0)
     assert info["action_logp"].shape[0] == 400
-    assert info["behaviour_logits"].shape == (400, env.action_space.shape[0])
+    assert info["behaviour_logits"].shape == (
+        400, env.action_space.shape[0] * 2)
 
     policy._lazy_initialize({"test_my_self": policy}, None)
 

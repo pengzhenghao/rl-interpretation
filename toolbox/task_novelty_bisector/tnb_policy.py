@@ -162,7 +162,12 @@ class AgentPoolMixin(object):
                         os.path.expanduser(checkpoint_info['path'])
                     )
                     state = _restore_state(path)
-                    policy.set_weights(state)
+
+                    old_agent_name = next(iter(state.keys())).split("/")[0]
+                    policy.set_weights({
+                        w_name.replace(old_agent_name, agent_name): w
+                        for w_name, w in state.items()
+                    })
                 else:  # for test purpose
                     checkpoint_info = {'path': "N/A", 'reward': float('nan')}
 
