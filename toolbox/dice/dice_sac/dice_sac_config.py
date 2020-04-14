@@ -22,7 +22,7 @@ dice_sac_default_config = merge_dicts(
         constants.PURE_OFF_POLICY: False,
 
         "normalize_actions": False,
-        "env_config": {"normalize_actions": True},
+        "env_config": {"normalize_actions": False},
 
         # "tau": 5e-3,  # <<== SAC already have this
         "callbacks": {

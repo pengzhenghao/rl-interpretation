@@ -35,8 +35,10 @@ def validate_config(config):
     validate_config_and_setup_param_noise(config)
 
     # Hard-coded this setting
-    assert not config["normalize_actions"]
-    assert config["env_config"]["normalize_actions"]
+    assert config["normalize_actions"]
+    assert not config["env_config"]["normalize_actions"]
+    # assert not config["normalize_actions"]
+    # assert config["env_config"]["normalize_actions"]
 
     # create multi-agent environment
     assert _global_registry.contains(ENV_CREATOR, config["env"])
@@ -85,7 +87,6 @@ def make_policy_optimizer(workers, config):
         **config["optimizer"])
 
 
-# TODO the policy is not finish yet.
 
 DiCESACTrainer = SACTrainer.with_updates(
     name="DiCESACTrainer",
@@ -93,13 +94,9 @@ DiCESACTrainer = SACTrainer.with_updates(
     default_policy=DiCESACPolicy,
     get_policy_class=lambda _: DiCESACPolicy,
 
-    # FIXME finished but not tested
     after_init=setup_policies_pool,
     after_optimizer_step=after_optimizer_step,
     validate_config=validate_config,
-
     make_policy_optimizer=make_policy_optimizer
 
-    # FIXME not finish
-    # make_policy_optimizer=make_policy_optimizer_tnbes,
 )

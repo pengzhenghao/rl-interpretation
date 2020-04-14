@@ -42,7 +42,7 @@ def dice_sac_trainer():
     num_agents = 3
     env = gym.make(env_name)
     trainer = DiCESACTrainer(
-        get_marl_env_config(env_name, num_agents, normalize_actions=True),
+        get_marl_env_config(env_name, num_agents, normalize_actions=False),
         env=MultiAgentEnvWrapper)
     return env, trainer
 
@@ -68,7 +68,7 @@ def regression_test():
                   "entropy_learning_rate": 0.0001
               },
               **get_marl_env_config(
-                  "CartPole-v0", num_agents, normalize_actions=True
+                  "CartPole-v0", num_agents, normalize_actions=False
               )
           },
           {"episode_reward_mean": 150 * num_agents}, exp_name="DELETEME",

@@ -39,7 +39,7 @@ if __name__ == '__main__':
     }
 
     config.update(get_marl_env_config(config["env"], args.num_agents,
-                                      normalize_actions=True))
+                                      normalize_actions=False))
 
     config["evaluation_config"] = dict(
         # env_config=config["env_config"],

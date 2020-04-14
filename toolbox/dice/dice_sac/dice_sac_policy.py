@@ -46,19 +46,19 @@ class PPOLossTwoSideDiversity:
         # ==========
         # In this part, I want to compute the diversity by myself
 
-        my_actions = tf.split(
-            policy.model.get_policy_output(obs),
-            2, axis=1)[0]
-
-        losses = []
-        for p in policies_pool.values():
-            logit = p.target_model.get_policy_output(obs)
-            other_act = tf.split(logit, 2, axis=1)[0]
-            losses.append(
-                tf.keras.losses.mean_squared_error(other_act, my_actions))
-        mse_loss = tf.reduce_mean(losses)
-        self.loss = mse_loss
-        return
+        # my_actions = tf.split(
+        #     policy.model.get_policy_output(obs),
+        #     2, axis=1)[0]
+        #
+        # losses = []
+        # for p in policies_pool.values():
+        #     logit = p.target_model.get_policy_output(obs)
+        #     other_act = tf.split(logit, 2, axis=1)[0]
+        #     losses.append(
+        #         tf.keras.losses.mean_squared_error(other_act, my_actions))
+        # mse_loss = tf.reduce_mean(losses)
+        # self.loss = mse_loss
+        # return
 
         # ==========
 
@@ -182,41 +182,41 @@ def dice_sac_loss(policy, model, dist_class, train_batch):
 
     # ==========
     # The following is MSE style loss
-    policy.diversity_loss = PPOLossTwoSideDiversity(
-        # train_batch[DIVERSITY_ADVANTAGES],
-        None,
-        policy, None,
-        # train_batch[SampleBatch.ACTIONS],
-        train_batch[SampleBatch.CUR_OBS],
-        # policy._log_likelihood,
-        # train_batch["action_logp"],
-        None,
-        mask,
-        policy.config["clip_param"],
-        policy.policies_pool
-        # policy.config["entropy_coeff"]
-    ).loss
-    policy.diversity_reward_mean = tf.reduce_mean(
-        train_batch[SampleBatch.REWARDS]
-    )  # FIXME wrong
-    # ==========
-
     # policy.diversity_loss = PPOLossTwoSideDiversity(
-    #     train_batch[DIVERSITY_ADVANTAGES],
-    #     policy,
-    #     train_batch[SampleBatch.ACTIONS],
+    #     # train_batch[DIVERSITY_ADVANTAGES],
+    #     None,
+    #     policy, None,
+    #     # train_batch[SampleBatch.ACTIONS],
     #     train_batch[SampleBatch.CUR_OBS],
     #     # policy._log_likelihood,
-    #     train_batch["action_logp"],
+    #     # train_batch["action_logp"],
+    #     None,
     #     mask,
     #     policy.config["clip_param"],
     #     policy.policies_pool
     #     # policy.config["entropy_coeff"]
     # ).loss
-    # Add the diversity reward as a stat
     # policy.diversity_reward_mean = tf.reduce_mean(
-    #     train_batch[DIVERSITY_REWARDS]
-    # )
+    #     train_batch[SampleBatch.REWARDS]
+    # )  # FIXME wrong
+    # ==========
+
+    policy.diversity_loss = PPOLossTwoSideDiversity(
+        train_batch[DIVERSITY_ADVANTAGES],
+        policy,
+        train_batch[SampleBatch.ACTIONS],
+        train_batch[SampleBatch.CUR_OBS],
+        # policy._log_likelihood,
+        train_batch["action_logp"],
+        mask,
+        policy.config["clip_param"],
+        policy.policies_pool
+        # policy.config["entropy_coeff"]
+    ).loss
+    # Add the diversity reward as a stat
+    policy.diversity_reward_mean = tf.reduce_mean(
+        train_batch[DIVERSITY_REWARDS]
+    )
     return ret_sac_loss + policy.diversity_loss
 
 
