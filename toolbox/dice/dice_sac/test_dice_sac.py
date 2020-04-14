@@ -37,7 +37,7 @@ def test_policy(dice_sac_policy):
 
 @pytest.fixture()
 def dice_sac_trainer():
-    initialize_ray(test_mode=True, local_mode=False)
+    initialize_ray(test_mode=True, local_mode=True)
     env_name = "BipedalWalker-v2"
     num_agents = 3
     env = gym.make(env_name)

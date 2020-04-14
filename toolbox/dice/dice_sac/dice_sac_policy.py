@@ -1,6 +1,6 @@
 from ray.rllib.agents.sac.sac_policy import SACTFPolicy, TargetNetworkMixin, \
-    ActorCriticOptimizerMixin, ComputeTDErrorMixin, get_dist_class, \
-    postprocess_trajectory, SampleBatch, actor_critic_loss as sac_loss
+    ActorCriticOptimizerMixin, ComputeTDErrorMixin, postprocess_trajectory, \
+    SampleBatch, actor_critic_loss as sac_loss, get_dist_class
 from ray.rllib.utils.tf_ops import make_tf_callable
 
 from toolbox.dice.dice_policy import grad_stats_fn, \
@@ -41,22 +41,26 @@ class PPOLossTwoSideDiversity:
         # model_out = policy.model.output
 
         # A workaround, since the model out is the flatten observation
-        # model_out = obs
-        # distribution_inputs = policy.model.get_policy_output(model_out)
-        # action_dist_class = get_dist_class(policy.config, policy.action_space)
-        # curr_action_dist = action_dist_class(distribution_inputs, policy.model)
-        # current_actions_logp = curr_action_dist.logp(actions)
 
-        # logp_ratio = tf.exp(current_actions_logp - prev_actions_logp)
+        # This is the PPO style loss
+        model_out = obs
+        distribution_inputs = policy.model.get_policy_output(model_out)
+        action_dist_class = get_dist_class(policy.config, policy.action_space)
+        curr_action_dist = action_dist_class(distribution_inputs,
+                                             policy.model)
+        current_actions_logp = curr_action_dist.logp(actions)
+        logp_ratio = tf.exp(current_actions_logp - prev_actions_logp)
+        with tf.control_dependencies(
+                [tf.check_numerics(logp_ratio, "logp_ratio")]):
+            new_surrogate_loss = advantages * tf.minimum(
+                logp_ratio, 1 + clip_param
+            )
 
         # action_kl = prev_dist.kl(curr_action_dist)
         # self.mean_kl = reduce_mean_valid(action_kl)
         # curr_entropy = curr_action_dist.entropy()
         # self.mean_entropy = reduce_mean_valid(curr_entropy)
-        new_surrogate_loss = advantages
-        # * tf.minimum(
-        # logp_ratio, 1 + clip_param
-        # )
+
         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
         self.mean_vf_loss = tf.constant(0.0)
         loss = reduce_mean_valid(
