@@ -5,7 +5,6 @@ import os
 import pickle
 from collections import OrderedDict
 
-import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTFPolicy, DEFAULT_CONFIG
 from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
     ValueNetworkMixin, KLCoeffMixin, LearningRateSchedule, \
@@ -13,6 +12,7 @@ from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
     BEHAVIOUR_LOGITS, make_tf_callable, kl_and_loss_stats
 from ray.rllib.evaluation.postprocessing import Postprocessing, discount
 from ray.rllib.models import ModelCatalog
+from ray.rllib.utils import try_import_tf
 from ray.rllib.utils.explained_variance import explained_variance
 
 from toolbox.marl.utils import on_train_result
@@ -21,6 +21,7 @@ from toolbox.task_novelty_bisector.tnb_model import ActorDoubleCriticNetwork
 from toolbox.task_novelty_bisector.tnb_utils import *
 from toolbox.utils import merge_dicts
 
+tf = try_import_tf()
 logger = logging.getLogger(__name__)
 
 tnb_default_config = merge_dicts(

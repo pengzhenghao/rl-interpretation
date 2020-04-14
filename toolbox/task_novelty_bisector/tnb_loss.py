@@ -1,9 +1,11 @@
-import tensorflow as tf
 from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch, \
     BEHAVIOUR_LOGITS, PPOLoss
 from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.utils import try_import_tf
 
 from toolbox.task_novelty_bisector.tnb_utils import *
+
+tf = try_import_tf()
 
 
 class PPOLossNovelty(object):
