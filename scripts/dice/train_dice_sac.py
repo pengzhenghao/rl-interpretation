@@ -30,7 +30,7 @@ if __name__ == '__main__':
         "timesteps_per_iteration": 1000,
         "learning_starts": 10000,
 
-        "clip_actions": False,
+        "clip_actions": True,
         # "normalize_actions": True,  <<== This is handled by MARL env
 
         "evaluation_interval": 1,
