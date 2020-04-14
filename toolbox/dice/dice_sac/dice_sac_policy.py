@@ -1,6 +1,11 @@
+from gym.spaces import Box, Discrete
+from ray.rllib.agents.ddpg.noop_model import NoopModel
 from ray.rllib.agents.sac.sac_policy import SACTFPolicy, TargetNetworkMixin, \
     ActorCriticOptimizerMixin, ComputeTDErrorMixin, postprocess_trajectory, \
-    SampleBatch, actor_critic_loss as sac_loss, get_dist_class
+    get_dist_class
+from ray.rllib.models import ModelCatalog
+from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.utils.error import UnsupportedSpaceException
 from ray.rllib.utils.tf_ops import make_tf_callable
 
 from toolbox.dice.dice_policy import grad_stats_fn, \
@@ -9,7 +14,8 @@ from toolbox.dice.dice_policy import grad_stats_fn, \
 from toolbox.dice.dice_postprocess import ACTION_LOGP, BEHAVIOUR_LOGITS, \
     MY_LOGIT, postprocess_diversity
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
-from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient
+from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, dice_sac_loss
+from toolbox.dice.dice_sac.dice_sac_model import SACModel
 from toolbox.dice.utils import *
 
 
@@ -157,7 +163,7 @@ def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
 
 
 def dice_sac_loss(policy, model, dist_class, train_batch):
-    ret_sac_loss = sac_loss(policy, model, dist_class, train_batch)
+    ret_sac_loss = dice_sac_loss(policy, model, dist_class, train_batch)
 
     logits, state = model.from_batch(train_batch)
     # action_dist = dist_class(logits, model)
@@ -317,6 +323,65 @@ class ComputeDiversityMixinModified(ComputeDiversityMixin):
             raise NotImplementedError()
 
 
+def build_sac_model(policy, obs_space, action_space, config):
+    if config["model"]["custom_model"]:
+        logger.warning(
+            "Setting use_state_preprocessor=True since a custom model "
+            "was specified.")
+        config["use_state_preprocessor"] = True
+    if not isinstance(action_space, (Box, Discrete)):
+        raise UnsupportedSpaceException(
+            "Action space {} is not supported for SAC.".format(action_space))
+    if isinstance(action_space, Box) and len(action_space.shape) > 1:
+        raise UnsupportedSpaceException(
+            "Action space has multiple dimensions "
+            "{}. ".format(action_space.shape) +
+            "Consider reshaping this into a single dimension, "
+            "using a Tuple action space, or the multi-agent API.")
+
+    if config["use_state_preprocessor"]:
+        default_model = None  # catalog decides
+        num_outputs = 256  # arbitrary
+        config["model"]["no_final_linear"] = True
+    else:
+        default_model = NoopModel
+        num_outputs = int(np.product(obs_space.shape))
+
+    policy.model = ModelCatalog.get_model_v2(
+        obs_space,
+        action_space,
+        num_outputs,
+        config["model"],
+        framework="tf",
+        model_interface=SACModel,
+        default_model=default_model,
+        name="sac_model",
+        actor_hidden_activation=config["policy_model"]["hidden_activation"],
+        actor_hiddens=config["policy_model"]["hidden_layer_sizes"],
+        critic_hidden_activation=config["Q_model"]["hidden_activation"],
+        critic_hiddens=config["Q_model"]["hidden_layer_sizes"],
+        twin_q=config["twin_q"],
+        initial_alpha=config["initial_alpha"])
+
+    policy.target_model = ModelCatalog.get_model_v2(
+        obs_space,
+        action_space,
+        num_outputs,
+        config["model"],
+        framework="tf",
+        model_interface=SACModel,
+        default_model=default_model,
+        name="target_sac_model",
+        actor_hidden_activation=config["policy_model"]["hidden_activation"],
+        actor_hiddens=config["policy_model"]["hidden_layer_sizes"],
+        critic_hidden_activation=config["Q_model"]["hidden_activation"],
+        critic_hiddens=config["Q_model"]["hidden_layer_sizes"],
+        twin_q=config["twin_q"],
+        initial_alpha=config["initial_alpha"])
+
+    return policy.model
+
+
 DiCESACPolicy = SACTFPolicy.with_updates(
     name="DiCESACPolicy",
     get_default_config=lambda: dice_sac_default_config,
@@ -335,9 +400,11 @@ DiCESACPolicy = SACTFPolicy.with_updates(
     ],
     after_init=after_init,
     extra_action_fetches_fn=extra_action_fetches_fn,
-    obs_include_prev_action_reward=True
+    obs_include_prev_action_reward=True,
 
     # Not checked
+    make_model=build_sac_model,
+
     # before_init=setup_early_mixins,
     # before_loss_init=setup_mid_mixins,
     # old_mixins=[
