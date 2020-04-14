@@ -106,10 +106,10 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
                         row["dones"],
                         None,
                         row["action_logp"],
-                        row["diversity_advantages"],
+                        # row["diversity_advantages"],
                         row["diversity_rewards"],
-                        row["diversity_value_targets"],
-                        row["my_logits"],
+                        # row["diversity_value_targets"],
+                        # row["my_logits"],
                         row["prev_actions"],
                         row["prev_rewards"]
                     )
@@ -141,8 +141,12 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
                 else:
                     (
                         obses_t, actions, rewards, obses_tp1, dones, _,
-                        action_logp, diversity_advantages, diversity_rewards,
-                        diversity_value_targets, my_logits, prev_actions,
+                        action_logp,
+                        # diversity_advantages,
+                        diversity_rewards,
+                        # diversity_value_targets,
+                        # my_logits,
+                        prev_actions,
                         prev_rewards
                     ) = replay_buffer.sample_with_idxes(
                         idxes)
@@ -157,10 +161,10 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
                     "weights": weights,
                     "batch_indexes": batch_indexes,
                     "action_logp": action_logp,
-                    "diversity_advantages": diversity_advantages,
+                    # "diversity_advantages": diversity_advantages,
                     "diversity_rewards": diversity_rewards,
-                    "diversity_value_targets": diversity_value_targets,
-                    "my_logits": my_logits,
+                    # "diversity_value_targets": diversity_value_targets,
+                    # "my_logits": my_logits,
                     "prev_actions": prev_actions,
                     "prev_rewards": prev_rewards
                 })

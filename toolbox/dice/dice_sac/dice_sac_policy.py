@@ -1,10 +1,10 @@
 from gym.spaces import Box, Discrete
 from ray.rllib.agents.ddpg.noop_model import NoopModel
+from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch
 from ray.rllib.agents.sac.sac_policy import SACTFPolicy, TargetNetworkMixin, \
     ActorCriticOptimizerMixin, ComputeTDErrorMixin, postprocess_trajectory, \
     get_dist_class
 from ray.rllib.models import ModelCatalog
-from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.error import UnsupportedSpaceException
 from ray.rllib.utils.tf_ops import make_tf_callable
 
@@ -12,7 +12,7 @@ from toolbox.dice.dice_policy import grad_stats_fn, \
     DiversityValueNetworkMixin, \
     ComputeDiversityMixin
 from toolbox.dice.dice_postprocess import ACTION_LOGP, BEHAVIOUR_LOGITS, \
-    MY_LOGIT, postprocess_diversity
+    MY_LOGIT
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
 from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, \
     dice_sac_loss
@@ -113,6 +113,43 @@ class PPOLossTwoSideDiversity:
 #         self.actor_loss = actor_loss
 
 
+def postprocess_diversity(policy, batch, others_batches):
+    """Compute the diversity for this policy against other policies using this
+    batch."""
+
+    # Compute diversity and add a new entry of batch: diversity_reward
+    batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch, others_batches)
+
+    """
+    # Compute the diversity advantage. We mock the computing of task advantage
+    # but simply replace the task reward with the diversity reward.
+    completed = batch["dones"][-1]
+    if completed:
+        last_r_diversity = 0.0
+    else:
+        next_state = []
+        for i in range(policy.num_state_tensors()):
+            next_state.append([batch["state_out_{}".format(i)][-1]])
+        last_r_diversity = policy._diversity_value(
+            batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
+            batch[DIVERSITY_REWARDS][-1], *next_state
+        )
+    diversity_advantages, diversity_value_target = \
+        _compute_advantages_for_diversity(
+            rewards=batch[DIVERSITY_REWARDS],
+            last_r=last_r_diversity,
+            gamma=policy.config["gamma"],
+            lambda_=policy.config["lambda"],
+            values=batch[DIVERSITY_VALUES]
+            if policy.config[USE_DIVERSITY_VALUE_NETWORK] else None,
+            use_gae=policy.config[USE_DIVERSITY_VALUE_NETWORK]
+        )
+    batch[DIVERSITY_ADVANTAGES] = diversity_advantages
+    batch[DIVERSITY_VALUE_TARGETS] = diversity_value_target
+    """
+    return batch
+
+
 def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
     if not policy.loss_initialized():
         batch = postprocess_trajectory(policy, sample_batch)
@@ -163,72 +200,6 @@ def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
     return batch
 
 
-"""
-def dice_sac_loss(policy, model, dist_class, train_batch):
-    ret_sac_loss = dice_sac_loss(policy, model, dist_class, train_batch)
-
-    logits, state = model.from_batch(train_batch)
-    # action_dist = dist_class(logits, model)
-
-    if state:
-        max_seq_len = tf.reduce_max(train_batch["seq_lens"])
-        mask = tf.sequence_mask(train_batch["seq_lens"], max_seq_len)
-        mask = tf.reshape(mask, [-1])
-    else:
-        mask = tf.ones_like(
-            train_batch["rewards"], dtype=tf.bool
-        )
-
-    assert not policy.config[USE_DIVERSITY_VALUE_NETWORK]
-
-    # policy.diversity_loss = SACDiversityLoss()
-
-    # Build the loss for diversity
-    # if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-    #     raise NotImplementedError()
-    # else:
-
-    # ==========
-    # The following is MSE style loss
-    # policy.diversity_loss = PPOLossTwoSideDiversity(
-    #     # train_batch[DIVERSITY_ADVANTAGES],
-    #     None,
-    #     policy, None,
-    #     # train_batch[SampleBatch.ACTIONS],
-    #     train_batch[SampleBatch.CUR_OBS],
-    #     # policy._log_likelihood,
-    #     # train_batch["action_logp"],
-    #     None,
-    #     mask,
-    #     policy.config["clip_param"],
-    #     policy.policies_pool
-    #     # policy.config["entropy_coeff"]
-    # ).loss
-    # policy.diversity_reward_mean = tf.reduce_mean(
-    #     train_batch[SampleBatch.REWARDS]
-    # )  # FIXME wrong
-    # ==========
-
-    policy.diversity_loss = PPOLossTwoSideDiversity(
-        train_batch[DIVERSITY_ADVANTAGES],
-        policy,
-        train_batch[SampleBatch.ACTIONS],
-        train_batch[SampleBatch.CUR_OBS],
-        # policy._log_likelihood,
-        train_batch["action_logp"],
-        mask,
-        policy.config["clip_param"],
-        policy.policies_pool
-        # policy.config["entropy_coeff"]
-    ).loss
-    # Add the diversity reward as a stat
-    policy.diversity_reward_mean = tf.reduce_mean(
-        train_batch[DIVERSITY_REWARDS]
-    )
-    return ret_sac_loss + policy.diversity_loss
-"""
-
-
 def stats_fn(policy, train_batch):
     ret = {
         "td_error": tf.reduce_mean(policy.td_error),
@@ -237,13 +208,13 @@ def stats_fn(policy, train_batch):
         "mean_q": tf.reduce_mean(policy.q_t),
         "max_q": tf.reduce_max(policy.q_t),
         "min_q": tf.reduce_min(policy.q_t),
-        "diversity_actor_loss": policy.diversity_actor_loss,
-        "diversity_critic_loss": policy.diversity_critic_loss,
+        "diversity_actor_loss": tf.reduce_mean(policy.diversity_actor_loss),
+        "diversity_critic_loss": tf.reduce_mean(policy.diversity_critic_loss),
         # "diversity_policy_loss": policy.diversity_loss.mean_policy_loss,
         # "diversity_vf_loss": policy.diversity_loss.mean_vf_loss,
         # "diversity_kl": policy.diversity_loss.mean_kl,
         # "diversity_entropy": policy.diversity_loss.mean_entropy,
-        "diversity_reward_mean": policy.diversity_reward_mean,
+        "diversity_reward_mean": tf.reduce_mean(policy.diversity_reward_mean),
     }
     return ret
 
@@ -307,7 +278,17 @@ class ComputeDiversityMixinModified(ComputeDiversityMixin):
                 )
                 replays[other_name] = logits
         else:
-            raise NotImplementedError()
+            # Otherwise compute the diversity against other latest policies
+            # contained in other_batches.
+            if not others_batches:
+                return np.zeros_like(
+                    my_batch[SampleBatch.REWARDS], dtype=np.float32
+                )
+            for other_name, (other_policy, _) in others_batches.items():
+                _, _, info = other_policy.compute_actions(
+                    my_batch[SampleBatch.CUR_OBS]
+                )
+                replays[other_name] = info[BEHAVIOUR_LOGITS]
 
         # Compute the diversity loss based on the action distribution of
         # this policy and other polices.

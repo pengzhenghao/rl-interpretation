@@ -7,6 +7,7 @@ import pytest
 
 from toolbox import train, initialize_ray
 from toolbox.dice.dice_sac.dice_sac import DiCESACTrainer
+from toolbox.dice.dice_sac.dice_sac_config import constants
 from toolbox.dice.dice_sac.dice_sac_policy import DiCESACPolicy
 from toolbox.marl import get_marl_env_config, MultiAgentEnvWrapper
 
@@ -78,6 +79,7 @@ def regression_test(local_mode=False):
 
 
 def regression_test2(local_mode=False):
+    from ray import tune
     num_agents = 3
     local_dir = tempfile.mkdtemp()
     initialize_ray(test_mode=True, local_mode=local_mode)
@@ -89,8 +91,12 @@ def regression_test2(local_mode=False):
               "metrics_smoothing_episodes": 5,
               "no_done_at_end": True,
 
-              # "train_batch_size": 200,
-              # "rollout_fragment_length": 50,
+              "train_batch_size": 1000,
+              "rollout_fragment_length": 50,
+
+              constants.DELAY_UPDATE: tune.grid_search([True, False]),
+              # constants.NOR: tune.grid_search([True, False]),
+
               # "optimization": {
               #     "actor_learning_rate": 0.005,
               #     "critic_learning_rate": 0.005,
@@ -102,7 +108,7 @@ def regression_test2(local_mode=False):
           },
           {
               "episode_reward_mean": -300 * num_agents,
-              "timesteps_total": 10000 * num_agents
+              "timesteps_total": 13000 * num_agents
           }, exp_name="DELETEME",
           local_dir=local_dir, test_mode=True)
     shutil.rmtree(local_dir, ignore_errors=True)

@@ -110,7 +110,7 @@ def dice_sac_loss(policy, model, _, train_batch):
             input=diversity_q_tp1, axis=len(diversity_q_tp1.shape) - 1)
         diversity_q_tp1_best_masked = (1.0 - tf.cast(
             train_batch[SampleBatch.DONES], tf.float32
-        )) * q_tp1_best
+        )) * diversity_q_tp1_best
 
     assert policy.config["n_step"] == 1, "TODO(hartikainen) n_step > 1"
 
@@ -120,7 +120,7 @@ def dice_sac_loss(policy, model, _, train_batch):
         policy.config["gamma"] ** policy.config["n_step"] * q_tp1_best_masked)
 
     diversity_q_t_selected_target = tf.stop_gradient(
-        train_batch[SampleBatch.REWARDS] +
+        train_batch["diversity_rewards"] +
         policy.config["gamma"] ** policy.config["n_step"] *
         diversity_q_tp1_best_masked)
 
@@ -132,8 +132,8 @@ def dice_sac_loss(policy, model, _, train_batch):
     else:
         td_error = base_td_error
 
-    diversity_td_error = tf.abs(
-        diversity_q_t_selected - diversity_q_t_selected_target)
+    # diversity_td_error = tf.abs(
+    #     diversity_q_t_selected - diversity_q_t_selected_target)
 
     critic_loss = [
         tf.losses.mean_squared_error(
@@ -211,7 +211,8 @@ def dice_sac_loss(policy, model, _, train_batch):
     # in a custom apply op we handle the losses separately, but return them
     # combined in one loss for now
     return actor_loss + tf.add_n(
-        critic_loss) + alpha_loss + diversity_critic_loss + diversity_actor_loss
+        critic_loss) + alpha_loss + tf.add_n(
+        diversity_critic_loss) + diversity_actor_loss
 
 
 def dice_sac_gradient(policy, optimizer, loss):

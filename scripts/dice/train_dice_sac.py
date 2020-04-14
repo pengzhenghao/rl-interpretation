@@ -1,6 +1,7 @@
 from ray import tune
 
 from toolbox.dice.dice_sac import DiCESACTrainer
+from toolbox.dice.dice_sac.dice_sac_config import constants
 from toolbox.marl import get_marl_env_config
 from toolbox.train import train, get_train_parser
 
@@ -10,36 +11,36 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     exp_name = args.exp_name
-    stop = int(1e6)
+    stop = int(1.5e6)
 
     config = {
         "env": tune.grid_search([
-            "HalfCheetah-v3",
-            "Walker2d-v3",
-            "Ant-v3",
-            "Hopper-v3",
-            "Humanoid-v3"
+            # "HalfCheetah-v3",
+            # "Walker2d-v3",
+            "Ant-v3",  # <<== This script run only one env for validation
+            # "Hopper-v3",
+            # "Humanoid-v3"
         ]),
 
-        "horizon": 1000,
+        "num_cpus_for_driver": 2,
 
+        constants.DELAY_UPDATE: tune.grid_search([True, False]),
+
+        # SAC config
+        "horizon": 1000,
         "sample_batch_size": 1,
         "train_batch_size": 256,
-
         "target_network_update_freq": 1,
         "timesteps_per_iteration": 1000,
         "learning_starts": 10000,
-
         "clip_actions": True,
         # "normalize_actions": True,  <<== This is handled by MARL env
-
         "evaluation_interval": 1,
         "metrics_smoothing_episodes": 5,
-        "num_cpus_for_driver": 2,
     }
-
-    config.update(get_marl_env_config(config["env"], args.num_agents,
-                                      normalize_actions=False))
+    config.update(get_marl_env_config(
+        config["env"], args.num_agents, normalize_actions=True
+    ))
 
     config["evaluation_config"] = dict(
         # env_config=config["env_config"],

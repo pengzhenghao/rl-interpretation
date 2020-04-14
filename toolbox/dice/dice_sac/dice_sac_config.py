@@ -7,16 +7,16 @@ dice_sac_default_config = merge_dicts(
     sac_default_config, {
 
         # PPO loss for diversity
-        "clip_param": 0.3,
-        "lambda": 1.0,
+        # "clip_param": 0.3,
+        # "lambda": 1.0,
         "grad_clip": 40.0,
 
-        "rollout_fragment_length": 50,
+        # "rollout_fragment_length": 50,
 
         constants.USE_BISECTOR: True,
         constants.USE_DIVERSITY_VALUE_NETWORK: False,
         constants.DELAY_UPDATE: True,
-        constants.TWO_SIDE_CLIP_LOSS: True,
+        # constants.TWO_SIDE_CLIP_LOSS: True,
         constants.ONLY_TNB: False,
         constants.NORMALIZE_ADVANTAGE: False,
         constants.CLIP_DIVERSITY_GRADIENT: True,
