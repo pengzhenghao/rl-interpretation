@@ -86,7 +86,7 @@ class MOGESAgent:
 
     def get_logits(self, obs):
         assert self.config_env.observation_space.contains(obs)
-        return self.agent.get_policy().compute_actions(obs)
+        return self.agent.get_policy().compute_actions(obs)[0]
 
     def get_dist(self, obs):
         logits = self.get_logits(obs)
