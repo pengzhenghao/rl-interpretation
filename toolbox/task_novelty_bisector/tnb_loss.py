@@ -83,7 +83,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
     # if policy.enable_novelty:
     if policy.config['use_novelty_value_network']:
         policy.novelty_loss_obj = PPOLoss(
-            policy.action_space,
+            # policy.action_space,
             dist_class,
             model,
             train_batch[NOVELTY_VALUE_TARGETS],
@@ -101,7 +101,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
             vf_clip_param=policy.config["vf_clip_param"],
             vf_loss_coeff=policy.config["vf_loss_coeff"],
             use_gae=policy.config["use_gae"],
-            model_config=policy.config["model"]
+            # model_config=policy.config["model"]
         )
     else:
         policy.novelty_loss_obj = PPOLossNovelty(
