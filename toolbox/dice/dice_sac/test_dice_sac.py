@@ -52,10 +52,10 @@ def test_trainer(dice_sac_trainer):
     train_result = trainer.train()
 
 
-def regression_test():
+def regression_test(local_mode=False):
     num_agents = 3
     local_dir = tempfile.mkdtemp()
-    initialize_ray(test_mode=True, local_mode=True)
+    initialize_ray(test_mode=True, local_mode=local_mode)
     train(DiCESACTrainer,
           {
               "gamma": 0.95,
@@ -79,4 +79,4 @@ def regression_test():
 
 if __name__ == "__main__":
     # pytest.main(["-v"])
-    regression_test()
+    regression_test(local_mode=False)
