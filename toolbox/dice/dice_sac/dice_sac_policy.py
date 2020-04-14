@@ -25,7 +25,8 @@ class PPOLossTwoSideDiversity:
             # current_actions_logp,
             prev_actions_logp,
             valid_mask,
-            clip_param=0.3
+            clip_param=0.3,
+            # entropy_coeff=0.01
     ):
         # cur_kl_coeff = 0.0
 
@@ -40,27 +41,28 @@ class PPOLossTwoSideDiversity:
         # model_out = policy.model.output
 
         # A workaround, since the model out is the flatten observation
-        model_out = obs
-        distribution_inputs = policy.model.get_policy_output(model_out)
-        action_dist_class = get_dist_class(policy.config, policy.action_space)
-        current_actions_logp = action_dist_class(
-            distribution_inputs, policy.model).logp(actions)
+        # model_out = obs
+        # distribution_inputs = policy.model.get_policy_output(model_out)
+        # action_dist_class = get_dist_class(policy.config, policy.action_space)
+        # curr_action_dist = action_dist_class(distribution_inputs, policy.model)
+        # current_actions_logp = curr_action_dist.logp(actions)
 
-        logp_ratio = tf.exp(current_actions_logp - prev_actions_logp)
+        # logp_ratio = tf.exp(current_actions_logp - prev_actions_logp)
 
         # action_kl = prev_dist.kl(curr_action_dist)
         # self.mean_kl = reduce_mean_valid(action_kl)
         # curr_entropy = curr_action_dist.entropy()
         # self.mean_entropy = reduce_mean_valid(curr_entropy)
-        new_surrogate_loss = advantages * tf.minimum(
-            logp_ratio, 1 + clip_param
-        )
+        new_surrogate_loss = advantages
+        # * tf.minimum(
+        # logp_ratio, 1 + clip_param
+        # )
         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
         self.mean_vf_loss = tf.constant(0.0)
         loss = reduce_mean_valid(
             -new_surrogate_loss
             # + cur_kl_coeff * action_kl -
-            # entropy_coeff * curr_entropy
+            # - entropy_coeff * curr_entropy
         )
         self.loss = loss
 
@@ -161,7 +163,8 @@ def dice_sac_loss(policy, model, dist_class, train_batch):
         # policy._log_likelihood,
         train_batch["action_logp"],
         mask,
-        policy.config["clip_param"]
+        policy.config["clip_param"],
+        policy.config["entropy_coeff"]
     ).loss
 
     # Add the diversity reward as a stat
