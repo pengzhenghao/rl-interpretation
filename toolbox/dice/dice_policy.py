@@ -166,9 +166,13 @@ class ComputeDiversityMixin:
             )
 
         elif self.config[DIVERSITY_REWARD_TYPE] == "mse":
-            replays = [
-                np.split(logit, 2, axis=1)[0] for logit in replays.values()
-            ]
+            if next(replays.values()).shape[1] % 2 != 0:  # discrete
+                # This is only a workaround for MiniGrid environment
+                replays = list(replays.values())
+            else:
+                replays = [
+                    np.split(logit, 2, axis=1)[0] for logit in replays.values()
+                ]
             my_act = np.split(my_batch[MY_LOGIT], 2, axis=1)[0]
             return np.mean(
                 [
