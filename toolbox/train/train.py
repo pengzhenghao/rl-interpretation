@@ -24,6 +24,19 @@ def register_bullet(env_name):
         register_env(env_name, make_pybullet)
 
 
+def register_minigrid(env_name):
+    assert isinstance(env_name, str)
+    if env_name.startswith("MiniGrid"):
+        def make_minigrid(_=None):
+            import gym_minigrid
+            import gym
+            gym_minigrid
+            print("Successfully import minigrid environments.")
+            return gym.make(env_name)
+
+        register_env(env_name, make_minigrid)
+
+
 def train(
         trainer,
         config,
@@ -70,6 +83,7 @@ def train(
         env_names = env_name
     for e in env_names:
         register_bullet(e)
+        register_minigrid(e)
 
     if not isinstance(stop, dict):
         assert np.isscalar(stop)

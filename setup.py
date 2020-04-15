@@ -31,5 +31,6 @@ setup(
         "ray[rllib]==0.8.4",
         "ray[dashboard]==0.8.4",
         "ray[debug]==0.8.4",
+        "gym-minigrid"
     ]
 )
