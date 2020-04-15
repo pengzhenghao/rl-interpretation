@@ -170,11 +170,12 @@ class ComputeDiversityMixin:
         elif self.config[DIVERSITY_REWARD_TYPE] == "mse":
             if self.discrete:  # discrete
                 replays = list(replays.values())
+                my_act = my_batch[MY_LOGIT]
             else:
                 replays = [
                     np.split(logit, 2, axis=1)[0] for logit in replays.values()
                 ]
-            my_act = np.split(my_batch[MY_LOGIT], 2, axis=1)[0]
+                my_act = np.split(my_batch[MY_LOGIT], 2, axis=1)[0]
             return np.mean(
                 [
                     (np.square(my_act - other_act)).mean(1)
