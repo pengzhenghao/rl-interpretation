@@ -83,9 +83,9 @@ def get_env_maker(name, require_render=False):
     # if name in ENV_MAKER_LOOKUP:
     #     return ENV_MAKER_LOOKUP[name]
     if isinstance(name, str) and name.startswith("MiniGrid"):
-        print("Return the mini grid environment {} with ImgObsWrapper!".format(
+        print("Return the mini grid environment {} with FlatObsWrapper!".format(
             name))
-        return lambda: gym_minigrid.wrappers.ImgObsWrapper(gym.make(name))
+        return lambda: gym_minigrid.wrappers.FlatObsWrapper(gym.make(name))
     else:
         assert name in [s.id for s in gym.envs.registry.all()], \
             "name of env not in {}".format(
