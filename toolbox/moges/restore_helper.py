@@ -8,12 +8,12 @@ from ray.rllib.models import ModelCatalog
 
 from toolbox import initialize_ray
 from toolbox.action_distribution.mixture_gaussian import \
-    register_gaussian_mixture
+    register_mixture_action_distribution
 from toolbox.evaluate import restore_agent
 from toolbox.evolution.modified_es import GaussianESTrainer
 from toolbox.moges.fcnet_tanh import FullyConnectedNetworkTanh
 
-register_gaussian_mixture()
+register_mixture_action_distribution()
 ModelCatalog.register_custom_model(
     "fc_with_tanh", FullyConnectedNetworkTanh
 )

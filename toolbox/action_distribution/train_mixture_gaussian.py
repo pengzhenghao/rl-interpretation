@@ -5,7 +5,7 @@ from ray import tune
 from ray.rllib.utils import merge_dicts
 
 from toolbox.action_distribution import PPOTrainerWithoutKL, GaussianMixture, \
-    register_gaussian_mixture
+    register_mixture_action_distribution
 from toolbox.utils import initialize_ray, get_local_dir
 
 # The arguments below is copied from
@@ -219,7 +219,7 @@ run_config = merge_dicts(general_config, algo_specify_config['config'])
 initialize_ray(num_gpus=args.num_gpus, test_mode=args.test_mode)
 
 assert args.run == "PPO"
-register_gaussian_mixture()
+register_mixture_action_distribution()
 
 run_config["model"] = {
     "custom_action_dist": GaussianMixture.name,
