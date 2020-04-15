@@ -48,7 +48,7 @@ def _parse_tag(tag):
         key, value = part.split('=')
         try:
             value = eval(value)
-        except NameError:
+        except Exception:
             value = value
         ret[key] = value
     return ret
