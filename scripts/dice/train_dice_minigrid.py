@@ -28,7 +28,7 @@ if __name__ == '__main__':
         'rollout_fragment_length': 200 if large else 50,
         'sgd_minibatch_size': 100 if large else 64,
         'train_batch_size': 10000 if large else 2048,
-        "num_gpus": 0.2,
+        "num_gpus": 0.25,
         "num_cpus_per_worker": args.num_cpus_per_worker,
         "num_cpus_for_driver": args.num_cpus_for_driver,
         "num_envs_per_worker": 8 if large else 10,
