@@ -6,6 +6,7 @@ following functions for each policy:
 2. Maintain the target network for each policy if in DELAY_UPDATE mode.
 3. Update the target network for each training iteration.
 """
+import gym
 from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
     ValueNetworkMixin, KLCoeffMixin, \
     EntropyCoeffSchedule, BEHAVIOUR_LOGITS, PPOTFPolicy
@@ -115,9 +116,10 @@ class ComputeDiversityMixin:
     compute_diversity function.
     """
 
-    def __init__(self):
+    def __init__(self, discrete):
         self.initialized_policies_pool = False
         self.policies_pool = {}
+        self.discrete = discrete
 
     def _lazy_initialize(self, policies_pool, my_name=None):
         """Initialize the reference of policies pool within this policy."""
@@ -166,8 +168,7 @@ class ComputeDiversityMixin:
             )
 
         elif self.config[DIVERSITY_REWARD_TYPE] == "mse":
-            if next(replays.values()).shape[1] % 2 != 0:  # discrete
-                # This is only a workaround for MiniGrid environment
+            if self.discrete:  # discrete
                 replays = list(replays.values())
             else:
                 replays = [
@@ -252,7 +253,8 @@ def setup_mixins_dice(policy, obs_space, action_space, config):
     setup_mixins(policy, obs_space, action_space, config)
     DiversityValueNetworkMixin.__init__(policy, obs_space, action_space,
                                         config)
-    ComputeDiversityMixin.__init__(policy)
+    discrete = isinstance(action_space, gym.spaces.Discrete)
+    ComputeDiversityMixin.__init__(policy, discrete)
 
 
 def setup_late_mixins(policy, obs_space, action_space, config):
