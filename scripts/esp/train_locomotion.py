@@ -10,7 +10,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     exp_name = "{}-{}".format(args.exp_name, args.env_name)
     config = {
-        "env": args.env_name,
+        "env": tune.grid_search([
+            'Walker2DBulletEnv-v0',
+            'HalfCheetahBulletEnv-v0',
+            'AntBulletEnv-v0',
+            'HopperBulletEnv-v0',
+        ]),
         "num_sgd_iter": 10,
         "train_batch_size": 4000,
         "sample_batch_size": 200,
@@ -26,17 +31,27 @@ if __name__ == '__main__':
             "num_workers": 10,  # default is 10,
             "num_cpus_per_worker": 0.5,
             "optimizer_type": "adam" if args.adam_optimizer else "sgd"
-        }
+        },
+
+        # locomotion config
+        "kl_coeff": 1.0,
     }
+
+    if args.redis_password:
+        from toolbox import initialize_ray
+        import os
+
+        initialize_ray(address=os.environ["ip_head"], test_mode=args.test,
+                       redis_password=args.redis_password)
+
     train(
         EPTrainer,
         config=config,
         stop=1e7,
         exp_name=exp_name,
         num_seeds=args.num_seeds,
-        num_gpus=args.num_gpus,
         test_mode=args.test,
         checkpoint_freq=args.checkpoint_freq,
         start_seed=args.start_seed,
-        verbose=2
+        verbose=1
     )

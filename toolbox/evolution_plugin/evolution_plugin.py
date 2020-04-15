@@ -38,10 +38,18 @@ ppo_es_default_config = merge_dicts(
             num_workers=10,  # 6 CPU for evolution plugin
             optimizer_type="sgd",  # must in [adam, sgd]
         )),
-        fuse_mode=HARD_FUSE,
         grad_clip=40,
-        master_optimizer_type="sgd"  # must in [adam, sgd]
-    ))
+
+        # must in [HARD_FUSE, SOFT_FUSE]
+        fuse_mode=HARD_FUSE,
+
+        # must in [adam, sgd]
+        master_optimizer_type="sgd",
+
+        # if True, then force evolution diff and master diff to have equal norm
+        equal_norm=False
+    )
+)
 
 
 def _flatten(weights):
@@ -111,13 +119,17 @@ def after_init(trainer):
                 old_weights = copy.deepcopy(
                     self.get_policy().variables.get_weights())
             train_result = self.train()
-            timesteps_this_iter = train_result["timesteps_this_iter"]
-            train_result = train_result["info"]
-            train_result["timesteps_this_iter"] = timesteps_this_iter
+            ret_train_result = train_result["info"]
+            ret_train_result["timesteps_this_iter"] = train_result[
+                "timesteps_this_iter"]
+            ret_train_result["timesteps_total"] = train_result[
+                "timesteps_total"]
+            ret_train_result["episode_reward_mean"] = train_result[
+                "episode_reward_mean"]
             weights = self.get_policy().variables.get_weights()  # dict weights
             if _test_return_old_weights:
-                return train_result, weights, old_weights
-            return train_result, weights
+                return ret_train_result, weights, old_weights
+            return ret_train_result, weights
 
     trainer._evolution_plugin = EvolutionPluginRemote.remote(
         trainer.config["evolution"], trainer.config["env"])
@@ -153,7 +165,9 @@ def after_optimizer_step(trainer, fetches):
     with trainer._fuse_timer:
         new_grad, stats = fuse_gradient(
             master_diff, evolution_diff, trainer.config["fuse_mode"],
-            max_grad_norm=trainer.config["grad_clip"])
+            max_grad_norm=trainer.config["grad_clip"],
+            equal_norm=trainer.config["equal_norm"]
+        )
         updated_weights = _flatten(_filter_weights(
             trainer._previous_master_weights))[0] + new_grad
         updated_weights = _unflatten(updated_weights, shapes)
@@ -172,7 +186,7 @@ def after_optimizer_step(trainer, fetches):
     fetches["fuse_gradient"] = stats
 
 
-def sgd_optimizer(policy, config):
+def choose_optimzier(policy, config):
     if config["master_optimizer_type"] == "adam":
         logger.info("You are using Adam optimizer!")
         return tf.train.AdamOptimizer(config["lr"])
@@ -207,7 +221,7 @@ class OverrideDefaultResourceRequest:
 EPPolicy = PPOTFPolicy.with_updates(
     name="EvolutionPluginTFPolicy",
     get_default_config=lambda: ppo_es_default_config,
-    optimizer_fn=sgd_optimizer
+    optimizer_fn=choose_optimzier
 )
 
 EPTrainer = PPOTrainer.with_updates(

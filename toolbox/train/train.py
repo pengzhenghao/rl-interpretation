@@ -4,10 +4,24 @@ import pickle
 
 import numpy as np
 from ray import tune
+from ray.tune.registry import register_env
 
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.train.deprecated_train_config import get_config
 from toolbox.utils import initialize_ray
+
+
+def register_bullet(env_name):
+    assert isinstance(env_name, str)
+    if "Bullet" in env_name:
+        def make_pybullet(_=None):
+            import pybullet_envs
+            import gym
+            print("Successfully import pybullet and found: ",
+                  pybullet_envs.getList())
+            return gym.make(env_name)
+
+        register_env(env_name, make_pybullet)
 
 
 def train(
@@ -41,11 +55,21 @@ def train(
         env_name = config["env"]
     elif isinstance(config["env"], dict):
         assert "grid_search" in config["env"]
+        assert isinstance(config["env"]["grid_search"], list)
         assert len(config["env"]) == 1
+        env_name = config["env"]["grid_search"]
     else:
         assert config["env"] is MultiAgentEnvWrapper
         env_name = config["env_config"]["env_name"]
     trainer_name = trainer if isinstance(trainer, str) else trainer._name
+
+    assert isinstance(env_name, str) or isinstance(env_name, list)
+    if isinstance(env_name, str):
+        env_names = [env_name]
+    else:
+        env_names = env_name
+    for e in env_names:
+        register_bullet(e)
 
     if not isinstance(stop, dict):
         assert np.isscalar(stop)
