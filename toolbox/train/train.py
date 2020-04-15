@@ -28,9 +28,9 @@ def register_minigrid(env_name):
     assert isinstance(env_name, str)
     if env_name.startswith("MiniGrid"):
         def make_minigrid(_=None):
-            import gym_minigrid
+            import gym_minigrid.envs
             import gym
-            gym_minigrid
+            _ = gym_minigrid.envs
             print("Successfully import minigrid environments.")
             return gym.make(env_name)
 
