@@ -17,6 +17,11 @@ try:
 except Exception:
     print("Failed to import pybullet_envs!")
 
+try:
+    import gym_minigrid
+except ImportError:
+    print("Failed to import minigrid environments!")
+
 DEFAULT_SEED = 0
 
 
@@ -77,6 +82,10 @@ def get_env_maker(name, require_render=False):
         return lambda: name()
     # if name in ENV_MAKER_LOOKUP:
     #     return ENV_MAKER_LOOKUP[name]
+    if isinstance(name, str) and name.startswith("MiniGrid"):
+        print("Return the mini grid environment {} with ImgObsWrapper!".format(
+            name))
+        return lambda: gym_minigrid.wrappers.ImgObsWrapper(gym.make(name))
     else:
         assert name in [s.id for s in gym.envs.registry.all()], \
             "name of env not in {}".format(
