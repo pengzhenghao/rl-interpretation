@@ -1,6 +1,5 @@
 from ray import tune
 
-from toolbox.marl import get_marl_env_config
 from toolbox.train import train, get_train_parser
 
 if __name__ == '__main__':
@@ -21,6 +20,7 @@ if __name__ == '__main__':
     stop = int(2e6)
 
     config = {
+        "env": env_name,
         "kl_coeff": 1.0,
         "num_sgd_iter": 10,
         "lr": 0.0001,
@@ -44,10 +44,6 @@ if __name__ == '__main__':
             lr=5e-4,
             delay_update=not args.no_delay_update
         )
-
-    config.update(
-        get_marl_env_config(env_name, tune.grid_search([args.num_agents]))
-    )
 
     train(
         "PPO",
