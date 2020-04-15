@@ -176,7 +176,6 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
             new_df = {}
             for k in keys:
                 if k in investigate_keys:
-                    print(df[k])
                     if isinstance(df[k][0], numbers.Number):
                         new_df[k] = scipy.interpolate.interp1d(
                             df[interpolate_x],
