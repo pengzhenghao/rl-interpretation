@@ -19,5 +19,4 @@ def register_minigrid():
             s.id for s in gym.envs.registry.all()]
         print("Successfully imported minigrid environments!")
 
-
-register_minigrid()
+# register_minigrid()
