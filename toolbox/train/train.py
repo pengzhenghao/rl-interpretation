@@ -37,6 +37,26 @@ def register_minigrid(env_name):
         register_env(env_name, make_minigrid)
 
 
+def _get_env_name(config):
+    if isinstance(config["env"], str):
+        env_name = config["env"]
+    elif isinstance(config["env"], dict):
+        assert "grid_search" in config["env"]
+        assert isinstance(config["env"]["grid_search"], list)
+        assert len(config["env"]) == 1
+        env_name = config["env"]["grid_search"]
+    else:
+        assert config["env"] is MultiAgentEnvWrapper
+        env_name = config["env_config"]["env_name"]
+        if isinstance(env_name, dict):
+            assert "grid_search" in config["env"]
+            assert isinstance(config["env"]["grid_search"], list)
+            assert len(config["env"]) == 1
+            env_name = config["env"]["grid_search"]
+    assert isinstance(env_name, str) or isinstance(env_name, list)
+    return env_name
+
+
 def train(
         trainer,
         config,
@@ -64,16 +84,8 @@ def train(
         used_config.update(config)
     config = copy.deepcopy(used_config)
 
-    if isinstance(config["env"], str):
-        env_name = config["env"]
-    elif isinstance(config["env"], dict):
-        assert "grid_search" in config["env"]
-        assert isinstance(config["env"]["grid_search"], list)
-        assert len(config["env"]) == 1
-        env_name = config["env"]["grid_search"]
-    else:
-        assert config["env"] is MultiAgentEnvWrapper
-        env_name = config["env_config"]["env_name"]
+    env_name = _get_env_name(config)
+
     trainer_name = trainer if isinstance(trainer, str) else trainer._name
 
     assert isinstance(env_name, str) or isinstance(env_name, list)
