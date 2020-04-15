@@ -1,7 +1,7 @@
 from ray import tune
 from ray.rllib.agents.ppo import PPOTrainer
 
-from toolbox.action_distribution import GaussianMixture
+from toolbox.action_distribution import GaussianMixture, DeterministicMixture
 from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
 from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
@@ -30,6 +30,7 @@ if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--algo", type=str, required=True)
     parser.add_argument("--use-tanh", action="store_true")
+    parser.add_argument("--use-deterministic", "-ud", action="store_true")
     args = parser.parse_args()
 
     algo = args.algo
@@ -110,6 +111,10 @@ if __name__ == '__main__':
     else:
         raise ValueError(
             "You are not using tanh activation in the output layer!")
+
+    if args.use_deterministic:
+        config["model"]["custom_action_dist"] = DeterministicMixture.name
+        config["model"]["custom_options"].pop("std_mode")
 
     if algo in ["ES", "ARS"]:
         config["num_gpus"] = 0
