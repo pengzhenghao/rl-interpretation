@@ -6,6 +6,7 @@ import numpy as np
 from ray import tune
 from ray.tune.registry import register_env
 
+from toolbox.env import register_minigrid as global_register_minigrid
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.train.deprecated_train_config import get_config
 from toolbox.utils import initialize_ray
@@ -27,6 +28,8 @@ def register_bullet(env_name):
 def register_minigrid(env_name):
     assert isinstance(env_name, str)
     if env_name.startswith("MiniGrid"):
+        global_register_minigrid()
+
         def make_minigrid(_=None):
             import gym_minigrid.envs
             import gym
