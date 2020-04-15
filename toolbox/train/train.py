@@ -34,6 +34,8 @@ def register_minigrid(env_name):
             import gym_minigrid.envs
             import gym
             _ = gym_minigrid.envs
+            assert "MiniGrid-Empty-16x16-v0" in [s.id for s in
+                                                 gym.envs.registry.all()]
             print("Successfully import minigrid environments.")
             return gym.make(env_name)
 
