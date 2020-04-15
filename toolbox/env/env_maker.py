@@ -1,4 +1,5 @@
 import gym
+import numpy as np
 
 from toolbox.env.bipedal_walker_wrapper import BipedalWalkerWrapper
 
@@ -21,6 +22,12 @@ try:
     import gym_minigrid
 except ImportError:
     print("Failed to import minigrid environments!")
+
+
+class MiniGridWrapper(gym.ObservationWrapper):
+    def _observation(self, obs):
+        return np.expand_dims(obs, 0)
+
 
 DEFAULT_SEED = 0
 
@@ -83,9 +90,11 @@ def get_env_maker(name, require_render=False):
     # if name in ENV_MAKER_LOOKUP:
     #     return ENV_MAKER_LOOKUP[name]
     if isinstance(name, str) and name.startswith("MiniGrid"):
-        print("Return the mini grid environment {} with FlatObsWrapper!".format(
+        print("Return the mini grid environment {} with MiniGridWrapper("
+              "FlatObsWrapper)!".format(
             name))
-        return lambda: gym_minigrid.wrappers.FlatObsWrapper(gym.make(name))
+        return lambda: MiniGridWrapper(
+            gym_minigrid.wrappers.FlatObsWrapper(gym.make(name)))
     else:
         assert name in [s.id for s in gym.envs.registry.all()], \
             "name of env not in {}".format(

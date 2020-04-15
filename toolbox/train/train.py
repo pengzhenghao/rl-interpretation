@@ -6,7 +6,8 @@ import numpy as np
 from ray import tune
 from ray.tune.registry import register_env
 
-from toolbox.env import register_minigrid as global_register_minigrid
+from toolbox.env import register_minigrid as global_register_minigrid, \
+    MiniGridWrapper
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.train.deprecated_train_config import get_config
 from toolbox.utils import initialize_ray
@@ -38,8 +39,8 @@ def register_minigrid(env_name):
             assert "MiniGrid-Empty-16x16-v0" in [s.id for s in
                                                  gym.envs.registry.all()]
             print("Successfully import minigrid environments. We will wrap"
-                  " observation using FlatObsWrapper.")
-            return FlatObsWrapper(gym.make(env_name))
+                  " observation using MiniGridWrapper(FlatObsWrapper).")
+            return MiniGridWrapper(FlatObsWrapper(gym.make(env_name)))
 
         register_env(env_name, make_minigrid)
 
