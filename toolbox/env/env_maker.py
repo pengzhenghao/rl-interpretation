@@ -25,8 +25,19 @@ except ImportError:
 
 
 class MiniGridWrapper(gym.ObservationWrapper):
-    def _observation(self, obs):
-        return np.expand_dims(obs, 0)
+    def __init__(self, env):
+        super(MiniGridWrapper, self).__init__(env)
+        space = self.env.observation_space.spaces["image"]
+        length = np.prod(space.shape)
+        shape = [length, ]
+        self.observation_space = gym.spaces.Box(
+            low=space.low.reshape(-1)[0],
+            high=space.high.reshape(-1)[0],
+            shape=shape
+        )
+
+    def observation(self, obs):
+        return obs["image"].ravel()
 
 
 DEFAULT_SEED = 0
@@ -93,8 +104,7 @@ def get_env_maker(name, require_render=False):
         print("Return the mini grid environment {} with MiniGridWrapper("
               "FlatObsWrapper)!".format(
             name))
-        return lambda: MiniGridWrapper(
-            gym_minigrid.wrappers.FlatObsWrapper(gym.make(name)))
+        return lambda: MiniGridWrapper(gym.make(name))
     else:
         assert name in [s.id for s in gym.envs.registry.all()], \
             "name of env not in {}".format(

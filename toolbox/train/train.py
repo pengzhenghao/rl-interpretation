@@ -33,14 +33,13 @@ def register_minigrid(env_name):
 
         def make_minigrid(_=None):
             import gym_minigrid.envs
-            from gym_minigrid.wrappers import FlatObsWrapper
             import gym
             _ = gym_minigrid.envs
             assert "MiniGrid-Empty-16x16-v0" in [s.id for s in
                                                  gym.envs.registry.all()]
             print("Successfully import minigrid environments. We will wrap"
                   " observation using MiniGridWrapper(FlatObsWrapper).")
-            return MiniGridWrapper(FlatObsWrapper(gym.make(env_name)))
+            return MiniGridWrapper(gym.make(env_name))
 
         register_env(env_name, make_minigrid)
 
