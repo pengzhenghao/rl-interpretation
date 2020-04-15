@@ -33,6 +33,7 @@ if __name__ == '__main__':
         "num_cpus_for_driver": args.num_cpus_for_driver,
         "num_envs_per_worker": 8 if large else 10,
         'num_workers': 8 if large else 1,
+        "callbacks": {"on_train_result": None}
     }
 
     if env_name == "FetchPush-v1":
