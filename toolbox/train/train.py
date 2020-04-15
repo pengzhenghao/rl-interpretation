@@ -49,10 +49,10 @@ def _get_env_name(config):
         assert config["env"] is MultiAgentEnvWrapper
         env_name = config["env_config"]["env_name"]
         if isinstance(env_name, dict):
-            assert "grid_search" in config["env"]
-            assert isinstance(config["env"]["grid_search"], list)
-            assert len(config["env"]) == 1
-            env_name = config["env"]["grid_search"]
+            assert "grid_search" in env_name
+            assert isinstance(env_name["grid_search"], list)
+            assert len(env_name) == 1
+            env_name = env_name["grid_search"]
     assert isinstance(env_name, str) or isinstance(env_name, list)
     return env_name
 
