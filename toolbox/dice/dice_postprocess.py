@@ -62,6 +62,8 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
 
     del batch.data['new_obs']  # save memory
     del batch.data['action_prob']
+    if policy.config[ONLY_TNB]:
+        assert np.unique(batch["agent_index"]).size == 1
     return batch
 
 

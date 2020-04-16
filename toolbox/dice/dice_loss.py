@@ -210,8 +210,10 @@ def dice_gradient(policy, optimizer, loss):
     if not policy.config[USE_BISECTOR]:
         # For ablation study. If don't use bisector, we simply return the
         # task gradient.
-        with tf.control_dependencies([loss[1]]):
-            policy_grad = optimizer.compute_gradients(loss[0])
+
+        # FIXING BUG (20200416) What happen if I remove dependency?
+        # with tf.control_dependencies([loss[1]]):
+        policy_grad = optimizer.compute_gradients(loss[0])
         if policy.config["grad_clip"] is not None:
             clipped_grads, _ = tf.clip_by_global_norm(
                 [g for g, _ in policy_grad],
