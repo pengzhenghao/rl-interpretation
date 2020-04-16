@@ -24,7 +24,7 @@ if __name__ == '__main__':
         'rollout_fragment_length': 50,
         'sgd_minibatch_size': 64,
         'train_batch_size': 2048,
-        "num_gpus": 0.3,
+        "num_gpus": 0.2,
         "num_envs_per_worker": 5,
         'num_workers': 5,
         "num_cpus_per_worker": 0.3,
