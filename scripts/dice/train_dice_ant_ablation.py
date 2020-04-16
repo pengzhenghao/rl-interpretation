@@ -20,17 +20,17 @@ if __name__ == '__main__':
     config = {
         "kl_coeff": tune.grid_search([0.0, 0.5]),
         "num_sgd_iter": 10,
-        "lr": tune.grid_search([0.0001, 1e-5]),
+        "lr": tune.grid_search([0.0001, 5e-5]),
         'rollout_fragment_length': 50,
         'sgd_minibatch_size': 64,
         'train_batch_size': 2048,
         "num_gpus": 0.3,
         "num_envs_per_worker": 5,
-        'num_workers': 4,
+        'num_workers': 6,
         "num_cpus_per_worker": 0.5,
         "num_cpus_for_driver": 0.5,
 
-        constants.USE_BISECTOR: tune.grid_search([True]),
+        constants.USE_BISECTOR: tune.grid_search([False]),
         constants.ONLY_TNB: tune.grid_search([True, False]),
     }
 
