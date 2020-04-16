@@ -98,7 +98,17 @@ class PPOLossTwoSideClip(object):
             )
             vf_loss2 = tf.square(vf_clipped - value_targets)
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
-            self.mean_vf_loss = reduce_mean_valid(vf_loss)
+
+            # Mask out
+            vf_ratio_clip_param = 0.05
+            vf_mask = tf.logical_or(logp_ratio < vf_ratio_clip_param,
+                                    logp_ratio > 1 + vf_ratio_clip_param)
+
+            self.mean_vf_loss = reduce_mean_valid(tf.boolean_mask(
+                vf_loss, vf_mask
+            ))
+            # self.mean_vf_loss = reduce_mean_valid(vf_loss)
+
             loss = reduce_mean_valid(
                 -new_surrogate_loss + cur_kl_coeff * action_kl +
                 vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
