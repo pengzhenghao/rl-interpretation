@@ -115,6 +115,7 @@ dice_default_config = merge_dicts(
         DIVERSITY_REWARD_TYPE: "mse",
         PURE_OFF_POLICY: False,
         "tau": 5e-3,
+        "vf_ratio_clip_param": 0.05,
         "callbacks": {
             "on_train_result": on_train_result,
             "on_postprocess_traj": on_postprocess_traj

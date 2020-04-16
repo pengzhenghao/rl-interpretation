@@ -73,7 +73,8 @@ class PPOLossTwoSideClip(object):
                  clip_param=0.1,
                  vf_clip_param=0.1,
                  vf_loss_coeff=1.0,
-                 use_gae=True
+                 use_gae=True,
+                 vf_ratio_clip_param=0.05
                  ):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
@@ -100,15 +101,13 @@ class PPOLossTwoSideClip(object):
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
 
             # Mask out
-            vf_ratio_clip_param = 0.05
+            # vf_ratio_clip_param = 0.05
             vf_mask = tf.logical_or(logp_ratio < vf_ratio_clip_param,
                                     logp_ratio > 1 + vf_ratio_clip_param)
+            self.vf_debug_ratio = tf.cast(vf_mask, tf.float32)
+            vf_loss = tf.boolean_mask(vf_loss, vf_mask)
 
-            self.mean_vf_loss = reduce_mean_valid(tf.boolean_mask(
-                vf_loss, vf_mask
-            ))
-            # self.mean_vf_loss = reduce_mean_valid(vf_loss)
-
+            self.mean_vf_loss = reduce_mean_valid(vf_loss)
             loss = reduce_mean_valid(
                 -new_surrogate_loss + cur_kl_coeff * action_kl +
                 vf_loss_coeff * vf_loss - entropy_coeff * curr_entropy
@@ -161,7 +160,8 @@ def dice_loss(policy, model, dist_class, train_batch):
         clip_param=policy.config["clip_param"],
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
-        use_gae=policy.config["use_gae"]
+        use_gae=policy.config["use_gae"],
+        vf_ratio_clip_param=policy.config["vf_ratio_clip_param"]  # problematic
     )
 
     # Build the loss for diversity

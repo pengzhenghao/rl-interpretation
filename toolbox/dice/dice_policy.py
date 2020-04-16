@@ -85,6 +85,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
         "policy_loss": policy.loss_obj.mean_policy_loss,
         "vf_loss": policy.loss_obj.mean_vf_loss,
         "kl": policy.loss_obj.mean_kl,
+        "vf_debug_ratio": policy.loss_obj.vf_debug_ratio,
         "entropy": policy.loss_obj.mean_entropy,
         "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
         "vf_explained_var": explained_variance(

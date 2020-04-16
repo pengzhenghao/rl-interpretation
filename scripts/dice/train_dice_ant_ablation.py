@@ -26,12 +26,13 @@ if __name__ == '__main__':
         'train_batch_size': 2048,
         "num_gpus": 0.3,
         "num_envs_per_worker": 5,
-        'num_workers': 6,
-        "num_cpus_per_worker": 0.5,
-        "num_cpus_for_driver": 0.5,
+        'num_workers': 5,
+        "num_cpus_per_worker": 0.3,
+        "num_cpus_for_driver": 0.4,
 
         constants.USE_BISECTOR: tune.grid_search([False]),
         constants.ONLY_TNB: tune.grid_search([True, False]),
+        "vf_ratio_clip_param": tune.grid_search([0.05, 0.1]),
     }
 
     config.update(
