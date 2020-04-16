@@ -37,6 +37,7 @@ class PPOLossTwoSideDiversity(object):
 
         prev_dist = dist_class(prev_logits, model)
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
+        self.debug_ratio = logp_ratio
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
         curr_entropy = curr_action_dist.entropy()
@@ -212,8 +213,8 @@ def dice_gradient(policy, optimizer, loss):
         # task gradient.
 
         # FIXING BUG (20200416) What happen if I remove dependency?
-        # with tf.control_dependencies([loss[1]]):
-        policy_grad = optimizer.compute_gradients(loss[0])
+        with tf.control_dependencies([tf.stop_gradient(loss[1])]):
+            policy_grad = optimizer.compute_gradients(loss[0])
         if policy.config["grad_clip"] is not None:
             clipped_grads, _ = tf.clip_by_global_norm(
                 [g for g, _ in policy_grad],

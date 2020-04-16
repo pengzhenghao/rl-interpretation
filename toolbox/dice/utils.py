@@ -118,7 +118,8 @@ dice_default_config = merge_dicts(
         "callbacks": {
             "on_train_result": on_train_result,
             "on_postprocess_traj": on_postprocess_traj
-        }
+        },
+        "grad_clip": 10.0
     }
 )
 
