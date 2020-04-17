@@ -79,6 +79,9 @@ class PPOLossTwoSideClip(object):
                  vf_ratio_clip_param=0.05
                  ):
 
+        def reduce_mean_valid(t):
+            return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
+
         prev_dist = dist_class(prev_logits, model)
         # Make loss functions.
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
@@ -86,9 +89,6 @@ class PPOLossTwoSideClip(object):
         new_vf_mask = tf.logical_and(logp_ratio > 1 - vf_ratio_clip_param,
                                      logp_ratio < 1 + vf_ratio_clip_param)
         self.vf_debug_ratio = tf.cast(new_vf_mask, tf.float32)
-
-        def reduce_mean_valid(t):
-            return tf.reduce_mean(tf.boolean_mask(t, new_vf_mask))
 
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
