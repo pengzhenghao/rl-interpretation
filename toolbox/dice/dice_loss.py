@@ -35,21 +35,23 @@ class PPOLossTwoSideDiversity(object):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
-        prev_dist = dist_class(prev_logits, model)
+        # prev_dist = dist_class(prev_logits, model)
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
         self.debug_ratio = logp_ratio
-        action_kl = prev_dist.kl(curr_action_dist)
-        self.mean_kl = reduce_mean_valid(action_kl)
-        curr_entropy = curr_action_dist.entropy()
-        self.mean_entropy = reduce_mean_valid(curr_entropy)
+        # action_kl = prev_dist.kl(curr_action_dist)
+        # self.mean_kl = reduce_mean_valid(action_kl)
+        # curr_entropy = curr_action_dist.entropy()
+        # self.mean_entropy = reduce_mean_valid(curr_entropy)
         new_surrogate_loss = advantages * tf.minimum(
             logp_ratio, 1 + clip_param
         )
         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
         self.mean_vf_loss = tf.constant(0.0)
         loss = reduce_mean_valid(
-            -new_surrogate_loss + cur_kl_coeff * action_kl -
-            entropy_coeff * curr_entropy
+            -new_surrogate_loss
+            # Update(20200417): Remove KL and Entropy in Diversity
+            # + cur_kl_coeff * action_kl -
+            # entropy_coeff * curr_entropy
         )
         self.loss = loss
 
@@ -222,13 +224,14 @@ def dice_gradient(policy, optimizer, loss):
         # task gradient.
 
         # FIXING BUG (20200416) What happen if I remove dependency?
+        variables = policy.model.trainable_variables()
         with tf.control_dependencies([tf.stop_gradient(loss[1])]):
-            policy_grad = optimizer.compute_gradients(loss[0])
+            policy_grad = optimizer.compute_gradients(loss[0], variables)
         if policy.config["grad_clip"] is not None:
             clipped_grads, _ = tf.clip_by_global_norm(
                 [g for g, _ in policy_grad],
                 policy.config["grad_clip"])
-            return [(g, v) for g, (_, v) in zip(clipped_grads, policy_grad)]
+            return list(zip(clipped_grads, variables))
         else:
             return policy_grad
 
