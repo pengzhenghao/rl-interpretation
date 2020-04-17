@@ -83,7 +83,7 @@ class PPOLossTwoSideClip(object):
 
         new_vf_mask = tf.logical_and(logp_ratio > 1 - vf_ratio_clip_param,
                                      logp_ratio < 1 + vf_ratio_clip_param)
-        self.vf_debug_ratio = np.cast(new_vf_mask, tf.float32)
+        self.vf_debug_ratio = tf.cast(new_vf_mask, tf.float32)
 
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, new_vf_mask))
