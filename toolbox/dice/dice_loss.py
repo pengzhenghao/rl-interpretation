@@ -102,10 +102,11 @@ class PPOLossTwoSideClip(object):
 
             # Mask out
             # vf_ratio_clip_param = 0.05
-            vf_mask = tf.logical_or(logp_ratio < vf_ratio_clip_param,
-                                    logp_ratio > 1 + vf_ratio_clip_param)
-            self.vf_debug_ratio = tf.cast(vf_mask, tf.float32)
-            vf_loss = tf.boolean_mask(vf_loss, vf_mask)
+            vf_mask = tf.logical_and(logp_ratio > 1 - vf_ratio_clip_param,
+                                     logp_ratio < 1 + vf_ratio_clip_param)
+            vf_mask = tf.cast(vf_mask, tf.float32)
+            self.vf_debug_ratio = vf_mask
+            vf_loss = vf_mask * vf_loss
 
             self.mean_vf_loss = reduce_mean_valid(vf_loss)
             loss = reduce_mean_valid(
