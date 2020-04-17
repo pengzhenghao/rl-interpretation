@@ -52,9 +52,7 @@ if __name__ == '__main__':
 
     if env_name == "HalfCheetah-v3":
         config.update(
-            lr=0.00005,
             kl_coeff=1.0,
-            num_sgd_iter=32,
             vf_loss_coeff=0.5,
             clip_param=0.2,
             grad_clip=0.5,
