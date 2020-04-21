@@ -11,6 +11,56 @@ tfp = try_import_tfp()
 tfd = tfp.distributions
 
 
+class DeterministicMixture(TFActionDistribution):
+    name = "DeterministicMixture"
+
+    def __init__(self, inputs, model):
+        self.k = model.model_config['custom_options']['num_components']
+        input_length = inputs.shape.as_list()[1]
+        action_length = int(input_length / self.k - 1)
+        num_splits = [action_length * self.k, self.k]
+        splits = tf.split(inputs, num_splits, axis=1)
+        self.weight = splits[-1]
+        self.mixture_dist = tfd.Categorical(
+            logits=self.weight, allow_nan_stats=False
+        )
+        # self.means = tf.reshape(splits[0], [-1, self.k, action_length])
+        self.means = tf.reshape(splits[0], [-1, action_length, self.k])
+        self.components_dist = tfd.Deterministic(
+            self.means,
+            # validate_args=True,
+            allow_nan_stats=False
+        )
+        self.mixture = tfd.MixtureSameFamily(
+            mixture_distribution=self.mixture_dist,
+            components_distribution=self.components_dist,
+            # validate_args=True,
+            allow_nan_stats=False
+        )
+        self.inputs = inputs
+        self.action_length = action_length
+        TFActionDistribution.__init__(self, inputs, model)
+
+    def _build_sample_op(self):
+        ret = self.mixture.sample()
+        return ret
+
+    def logp(self, x):
+        return tf.zeros(tf.shape(self.weight)[0])
+    @staticmethod
+    def required_model_output_shape(action_space, model_config):
+        action_length = np.prod(action_space.shape)
+        k = model_config["custom_options"]["num_components"]
+        return action_length * k + k
+
+    def deterministic_sample(self):
+        # This is a workaround. The return is not really deterministic.
+        return self.mixture.sample()
+
+    def sampled_action_logp(self):
+        return tf.zeros(tf.shape(self.weight)[0])
+
+
 class GaussianMixture(TFActionDistribution):
     name = "GaussianMixture"
 
@@ -63,14 +113,19 @@ class GaussianMixture(TFActionDistribution):
         return self.gaussian_mixture_model.sample()
 
 
-def register_gaussian_mixture():
+def register_mixture_action_distribution():
     ModelCatalog.register_custom_action_dist(
         GaussianMixture.name, GaussianMixture
     )
-    print("Successfully register Gaussian Mixture action distribution.")
+    ModelCatalog.register_custom_action_dist(
+        DeterministicMixture.name, DeterministicMixture
+    )
+    print(
+        "Successfully register GaussianMixture and DeterministicMixture "
+        "action distribution.")
 
 
-register_gaussian_mixture()
+register_mixture_action_distribution()
 
 if __name__ == '__main__':
     from ray import tune

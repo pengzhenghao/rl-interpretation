@@ -8,12 +8,12 @@ from ray.rllib.models import ModelCatalog
 
 from toolbox import initialize_ray
 from toolbox.action_distribution.mixture_gaussian import \
-    register_gaussian_mixture
+    register_mixture_action_distribution, DeterministicMixture
 from toolbox.evaluate import restore_agent
 from toolbox.evolution.modified_es import GaussianESTrainer
 from toolbox.moges.fcnet_tanh import FullyConnectedNetworkTanh
 
-register_gaussian_mixture()
+register_mixture_action_distribution()
 ModelCatalog.register_custom_model(
     "fc_with_tanh", FullyConnectedNetworkTanh
 )
@@ -36,11 +36,12 @@ class MOGESAgent:
         self.config_env = gym.make(self.config["env"])
         self.action_dim = self.config_env.action_space.shape[0]
         self.k = config["model"]["custom_options"]["num_components"]
-        self.std_mode = config["model"]["custom_options"]["std_norm"]
+
+        self.is_deterministic = config["model"]["custom_action_dist"] == \
+                                DeterministicMixture.name
         self.expect_logit_length = (
-            self.k * (1 + 2 * self.action_dim) if self.std_mode == "normal" else
-            self.k * (1 + self.action_dim)
-        )
+            self.k * (1 + 2 * self.action_dim) if not self.is_deterministic else
+            self.k * (1 + self.action_dim))
 
         assert osp.exists(ckpt)
         if existing_agent is not None:
@@ -62,6 +63,7 @@ class MOGESAgent:
         assert logits.shape == (1, self.expect_logit_length)
 
     def _get_std(self):
+        assert not self.is_deterministic
         if self._log_std == None:
             log_std = self.agent.get_policy().variables.get_weights()[
                 "default_policy/learnable_log_std"]
@@ -79,9 +81,16 @@ class MOGESAgent:
     def get_dist(self, obs):
         logits = self.get_logits(obs)
         assert logits.ndim == 1
-        mean, log_std, weight = np.split(
-            logits,
-            [self.action_dim * self.k, 2 * self.action_dim * self.k])
+
+        if not self.is_deterministic:
+            mean, log_std, weight = np.split(
+                logits,
+                [self.action_dim * self.k, 2 * self.action_dim * self.k])
+        else:
+            mean, weight = np.split(
+                logits,
+                [self.action_dim * self.k, ])
+            log_std = -np.inf * np.ones_like(mean)
 
         assert len(weight) == self.k
         return dict(
