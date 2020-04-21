@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+~/anaconda3/bin/activate dev
+
 cd ~/novel-rl/
 
 # GPU required algorithms

@@ -24,7 +24,8 @@ DEFAULT_CONFIG = with_common_config({
     "stepsize": 0.01,
     "observation_filter": "NoFilter",
     "noise_size": 250000000,
-    "report_length": 10
+    "report_length": 10,
+    "optimizer_type": "adam"  # must in [adam, sgd]
 })
 
 
@@ -251,7 +252,12 @@ class GaussianESTrainer(ESTrainer):
         self.policy = GenericGaussianPolicy(
             self.sess, env.action_space, env.observation_space, preprocessor,
             config["observation_filter"], config["model"], **policy_params)
-        self.optimizer = optimizers.Adam(self.policy, config["stepsize"])
+        if config["optimizer_type"] == "adam":
+            self.optimizer = optimizers.Adam(self.policy, config["stepsize"])
+        elif config["optimizer_type"] == "sgd":
+            self.optimizer = optimizers.SGD(self.policy, config["stepsize"])
+        else:
+            raise ValueError("optimizer must in [adam, sgd].")
         self.report_length = config["report_length"]
 
         # Create the shared noise table.

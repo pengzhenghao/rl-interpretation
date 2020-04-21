@@ -31,11 +31,11 @@ def _test_dice(
         "env_config": env_config,
         "num_gpus": num_gpus,
         "log_level": "DEBUG",
-        "sample_batch_size": 20,
+        "rollout_fragment_length": 20,
         "train_batch_size": 100,
         "sgd_minibatch_size": 60,
-        "num_sgd_iter": 10,
-        "num_workers": 5
+        "num_sgd_iter": 3,
+        "num_workers": 1
     }
 
     if extra_config:
@@ -57,19 +57,20 @@ def _test_dice(
 
 class DiCETest(unittest.TestCase):
     def test_use_bisector(self):
-        _test_dice({USE_BISECTOR: False}, num_agents=num_agents_pair)
+        _test_dice({USE_BISECTOR: False}, num_agents=2, local_mode=True)
 
     def test_use_dnv(self):
         _test_dice({DELAY_UPDATE: True}, num_agents=num_agents_pair)
 
     def test_delay_update(self):
-        _test_dice({DELAY_UPDATE: False}, num_agents=num_agents_pair)
+        _test_dice({DELAY_UPDATE: False}, num_agents=3)
 
     def test_tsc_loss(self):
         _test_dice({TWO_SIDE_CLIP_LOSS: False}, num_agents=num_agents_pair)
 
     def test_only_tnb(self):
-        _test_dice({ONLY_TNB: True}, num_agents=num_agents_pair)
+        _test_dice({ONLY_TNB: True}, num_agents=num_agents_pair,
+                   local_mode=True)
 
     def test_normalize_adv(self):
         _test_dice({NORMALIZE_ADVANTAGE: True}, num_agents=num_agents_pair)

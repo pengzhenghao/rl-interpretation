@@ -1,7 +1,7 @@
 """This file is mostly copied from RLLib"""
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTFPolicy, PPOTrainer
-from ray.rllib.agents.ppo.ppo_policy import Postprocessing, SampleBatch, \
+from ray.rllib.agents.ppo.ppo_tf_policy import Postprocessing, SampleBatch, \
     BEHAVIOUR_LOGITS, ACTION_LOGP, explained_variance, ValueNetworkMixin, \
     LearningRateSchedule
 

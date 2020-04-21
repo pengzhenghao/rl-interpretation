@@ -1,9 +1,11 @@
-import tensorflow as tf
-from ray.rllib.agents.ppo.ppo_policy import SampleBatch, \
+from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch, \
     BEHAVIOUR_LOGITS, PPOLoss
 from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.utils import try_import_tf
 
-from toolbox.ipd.tnb_utils import *
+from toolbox.task_novelty_bisector.tnb_utils import *
+
+tf = try_import_tf()
 
 
 class PPOLossNovelty(object):
@@ -59,7 +61,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
         )
 
     policy.loss_obj = PPOLoss(
-        policy.action_space,
+        # policy.action_space,
         dist_class,
         model,
         train_batch[Postprocessing.VALUE_TARGETS],
@@ -77,13 +79,13 @@ def tnb_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        model_config=policy.config["model"]
+        # model_config=policy.config["model"]
     )
 
     # if policy.enable_novelty:
     if policy.config['use_novelty_value_network']:
         policy.novelty_loss_obj = PPOLoss(
-            policy.action_space,
+            # policy.action_space,
             dist_class,
             model,
             train_batch[NOVELTY_VALUE_TARGETS],
@@ -101,7 +103,7 @@ def tnb_loss(policy, model, dist_class, train_batch):
             vf_clip_param=policy.config["vf_clip_param"],
             vf_loss_coeff=policy.config["vf_loss_coeff"],
             use_gae=policy.config["use_gae"],
-            model_config=policy.config["model"]
+            # model_config=policy.config["model"]
         )
     else:
         policy.novelty_loss_obj = PPOLossNovelty(

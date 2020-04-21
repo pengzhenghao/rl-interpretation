@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     train(
         trainer,
-        extra_config=config,
+        config=config,
         stop=stop,
         exp_name=exp_name,
         num_seeds=args.num_seeds,

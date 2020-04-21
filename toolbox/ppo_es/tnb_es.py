@@ -1,8 +1,8 @@
 from ray import tune
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
+from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, ValueNetworkMixin, \
     KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch
-from ray.tune.util import merge_dicts
+from toolbox.utils import merge_dicts
 
 from toolbox import initialize_ray
 from toolbox.distance import get_kl_divergence

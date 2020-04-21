@@ -13,11 +13,9 @@ setup(
         "matplotlib",
         "opencv-python",
         "pytest==4.3.1",
-        "ray==0.8.1",
         "tensorflow-probability",
         "yapf==0.27",
         "numpy==1.16.0",
-        "ray[debug]",
         "gym[mujoco]",
         "gym[box2d]",
         "pandas",
@@ -28,7 +26,11 @@ setup(
         "distro",
         "gym[atari]",
         "gputil",
-        "ray[tune]==0.8.1",
-        "ray[rllib]==0.8.1",
+        "ray==0.8.4",
+        "ray[tune]==0.8.4",
+        "ray[rllib]==0.8.4",
+        "ray[dashboard]==0.8.4",
+        "ray[debug]==0.8.4",
+        "gym-minigrid"
     ]
 )

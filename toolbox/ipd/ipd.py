@@ -9,7 +9,7 @@ import ray
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import PPOTrainer, PPOTFPolicy, DEFAULT_CONFIG
 
-from toolbox.ipd.tnb_policy import setup_mixins_tnb, AgentPoolMixin, \
+from toolbox.task_novelty_bisector.tnb_policy import setup_mixins_tnb, AgentPoolMixin, \
     KLCoeffMixin, EntropyCoeffSchedule, LearningRateSchedule, \
     ValueNetworkMixin, merge_dicts
 

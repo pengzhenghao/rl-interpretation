@@ -71,7 +71,7 @@ def make_policy_optimizer_tnbes(workers, config):
         sgd_batch_size=config["sgd_minibatch_size"],
         num_sgd_iter=config["num_sgd_iter"],
         num_gpus=config["num_gpus"],
-        sample_batch_size=config["sample_batch_size"],
+        rollout_fragment_length=config["rollout_fragment_length"],
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
         standardize_fields=normalized_fields,
@@ -94,7 +94,8 @@ def setup_policies_pool(trainer):
     # with the policies map in the trainer.
     def _init_pool(worker, worker_index):
         def _init_diversity_policy(policy, my_policy_name):
-            policy.update_target_network(tau=1.0)
+            # policy.update_target_network(tau=1.0)
+            policy.update_target(tau=1.0)
             policy._lazy_initialize(worker.policy_map, my_policy_name)
 
         worker.foreach_policy(_init_diversity_policy)
@@ -116,7 +117,7 @@ def after_optimizer_iteration(trainer, fetches):
                 e.set_weights.remote(weights)
 
             def _delay_update_for_worker(worker, worker_index):
-                worker.foreach_policy(lambda p, _: p.update_target_network())
+                worker.foreach_policy(lambda p, _: p.update_target())
 
             trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 
