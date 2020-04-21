@@ -1,10 +1,24 @@
+from itertools import count
+
+import gym
 import numpy as np
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
+from ray.rllib.env.normalize_actions import NormalizeActionWrapper
 
 from toolbox.env import get_env_maker
 
 
-class MultiAgentEnvWrapper(MultiAgentEnv):
+def get_marl_env_config(env_name, num_agents, normalize_actions=False):
+    config = {
+        "env": MultiAgentEnvWrapper,
+        "env_config": {"env_name": env_name, "num_agents": num_agents,
+                       "normalize_actions": normalize_actions},
+        "multiagent": {}
+    }
+    return config
+
+
+class MultiAgentEnvWrapper(MultiAgentEnv, gym.Env):
     """This is a brief wrapper to create a mock multi-agent environment"""
 
     def __init__(self, env_config):
@@ -19,6 +33,10 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         self.env_maker = get_env_maker(
             env_config['env_name'], require_render=bool(self._render_policy)
         )
+
+        if env_config.get("normalize_action", False):
+            self.env_maker = lambda: NormalizeActionWrapper(self.env_maker())
+
         self.envs = {}
         if not isinstance(agent_ids, list):
             agent_ids = [agent_ids]
@@ -29,6 +47,9 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
         tmp_env = next(iter(self.envs.values()))
         self.observation_space = tmp_env.observation_space
         self.action_space = tmp_env.action_space
+        self.reward_range = tmp_env.reward_range
+        self.metadata = tmp_env.metadata
+        self.spec = tmp_env.spec
 
     def reset(self):
         self.dones = set()
@@ -37,6 +58,11 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
     def step(self, action_dict):
         obs, rewards, dones, infos = {}, {}, {}, {}
         for aid, act in action_dict.items():
+            # 0414 Workaround in dice-rebuttal
+            # raise error is act is NaN
+            if not np.all(np.isfinite(act)):
+                raise ValueError(
+                    "Agent {} input is not finite: {}".format(aid, act))
             act = np.nan_to_num(act, copy=False)
             o, r, d, i = self.envs[aid].step(act)
             if d:
@@ -68,13 +94,24 @@ class MultiAgentEnvWrapper(MultiAgentEnv):
 
 
 if __name__ == '__main__':
+    import time
 
-    env_config = {"env_name": "BipedalWalker-v2", "agent_ids": list(range(10))}
-
+    env_config = get_marl_env_config("CartPole-v0", 10)["env_config"]
     mae = MultiAgentEnvWrapper(env_config)
+    alive = set(mae.agent_ids)
     mae.reset()
-    while True:
-        ret = mae.step({i: np.zeros((17, )) for i in range(10)})
+    for i in count():
+        time.sleep(0.05)
+        acts = {
+            a: np.random.randint(2) for a in alive
+        }
+        ret = mae.step(acts)
+        print("At timestep {}, the applied action is {} and the return is {}"
+              "".format(i, acts, ret))
+        for dead_id, dead in ret[2].items():
+            if dead_id == "__all__" or (not dead):
+                continue
+            alive.remove(dead_id)
         if ret[2]['__all__']:
             print("Finish! ", ret)
             break

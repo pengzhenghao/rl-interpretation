@@ -491,23 +491,23 @@ def _averaged(kv):
     return out
 
 
-def make_policy_optimizer_basic_modification(workers, config):
-    """The original optimizer has wrong number of trained samples stats.
-    So we make little modification and use the corrected optimizer.
-    This function is only made for PPO.
-    """
-    if config["simple_optimizer"]:
-        raise NotImplementedError()
-
-    return LocalMultiGPUOptimizerCorrectedNumberOfSampled(
-        workers,
-        compute_num_steps_sampled=None,
-        sgd_batch_size=config["sgd_minibatch_size"],
-        num_sgd_iter=config["num_sgd_iter"],
-        num_gpus=config["num_gpus"],
-        sample_batch_size=config["sample_batch_size"],
-        num_envs_per_worker=config["num_envs_per_worker"],
-        train_batch_size=config["train_batch_size"],
-        standardize_fields=["advantages"],
-        shuffle_sequences=config["shuffle_sequences"]
-    )
+# def make_policy_optimizer_basic_modification(workers, config):
+    # """The original optimizer has wrong number of trained samples stats.
+    # So we make little modification and use the corrected optimizer.
+    # This function is only made for PPO.
+    # """
+    # if config["simple_optimizer"]:
+    #     raise NotImplementedError()
+    #
+    # return LocalMultiGPUOptimizerCorrectedNumberOfSampled(
+    #     workers,
+    #     compute_num_steps_sampled=None,
+    #     sgd_batch_size=config["sgd_minibatch_size"],
+    #     num_sgd_iter=config["num_sgd_iter"],
+    #     num_gpus=config["num_gpus"],
+    #     sample_batch_size=config["sample_batch_size"],
+    #     num_envs_per_worker=config["num_envs_per_worker"],
+    #     train_batch_size=config["train_batch_size"],
+    #     standardize_fields=["advantages"],
+    #     shuffle_sequences=config["shuffle_sequences"]
+    # )

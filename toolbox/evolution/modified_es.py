@@ -4,11 +4,11 @@ import time
 import numpy as np
 import ray
 from ray.rllib.agents import with_common_config
-from ray.rllib.agents.es import optimizers, utils, policies
-from ray.rllib.agents.es.es import ESTrainer, create_shared_noise, \
-    DEFAULT_POLICY_ID, Result
+from ray.rllib.agents.es import optimizers, policies, utils
+from ray.rllib.agents.es.es import ESTrainer, create_shared_noise, Result
 from ray.rllib.agents.es.policies import get_filter, tf, ModelCatalog, \
     GenericPolicy
+from ray.rllib.policy.sample_batch import DEFAULT_POLICY_ID
 from ray.rllib.policy.tf_policy import SampleBatch
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,8 @@ DEFAULT_CONFIG = with_common_config({
     "stepsize": 0.01,
     "observation_filter": "NoFilter",
     "noise_size": 250000000,
-    "report_length": 10
+    "report_length": 10,
+    "optimizer_type": "adam"  # must in [adam, sgd]
 })
 
 
@@ -42,9 +43,13 @@ class SharedNoiseTable(object):
     def sample_index(self, dim):
         return np.random.randint(0, len(self.noise) - dim + 1)
 
+    def get_delta(self, dim):
+        idx = self.sample_index(dim)
+        return idx, self.get(idx, dim)
+
 
 @ray.remote
-class Worker(object):
+class Worker:
     def __init__(self,
                  config,
                  policy_params,
@@ -145,7 +150,7 @@ class Worker(object):
 
 class GenericGaussianPolicy(GenericPolicy):
     def __init__(self, sess, action_space, obs_space, preprocessor,
-                 observation_filter, model_options, action_noise_std):
+                 observation_filter, model_options, action_noise_std=0.0):
         self.sess = sess
         self.action_space = action_space
         self.action_noise_std = action_noise_std
@@ -247,7 +252,12 @@ class GaussianESTrainer(ESTrainer):
         self.policy = GenericGaussianPolicy(
             self.sess, env.action_space, env.observation_space, preprocessor,
             config["observation_filter"], config["model"], **policy_params)
-        self.optimizer = optimizers.Adam(self.policy, config["stepsize"])
+        if config["optimizer_type"] == "adam":
+            self.optimizer = optimizers.Adam(self.policy, config["stepsize"])
+        elif config["optimizer_type"] == "sgd":
+            self.optimizer = optimizers.SGD(self.policy, config["stepsize"])
+        else:
+            raise ValueError("optimizer must in [adam, sgd].")
         self.report_length = config["report_length"]
 
         # Create the shared noise table.

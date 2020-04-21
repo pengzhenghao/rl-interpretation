@@ -1,18 +1,16 @@
+import copy
+from collections import OrderedDict
+
 import gym
 import numpy as np
 import ray
-from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy
-
-from collections import OrderedDict
 
 from toolbox.env import get_env_maker
-from toolbox.evaluate import restore_agent_with_mask
-from toolbox.evaluate import RolloutWorkerWrapper, \
+from toolbox.evaluate import restore_agent_with_mask, RolloutWorkerWrapper, \
     several_agent_rollout, rollout, make_worker, efficient_rollout_from_worker
-from toolbox.utils import initialize_ray
-import copy
 from toolbox.evaluate.symbolic_agent import MaskSymbolicAgent
 from toolbox.process_data.process_data import read_yaml
+from toolbox.utils import initialize_ray
 
 
 def test_RolloutWorkerWrapper_with_activation():
@@ -109,8 +107,8 @@ def test_restore_agent_with_mask():
 
     agent2 = restore_agent_with_mask(
         "PPO", "~/ray_results/0810-20seeds/PPO_BipedalWa"
-        "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
-        "2/checkpoint_313/checkpoint-313",
+               "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
+               "2/checkpoint_313/checkpoint-313",
         env_name,
         existing_agent=agent
     )
@@ -121,8 +119,8 @@ def test_restore_agent_with_mask():
 
     agent3 = restore_agent_with_mask(
         "PPO", "~/ray_results/0810-20seeds/PPO_BipedalWa"
-        "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
-        "2/checkpoint_313/checkpoint-313",
+               "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
+               "2/checkpoint_313/checkpoint-313",
         env_name,
         existing_agent=agent
     )
@@ -205,7 +203,6 @@ def test_MaskSymbolicAgent_remote():
 
 
 def test_RemoteSymbolicReplayManager():
-
     initialize_ray(test_mode=True)
     from toolbox.evaluate.replay import RemoteSymbolicReplayManager as RSRM
 
