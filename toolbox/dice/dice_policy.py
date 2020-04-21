@@ -6,6 +6,7 @@ following functions for each policy:
 2. Maintain the target network for each policy if in DELAY_UPDATE mode.
 3. Update the target network for each training iteration.
 """
+import gym
 from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
     ValueNetworkMixin, KLCoeffMixin, \
     EntropyCoeffSchedule, BEHAVIOUR_LOGITS, PPOTFPolicy
@@ -37,7 +38,7 @@ def grad_stats_fn(policy, batch, grads):
 
 class DiversityValueNetworkMixin:
     def __init__(self, obs_space, action_space, config):
-        if config["use_gae"] and config[USE_DIVERSITY_VALUE_NETWORK]:
+        if config.get("use_gae") and config[USE_DIVERSITY_VALUE_NETWORK]:
 
             @make_tf_callable(self.get_session())
             def diversity_value(ob, prev_action, prev_reward, *state):
@@ -84,6 +85,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
         "policy_loss": policy.loss_obj.mean_policy_loss,
         "vf_loss": policy.loss_obj.mean_vf_loss,
         "kl": policy.loss_obj.mean_kl,
+        "vf_debug_ratio": policy.loss_obj.vf_debug_ratio,
         "entropy": policy.loss_obj.mean_entropy,
         "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
         "vf_explained_var": explained_variance(
@@ -93,8 +95,10 @@ def kl_and_loss_stats_modified(policy, train_batch):
         "diversity_total_loss": policy.diversity_loss_obj.loss,
         "diversity_policy_loss": policy.diversity_loss_obj.mean_policy_loss,
         "diversity_vf_loss": policy.diversity_loss_obj.mean_vf_loss,
-        "diversity_kl": policy.diversity_loss_obj.mean_kl,
-        "diversity_entropy": policy.diversity_loss_obj.mean_entropy,
+        # "diversity_kl": policy.diversity_loss_obj.mean_kl,
+
+        "debug_ratio": policy.diversity_loss_obj.debug_ratio,
+        # "diversity_entropy": policy.diversity_loss_obj.mean_entropy,
         "diversity_reward_mean": policy.diversity_reward_mean,
     }
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
@@ -115,11 +119,12 @@ class ComputeDiversityMixin:
     compute_diversity function.
     """
 
-    def __init__(self):
+    def __init__(self, discrete):
         self.initialized_policies_pool = False
         self.policies_pool = {}
+        self.discrete = discrete
 
-    def _lazy_initialize(self, policies_pool, my_name):
+    def _lazy_initialize(self, policies_pool, my_name=None):
         """Initialize the reference of policies pool within this policy."""
         assert self.config[DELAY_UPDATE]
         self.policies_pool = {
@@ -166,10 +171,14 @@ class ComputeDiversityMixin:
             )
 
         elif self.config[DIVERSITY_REWARD_TYPE] == "mse":
-            replays = [
-                np.split(logit, 2, axis=1)[0] for logit in replays.values()
-            ]
-            my_act = np.split(my_batch[MY_LOGIT], 2, axis=1)[0]
+            if self.discrete:  # discrete
+                replays = list(replays.values())
+                my_act = my_batch[MY_LOGIT]
+            else:
+                replays = [
+                    np.split(logit, 2, axis=1)[0] for logit in replays.values()
+                ]
+                my_act = np.split(my_batch[MY_LOGIT], 2, axis=1)[0]
             return np.mean(
                 [
                     (np.square(my_act - other_act)).mean(1)
@@ -236,7 +245,7 @@ class TargetNetworkMixin:
 
         self._compute_clone_network_logits = compute_clone_network_logits
 
-    def update_target_network(self, tau=None):
+    def update_target(self, tau=None):
         """Delayed update the target network."""
         tau = tau or self.tau_value
         return self.get_session().run(
@@ -244,11 +253,12 @@ class TargetNetworkMixin:
         )
 
 
-def setup_mixins_dice(policy, action_space, obs_space, config):
-    setup_mixins(policy, action_space, obs_space, config)
+def setup_mixins_dice(policy, obs_space, action_space, config):
+    setup_mixins(policy, obs_space, action_space, config)
     DiversityValueNetworkMixin.__init__(policy, obs_space, action_space,
                                         config)
-    ComputeDiversityMixin.__init__(policy)
+    discrete = isinstance(action_space, gym.spaces.Discrete)
+    ComputeDiversityMixin.__init__(policy, discrete)
 
 
 def setup_late_mixins(policy, obs_space, action_space, config):

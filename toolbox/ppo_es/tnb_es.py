@@ -1,8 +1,8 @@
 from ray import tune
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
-from ray.rllib.agents.ppo.ppo_policy import setup_mixins, ValueNetworkMixin, \
+from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, ValueNetworkMixin, \
     KLCoeffMixin, LearningRateSchedule, EntropyCoeffSchedule, SampleBatch
-from ray.tune.util import merge_dicts
+from toolbox.utils import merge_dicts
 
 from toolbox import initialize_ray
 from toolbox.distance import get_kl_divergence
@@ -13,7 +13,7 @@ from toolbox.ipd.tnb_utils import *
 from toolbox.marl import MultiAgentEnvWrapper
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerCorrectedNumberOfSampled
-from toolbox.ppo_es.ppo_es import PPOESTrainer, \
+from toolbox.dies.ppo_es import PPOESTrainer, \
     validate_config as validate_config_PPOESTrainer
 
 tnbes_config = merge_dicts(

@@ -3,8 +3,8 @@ import logging
 from ray.rllib.agents.ppo.ppo import PPOTrainer, LocalMultiGPUOptimizer, \
     SyncSamplesOptimizer, validate_config as validate_config_original
 
-from toolbox.ipd.tnb_policy import TNBPolicy, NOVELTY_ADVANTAGES, \
-    tnb_default_config
+from toolbox.task_novelty_bisector.tnb_policy import NOVELTY_ADVANTAGES, \
+    tnb_default_config, TNBPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def choose_policy_optimizer(workers, config):
         sgd_batch_size=config["sgd_minibatch_size"],
         num_sgd_iter=config["num_sgd_iter"],
         num_gpus=config["num_gpus"],
-        sample_batch_size=config["sample_batch_size"],
+        rollout_fragment_length=config["rollout_fragment_length"],
         num_envs_per_worker=config["num_envs_per_worker"],
         train_batch_size=config["train_batch_size"],
         standardize_fields=["advantages", NOVELTY_ADVANTAGES],  # Here!
@@ -60,5 +60,6 @@ TNBTrainer = PPOTrainer.with_updates(
     make_policy_optimizer=choose_policy_optimizer,
     default_config=tnb_default_config,
     before_train_step=before_train_step,
-    default_policy=TNBPolicy
+    default_policy=TNBPolicy,
+    get_policy_class=lambda _: TNBPolicy
 )

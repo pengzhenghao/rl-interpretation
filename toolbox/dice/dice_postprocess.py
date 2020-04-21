@@ -1,12 +1,13 @@
 """
 Implement the Collaborative Exploration here.
 
-In postprocess_dice, which is called for each policy with input other
+In postprocess_dice_sac, which is called for each policy with input other
 policies' batches, we fuse the batches collected by this policy and other
 policies. We also compute the diversity reward and diversity advantage of this
 policy.
 """
-from ray.rllib.agents.ppo.ppo_tf_policy import postprocess_ppo_gae, ACTION_LOGP, \
+from ray.rllib.agents.ppo.ppo_tf_policy import postprocess_ppo_gae, \
+    ACTION_LOGP, \
     SampleBatch, BEHAVIOUR_LOGITS
 from ray.rllib.evaluation.postprocessing import discount
 
@@ -61,6 +62,8 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
 
     del batch.data['new_obs']  # save memory
     del batch.data['action_prob']
+    if policy.config[ONLY_TNB]:
+        assert np.unique(batch["agent_index"]).size == 1
     return batch
 
 
@@ -109,7 +112,16 @@ def _compute_advantages_for_diversity(
         advantage = discount(delta_t, gamma * lambda_)
         value_target = (advantage + values).copy().astype(np.float32)
     else:
-        rewards_plus_v = np.concatenate([rewards, np.array([last_r])])
+        rewards_plus_v = np.concatenate([
+            rewards.reshape(-1), np.array([last_r]).reshape(-1)
+        ])
+        if rewards_plus_v.size <= 2:
+            logger.warning(
+                "********** Current reward is empty: {}. last r {}. values {}"
+                ".".format(
+                    rewards, last_r, values
+                ))
+            # rewards_plus_v = np.array([last_r])
         advantage = discount(rewards_plus_v, gamma)[:-1]
         value_target = np.zeros_like(advantage, dtype=np.float32)
     advantage = advantage.copy().astype(np.float32)

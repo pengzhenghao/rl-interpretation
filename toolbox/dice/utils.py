@@ -4,7 +4,7 @@ This files defines some constants and provides some useful utilities.
 import logging
 
 import numpy as np
-from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG
+from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG as PPO_DEFAULT
 from ray.rllib.utils import try_import_tf
 
 from toolbox.marl.utils import on_train_result as on_train_result_cal_diversity
@@ -104,7 +104,7 @@ PURE_OFF_POLICY = "pure_off_policy"
 NORMALIZE_ADVANTAGE = "normalize_advantage"
 
 dice_default_config = merge_dicts(
-    DEFAULT_CONFIG, {
+    PPO_DEFAULT, {
         USE_BISECTOR: True,
         USE_DIVERSITY_VALUE_NETWORK: False,
         DELAY_UPDATE: True,
@@ -115,10 +115,12 @@ dice_default_config = merge_dicts(
         DIVERSITY_REWARD_TYPE: "mse",
         PURE_OFF_POLICY: False,
         "tau": 5e-3,
+        "vf_ratio_clip_param": 0.05,
         "callbacks": {
             "on_train_result": on_train_result,
             "on_postprocess_traj": on_postprocess_traj
-        }
+        },
+        "grad_clip": 10.0
     }
 )
 

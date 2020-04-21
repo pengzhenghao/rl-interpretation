@@ -4,19 +4,19 @@ import numpy as np
 import tensorflow as tf
 from ray.rllib.agents.ppo.ppo import DEFAULT_CONFIG, validate_config, \
     PPOTrainer
-from ray.rllib.agents.ppo.ppo_policy import PPOTFPolicy, \
+from ray.rllib.agents.ppo.ppo_tf_policy import PPOTFPolicy, \
     LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, \
     ValueNetworkMixin, ppo_surrogate_loss, postprocess_ppo_gae, setup_mixins
 from ray.rllib.evaluation.postprocessing import Postprocessing
-from ray.rllib.models.tf.tf_action_dist import DiagGaussian, Categorical
+from ray.rllib.models.tf.tf_action_dist import DiagGaussian
 from ray.rllib.optimizers import SyncSamplesOptimizer
 from ray.rllib.policy.rnn_sequencing import chop_into_sequences
 from ray.rllib.policy.sample_batch import SampleBatch, MultiAgentBatch
 from ray.rllib.utils.explained_variance import explained_variance
-from ray.tune.util import merge_dicts
 
 from toolbox.modified_rllib.multi_gpu_optimizer import \
     LocalMultiGPUOptimizerModified
+from toolbox.utils import merge_dicts
 
 logger = logging.getLogger(__name__)
 
@@ -104,9 +104,9 @@ class AddLossMixin(object):
         """The below codes are copied from rllib. """
         if self._batch_divisibility_req > 1:
             meets_divisibility_reqs = (
-                len(batch[SampleBatch.CUR_OBS]) %
-                self._batch_divisibility_req == 0
-                and max(batch[SampleBatch.AGENT_INDEX]) == 0
+                    len(batch[SampleBatch.CUR_OBS]) %
+                    self._batch_divisibility_req == 0
+                    and max(batch[SampleBatch.AGENT_INDEX]) == 0
             )  # not multiagent
         else:
             meets_divisibility_reqs = True

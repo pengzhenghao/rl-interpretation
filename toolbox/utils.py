@@ -1,6 +1,7 @@
 import collections
 import copy
 import logging
+import os
 import time
 import uuid
 from collections import Mapping, Container
@@ -9,6 +10,9 @@ from sys import getsizeof
 import numpy as np
 import ray
 from distro import linux_distribution
+from ray.rllib.utils import merge_dicts
+
+merge_dicts = merge_dicts
 
 
 # from ray.internal.internal_api import unpin_object_data
@@ -21,12 +25,6 @@ class DefaultMapping(collections.defaultdict):
     def __missing__(self, key):
         self[key] = value = self.default_factory(key)
         return value
-
-
-def merge_dicts(base_config, extra_config):
-    config = copy.deepcopy(base_config)
-    config.update(extra_config)
-    return config
 
 
 def _is_centos():
@@ -43,6 +41,8 @@ def _is_centos():
 
 
 def initialize_ray(local_mode=False, num_gpus=None, test_mode=False, **kwargs):
+    os.environ['OMP_NUM_THREADS'] = '1'
+
     ray.init(
         logging_level=logging.ERROR if not test_mode else logging.DEBUG,
         log_to_driver=test_mode,

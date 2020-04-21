@@ -35,26 +35,30 @@ class PPOLossTwoSideDiversity(object):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
-        prev_dist = dist_class(prev_logits, model)
+        # prev_dist = dist_class(prev_logits, model)
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
-        action_kl = prev_dist.kl(curr_action_dist)
-        self.mean_kl = reduce_mean_valid(action_kl)
-        curr_entropy = curr_action_dist.entropy()
-        self.mean_entropy = reduce_mean_valid(curr_entropy)
+        self.debug_ratio = logp_ratio
+        # action_kl = prev_dist.kl(curr_action_dist)
+        # self.mean_kl = reduce_mean_valid(action_kl)
+        # curr_entropy = curr_action_dist.entropy()
+        # self.mean_entropy = reduce_mean_valid(curr_entropy)
         new_surrogate_loss = advantages * tf.minimum(
             logp_ratio, 1 + clip_param
         )
         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
         self.mean_vf_loss = tf.constant(0.0)
         loss = reduce_mean_valid(
-            -new_surrogate_loss + cur_kl_coeff * action_kl -
-            entropy_coeff * curr_entropy
+            -new_surrogate_loss
+            # Update(20200417): Remove KL and Entropy in Diversity
+            # + cur_kl_coeff * action_kl -
+            # entropy_coeff * curr_entropy
         )
         self.loss = loss
 
 
 class PPOLossTwoSideClip(object):
     def __init__(self,
+                 _useless,
                  dist_class,
                  model,
                  value_targets,
@@ -71,14 +75,21 @@ class PPOLossTwoSideClip(object):
                  clip_param=0.1,
                  vf_clip_param=0.1,
                  vf_loss_coeff=1.0,
-                 use_gae=True
+                 use_gae=True,
+                 vf_ratio_clip_param=0.05
                  ):
+
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
         prev_dist = dist_class(prev_logits, model)
         # Make loss functions.
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
+
+        new_vf_mask = tf.logical_and(logp_ratio > 1 - vf_ratio_clip_param,
+                                     logp_ratio < 1 + vf_ratio_clip_param)
+        self.vf_debug_ratio = tf.cast(new_vf_mask, tf.float32)
+
         action_kl = prev_dist.kl(curr_action_dist)
         self.mean_kl = reduce_mean_valid(action_kl)
         curr_entropy = curr_action_dist.entropy()
@@ -96,6 +107,7 @@ class PPOLossTwoSideClip(object):
             )
             vf_loss2 = tf.square(vf_clipped - value_targets)
             vf_loss = tf.maximum(vf_loss1, vf_loss2)
+
             self.mean_vf_loss = reduce_mean_valid(vf_loss)
             loss = reduce_mean_valid(
                 -new_surrogate_loss + cur_kl_coeff * action_kl +
@@ -127,7 +139,12 @@ def dice_loss(policy, model, dist_class, train_batch):
     loss_cls = PPOLossTwoSideClip \
         if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
 
+    # FIXME In ray > 0.8.1, the PPO loss has changed its signature
+    #  So we need to make some modification on this to prevent error in
+    #  not two-side clipped loss mode.
+
     policy.loss_obj = loss_cls(
+        None,
         dist_class,
         model,
         train_batch[Postprocessing.VALUE_TARGETS],
@@ -144,7 +161,8 @@ def dice_loss(policy, model, dist_class, train_batch):
         clip_param=policy.config["clip_param"],
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
-        use_gae=policy.config["use_gae"]
+        use_gae=policy.config["use_gae"],
+        vf_ratio_clip_param=policy.config["vf_ratio_clip_param"]  # problematic
     )
 
     # Build the loss for diversity
@@ -204,9 +222,18 @@ def dice_gradient(policy, optimizer, loss):
     if not policy.config[USE_BISECTOR]:
         # For ablation study. If don't use bisector, we simply return the
         # task gradient.
-        with tf.control_dependencies([loss[1]]):
-            policy_grad = optimizer.compute_gradients(loss[0])
-        return policy_grad
+
+        # FIXING BUG (20200416) What happen if I remove dependency?
+        variables = policy.model.trainable_variables()
+        with tf.control_dependencies([tf.stop_gradient(loss[1])]):
+            policy_grad = optimizer.compute_gradients(loss[0], variables)
+        if policy.config["grad_clip"] is not None:
+            clipped_grads, _ = tf.clip_by_global_norm(
+                [g for g, _ in policy_grad],
+                policy.config["grad_clip"])
+            return list(zip(clipped_grads, variables))
+        else:
+            return policy_grad
 
     policy_grad = optimizer.compute_gradients(loss[0])
     diversity_grad = optimizer.compute_gradients(loss[1])
@@ -271,4 +298,11 @@ def dice_gradient(policy, optimizer, loss):
         return_gradients[var] = (tf.reshape(grad, org_shape), var)
         count += size
 
-    return [return_gradients[var] for _, var in policy_grad]
+    if policy.config["grad_clip"] is not None:
+        ret_grads = [return_gradients[var][0] for _, var in policy_grad]
+        clipped_grads, _ = tf.clip_by_global_norm(
+            ret_grads, policy.config["grad_clip"])
+        return [(g, return_gradients[var][1])
+                for g, (_, var) in zip(clipped_grads, policy_grad)]
+    else:
+        return [return_gradients[var] for _, var in policy_grad]

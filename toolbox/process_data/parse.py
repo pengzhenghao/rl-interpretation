@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import scipy.interpolate
 from ray.tune.analysis.experiment_analysis import Analysis, ExperimentAnalysis
-
+import numbers
 
 def _process_input(path_or_obj):
     if isinstance(path_or_obj, str):
@@ -48,7 +48,7 @@ def _parse_tag(tag):
         key, value = part.split('=')
         try:
             value = eval(value)
-        except NameError:
+        except Exception:
             value = value
         ret[key] = value
     return ret
@@ -74,7 +74,7 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
         4. an Analysis or ExperimentAnalysis object
     :param interpolate: boolean
     :param keys: the interesting metrics to show, default  is
-        episode_reward_mean, if you use name_mapping, then here should be
+        all keys, if you use name_mapping, then here should be
         the simplified key of that metric, e.g. num_agents.
     :param name_mapping: map the simplified name of a metric to the real name
         in the Analysis. For example:
@@ -87,9 +87,15 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
     # Step 1: Read the data from four possible sources.
     trial_dict = _process_input(path_or_obj)
 
+    if len(trial_dict) == 0:
+        print("Empty folder!")
+        return pd.DataFrame()
+
     # Step 2: process the keys that user querying.
     if keys is None:
-        keys = "episode_reward_mean"
+        # If default, parse all possible keys
+        keys = list(next(iter(trial_dict.values())).keys())
+        # keys = "episode_reward_mean"
     if isinstance(keys, str):
         keys = [keys]
     assert isinstance(keys, Iterable)
@@ -170,10 +176,13 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
             new_df = {}
             for k in keys:
                 if k in investigate_keys:
-                    new_df[k] = scipy.interpolate.interp1d(
-                        df[interpolate_x],
-                        df[k]
-                    )(mask_rang)
+                    if isinstance(df[k][0], numbers.Number):
+                        new_df[k] = scipy.interpolate.interp1d(
+                            df[interpolate_x],
+                            df[k]
+                        )(mask_rang)
+                    else:
+                        new_df[k] = df[k].unique()[0]
                 else:
                     assert len(df[k].unique()) == 1
                     new_df[k] = df[k].unique()[0]
