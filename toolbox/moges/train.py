@@ -1,14 +1,13 @@
-from fcnet_tanh import FullyConnectedNetworkTanh
 from ray import tune
 from ray.rllib.agents.ppo import PPOTrainer
-from ray.rllib.models import ModelCatalog
 
-from toolbox.action_distribution import GaussianMixture
+from toolbox.action_distribution import GaussianMixture, DeterministicMixture
 from toolbox.atv import ANA2CTrainer, ANA3CTrainer, ANIMPALATrainer
 from toolbox.evolution.modified_ars import GaussianARSTrainer
 from toolbox.evolution.modified_es import GaussianESTrainer
 from toolbox.train import train, get_train_parser
-from toolbox import initialize_ray
+
+
 def get_dynamic_trainer(algo):
     if algo == "PPO":
         base = PPOTrainer
@@ -27,15 +26,11 @@ def get_dynamic_trainer(algo):
     return base
 
 
-ModelCatalog.register_custom_model(
-    "fc_with_tanh", FullyConnectedNetworkTanh
-)
-
 if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--algo", type=str, required=True)
-    parser.add_argument("--start-seed", default=0, type=int)
     parser.add_argument("--use-tanh", action="store_true")
+    parser.add_argument("--use-deterministic", "-ud", action="store_true")
     args = parser.parse_args()
 
     algo = args.algo
@@ -93,20 +88,33 @@ if __name__ == '__main__':
         # "custom_model": "fc_with_tanh",
         "custom_action_dist": GaussianMixture.name,
         "custom_options": {
-            "num_components": tune.grid_search([2, 3, 5])
+            "num_components": tune.grid_search([2, 3, 5]),
+            "std_mode": tune.grid_search(["free", "normal", "zero"])
         }
     }
-    # config["env"] = args.env_name
-    config["env"] = tune.grid_search([
-        "BipedalWalker-v2", "Walker2d-v3", "HalfCheetah-v3"
-    ])
+    config["env"] = args.env_name
+    # config["env"] = tune.grid_search([
+    #     "BipedalWalker-v2", "Walker2d-v3", "HalfCheetah-v3"
+    # ])
 
     if args.use_tanh:
+        from ray.rllib.models import ModelCatalog
+        from toolbox.moges.fcnet_tanh import TANH_MODEL, \
+            FullyConnectedNetworkTanh
+
         print("We are using tanh as the output layer activation now!")
-        config["model"]["custom_model"] = "fc_with_tanh"
+        ModelCatalog.register_custom_model(
+            TANH_MODEL, FullyConnectedNetworkTanh
+        )
+        print("Successfully registered tanh model!")
+        config["model"]["custom_model"] = TANH_MODEL
     else:
         raise ValueError(
             "You are not using tanh activation in the output layer!")
+
+    if args.use_deterministic:
+        config["model"]["custom_action_dist"] = DeterministicMixture.name
+        config["model"]["custom_options"].pop("std_mode")
 
     if algo in ["ES", "ARS"]:
         config["num_gpus"] = 0
@@ -118,6 +126,13 @@ if __name__ == '__main__':
     # config["model"]["custom_options"]["num_components"] = 2
     # initialize_ray(test_mode=True, local_mode=True)
     # trainer = GaussianESTrainer(config=config, env="BipedalWalker-v2")
+
+    if args.redis_password:
+        from toolbox import initialize_ray
+        import os
+
+        initialize_ray(address=os.environ["ip_head"], test_mode=args.test,
+                       redis_password=args.redis_password)
 
     train(
         get_dynamic_trainer(algo),

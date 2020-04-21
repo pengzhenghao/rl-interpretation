@@ -1,13 +1,14 @@
 from __future__ import absolute_import, division, print_function, \
     absolute_import, division, print_function
 
+import copy
 import logging
 import os
 import pickle
 
 from ray.rllib.agents import Trainer
 from ray.rllib.agents.registry import get_agent_class
-from tensorflow import Graph
+from ray.rllib.utils import try_import_tf
 
 from toolbox.env.env_maker import get_env_maker
 from toolbox.modified_rllib.agent_with_activation import (
@@ -43,7 +44,9 @@ def build_config(
             config_path = os.path.join(config_dir, "../params.pkl")
         if os.path.exists(config_path):
             with open(config_path, "rb") as f:
-                config.update(pickle.load(f))
+                old_config = pickle.load(f)
+                old_config.update(copy.deepcopy(config))
+                config = copy.deepcopy(old_config)
     if "num_workers" in config:
         config["num_workers"] = min(1, config["num_workers"])
     if is_es_agent or (not use_activation_model):
@@ -120,6 +123,9 @@ def restore_agent_with_mask(
 
 
 def restore_policy_with_mask(run_name, ckpt, env_name, extra_config=None):
+    tf = try_import_tf()
+    Graph = tf.Graph
+
     assert run_name == "PPO"
     register_fc_with_mask()
     env = get_env_maker(env_name)()
