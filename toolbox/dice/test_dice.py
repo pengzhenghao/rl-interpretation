@@ -69,8 +69,9 @@ class DiCETest(unittest.TestCase):
         _test_dice({TWO_SIDE_CLIP_LOSS: False}, num_agents=num_agents_pair)
 
     def test_only_tnb(self):
-        _test_dice({ONLY_TNB: True}, num_agents=num_agents_pair,
-                   local_mode=True)
+        _test_dice(
+            {ONLY_TNB: True}, num_agents=num_agents_pair, local_mode=True
+        )
 
     def test_normalize_adv(self):
         _test_dice({NORMALIZE_ADVANTAGE: True}, num_agents=num_agents_pair)
@@ -81,8 +82,4 @@ class DiCETest(unittest.TestCase):
 
 if __name__ == "__main__":
     # unittest.main(verbosity=2)
-    _test_dice(
-        num_agents=5,
-        local_mode=False,
-        t=100000
-    )
+    _test_dice(num_agents=5, local_mode=False, t=100000)

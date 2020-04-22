@@ -2,11 +2,11 @@ from ray import tune
 
 from ray.rllib.utils import merge_dicts
 
-
 # The arguments below is copied from
 # https://github.com/araffin/rl-baselines-zoo/blob/master/hyperparams/ppo2.yml
 # Notes for BipedalWalker: BipedalWalker-v2 defines "solving" as getting
 # average reward of 300 over 100 consecutive trials
+
 
 def get_config(env, run, test):
     if env == "BipedalWalker-v2":

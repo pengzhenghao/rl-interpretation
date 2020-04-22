@@ -134,8 +134,8 @@ def get_kl_divergence(source, target, mean=True):
 
     kl_divergence = np.sum(
         target_log_std - source_log_std + (
-                np.square(np.exp(source_log_std)) +
-                np.square(source_mean - target_mean)
+            np.square(np.exp(source_log_std)) +
+            np.square(source_mean - target_mean)
         ) / (2.0 * np.square(np.exp(target_log_std)) + 1e-10) - 0.5,
         axis=1
     )

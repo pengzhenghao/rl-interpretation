@@ -51,14 +51,17 @@ class ReplayBufferModified(ReplayBuffer):
             # action_logps.append(logp)
             self._hit_count[i] += 1
 
-        ret = [np.array(obses_t), np.array(actions), np.array(rewards),
-               np.array(obses_tp1), np.array(dones)]
+        ret = [
+            np.array(obses_t),
+            np.array(actions),
+            np.array(rewards),
+            np.array(obses_tp1),
+            np.array(dones)
+        ]
 
         # Add other necessary information
         for item_id in range(5, len(data)):
-            ret.append(
-                np.array([self._storage[i][item_id] for i in idxes])
-            )
+            ret.append(np.array([self._storage[i][item_id] for i in idxes]))
 
         return ret
 
@@ -83,18 +86,21 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
         with self.sample_timer:
             if self.workers.remote_workers():
                 batch = SampleBatch.concat_samples(
-                    ray_get_and_free([
-                        e.sample.remote()
-                        for e in self.workers.remote_workers()
-                    ]))
+                    ray_get_and_free(
+                        [
+                            e.sample.remote()
+                            for e in self.workers.remote_workers()
+                        ]
+                    )
+                )
             else:
                 batch = self.workers.local_worker().sample()
 
             # Handle everything as if multiagent
             if isinstance(batch, SampleBatch):
-                batch = MultiAgentBatch({
-                    DEFAULT_POLICY_ID: batch
-                }, batch.count)
+                batch = MultiAgentBatch(
+                    {DEFAULT_POLICY_ID: batch}, batch.count
+                )
 
             for policy_id, s in batch.policy_batches.items():
                 for row in s.rows():
@@ -127,7 +133,8 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
                 if self.synchronize_sampling:
                     if idxes is None:
                         idxes = replay_buffer.sample_idxes(
-                            self.train_batch_size)
+                            self.train_batch_size
+                        )
                 else:
                     idxes = replay_buffer.sample_idxes(self.train_batch_size)
 
@@ -140,7 +147,12 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
                     #         self.num_steps_trained))
                 else:
                     (
-                        obses_t, actions, rewards, obses_tp1, dones, _,
+                        obses_t,
+                        actions,
+                        rewards,
+                        obses_tp1,
+                        dones,
+                        _,
                         action_logp,
                         # diversity_advantages,
                         diversity_rewards,
@@ -148,24 +160,25 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
                         # my_logits,
                         prev_actions,
                         prev_rewards
-                    ) = replay_buffer.sample_with_idxes(
-                        idxes)
+                    ) = replay_buffer.sample_with_idxes(idxes)
                     weights = np.ones_like(rewards)
                     batch_indexes = -np.ones_like(rewards)
-                samples[policy_id] = SampleBatch({
-                    "obs": obses_t,
-                    "actions": actions,
-                    "rewards": rewards,
-                    "new_obs": obses_tp1,
-                    "dones": dones,
-                    "weights": weights,
-                    "batch_indexes": batch_indexes,
-                    "action_logp": action_logp,
-                    # "diversity_advantages": diversity_advantages,
-                    "diversity_rewards": diversity_rewards,
-                    # "diversity_value_targets": diversity_value_targets,
-                    # "my_logits": my_logits,
-                    "prev_actions": prev_actions,
-                    "prev_rewards": prev_rewards
-                })
+                samples[policy_id] = SampleBatch(
+                    {
+                        "obs": obses_t,
+                        "actions": actions,
+                        "rewards": rewards,
+                        "new_obs": obses_tp1,
+                        "dones": dones,
+                        "weights": weights,
+                        "batch_indexes": batch_indexes,
+                        "action_logp": action_logp,
+                        # "diversity_advantages": diversity_advantages,
+                        "diversity_rewards": diversity_rewards,
+                        # "diversity_value_targets": diversity_value_targets,
+                        # "my_logits": my_logits,
+                        "prev_actions": prev_actions,
+                        "prev_rewards": prev_rewards
+                    }
+                )
         return MultiAgentBatch(samples, self.train_batch_size)

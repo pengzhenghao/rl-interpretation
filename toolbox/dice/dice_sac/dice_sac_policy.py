@@ -73,12 +73,11 @@ class PPOLossTwoSideDiversity:
         model_out = obs
         distribution_inputs = policy.model.get_policy_output(model_out)
         action_dist_class = get_dist_class(policy.config, policy.action_space)
-        curr_action_dist = action_dist_class(distribution_inputs,
-                                             policy.model)
+        curr_action_dist = action_dist_class(distribution_inputs, policy.model)
         current_actions_logp = curr_action_dist.logp(actions)
         logp_ratio = tf.exp(current_actions_logp - prev_actions_logp)
-        with tf.control_dependencies(
-                [tf.check_numerics(logp_ratio, "logp_ratio")]):
+        with tf.control_dependencies([tf.check_numerics(logp_ratio,
+                                                        "logp_ratio")]):
             new_surrogate_loss = advantages * tf.minimum(
                 logp_ratio, 1 + clip_param
             )
@@ -119,7 +118,6 @@ def postprocess_diversity(policy, batch, others_batches):
 
     # Compute diversity and add a new entry of batch: diversity_reward
     batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch, others_batches)
-
     """
     # Compute the diversity advantage. We mock the computing of task advantage
     # but simply replace the task reward with the diversity reward.
@@ -249,14 +247,18 @@ def after_init(policy, obs_space, action_space, config):
 
 
 def before_loss_init(policy, obs_space, action_space, config):
-    DiversityValueNetworkMixin.__init__(policy, obs_space, action_space, config)
+    DiversityValueNetworkMixin.__init__(
+        policy, obs_space, action_space, config
+    )
     ComputeDiversityMixinModified.__init__(policy)
     ComputeTDErrorMixin.__init__(policy)
 
 
 def extra_action_fetches_fn(policy):
     ret = {
-        BEHAVIOUR_LOGITS: policy.model.action_model(policy.model.last_output())
+        BEHAVIOUR_LOGITS: policy.model.action_model(
+            policy.model.last_output()
+        )
     }
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret[DIVERSITY_VALUES] = policy.model.diversity_value_function()
@@ -312,17 +314,20 @@ def build_sac_model(policy, obs_space, action_space, config):
     if config["model"]["custom_model"]:
         logger.warning(
             "Setting use_state_preprocessor=True since a custom model "
-            "was specified.")
+            "was specified."
+        )
         config["use_state_preprocessor"] = True
     if not isinstance(action_space, (Box, Discrete)):
         raise UnsupportedSpaceException(
-            "Action space {} is not supported for SAC.".format(action_space))
+            "Action space {} is not supported for SAC.".format(action_space)
+        )
     if isinstance(action_space, Box) and len(action_space.shape) > 1:
         raise UnsupportedSpaceException(
             "Action space has multiple dimensions "
             "{}. ".format(action_space.shape) +
             "Consider reshaping this into a single dimension, "
-            "using a Tuple action space, or the multi-agent API.")
+            "using a Tuple action space, or the multi-agent API."
+        )
 
     if config["use_state_preprocessor"]:
         default_model = None  # catalog decides
@@ -346,7 +351,8 @@ def build_sac_model(policy, obs_space, action_space, config):
         critic_hidden_activation=config["Q_model"]["hidden_activation"],
         critic_hiddens=config["Q_model"]["hidden_layer_sizes"],
         twin_q=config["twin_q"],
-        initial_alpha=config["initial_alpha"])
+        initial_alpha=config["initial_alpha"]
+    )
 
     policy.target_model = ModelCatalog.get_model_v2(
         obs_space,
@@ -362,7 +368,8 @@ def build_sac_model(policy, obs_space, action_space, config):
         critic_hidden_activation=config["Q_model"]["hidden_activation"],
         critic_hiddens=config["Q_model"]["hidden_layer_sizes"],
         twin_q=config["twin_q"],
-        initial_alpha=config["initial_alpha"])
+        initial_alpha=config["initial_alpha"]
+    )
 
     return policy.model
 
@@ -379,8 +386,8 @@ DiCESACPolicy = SACTFPolicy.with_updates(
     grad_stats_fn=grad_stats_fn,
     before_loss_init=before_loss_init,
     mixins=[
-        TargetNetworkMixin, ActorCriticOptimizerMixin,
-        ComputeTDErrorMixin, DiCETargetNetworkMixin, DiversityValueNetworkMixin,
+        TargetNetworkMixin, ActorCriticOptimizerMixin, ComputeTDErrorMixin,
+        DiCETargetNetworkMixin, DiversityValueNetworkMixin,
         ComputeDiversityMixinModified
     ],
     after_init=after_init,

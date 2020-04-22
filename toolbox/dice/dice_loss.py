@@ -57,28 +57,28 @@ class PPOLossTwoSideDiversity(object):
 
 
 class PPOLossTwoSideClip(object):
-    def __init__(self,
-                 _useless,
-                 dist_class,
-                 model,
-                 value_targets,
-                 advantages,
-                 actions,
-                 prev_logits,
-                 prev_actions_logp,
-                 vf_preds,
-                 curr_action_dist,
-                 value_fn,
-                 cur_kl_coeff,
-                 valid_mask,
-                 entropy_coeff=0,
-                 clip_param=0.1,
-                 vf_clip_param=0.1,
-                 vf_loss_coeff=1.0,
-                 use_gae=True,
-                 vf_ratio_clip_param=0.05
-                 ):
-
+    def __init__(
+            self,
+            _useless,
+            dist_class,
+            model,
+            value_targets,
+            advantages,
+            actions,
+            prev_logits,
+            prev_actions_logp,
+            vf_preds,
+            curr_action_dist,
+            value_fn,
+            cur_kl_coeff,
+            valid_mask,
+            entropy_coeff=0,
+            clip_param=0.1,
+            vf_clip_param=0.1,
+            vf_loss_coeff=1.0,
+            use_gae=True,
+            vf_ratio_clip_param=0.05
+    ):
         def reduce_mean_valid(t):
             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
 
@@ -86,8 +86,10 @@ class PPOLossTwoSideClip(object):
         # Make loss functions.
         logp_ratio = tf.exp(curr_action_dist.logp(actions) - prev_actions_logp)
 
-        new_vf_mask = tf.logical_and(logp_ratio > 1 - vf_ratio_clip_param,
-                                     logp_ratio < 1 + vf_ratio_clip_param)
+        new_vf_mask = tf.logical_and(
+            logp_ratio > 1 - vf_ratio_clip_param,
+            logp_ratio < 1 + vf_ratio_clip_param
+        )
         self.vf_debug_ratio = tf.cast(new_vf_mask, tf.float32)
 
         action_kl = prev_dist.kl(curr_action_dist)
@@ -229,8 +231,8 @@ def dice_gradient(policy, optimizer, loss):
             policy_grad = optimizer.compute_gradients(loss[0], variables)
         if policy.config["grad_clip"] is not None:
             clipped_grads, _ = tf.clip_by_global_norm(
-                [g for g, _ in policy_grad],
-                policy.config["grad_clip"])
+                [g for g, _ in policy_grad], policy.config["grad_clip"]
+            )
             return list(zip(clipped_grads, variables))
         else:
             return policy_grad
@@ -301,8 +303,11 @@ def dice_gradient(policy, optimizer, loss):
     if policy.config["grad_clip"] is not None:
         ret_grads = [return_gradients[var][0] for _, var in policy_grad]
         clipped_grads, _ = tf.clip_by_global_norm(
-            ret_grads, policy.config["grad_clip"])
-        return [(g, return_gradients[var][1])
-                for g, (_, var) in zip(clipped_grads, policy_grad)]
+            ret_grads, policy.config["grad_clip"]
+        )
+        return [
+            (g, return_gradients[var][1])
+            for g, (_, var) in zip(clipped_grads, policy_grad)
+        ]
     else:
         return [return_gradients[var] for _, var in policy_grad]

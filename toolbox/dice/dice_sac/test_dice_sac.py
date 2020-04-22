@@ -16,9 +16,9 @@ from toolbox.marl import get_marl_env_config, MultiAgentEnvWrapper
 def dice_sac_policy():
     env_name = "BipedalWalker-v2"
     env = gym.make(env_name)
-    policy = DiCESACPolicy(env.observation_space, env.action_space, {
-        "env": env_name
-    })
+    policy = DiCESACPolicy(
+        env.observation_space, env.action_space, {"env": env_name}
+    )
     return env, policy
 
 
@@ -31,7 +31,8 @@ def test_policy(dice_sac_policy):
     assert np.all(info["action_prob"] >= 0.0)
     assert info["action_logp"].shape[0] == 400
     assert info["behaviour_logits"].shape == (
-        400, env.action_space.shape[0] * 2)
+        400, env.action_space.shape[0] * 2
+    )
 
     policy._lazy_initialize({"test_my_self": policy}, None)
 
@@ -44,7 +45,8 @@ def dice_sac_trainer():
     env = gym.make(env_name)
     trainer = DiCESACTrainer(
         get_marl_env_config(env_name, num_agents, normalize_actions=False),
-        env=MultiAgentEnvWrapper)
+        env=MultiAgentEnvWrapper
+    )
     return env, trainer
 
 
@@ -57,24 +59,26 @@ def regression_test(local_mode=False):
     num_agents = 3
     local_dir = tempfile.mkdtemp()
     initialize_ray(test_mode=True, local_mode=local_mode)
-    train(DiCESACTrainer,
-          {
-              "gamma": 0.95,
-              "target_network_update_freq": 32,
-              "tau": 1.0,
-              "train_batch_size": 200,
-              "rollout_fragment_length": 50,
-              "optimization": {
-                  "actor_learning_rate": 0.005,
-                  "critic_learning_rate": 0.005,
-                  "entropy_learning_rate": 0.0001
-              },
-              **get_marl_env_config(
-                  "CartPole-v0", num_agents, normalize_actions=False
-              )
-          },
-          {"episode_reward_mean": 150 * num_agents}, exp_name="DELETEME",
-          local_dir=local_dir, test_mode=True)
+    train(
+        DiCESACTrainer, {
+            "gamma": 0.95,
+            "target_network_update_freq": 32,
+            "tau": 1.0,
+            "train_batch_size": 200,
+            "rollout_fragment_length": 50,
+            "optimization": {
+                "actor_learning_rate": 0.005,
+                "critic_learning_rate": 0.005,
+                "entropy_learning_rate": 0.0001
+            },
+            **get_marl_env_config(
+                "CartPole-v0", num_agents, normalize_actions=False
+            )
+        }, {"episode_reward_mean": 150 * num_agents},
+        exp_name="DELETEME",
+        local_dir=local_dir,
+        test_mode=True
+    )
     shutil.rmtree(local_dir, ignore_errors=True)
 
 
@@ -83,34 +87,36 @@ def regression_test2(local_mode=False):
     num_agents = 3
     local_dir = tempfile.mkdtemp()
     initialize_ray(test_mode=True, local_mode=local_mode)
-    train(DiCESACTrainer,
-          {
-              "soft_horizon": True,
-              "clip_actions": False,
-              "normalize_actions": False,  # <<== Handle in MARL env
-              "metrics_smoothing_episodes": 5,
-              "no_done_at_end": True,
+    train(
+        DiCESACTrainer,
+        {
+            "soft_horizon": True,
+            "clip_actions": False,
+            "normalize_actions": False,  # <<== Handle in MARL env
+            "metrics_smoothing_episodes": 5,
+            "no_done_at_end": True,
+            "train_batch_size": 1000,
+            "rollout_fragment_length": 50,
+            constants.DELAY_UPDATE: tune.grid_search([True, False]),
+            # constants.NOR: tune.grid_search([True, False]),
 
-              "train_batch_size": 1000,
-              "rollout_fragment_length": 50,
-
-              constants.DELAY_UPDATE: tune.grid_search([True, False]),
-              # constants.NOR: tune.grid_search([True, False]),
-
-              # "optimization": {
-              #     "actor_learning_rate": 0.005,
-              #     "critic_learning_rate": 0.005,
-              #     "entropy_learning_rate": 0.0001
-              # },
-              **get_marl_env_config(
-                  "Pendulum-v0", num_agents, normalize_actions=True
-              )
-          },
-          {
-              "episode_reward_mean": -300 * num_agents,
-              "timesteps_total": 13000 * num_agents
-          }, exp_name="DELETEME",
-          local_dir=local_dir, test_mode=True)
+            # "optimization": {
+            #     "actor_learning_rate": 0.005,
+            #     "critic_learning_rate": 0.005,
+            #     "entropy_learning_rate": 0.0001
+            # },
+            **get_marl_env_config(
+                "Pendulum-v0", num_agents, normalize_actions=True
+            )
+        },
+        {
+            "episode_reward_mean": -300 * num_agents,
+            "timesteps_total": 13000 * num_agents
+        },
+        exp_name="DELETEME",
+        local_dir=local_dir,
+        test_mode=True
+    )
     shutil.rmtree(local_dir, ignore_errors=True)
 
 

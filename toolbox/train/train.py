@@ -16,11 +16,14 @@ from toolbox.utils import initialize_ray
 def register_bullet(env_name):
     assert isinstance(env_name, str)
     if "Bullet" in env_name:
+
         def make_pybullet(_=None):
             import pybullet_envs
             import gym
-            print("Successfully import pybullet and found: ",
-                  pybullet_envs.getList())
+            print(
+                "Successfully import pybullet and found: ",
+                pybullet_envs.getList()
+            )
             return gym.make(env_name)
 
         register_env(env_name, make_pybullet)
@@ -35,10 +38,13 @@ def register_minigrid(env_name):
             import gym_minigrid.envs
             import gym
             _ = gym_minigrid.envs
-            assert "MiniGrid-Empty-16x16-v0" in [s.id for s in
-                                                 gym.envs.registry.all()]
-            print("Successfully import minigrid environments. We will wrap"
-                  " observation using MiniGridWrapper(FlatObsWrapper).")
+            assert "MiniGrid-Empty-16x16-v0" in [
+                s.id for s in gym.envs.registry.all()
+            ]
+            print(
+                "Successfully import minigrid environments. We will wrap"
+                " observation using MiniGridWrapper(FlatObsWrapper)."
+            )
             return MiniGridWrapper(gym.make(env_name))
 
         register_env(env_name, make_minigrid)
@@ -84,7 +90,8 @@ def train(
     # prepare config
     used_config = {
         "seed": tune.grid_search(
-            [i * 100 + start_seed for i in range(num_seeds)]),
+            [i * 100 + start_seed for i in range(num_seeds)]
+        ),
         "log_level": "DEBUG" if test_mode else "INFO"
     }
     if config:
@@ -130,8 +137,9 @@ def train(
     )
 
     # save training progress as insurance
-    pkl_path = "{}-{}-{}{}.pkl".format(exp_name, trainer_name, env_name,
-                                       "" if not suffix else "-" + suffix)
+    pkl_path = "{}-{}-{}{}.pkl".format(
+        exp_name, trainer_name, env_name, "" if not suffix else "-" + suffix
+    )
     with open(pkl_path, "wb") as f:
         data = analysis.fetch_trial_dataframes()
         pickle.dump(data, f)

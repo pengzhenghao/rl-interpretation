@@ -14,7 +14,6 @@ from ray.rllib.utils import merge_dicts
 
 merge_dicts = merge_dicts
 
-
 # from ray.internal.internal_api import unpin_object_data
 # Update ray to 0.8.2 cause this function disappeared.
 

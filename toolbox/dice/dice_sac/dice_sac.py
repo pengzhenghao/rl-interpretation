@@ -80,12 +80,11 @@ def make_policy_optimizer(workers, config):
         prioritized_replay_beta=config["prioritized_replay_beta"],
         prioritized_replay_beta_annealing_timesteps=config[
             "prioritized_replay_beta_annealing_timesteps"],
-        final_prioritized_replay_beta=config[
-            "final_prioritized_replay_beta"],
+        final_prioritized_replay_beta=config["final_prioritized_replay_beta"],
         prioritized_replay_eps=config["prioritized_replay_eps"],
         train_batch_size=config["train_batch_size"],
-        **config["optimizer"])
-
+        **config["optimizer"]
+    )
 
 
 DiCESACTrainer = SACTrainer.with_updates(
@@ -93,10 +92,8 @@ DiCESACTrainer = SACTrainer.with_updates(
     default_config=dice_sac_default_config,
     default_policy=DiCESACPolicy,
     get_policy_class=lambda _: DiCESACPolicy,
-
     after_init=setup_policies_pool,
     after_optimizer_step=after_optimizer_step,
     validate_config=validate_config,
     make_policy_optimizer=make_policy_optimizer
-
 )

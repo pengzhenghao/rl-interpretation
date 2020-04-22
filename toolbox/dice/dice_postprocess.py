@@ -112,15 +112,15 @@ def _compute_advantages_for_diversity(
         advantage = discount(delta_t, gamma * lambda_)
         value_target = (advantage + values).copy().astype(np.float32)
     else:
-        rewards_plus_v = np.concatenate([
-            rewards.reshape(-1), np.array([last_r]).reshape(-1)
-        ])
+        rewards_plus_v = np.concatenate(
+            [rewards.reshape(-1),
+             np.array([last_r]).reshape(-1)]
+        )
         if rewards_plus_v.size <= 2:
             logger.warning(
                 "********** Current reward is empty: {}. last r {}. values {}"
-                ".".format(
-                    rewards, last_r, values
-                ))
+                ".".format(rewards, last_r, values)
+            )
             # rewards_plus_v = np.array([last_r])
         advantage = discount(rewards_plus_v, gamma)[:-1]
         value_target = np.zeros_like(advantage, dtype=np.float32)
