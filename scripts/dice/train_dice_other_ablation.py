@@ -34,6 +34,11 @@ if __name__ == '__main__':
         "num_cpus_for_driver": args.num_cpus_for_driver,
         "num_envs_per_worker": 8 if large else 5,
         'num_workers': 8 if large else 1,
+
+        TWO_SIDE_CLIP_LOSS: tune.grid_search([True]),
+        NORMALIZE_ADVANTAGE: tune.grid_search([False]),
+        DELAY_UPDATE: tune.grid_search([True]),
+        USE_DIVERSITY_VALUE_NETWORK: tune.grid_search([False]),
     }
 
     config.update(
