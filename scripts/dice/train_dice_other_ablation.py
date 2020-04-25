@@ -65,5 +65,6 @@ if __name__ == '__main__':
         num_seeds=args.num_seeds,
         num_gpus=args.num_gpus,
         test_mode=args.test,
-        keep_checkpoints_num=10
+        keep_checkpoints_num=10,
+        local_dir="/dev/shm/pengzh/ray_results"
     )

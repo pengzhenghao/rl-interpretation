@@ -85,7 +85,6 @@ def kl_and_loss_stats_modified(policy, train_batch):
         "policy_loss": policy.loss_obj.mean_policy_loss,
         "vf_loss": policy.loss_obj.mean_vf_loss,
         "kl": policy.loss_obj.mean_kl,
-        "vf_debug_ratio": policy.loss_obj.vf_debug_ratio,
         "entropy": policy.loss_obj.mean_entropy,
         "entropy_coeff": tf.cast(policy.entropy_coeff, tf.float64),
         "vf_explained_var": explained_variance(
@@ -100,6 +99,8 @@ def kl_and_loss_stats_modified(policy, train_batch):
         # "diversity_entropy": policy.diversity_loss_obj.mean_entropy,
         "diversity_reward_mean": policy.diversity_reward_mean,
     }
+    if hasattr(policy.loss_obj, "vf_debug_ratio"):
+        ret["vf_debug_ratio"] = policy.loss_obj.vf_debug_ratio
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret['diversity_vf_explained_var'] = explained_variance(
             train_batch[DIVERSITY_VALUE_TARGETS],
