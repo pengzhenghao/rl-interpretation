@@ -146,7 +146,7 @@ def dice_loss(policy, model, dist_class, train_batch):
     #  not two-side clipped loss mode.
 
     policy.loss_obj = loss_cls(
-        None,
+        # None,
         dist_class,
         model,
         train_batch[Postprocessing.VALUE_TARGETS],
@@ -164,7 +164,7 @@ def dice_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        vf_ratio_clip_param=policy.config["vf_ratio_clip_param"]  # problematic
+        # vf_ratio_clip_param=policy.config["vf_ratio_clip_param"]  # problematic
     )
 
     # Build the loss for diversity
