@@ -107,8 +107,8 @@ def get_env_maker(name, require_render=False):
         return lambda: MiniGridWrapper(gym.make(name))
     else:
         assert name in [s.id for s in gym.envs.registry.all()], \
-            "name of env not in {}".format(
-                [s.id for s in gym.envs.registry.all()])
+            "name of env {} not in {}".format(
+                name, [s.id for s in gym.envs.registry.all()])
         return lambda: gym.make(name)
 
 
