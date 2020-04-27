@@ -59,7 +59,7 @@ class PPOLossTwoSideDiversity(object):
 class PPOLossTwoSideClip(object):
     def __init__(
             self,
-            _useless,
+            # _useless,
             dist_class,
             model,
             value_targets,
@@ -141,10 +141,6 @@ def dice_loss(policy, model, dist_class, train_batch):
     loss_cls = PPOLossTwoSideClip \
         if policy.config[TWO_SIDE_CLIP_LOSS] else PPOLoss
 
-    # FIXME In ray > 0.8.1, the PPO loss has changed its signature
-    #  So we need to make some modification on this to prevent error in
-    #  not two-side clipped loss mode.
-
     policy.loss_obj = loss_cls(
         # None,
         dist_class,
@@ -164,7 +160,7 @@ def dice_loss(policy, model, dist_class, train_batch):
         vf_clip_param=policy.config["vf_clip_param"],
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         use_gae=policy.config["use_gae"],
-        # vf_ratio_clip_param=policy.config["vf_ratio_clip_param"]  # problematic
+        # vf_ratio_clip_param=policy.config["vf_ratio_clip_param"]
     )
 
     # Build the loss for diversity
