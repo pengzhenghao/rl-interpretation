@@ -56,7 +56,7 @@ class PPOLossTwoSideDiversity(object):
         self.loss = loss
 
 
-class PPOLossTwoSideClip(object):
+class PPOLossTwoSideClip:
     def __init__(
             self,
             # _useless,
@@ -90,6 +90,7 @@ class PPOLossTwoSideClip(object):
             logp_ratio > 1 - vf_ratio_clip_param,
             logp_ratio < 1 + vf_ratio_clip_param
         )
+        self.debug_ratio = logp_ratio
         self.vf_debug_ratio = tf.cast(new_vf_mask, tf.float32)
 
         action_kl = prev_dist.kl(curr_action_dist)
