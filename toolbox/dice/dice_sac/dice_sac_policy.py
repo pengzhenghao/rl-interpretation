@@ -1,7 +1,7 @@
 from gym.spaces import Box, Discrete
 from ray.rllib.agents.ddpg.noop_model import NoopModel
 from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch
-from ray.rllib.agents.sac.sac_policy import SACTFPolicy, TargetNetworkMixin, \
+from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy, TargetNetworkMixin, \
     ActorCriticOptimizerMixin, ComputeTDErrorMixin, postprocess_trajectory, \
     get_dist_class
 from ray.rllib.models import ModelCatalog
@@ -11,7 +11,7 @@ from ray.rllib.utils.tf_ops import make_tf_callable
 from toolbox.dice.dice_policy import grad_stats_fn, \
     DiversityValueNetworkMixin, \
     ComputeDiversityMixin
-from toolbox.dice.dice_postprocess import ACTION_LOGP, BEHAVIOUR_LOGITS, \
+from toolbox.dice.dice_postprocess import \
     MY_LOGIT
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
 from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, \
@@ -155,13 +155,13 @@ def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
         batch[DIVERSITY_REWARDS] = batch["rewards"].copy()
         batch[DIVERSITY_VALUE_TARGETS] = batch["rewards"].copy()
         batch[DIVERSITY_ADVANTAGES] = batch["rewards"].copy()
-        batch['other_action_logp'] = batch[ACTION_LOGP].copy()
+        batch['other_action_logp'] = batch[SampleBatch.ACTION_LOGP].copy()
         return batch
 
     if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
         batch = sample_batch.copy()
         batch = postprocess_trajectory(policy, batch)
-        batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
+        batch[MY_LOGIT] = batch[SampleBatch.ACTION_DIST_INPUTS]
         batch = postprocess_diversity(policy, batch, others_batches)
         batches = [batch]
     else:
@@ -179,7 +179,7 @@ def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
         replay_result = policy.compute_actions(
             other_batch_raw[SampleBatch.CUR_OBS]
         )[2]
-        other_batch_raw[MY_LOGIT] = replay_result[BEHAVIOUR_LOGITS]
+        other_batch_raw[MY_LOGIT] = replay_result[SampleBatch.ACTION_DIST_INPUTS]
 
         # Compute the diversity reward and diversity advantage of this batch.
         other_batch_raw = postprocess_diversity(
@@ -256,7 +256,7 @@ def before_loss_init(policy, obs_space, action_space, config):
 
 def extra_action_fetches_fn(policy):
     ret = {
-        BEHAVIOUR_LOGITS: policy.model.action_model(
+        SampleBatch.ACTION_DIST_INPUTS: policy.model.action_model(
             policy.model.last_output()
         )
     }
@@ -290,7 +290,7 @@ class ComputeDiversityMixinModified(ComputeDiversityMixin):
                 _, _, info = other_policy.compute_actions(
                     my_batch[SampleBatch.CUR_OBS]
                 )
-                replays[other_name] = info[BEHAVIOUR_LOGITS]
+                replays[other_name] = info[SampleBatch.ACTION_DIST_INPUTS]
 
         # Compute the diversity loss based on the action distribution of
         # this policy and other polices.

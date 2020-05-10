@@ -1,6 +1,6 @@
 import ray
 from ray.rllib.agents.dqn.dqn import update_target_if_needed, \
-    validate_config_and_setup_param_noise
+    validate_config as validate_config_and_setup_param_noise
 from ray.rllib.agents.sac.sac import SACTrainer
 from ray.tune.registry import _global_registry, ENV_CREATOR
 

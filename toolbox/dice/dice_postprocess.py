@@ -7,8 +7,7 @@ policies. We also compute the diversity reward and diversity advantage of this
 policy.
 """
 from ray.rllib.agents.ppo.ppo_tf_policy import postprocess_ppo_gae, \
-    ACTION_LOGP, \
-    SampleBatch, BEHAVIOUR_LOGITS
+    SampleBatch
 from ray.rllib.evaluation.postprocessing import discount
 
 from toolbox.dice.utils import *
@@ -22,7 +21,7 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
         batch[DIVERSITY_REWARDS] = batch["advantages"].copy()
         batch[DIVERSITY_VALUE_TARGETS] = batch["advantages"].copy()
         batch[DIVERSITY_ADVANTAGES] = batch["advantages"].copy()
-        batch['other_action_logp'] = batch[ACTION_LOGP].copy()
+        batch['other_action_logp'] = batch[SampleBatch.ACTION_LOGP].copy()
         return batch
 
     if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):

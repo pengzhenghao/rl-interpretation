@@ -1,5 +1,5 @@
 import numpy as np
-from ray.rllib.agents.sac.sac_policy import get_dist_class
+from ray.rllib.agents.sac.sac_tf_policy import get_dist_class
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.tf_ops import minimize_and_clip
 
