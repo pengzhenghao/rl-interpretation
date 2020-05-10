@@ -42,8 +42,12 @@ def _parse_tag(tag):
     tag: 0_normalize_advantage=True,seed=0,tau=0.1,mode=None
     ret: {'normalize_advantage': True, 'seed': 0, 'tau': 0.1, 'mode': None}
     """
+    tag = str(tag)
     ret = {}
-    tag = re.match("\d+_(.*)", tag).groups()[0]
+    match_result = re.match("\d+_(.*)", tag)
+    if match_result is None:
+        return {}
+    tag = match_result.groups()[0]
     for part in tag.split(","):
         key, value = part.split('=')
         try:
