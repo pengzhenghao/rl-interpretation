@@ -208,8 +208,11 @@ def main(
             disable_early_stop=disable_early_stop
         )
 
-    print("Finish! Current best reward {:.4f}, best agent {}".format(
-        iteration_info['best_reward'], iteration_info['best_agent']))
+    print(
+        "Finish! Current best reward {:.4f}, best agent {}".format(
+            iteration_info['best_reward'], iteration_info['best_agent']
+        )
+    )
 
     # Save data
     for agent_name, result in result_dict.items():
@@ -221,8 +224,10 @@ def main(
     agent_dict_file_name = "{}_agent_dict.pkl".format(exp_name)
     with open(agent_dict_file_name, 'wb') as f:
         pickle.dump(info_dict, f)
-    print("Data has been saved at: {}. "
-          "Terminate the program.".format(agent_dict_file_name))
+    print(
+        "Data has been saved at: {}. "
+        "Terminate the program.".format(agent_dict_file_name)
+    )
 
 
 if __name__ == '__main__':
@@ -237,11 +242,11 @@ if __name__ == '__main__':
     num_gpus = 1 if not args.test else 0
     print("Force to use 1 gpu.")
 
-
     def ray_init():
         ray.shutdown()
-        initialize_ray(test_mode=args.test, num_gpus=num_gpus, local_mode=False)
-
+        initialize_ray(
+            test_mode=args.test, num_gpus=num_gpus, local_mode=False
+        )
 
     large = env_name in ["Walker2d-v3", "Hopper-v3"]
     if large:

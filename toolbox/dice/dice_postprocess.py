@@ -27,7 +27,7 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
     if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
         batch = sample_batch.copy()
         batch = postprocess_ppo_gae(policy, batch)
-        batch[MY_LOGIT] = batch[BEHAVIOUR_LOGITS]
+        batch[MY_LOGIT] = batch[SampleBatch.ACTION_DIST_INPUTS]
         batch = postprocess_diversity(policy, batch, others_batches)
         batches = [batch]
     else:
@@ -45,7 +45,8 @@ def postprocess_dice(policy, sample_batch, others_batches, episode):
         replay_result = policy.compute_actions(
             other_batch_raw[SampleBatch.CUR_OBS]
         )[2]
-        other_batch_raw[MY_LOGIT] = replay_result[BEHAVIOUR_LOGITS]
+        other_batch_raw[MY_LOGIT] = replay_result[
+            SampleBatch.ACTION_DIST_INPUTS]
 
         # Compute the diversity reward and diversity advantage of this batch.
         other_batch_raw = postprocess_diversity(

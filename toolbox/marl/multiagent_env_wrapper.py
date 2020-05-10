@@ -11,8 +11,11 @@ from toolbox.env import get_env_maker
 def get_marl_env_config(env_name, num_agents, normalize_actions=False):
     config = {
         "env": MultiAgentEnvWrapper,
-        "env_config": {"env_name": env_name, "num_agents": num_agents,
-                       "normalize_actions": normalize_actions},
+        "env_config": {
+            "env_name": env_name,
+            "num_agents": num_agents,
+            "normalize_actions": normalize_actions
+        },
         "multiagent": {}
     }
     return config
@@ -62,7 +65,8 @@ class MultiAgentEnvWrapper(MultiAgentEnv, gym.Env):
             # raise error is act is NaN
             if not np.all(np.isfinite(act)):
                 raise ValueError(
-                    "Agent {} input is not finite: {}".format(aid, act))
+                    "Agent {} input is not finite: {}".format(aid, act)
+                )
             act = np.nan_to_num(act, copy=False)
             o, r, d, i = self.envs[aid].step(act)
             if d:
@@ -102,12 +106,12 @@ if __name__ == '__main__':
     mae.reset()
     for i in count():
         time.sleep(0.05)
-        acts = {
-            a: np.random.randint(2) for a in alive
-        }
+        acts = {a: np.random.randint(2) for a in alive}
         ret = mae.step(acts)
-        print("At timestep {}, the applied action is {} and the return is {}"
-              "".format(i, acts, ret))
+        print(
+            "At timestep {}, the applied action is {} and the return is {}"
+            "".format(i, acts, ret)
+        )
         for dead_id, dead in ret[2].items():
             if dead_id == "__all__" or (not dead):
                 continue

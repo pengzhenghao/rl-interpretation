@@ -25,8 +25,10 @@ def rollout(policy, env, timestep_limit=None, add_noise=False):
     noise drawn from that stream. Otherwise, no action noise will be added.
     """
     env_timestep_limit = env.spec.max_episode_steps
-    timestep_limit = (env_timestep_limit if timestep_limit is None else min(
-        timestep_limit, env_timestep_limit))
+    timestep_limit = (
+        env_timestep_limit
+        if timestep_limit is None else min(timestep_limit, env_timestep_limit)
+    )
     rews = []
     t = 0
     observation = env.reset()
@@ -42,39 +44,48 @@ def rollout(policy, env, timestep_limit=None, add_noise=False):
 
 
 class GenericPolicy(object):
-    def __init__(self, sess, action_space, obs_space, preprocessor,
-                 observation_filter, model_options, action_noise_std):
+    def __init__(
+            self, sess, action_space, obs_space, preprocessor,
+            observation_filter, model_options, action_noise_std
+    ):
         self.sess = sess
         self.action_space = action_space
         self.action_noise_std = action_noise_std
         self.preprocessor = preprocessor
-        self.observation_filter = get_filter(observation_filter,
-                                             self.preprocessor.shape)
-        self.inputs = tf.placeholder(tf.float32,
-                                     [None] + list(self.preprocessor.shape))
+        self.observation_filter = get_filter(
+            observation_filter, self.preprocessor.shape
+        )
+        self.inputs = tf.placeholder(
+            tf.float32, [None] + list(self.preprocessor.shape)
+        )
 
         # Policy network.
         dist_class, dist_dim = ModelCatalog.get_action_dist(
-            self.action_space, model_options, dist_type="deterministic")
-        model = ModelCatalog.get_model({
-            "obs": self.inputs
-        }, obs_space, action_space, dist_dim, model_options)
+            self.action_space, model_options, dist_type="deterministic"
+        )
+        model = ModelCatalog.get_model(
+            {"obs": self.inputs}, obs_space, action_space, dist_dim,
+            model_options
+        )
         dist = dist_class(model.outputs, model)
         self.sampler = dist.sample()
 
         self.variables = ray.experimental.tf_utils.TensorFlowVariables(
-            model.outputs, self.sess)
+            model.outputs, self.sess
+        )
 
         self.num_params = sum(
             np.prod(variable.shape.as_list())
-            for _, variable in self.variables.variables.items())
+            for _, variable in self.variables.variables.items()
+        )
         self.sess.run(tf.global_variables_initializer())
 
     def compute(self, observation, add_noise=False, update=True):
         observation = self.preprocessor.transform(observation)
         observation = self.observation_filter(observation[None], update=update)
         action = self.sess.run(
-            self.sampler, feed_dict={self.inputs: observation})
+            self.sampler, feed_dict={self.inputs: observation}
+        )
         action = _unbatch_tuple_actions(action)
         if add_noise and isinstance(self.action_space, gym.spaces.Box):
             action += np.random.randn(*action.shape) * self.action_noise_std

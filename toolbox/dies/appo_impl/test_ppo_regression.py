@@ -56,8 +56,9 @@ if __name__ == '__main__':
             "num_envs_per_worker": 10,
             "num_gpus": num_gpus,
             "vtrace": False,
-
-            "model": {"vf_share_layers": False},
+            "model": {
+                "vf_share_layers": False
+            },
         }
         ret = tune.run(
             "APPO",
@@ -105,8 +106,8 @@ if __name__ == '__main__':
             "num_gpus": num_gpus,
             "train_batch_size": 4000,
             "sample_batch_size": 200,
-            "num_workers":  args.num_agents,
-            "num_agents":  args.num_agents,
+            "num_workers": args.num_agents,
+            "num_agents": args.num_agents,
             "num_envs_per_worker": 10,
             old_const.USE_BISECTOR: False,
 

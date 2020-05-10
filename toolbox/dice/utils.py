@@ -104,7 +104,8 @@ PURE_OFF_POLICY = "pure_off_policy"
 NORMALIZE_ADVANTAGE = "normalize_advantage"
 
 dice_default_config = merge_dicts(
-    PPO_DEFAULT, {
+    PPO_DEFAULT,
+    {
         USE_BISECTOR: True,
         USE_DIVERSITY_VALUE_NETWORK: False,
         DELAY_UPDATE: True,

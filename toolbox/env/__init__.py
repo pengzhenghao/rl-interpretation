@@ -16,7 +16,9 @@ def register_minigrid():
         print("Failed to import minigrid environment!")
     else:
         assert "MiniGrid-Empty-16x16-v0" in [
-            s.id for s in gym.envs.registry.all()]
+            s.id for s in gym.envs.registry.all()
+        ]
         print("Successfully imported minigrid environments!")
+
 
 # register_minigrid()

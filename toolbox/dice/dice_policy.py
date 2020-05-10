@@ -9,7 +9,7 @@ following functions for each policy:
 import gym
 from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
     ValueNetworkMixin, KLCoeffMixin, \
-    EntropyCoeffSchedule, BEHAVIOUR_LOGITS, PPOTFPolicy
+    EntropyCoeffSchedule, PPOTFPolicy
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.sample_batch import SampleBatch
@@ -22,6 +22,7 @@ from toolbox.dice.dice_postprocess import postprocess_dice, MY_LOGIT
 from toolbox.dice.utils import *
 
 logger = logging.getLogger(__name__)
+BEHAVIOUR_LOGITS = SampleBatch.ACTION_DIST_INPUTS
 
 
 def grad_stats_fn(policy, batch, grads):

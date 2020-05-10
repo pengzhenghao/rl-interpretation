@@ -18,7 +18,6 @@ dies_default_config = merge_dicts(
     }
 )
 
-
 DiESTrainer = DiCETrainer.with_updates(
     name="DiES",
     default_config=dies_default_config,

@@ -57,8 +57,7 @@ def validate_config(config):
                       config['env_config']['num_agents'],
                       config['sample_batch_size'])
         assert config['sgd_minibatch_size'] >= (
-                config['env_config']['num_agents'] * config[
-            'sample_batch_size']
+            config['env_config']['num_agents'] * config['sample_batch_size']
         )
 
     validate_config_original(config)
@@ -157,10 +156,12 @@ def after_optimizer_iteration(trainer, fetches):
                 pi.update_alpha(fetches[pi_id]["novelty_reward_mean"])
             else:
                 logger.debug(
-                    "No data for {}, not updating alpha".format(pi_id))
+                    "No data for {}, not updating alpha".format(pi_id)
+                )
 
         trainer.workers.foreach_worker(
-            lambda w: w.foreach_trainable_policy(update))
+            lambda w: w.foreach_trainable_policy(update)
+        )
 
 
 DECETrainer = PPOTrainer.with_updates(

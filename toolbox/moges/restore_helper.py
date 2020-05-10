@@ -14,9 +14,7 @@ from toolbox.evolution.modified_es import GaussianESTrainer
 from toolbox.moges.fcnet_tanh import FullyConnectedNetworkTanh
 
 register_mixture_action_distribution()
-ModelCatalog.register_custom_model(
-    "fc_with_tanh", FullyConnectedNetworkTanh
-)
+ModelCatalog.register_custom_model("fc_with_tanh", FullyConnectedNetworkTanh)
 
 
 class MOGESAgent:
@@ -40,8 +38,9 @@ class MOGESAgent:
         self.is_deterministic = config["model"]["custom_action_dist"] == \
                                 DeterministicMixture.name
         self.expect_logit_length = (
-            self.k * (1 + 2 * self.action_dim) if not self.is_deterministic else
-            self.k * (1 + self.action_dim))
+            self.k * (1 + 2 * self.action_dim)
+            if not self.is_deterministic else self.k * (1 + self.action_dim)
+        )
 
         assert osp.exists(ckpt)
         if existing_agent is not None:
@@ -65,8 +64,8 @@ class MOGESAgent:
     def _get_std(self):
         assert not self.is_deterministic
         if self._log_std == None:
-            log_std = self.agent.get_policy().variables.get_weights()[
-                "default_policy/learnable_log_std"]
+            log_std = self.agent.get_policy().variables.get_weights(
+            )["default_policy/learnable_log_std"]
             self._log_std = log_std
         return self._log_std
 
@@ -85,16 +84,13 @@ class MOGESAgent:
         if not self.is_deterministic:
             mean, log_std, weight = np.split(
                 logits,
-                [self.action_dim * self.k, 2 * self.action_dim * self.k])
+                [self.action_dim * self.k, 2 * self.action_dim * self.k]
+            )
         else:
-            mean, weight = np.split(
-                logits,
-                [self.action_dim * self.k, ])
+            mean, weight = np.split(logits, [
+                self.action_dim * self.k,
+            ])
             log_std = -np.inf * np.ones_like(mean)
 
         assert len(weight) == self.k
-        return dict(
-            mean=mean,
-            log_std=log_std,
-            weight=weight
-        )
+        return dict(mean=mean, log_std=log_std, weight=weight)

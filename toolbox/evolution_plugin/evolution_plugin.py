@@ -24,20 +24,22 @@ logger = logging.getLogger(__name__)
 ESPlugin = GaussianESTrainer
 # ARSPlugin = GaussianARSTrainer
 
-
 ppo_es_default_config = merge_dicts(
     DEFAULT_CONFIG,
     dict(
         # set episodes_per_batch to 1 so that only train_batch_size control ES
         # learning steps in each epoch
-        evolution=merge_dicts(es_config, dict(
-            episodes_per_batch=1,
-            train_batch_size=4000,
-            num_cpus_per_worker=0.5,
-            # faster if more workers are used
-            num_workers=10,  # 6 CPU for evolution plugin
-            optimizer_type="sgd",  # must in [adam, sgd]
-        )),
+        evolution=merge_dicts(
+            es_config,
+            dict(
+                episodes_per_batch=1,
+                train_batch_size=4000,
+                num_cpus_per_worker=0.5,
+                # faster if more workers are used
+                num_workers=10,  # 6 CPU for evolution plugin
+                optimizer_type="sgd",  # must in [adam, sgd]
+            )
+        ),
         grad_clip=40,
 
         # must in [HARD_FUSE, SOFT_FUSE]
@@ -83,16 +85,13 @@ def _get_diff(new_weights, old_weights):
 
 
 def _sync_weights(trainer, plugin):
-    plugin.set_weights.remote(
-        _filter_weights(trainer.get_weights()))
+    plugin.set_weights.remote(_filter_weights(trainer.get_weights()))
 
 
 def _filter_weights(weights):
     """Filter out the weights of value network"""
     assert isinstance(weights, dict)
-    return {
-        wid: w for wid, w in weights.items() if "value" not in wid
-    }
+    return {wid: w for wid, w in weights.items() if "value" not in wid}
 
 
 def _check_shapes(shapes1, shapes2):
@@ -117,22 +116,24 @@ def after_init(trainer):
         def step(self, _test_return_old_weights=False):
             if _test_return_old_weights:
                 old_weights = copy.deepcopy(
-                    self.get_policy().variables.get_weights())
+                    self.get_policy().variables.get_weights()
+                )
             train_result = self.train()
             ret_train_result = train_result["info"]
-            ret_train_result["timesteps_this_iter"] = train_result[
-                "timesteps_this_iter"]
-            ret_train_result["timesteps_total"] = train_result[
-                "timesteps_total"]
-            ret_train_result["episode_reward_mean"] = train_result[
-                "episode_reward_mean"]
+            ret_train_result["timesteps_this_iter"
+                             ] = train_result["timesteps_this_iter"]
+            ret_train_result["timesteps_total"
+                             ] = train_result["timesteps_total"]
+            ret_train_result["episode_reward_mean"
+                             ] = train_result["episode_reward_mean"]
             weights = self.get_policy().variables.get_weights()  # dict weights
             if _test_return_old_weights:
                 return ret_train_result, weights, old_weights
             return ret_train_result, weights
 
     trainer._evolution_plugin = EvolutionPluginRemote.remote(
-        trainer.config["evolution"], trainer.config["env"])
+        trainer.config["evolution"], trainer.config["env"]
+    )
     _sync_weights(trainer, trainer._evolution_plugin)
 
     # These three internal variables should be updated each optimization step
@@ -149,27 +150,33 @@ def after_optimizer_step(trainer, fetches):
     evolution_train_result, new_weights = \
         ray_get_and_free(trainer._evolution_result)
     trainer.state["plugin"] = ray_get_and_free(
-        trainer._evolution_plugin.__getstate__.remote())
+        trainer._evolution_plugin.__getstate__.remote()
+    )
     evolution_train_result["evolution_time"] = \
         time.time() - trainer._evolution_start_time
 
     # Compute the difference compared to master weights
     evolution_diff, shapes2 = _get_diff(
-        new_weights, trainer._previous_master_weights)
+        new_weights, trainer._previous_master_weights
+    )
     current_master_weights = trainer.get_policy().get_weights()
     master_diff, shapes = _get_diff(
-        current_master_weights, trainer._previous_master_weights)
+        current_master_weights, trainer._previous_master_weights
+    )
     _check_shapes(shapes, shapes2)
 
     # Compute the fuse gradient
     with trainer._fuse_timer:
         new_grad, stats = fuse_gradient(
-            master_diff, evolution_diff, trainer.config["fuse_mode"],
+            master_diff,
+            evolution_diff,
+            trainer.config["fuse_mode"],
             max_grad_norm=trainer.config["grad_clip"],
             equal_norm=trainer.config["equal_norm"]
         )
-        updated_weights = _flatten(_filter_weights(
-            trainer._previous_master_weights))[0] + new_grad
+        updated_weights = _flatten(
+            _filter_weights(trainer._previous_master_weights)
+        )[0] + new_grad
         updated_weights = _unflatten(updated_weights, shapes)
         assert all("value" not in k for k in updated_weights.keys())
     stats["fuse_time"] = trainer._fuse_timer.mean
@@ -204,18 +211,19 @@ class OverrideDefaultResourceRequest:
     def default_resource_request(cls, config):
         cf = merge_dicts(cls._default_config, config)
         return Resources(
-            cpu=cf["num_cpus_for_driver"] + cf["evolution"][
-                "num_cpus_for_driver"],
+            cpu=cf["num_cpus_for_driver"] +
+            cf["evolution"]["num_cpus_for_driver"],
             gpu=cf["num_gpus"],
             memory=cf["memory"],
             object_store_memory=cf["object_store_memory"],
             extra_cpu=cf["num_cpus_per_worker"] * cf["num_workers"] +
-                      cf["evolution"]["num_cpus_per_worker"] * cf["evolution"][
-                          "num_workers"],  # <<== Add plugin CPUs
+            cf["evolution"]["num_cpus_per_worker"] *
+            cf["evolution"]["num_workers"],  # <<== Add plugin CPUs
             extra_gpu=cf["num_gpus_per_worker"] * cf["num_workers"],
             extra_memory=cf["memory_per_worker"] * cf["num_workers"],
             extra_object_store_memory=cf["object_store_memory_per_worker"] *
-                                      cf["num_workers"])
+            cf["num_workers"]
+        )
 
 
 EPPolicy = PPOTFPolicy.with_updates(
@@ -236,8 +244,19 @@ EPTrainer = PPOTrainer.with_updates(
 )
 
 if __name__ == '__main__':
-    config = {"env": "CartPole-v0", "num_sgd_iter": 2, "train_batch_size": 400,
-              "evolution": {"num_workers": 3}}
+    config = {
+        "env": "CartPole-v0",
+        "num_sgd_iter": 2,
+        "train_batch_size": 400,
+        "evolution": {
+            "num_workers": 3
+        }
+    }
     initialize_ray(test_mode=True, local_mode=True)
-    train(EPTrainer, config, exp_name="DELETE_ME_TEST", test_mode=True,
-          stop={"timesteps_total": 10000})
+    train(
+        EPTrainer,
+        config,
+        exp_name="DELETE_ME_TEST",
+        test_mode=True,
+        stop={"timesteps_total": 10000}
+    )

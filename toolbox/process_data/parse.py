@@ -11,6 +11,7 @@ import scipy.interpolate
 from ray.tune.analysis.experiment_analysis import Analysis, ExperimentAnalysis
 import numbers
 
+
 def _process_input(path_or_obj):
     if isinstance(path_or_obj, str):
         # analysis directory, pkl file path or experiment state json path.
@@ -32,7 +33,8 @@ def _process_input(path_or_obj):
         raise NotImplementedError(
             "We expect the input is trial_dataframes dict, an analysis object,"
             " path toward a experiment, path toward a experiment_state json "
-            "file.")
+            "file."
+        )
     assert isinstance(trial_dict, dict)
     return trial_dict
 
@@ -67,8 +69,13 @@ def get_keys(path_or_obj):
     return keys
 
 
-def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
-          interpolate_x="timesteps_total"):
+def parse(
+        path_or_obj,
+        interpolate=True,
+        keys=None,
+        name_mapping=None,
+        interpolate_x="timesteps_total"
+):
     """
 
     :param path_or_obj: can be the following four type of inputs:
@@ -117,7 +124,8 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
             logging.debug(
                 "In experiment {}, detect tag {} with value {}".format(
                     trial_df.experiment_tag[0], tag_name, tag_value
-                ))
+                )
+            )
     if name_mapping is not None:
         """To simplify the keys, you can set 
             name_mapping = {
@@ -164,7 +172,8 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
     range_min = 0
     range_max = int(potential.max())
     interpolate_range = np.linspace(
-        range_min, range_max, int(max(len(df) for df in trial_list)) * 1
+        range_min, range_max,
+        int(max(len(df) for df in trial_list)) * 1
     )
 
     # Step 5: interpolate for each trail, each key
@@ -182,8 +191,7 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
                 if k in investigate_keys:
                     if isinstance(df[k][0], numbers.Number):
                         new_df[k] = scipy.interpolate.interp1d(
-                            df[interpolate_x],
-                            df[k]
+                            df[interpolate_x], df[k]
                         )(mask_rang)
                     else:
                         new_df[k] = df[k].unique()[0]

@@ -35,8 +35,9 @@ if __name__ == '__main__':
 
     algo = args.algo
     test = args.test
-    exp_name = "{}-{}-{}-{}seeds".format(args.exp_name, algo,
-                                         args.env_name, args.num_seeds)
+    exp_name = "{}-{}-{}-{}seeds".format(
+        args.exp_name, algo, args.env_name, args.num_seeds
+    )
 
     algo_specify_config = {
         "PPO": {
@@ -46,11 +47,21 @@ if __name__ == '__main__':
             "lambda": 0.95,
             "lr": 2.5e-4,
         },
-        "ES": {"model": {"vf_share_layers": False}},
-        "ARS": {"model": {"vf_share_layers": False}},
+        "ES": {
+            "model": {
+                "vf_share_layers": False
+            }
+        },
+        "ARS": {
+            "model": {
+                "vf_share_layers": False
+            }
+        },
         "A2C": {
             # "num_envs_per_worker": 8,
-            "model": {"vf_share_layers": False},
+            "model": {
+                "vf_share_layers": False
+            },
             "entropy_coeff": 0.0,
             # "lr": 1e-5
         },
@@ -60,13 +71,17 @@ if __name__ == '__main__':
             # "entropy_coeff": 0.001,
             "entropy_coeff": 0.0,
             # "lr": 1e-5,
-            "model": {"vf_share_layers": False}
+            "model": {
+                "vf_share_layers": False
+            }
         },
         "IMPALA": {
             "num_envs_per_worker": 8,
             "entropy_coeff": 0.001,
             "lr": 1e-4,
-            "model": {"vf_share_layers": False}
+            "model": {
+                "vf_share_layers": False
+            }
         },
     }
 
@@ -110,7 +125,8 @@ if __name__ == '__main__':
         config["model"]["custom_model"] = TANH_MODEL
     else:
         raise ValueError(
-            "You are not using tanh activation in the output layer!")
+            "You are not using tanh activation in the output layer!"
+        )
 
     if args.use_deterministic:
         config["model"]["custom_action_dist"] = DeterministicMixture.name
@@ -131,8 +147,11 @@ if __name__ == '__main__':
         from toolbox import initialize_ray
         import os
 
-        initialize_ray(address=os.environ["ip_head"], test_mode=args.test,
-                       redis_password=args.redis_password)
+        initialize_ray(
+            address=os.environ["ip_head"],
+            test_mode=args.test,
+            redis_password=args.redis_password
+        )
 
     train(
         get_dynamic_trainer(algo),

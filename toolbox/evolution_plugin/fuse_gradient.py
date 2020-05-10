@@ -17,8 +17,13 @@ def _clip_grad(grad, max_grad_norm):
     return ret_grad, grad_norm
 
 
-def fuse_gradient(master_diff, evolution_diff, fuse_mode, max_grad_norm=None,
-                  equal_norm=False):
+def fuse_gradient(
+        master_diff,
+        evolution_diff,
+        fuse_mode,
+        max_grad_norm=None,
+        equal_norm=False
+):
     assert isinstance(master_diff, np.ndarray)
     assert isinstance(evolution_diff, np.ndarray)
     assert master_diff.ndim == 1
@@ -57,14 +62,18 @@ def fuse_gradient(master_diff, evolution_diff, fuse_mode, max_grad_norm=None,
 
         # Compute the mean projection length
         master_proj_length = np.linalg.norm(np.dot(master_diff, bisector))
-        evolution_proj_length = np.linalg.norm(np.dot(evolution_diff, bisector))
+        evolution_proj_length = np.linalg.norm(
+            np.dot(evolution_diff, bisector)
+        )
         bisector = bisector * (master_proj_length + evolution_proj_length) / 2
         return_diff = bisector
 
     else:
-        raise ValueError("Your input fuse_mode {} not in {}.".format(
-            fuse_mode, [HARD_FUSE, SOFT_FUSE]
-        ))
+        raise ValueError(
+            "Your input fuse_mode {} not in {}.".format(
+                fuse_mode, [HARD_FUSE, SOFT_FUSE]
+            )
+        )
 
     stats = dict(
         master_diff_norm=md_norm,

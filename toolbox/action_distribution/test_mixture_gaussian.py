@@ -10,14 +10,20 @@ from toolbox.evolution import GaussianESTrainer
 @pytest.fixture(params=[1, 2, 3])
 def gaussian_mixture_trainer(request):
     initialize_ray(test_mode=True, local_mode=False)
-    trainer = PGTrainer(env="BipedalWalker-v2", config={
-        "model": {
-            "custom_action_dist": GaussianMixture.name,
-            "custom_options": {"num_components": request.param}},
-        "num_workers": 0,
-        "train_batch_size": 300,
-        "sample_batch_size": 100
-    })
+    trainer = PGTrainer(
+        env="BipedalWalker-v2",
+        config={
+            "model": {
+                "custom_action_dist": GaussianMixture.name,
+                "custom_options": {
+                    "num_components": request.param
+                }
+            },
+            "num_workers": 0,
+            "train_batch_size": 300,
+            "sample_batch_size": 100
+        }
+    )
     return trainer
 
 
@@ -30,15 +36,21 @@ def test_gaussian_mixture(gaussian_mixture_trainer):
 @pytest.fixture(params=[1, 2, 3])
 def deterministic_mixture_trainer(request):
     initialize_ray(test_mode=True, local_mode=True)
-    trainer = GaussianESTrainer(env="BipedalWalker-v2", config={
-        "model": {
-            "custom_action_dist": DeterministicMixture.name,
-            "custom_options": {"num_components": request.param}},
-        "num_workers": 1,
-        "episodes_per_batch": 1,
-        "train_batch_size": 300,
-        "sample_batch_size": 100
-    })
+    trainer = GaussianESTrainer(
+        env="BipedalWalker-v2",
+        config={
+            "model": {
+                "custom_action_dist": DeterministicMixture.name,
+                "custom_options": {
+                    "num_components": request.param
+                }
+            },
+            "num_workers": 1,
+            "episodes_per_batch": 1,
+            "train_batch_size": 300,
+            "sample_batch_size": 100
+        }
+    )
     return trainer
 
 

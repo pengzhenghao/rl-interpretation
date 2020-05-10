@@ -329,8 +329,7 @@ class VideoRecorder(object):
                 pass
             else:
                 self.background[len(frames):, height[0]:height[1], width[0]:
-                                                                   width[1],
-                2::-1] = frames[-1]
+                                width[1], 2::-1] = frames[-1]
             if require_text:
                 for information in extra_info_dict.values():
                     if 'pos_ratio' not in information:
@@ -382,8 +381,10 @@ class VideoRecorder(object):
         self._close()
         return self.path
 
-    def generate_video(self, frames_dict, extra_info_dict, require_text=True,
-                       gif_mode=None):
+    def generate_video(
+            self, frames_dict, extra_info_dict, require_text=True,
+            gif_mode=None
+    ):
         """Render the given `env` and add the resulting frame to the video."""
         logger.debug('Capturing video frame: path=%s', self.path)
 
@@ -403,8 +404,9 @@ class VideoRecorder(object):
 
         if self.generate_gif:
             # self.scale = 1
-            name_path_dict = self._generate_gif(frames_dict, extra_info_dict,
-                                                gif_mode)
+            name_path_dict = self._generate_gif(
+                frames_dict, extra_info_dict, gif_mode
+            )
             return name_path_dict
             # return self.base_path
 
@@ -910,7 +912,7 @@ class ImageEncoder(object):
         if not isinstance(frame, (np.ndarray, np.generic)):
             raise error.InvalidFrame(
                 'Wrong type {} for {} (must be np.ndarray or np.generic)'.
-                    format(type(frame), frame)
+                format(type(frame), frame)
             )
         if frame.shape != self.frame_shape:
             raise error.InvalidFrame(

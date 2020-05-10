@@ -14,26 +14,28 @@ tf = try_import_tf()
 
 
 class VTraceLossModified:
-    def __init__(self,
-                 actions,
-                 actions_logp,
-                 actions_entropy,
-                 dones,
-                 behaviour_action_logp,
-                 behaviour_logits,
-                 target_logits,
-                 discount,
-                 rewards,
-                 values,
-                 bootstrap_value,
-                 dist_class,
-                 model,
-                 valid_mask,
-                 config,
-                 vf_loss_coeff=0.5,
-                 entropy_coeff=0.01,
-                 clip_rho_threshold=1.0,
-                 clip_pg_rho_threshold=1.0):
+    def __init__(
+            self,
+            actions,
+            actions_logp,
+            actions_entropy,
+            dones,
+            behaviour_action_logp,
+            behaviour_logits,
+            target_logits,
+            discount,
+            rewards,
+            values,
+            bootstrap_value,
+            dist_class,
+            model,
+            valid_mask,
+            config,
+            vf_loss_coeff=0.5,
+            entropy_coeff=0.01,
+            clip_rho_threshold=1.0,
+            clip_pg_rho_threshold=1.0
+    ):
         # Compute vtrace on the CPU for better perf.
         with tf.device("/cpu:0"):
             self.vtrace_returns = vtrace.multi_from_logits(
@@ -48,8 +50,10 @@ class VTraceLossModified:
                 dist_class=dist_class,
                 model=model,
                 clip_rho_threshold=tf.cast(clip_rho_threshold, tf.float32),
-                clip_pg_rho_threshold=tf.cast(clip_pg_rho_threshold,
-                                              tf.float32))
+                clip_pg_rho_threshold=tf.cast(
+                    clip_pg_rho_threshold, tf.float32
+                )
+            )
             self.value_targets = self.vtrace_returns.vs
 
             advantages = self.vtrace_returns.pg_advantages
@@ -70,11 +74,14 @@ class VTraceLossModified:
 
         # The entropy loss
         self.entropy = tf.reduce_sum(
-            tf.boolean_mask(actions_entropy, valid_mask))
+            tf.boolean_mask(actions_entropy, valid_mask)
+        )
 
         # The summed weighted loss
-        self.total_loss = (self.pi_loss + self.vf_loss * vf_loss_coeff -
-                           self.entropy * entropy_coeff)
+        self.total_loss = (
+            self.pi_loss + self.vf_loss * vf_loss_coeff -
+            self.entropy * entropy_coeff
+        )
 
 
 def build_vtrace_loss_modified(policy, model, dist_class, train_batch):
@@ -93,8 +100,9 @@ def build_vtrace_loss_modified(policy, model, dist_class, train_batch):
         output_hidden_shape = 1
 
     def make_time_major(*args, **kw):
-        return _make_time_major(policy, train_batch.get("seq_lens"), *args,
-                                **kw)
+        return _make_time_major(
+            policy, train_batch.get("seq_lens"), *args, **kw
+        )
 
     actions = train_batch[SampleBatch.ACTIONS]
     dones = train_batch[SampleBatch.DONES]
@@ -102,7 +110,8 @@ def build_vtrace_loss_modified(policy, model, dist_class, train_batch):
     behaviour_action_logp = train_batch[ACTION_LOGP]
     behaviour_logits = train_batch[BEHAVIOUR_LOGITS]
     unpacked_behaviour_logits = tf.split(
-        behaviour_logits, output_hidden_shape, axis=1)
+        behaviour_logits, output_hidden_shape, axis=1
+    )
     unpacked_outputs = tf.split(model_out, output_hidden_shape, axis=1)
     values = model.value_function()
 
@@ -115,20 +124,25 @@ def build_vtrace_loss_modified(policy, model, dist_class, train_batch):
 
     # Prepare actions for loss
     loss_actions = actions if is_multidiscrete else tf.expand_dims(
-        actions, axis=1)
+        actions, axis=1
+    )
 
     # Inputs are reshaped from [B * T] => [T - 1, B] for V-trace calc.
     policy.loss = VTraceLossModified(
         actions=make_time_major(loss_actions, drop_last=True),
         actions_logp=make_time_major(
-            action_dist.logp(actions), drop_last=True),
+            action_dist.logp(actions), drop_last=True
+        ),
         actions_entropy=make_time_major(
-            action_dist.multi_entropy(), drop_last=True),
+            action_dist.multi_entropy(), drop_last=True
+        ),
         dones=make_time_major(dones, drop_last=True),
         behaviour_action_logp=make_time_major(
-            behaviour_action_logp, drop_last=True),
+            behaviour_action_logp, drop_last=True
+        ),
         behaviour_logits=make_time_major(
-            unpacked_behaviour_logits, drop_last=True),
+            unpacked_behaviour_logits, drop_last=True
+        ),
         target_logits=make_time_major(unpacked_outputs, drop_last=True),
         discount=policy.config["gamma"],
         rewards=make_time_major(rewards, drop_last=True),
@@ -141,14 +155,14 @@ def build_vtrace_loss_modified(policy, model, dist_class, train_batch):
         vf_loss_coeff=policy.config["vf_loss_coeff"],
         entropy_coeff=policy.entropy_coeff,
         clip_rho_threshold=policy.config["vtrace_clip_rho_threshold"],
-        clip_pg_rho_threshold=policy.config["vtrace_clip_pg_rho_threshold"])
+        clip_pg_rho_threshold=policy.config["vtrace_clip_pg_rho_threshold"]
+    )
 
     return policy.loss.total_loss
 
 
 ANVTraceTFPolicy = VTraceTFPolicy.with_updates(
-    name="ANVTraceTFPolicy",
-    loss_fn=build_vtrace_loss_modified
+    name="ANVTraceTFPolicy", loss_fn=build_vtrace_loss_modified
 )
 
 
@@ -183,8 +197,4 @@ if __name__ == '__main__':
     else:
         config = {"env": "BipedalWalker-v2", "num_gpus": 0}
 
-    tune.run(
-        ANIMPALATrainer,
-        config=config,
-        num_samples=args.num_samples
-    )
+    tune.run(ANIMPALATrainer, config=config, num_samples=args.num_samples)

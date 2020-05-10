@@ -17,8 +17,9 @@ from toolbox.dice.utils import *
 MY_LOGIT = "my_logits"
 
 
-def original_postprocess(policy, sample_batch, other_agent_batches=None,
-                         episode=None):
+def original_postprocess(
+        policy, sample_batch, other_agent_batches=None, episode=None
+):
     if not policy.config["vtrace"]:
         completed = sample_batch["dones"][-1]
         if completed:
@@ -27,16 +28,18 @@ def original_postprocess(policy, sample_batch, other_agent_batches=None,
             next_state = []
             for i in range(policy.num_state_tensors()):
                 next_state.append([sample_batch["state_out_{}".format(i)][-1]])
-            last_r = policy._value(sample_batch[SampleBatch.NEXT_OBS][-1],
-                                   sample_batch[SampleBatch.ACTIONS][-1],
-                                   sample_batch[SampleBatch.REWARDS][-1],
-                                   *next_state)
+            last_r = policy._value(
+                sample_batch[SampleBatch.NEXT_OBS][-1],
+                sample_batch[SampleBatch.ACTIONS][-1],
+                sample_batch[SampleBatch.REWARDS][-1], *next_state
+            )
         batch = compute_advantages(
             sample_batch,
             last_r,
             policy.config["gamma"],
             policy.config["lambda"],
-            use_gae=policy.config["use_gae"])
+            use_gae=policy.config["use_gae"]
+        )
     else:
         batch = sample_batch
     return batch

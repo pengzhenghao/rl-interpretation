@@ -22,14 +22,16 @@ class FIMEmbeddingMixin:
         ]
         grad_var_pairs = self.optimizer().compute_gradients(logp, variables)
         embedding = tf.concat(
-            [tf.reshape(grad, shape=[-1]) for grad, _ in
-             grad_var_pairs], axis=0)
+            [tf.reshape(grad, shape=[-1]) for grad, _ in grad_var_pairs],
+            axis=0
+        )
         fim_embedding = tf.square(embedding)
 
         def get_fim_embedding(ob):
-            return self.get_session().run(fim_embedding, feed_dict={
-                self._input_dict[SampleBatch.CUR_OBS]: ob
-            })
+            return self.get_session().run(
+                fim_embedding,
+                feed_dict={self._input_dict[SampleBatch.CUR_OBS]: ob}
+            )
 
         self.get_fim_embedding = get_fim_embedding
 
@@ -84,12 +86,10 @@ if __name__ == '__main__':
 
     initialize_ray(test_mode=True, local_mode=True)
 
-    config = {
-        "sample_batch_size": 50,
-        "num_workers": 0
-    }
+    config = {"sample_batch_size": 50, "num_workers": 0}
 
     target_agent = restore_agent("PPO", None, "BipedalWalker-v2", config)
-    probe_agent = restore_agent(PPOFIMTrainer, None, "BipedalWalker-v2",
-                                config)
+    probe_agent = restore_agent(
+        PPOFIMTrainer, None, "BipedalWalker-v2", config
+    )
     agent_to_vector(target_agent, probe_agent)

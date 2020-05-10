@@ -5,15 +5,18 @@ from ray.rllib.agents.a3c.a3c_tf_policy import postprocess_advantages
 
 def modified_postprocess(policy, sample_batch, other_batches, episode):
     post_batch = postprocess_advantages(
-        policy, sample_batch, other_batches, episode)
+        policy, sample_batch, other_batches, episode
+    )
     array = post_batch["advantages"]
     post_batch["advantages"] = (array - array.mean()) / max(1e-4, array.std())
 
     print("***********ACTION*********")
-    print("action batch max {}, min {}, mean {}".format(
-        post_batch["actions"].max(), post_batch["actions"].min(),
-        post_batch["actions"].mean()
-    ))
+    print(
+        "action batch max {}, min {}, mean {}".format(
+            post_batch["actions"].max(), post_batch["actions"].min(),
+            post_batch["actions"].mean()
+        )
+    )
     print("***********ACTION*********")
 
     return post_batch
@@ -27,8 +30,7 @@ def get_policy_class_modified(config):
 
 
 ANA3CTFPolicy = A3CTFPolicy.with_updates(
-    name="ANA3CTFPolicy",
-    postprocess_fn=modified_postprocess
+    name="ANA3CTFPolicy", postprocess_fn=modified_postprocess
 )
 
 ANA3CTrainer = A3CTrainer.with_updates(
@@ -52,8 +54,4 @@ if __name__ == '__main__':
     else:
         config = {"env": "BipedalWalker-v2"}
 
-    tune.run(
-        ANA3CTrainer,
-        config=config,
-        num_samples=args.num_samples
-    )
+    tune.run(ANA3CTrainer, config=config, num_samples=args.num_samples)

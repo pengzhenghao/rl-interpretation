@@ -107,8 +107,8 @@ def test_restore_agent_with_mask():
 
     agent2 = restore_agent_with_mask(
         "PPO", "~/ray_results/0810-20seeds/PPO_BipedalWa"
-               "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
-               "2/checkpoint_313/checkpoint-313",
+        "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
+        "2/checkpoint_313/checkpoint-313",
         env_name,
         existing_agent=agent
     )
@@ -119,8 +119,8 @@ def test_restore_agent_with_mask():
 
     agent3 = restore_agent_with_mask(
         "PPO", "~/ray_results/0810-20seeds/PPO_BipedalWa"
-               "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
-               "2/checkpoint_313/checkpoint-313",
+        "lker-v2_0_seed=0_2019-08-10_15-21-164grca38"
+        "2/checkpoint_313/checkpoint-313",
         env_name,
         existing_agent=agent
     )

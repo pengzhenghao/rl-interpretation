@@ -14,27 +14,25 @@ from toolbox.evolution.modified_es import GenericGaussianPolicy, \
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CONFIG = with_common_config({
-    "noise_stdev": 0.02,  # std deviation of parameter noise
-    "num_rollouts": 32,  # number of perturbs to try
-    "rollouts_used": 32,  # number of perturbs to keep in gradient estimate
-    "num_workers": 2,
-    "sgd_stepsize": 0.01,  # sgd step-size
-    "observation_filter": "NoFilter",
-    "noise_size": 250000000,
-    "eval_prob": 0.03,  # probability of evaluating the parameter rewards
-    "report_length": 10,  # how many of the last rewards we average over
-    "offset": 0,
-})
+DEFAULT_CONFIG = with_common_config(
+    {
+        "noise_stdev": 0.02,  # std deviation of parameter noise
+        "num_rollouts": 32,  # number of perturbs to try
+        "rollouts_used": 32,  # number of perturbs to keep in gradient estimate
+        "num_workers": 2,
+        "sgd_stepsize": 0.01,  # sgd step-size
+        "observation_filter": "NoFilter",
+        "noise_size": 250000000,
+        "eval_prob": 0.03,  # probability of evaluating the parameter rewards
+        "report_length": 10,  # how many of the last rewards we average over
+        "offset": 0,
+    }
+)
 
 
 @ray.remote
 class Worker:
-    def __init__(self,
-                 config,
-                 env_creator,
-                 noise,
-                 min_task_runtime=0.2):
+    def __init__(self, config, env_creator, noise, min_task_runtime=0.2):
         self.min_task_runtime = min_task_runtime
         self.config = config
         self.noise = SharedNoiseTable(noise)
@@ -49,7 +47,8 @@ class Worker:
             self.policy = GenericGaussianPolicy(
                 self.sess, self.env.action_space, self.env.observation_space,
                 self.preprocessor, config["observation_filter"],
-                config["model"])
+                config["model"]
+            )
 
     @property
     def filters(self):
@@ -73,7 +72,8 @@ class Worker:
             self.env,
             timestep_limit=timestep_limit,
             add_noise=add_noise,
-            offset=self.config["offset"])
+            offset=self.config["offset"]
+        )
         return rollout_rewards, rollout_length
 
     def do_rollouts(self, params, timestep_limit=None):
@@ -96,7 +96,8 @@ class Worker:
                 noise_index = self.noise.sample_index(self.policy.num_params)
 
                 perturbation = self.config["noise_stdev"] * self.noise.get(
-                    noise_index, self.policy.num_params)
+                    noise_index, self.policy.num_params
+                )
 
                 # These two sampling steps could be done in parallel on
                 # different actors letting us update twice as frequently.
@@ -110,7 +111,8 @@ class Worker:
                 returns.append([rewards_pos.sum(), rewards_neg.sum()])
                 sign_returns.append(
                     [np.sign(rewards_pos).sum(),
-                     np.sign(rewards_neg).sum()])
+                     np.sign(rewards_neg).sum()]
+                )
                 lengths.append([lengths_pos, lengths_neg])
 
         return Result(
@@ -119,7 +121,8 @@ class Worker:
             sign_noisy_returns=sign_returns,
             noisy_lengths=lengths,
             eval_returns=eval_returns,
-            eval_lengths=eval_lengths)
+            eval_lengths=eval_lengths
+        )
 
 
 class GaussianARSTrainer(ARSTrainer):
@@ -136,9 +139,16 @@ class GaussianARSTrainer(ARSTrainer):
     def get_policy(self, _=None):
         return self.policy
 
-    def compute_action(self, observation, state=None, prev_action=None,
-                       prev_reward=None, info=None,
-                       policy_id=DEFAULT_POLICY_ID, full_fetch=False):
+    def compute_action(
+            self,
+            observation,
+            state=None,
+            prev_action=None,
+            prev_reward=None,
+            info=None,
+            policy_id=DEFAULT_POLICY_ID,
+            full_fetch=False
+    ):
         return super().compute_action(observation)
 
     def _init(self, config, env_creator):
@@ -155,7 +165,8 @@ class GaussianARSTrainer(ARSTrainer):
         self.sess = utils.make_session(single_threaded=False)
         self.policy = GenericGaussianPolicy(
             self.sess, env.action_space, env.observation_space, preprocessor,
-            config["observation_filter"], config["model"])
+            config["observation_filter"], config["model"]
+        )
 
         self.optimizer = optimizers.SGD(self.policy, config["sgd_stepsize"])
 
@@ -184,9 +195,12 @@ if __name__ == '__main__':
     from toolbox import initialize_ray
 
     initialize_ray(test_mode=True, local_mode=True)
-    config = {"num_workers": 3, "train_batch_size": 150,
-              "observation_filter": "NoFilter",
-              "noise_size": 1000000}
+    config = {
+        "num_workers": 3,
+        "train_batch_size": 150,
+        "observation_filter": "NoFilter",
+        "noise_size": 1000000
+    }
     agent = GaussianARSTrainer(config, "BipedalWalker-v2")
 
     agent.train()

@@ -11,17 +11,18 @@ from ray.tune.analysis import ExperimentAnalysis
 def get_experiment_summary(trial_path):
     trial_path = os.path.expanduser(trial_path)
     exp_list = [
-        os.path.join(trial_path, p)
-        for p in os.listdir(trial_path)
+        os.path.join(trial_path, p) for p in os.listdir(trial_path)
         if p.startswith('experiment_state')
     ]
 
     exp_path = max(exp_list, key=lambda path: os.path.getmtime(path))
 
     if len(exp_list) > 1:
-        print("We detect more than one experiments in {}. We take {}.".format(
-            trial_path, exp_path
-        ))
+        print(
+            "We detect more than one experiments in {}. We take {}.".format(
+                trial_path, exp_path
+            )
+        )
 
     ana = ExperimentAnalysis(exp_path)
     print("Success fully ")
@@ -34,8 +35,10 @@ def get_experiment_summary(trial_path):
                 continue
             r[item_name] = item.max()
         if not r:
-            print("We detect this is not a MultiAgent agent. "
-                  "Use episode_reward_mean.")
+            print(
+                "We detect this is not a MultiAgent agent. "
+                "Use episode_reward_mean."
+            )
             r['default_policy'] = df.episode_reward_mean.max()
         trial_dict[k] = (max(r, key=lambda k: r[k]), max(r.values()))
 
@@ -70,8 +73,10 @@ def get_experiment_summary(trial_path):
     else:
         print(ret_df.describe())
 
-    info = {'tuning_keys': tuning_keys,
-            "trial_dataframes": ana.trial_dataframes}
+    info = {
+        'tuning_keys': tuning_keys,
+        "trial_dataframes": ana.trial_dataframes
+    }
 
     return ret_df, info
 

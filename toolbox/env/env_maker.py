@@ -29,7 +29,9 @@ class MiniGridWrapper(gym.ObservationWrapper):
         super(MiniGridWrapper, self).__init__(env)
         space = self.env.observation_space.spaces["image"]
         length = np.prod(space.shape)
-        shape = [length, ]
+        shape = [
+            length,
+        ]
         self.observation_space = gym.spaces.Box(
             low=space.low.reshape(-1)[0],
             high=space.high.reshape(-1)[0],
@@ -101,9 +103,10 @@ def get_env_maker(name, require_render=False):
     # if name in ENV_MAKER_LOOKUP:
     #     return ENV_MAKER_LOOKUP[name]
     if isinstance(name, str) and name.startswith("MiniGrid"):
-        print("Return the mini grid environment {} with MiniGridWrapper("
-              "FlatObsWrapper)!".format(
-            name))
+        print(
+            "Return the mini grid environment {} with MiniGridWrapper("
+            "FlatObsWrapper)!".format(name)
+        )
         return lambda: MiniGridWrapper(gym.make(name))
     else:
         assert name in [s.id for s in gym.envs.registry.all()], \

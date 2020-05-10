@@ -38,7 +38,8 @@ class TargetNetworkMixin:
         self.target_model_vars = self.target_model.variables()
 
         self.get_session().run(
-            tf.variables_initializer(self.target_model_vars))
+            tf.variables_initializer(self.target_model_vars)
+        )
 
         # Here is the delayed update mechanism.
         self.tau_value = config.get("tau")
@@ -48,7 +49,7 @@ class TargetNetworkMixin:
         for var, var_target in zip(self.model_vars, self.target_model_vars):
             assign_ops.append(
                 var_target.
-                    assign(self.tau * var + (1.0 - self.tau) * var_target)
+                assign(self.tau * var + (1.0 - self.tau) * var_target)
             )
         self.update_target_expr = tf.group(*assign_ops)
 
@@ -74,6 +75,6 @@ class TargetNetworkMixin:
         import warnings
         warnings.warn(
             "Please use update_target_network! Current update_target function "
-            "is deprecated.",
-            DeprecationWarning)
+            "is deprecated.", DeprecationWarning
+        )
         return self.update_target_network(tau)

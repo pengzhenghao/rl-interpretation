@@ -25,19 +25,29 @@ def assert_equal(arr1, arr2, k=""):
 def _test_basic(algo):
     initialize_ray(test_mode=True)
     trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker-v2")(
-        config={"env": "BipedalWalker-v2"})
+        config={
+            "env": "BipedalWalker-v2"
+        }
+    )
 
     if algo in ["ES", "ARS"]:
-        tw = {k: v for k, v in trainer.policy.variables.get_weights().items()
-              if "value" not in k}
+        tw = {
+            k: v
+            for k, v in trainer.policy.variables.get_weights().items()
+            if "value" not in k
+        }
     elif algo in ["PPO", "A2C", "A3C", "IMPALA"]:
-        tw = {k: v for k, v in trainer.get_weights()['default_policy'].items()
-              if "value" not in k}
+        tw = {
+            k: v
+            for k, v in trainer.get_weights()['default_policy'].items()
+            if "value" not in k
+        }
 
     rw = {
-        k: v for k, v in
-        trainer._reference_agent_weights['default_policy'].items()
-        if "value" not in k}
+        k: v
+        for k, v in trainer._reference_agent_weights['default_policy'].items()
+        if "value" not in k
+    }
 
     assert len(tw) == len(rw)
 
@@ -75,12 +85,15 @@ def test_reference_consistency():
     algos = ["PPO", "ES", "A2C", "A3C", "IMPALA", "ARS"]
     rws = {}
     for i, algo in enumerate(algos):
-        trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker-v2")(config={
-            "env": "BipedalWalker-v2",
-            "seed": i * 1000 + 789
-        })
+        trainer = get_dynamic_trainer(algo, 10000, "BipedalWalker-v2")(
+            config={
+                "env": "BipedalWalker-v2",
+                "seed": i * 1000 + 789
+            }
+        )
         rw = {
-            k: v for k, v in
+            k: v
+            for k, v in
             trainer._reference_agent_weights['default_policy'].items()
             if "value" not in k
         }
@@ -91,8 +104,9 @@ def test_reference_consistency():
         print("Current weight name: ", weight_name)
         for weight_dict_name in ks[1:]:
             weight_dict = rws[weight_dict_name]
-            assert_equal(first_weight_dict[weight_name],
-                         weight_dict[weight_name])
+            assert_equal(
+                first_weight_dict[weight_name], weight_dict[weight_name]
+            )
 
 
 class BasicTest(unittest.TestCase):

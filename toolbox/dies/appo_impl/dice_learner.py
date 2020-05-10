@@ -41,8 +41,10 @@ class AsyncLearnerThread(threading.Thread):
     improves overall throughput.
     """
 
-    def __init__(self, local_worker, minibatch_buffer_size, num_sgd_iter,
-                 learner_queue_size, learner_queue_timeout):
+    def __init__(
+            self, local_worker, minibatch_buffer_size, num_sgd_iter,
+            learner_queue_size, learner_queue_timeout
+    ):
         """Initialize the learner thread.
 
         Arguments:
@@ -66,7 +68,8 @@ class AsyncLearnerThread(threading.Thread):
             size=minibatch_buffer_size,
             timeout=learner_queue_timeout,
             num_sgd_iter=num_sgd_iter,
-            init_num_passes=num_sgd_iter)
+            init_num_passes=num_sgd_iter
+        )
 
         self.queue_timer = TimerStat()
         self.grad_timer = TimerStat()
@@ -110,9 +113,10 @@ class SyncLearnerThread(threading.Thread):
     improves overall throughput.
     """
 
-    def __init__(self, local_worker, minibatch_buffer_size, num_sgd_iter,
-                 learner_queue_size, learner_queue_timeout, num_gpus,
-                 sgd_batch_size):
+    def __init__(
+            self, local_worker, minibatch_buffer_size, num_sgd_iter,
+            learner_queue_size, learner_queue_timeout, num_gpus, sgd_batch_size
+    ):
         threading.Thread.__init__(self)
         self.learner_queue_size = WindowStat("size", 50)
         self.local_worker = local_worker
@@ -126,7 +130,8 @@ class SyncLearnerThread(threading.Thread):
             timeout=learner_queue_timeout,
             # num_sgd_iter=num_sgd_iter,
             num_sgd_iter=1,
-            init_num_passes=1)
+            init_num_passes=1
+        )
 
         self.queue_timer = TimerStat()
         self.grad_timer = TimerStat()
@@ -147,14 +152,15 @@ class SyncLearnerThread(threading.Thread):
                 "/gpu:{}".format(i) for i in range(int(math.ceil(num_gpus)))
             ]
 
-        self.batch_size = int(sgd_batch_size / len(self.devices)) * len(
-            self.devices)
+        self.batch_size = int(sgd_batch_size / len(self.devices)
+                              ) * len(self.devices)
         assert self.batch_size % len(self.devices) == 0
         assert self.batch_size >= len(self.devices), "batch size too small"
         self.per_device_batch_size = int(self.batch_size / len(self.devices))
 
         self.policies = dict(
-            local_worker.foreach_trainable_policy(lambda p, i: (i, p)))
+            local_worker.foreach_trainable_policy(lambda p, i: (i, p))
+        )
 
         self.optimizers = {}
         with local_worker.tf_sess.graph.as_default():
@@ -172,7 +178,9 @@ class SyncLearnerThread(threading.Thread):
                                 policy._optimizer, self.devices,
                                 [v
                                  for _, v in policy._loss_inputs], rnn_inputs,
-                                self.per_device_batch_size, policy.copy))
+                                self.per_device_batch_size, policy.copy
+                            )
+                        )
                 self.sess = local_worker.tf_sess
                 self.sess.run(tf.global_variables_initializer())
 
@@ -185,9 +193,9 @@ class SyncLearnerThread(threading.Thread):
             batch, _ = self.minibatch_buffer.get()
             # Handle everything as if multiagent
             if isinstance(batch, SampleBatch):
-                batch = MultiAgentBatch({
-                    DEFAULT_POLICY_ID: batch
-                }, batch.count)
+                batch = MultiAgentBatch(
+                    {DEFAULT_POLICY_ID: batch}, batch.count
+                )
 
             # TODO maybe we should do the normalization here
 
@@ -199,8 +207,7 @@ class SyncLearnerThread(threading.Thread):
 
                 policy = self.policies[policy_id]
                 policy._debug_vars()
-                tuples = policy._get_loss_inputs_dict(
-                    batch, shuffle=True)
+                tuples = policy._get_loss_inputs_dict(batch, shuffle=True)
                 data_keys = [ph for _, ph in policy._loss_inputs]
                 if policy._state_inputs:
                     state_keys = policy._state_inputs + [policy._seq_lens]
@@ -209,7 +216,9 @@ class SyncLearnerThread(threading.Thread):
                 num_loaded_tuples[policy_id] = (
                     self.optimizers[policy_id].load_data(
                         self.sess, [tuples[k] for k in data_keys],
-                        [tuples[k] for k in state_keys]))
+                        [tuples[k] for k in state_keys]
+                    )
+                )
 
         fetches = {}
         with self.grad_timer:
@@ -217,7 +226,8 @@ class SyncLearnerThread(threading.Thread):
                 optimizer = self.optimizers[policy_id]
                 num_batches = max(
                     1,
-                    int(tuples_per_device) // int(self.per_device_batch_size))
+                    int(tuples_per_device) // int(self.per_device_batch_size)
+                )
                 logger.debug("== sgd epochs for {} ==".format(policy_id))
                 for i in range(self.num_sgd_iter):
                     iter_extra_fetches = defaultdict(list)
@@ -225,11 +235,13 @@ class SyncLearnerThread(threading.Thread):
                     for batch_index in range(num_batches):
                         batch_fetches = optimizer.optimize(
                             self.sess, permutation[batch_index] *
-                                       self.per_device_batch_size)
+                            self.per_device_batch_size
+                        )
                         for k, v in batch_fetches[LEARNER_STATS_KEY].items():
                             iter_extra_fetches[k].append(v)
                     logger.debug(
-                        "{} {}".format(i, _averaged(iter_extra_fetches)))
+                        "{} {}".format(i, _averaged(iter_extra_fetches))
+                    )
                 fetches[policy_id] = _averaged(iter_extra_fetches)
 
         # Not support multiagent recording now.
@@ -256,7 +268,9 @@ class MinibatchBuffer:
     Rewrite to allow mini batching in one SGD epoch
     """
 
-    def __init__(self, inqueue, size, timeout, num_sgd_iter, init_num_passes=1):
+    def __init__(
+            self, inqueue, size, timeout, num_sgd_iter, init_num_passes=1
+    ):
         """Initialize a minibatch buffer.
 
         Arguments:

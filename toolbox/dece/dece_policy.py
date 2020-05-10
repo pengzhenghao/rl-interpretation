@@ -1,7 +1,7 @@
 from collections import deque
 from ray.rllib.agents.ppo.ppo_tf_policy import setup_mixins, \
     EntropyCoeffSchedule, \
-    BEHAVIOUR_LOGITS, kl_and_loss_stats, PPOTFPolicy, KLCoeffMixin, \
+    kl_and_loss_stats, PPOTFPolicy, KLCoeffMixin, \
     ValueNetworkMixin
 from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.models import ModelCatalog
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 POLICY_SCOPE = "func"
 TARGET_POLICY_SCOPE = "target_func"
+BEHAVIOUR_LOGITS = SampleBatch.ACTION_DIST_INPUTS
 
 
 def wrap_stats_ceppo(policy, train_batch):
@@ -114,7 +115,7 @@ def kl_and_loss_stats_modified(policy, train_batch):
         }
     )
     if policy.config[USE_DIVERSITY_VALUE_NETWORK
-    ] and not policy.config[REPLAY_VALUES]:
+                     ] and not policy.config[REPLAY_VALUES]:
         ret['novelty_vf_explained_var'] = explained_variance(
             train_batch[NOVELTY_VALUE_TARGETS],
             policy.model.novelty_value_function()
@@ -180,10 +181,13 @@ class ComputeNoveltyMixin:
                 np.split(logit, 2, axis=1)[0] for logit in replays.values()
             ]
             my_act = np.split(my_batch[logit_key], 2, axis=1)[0]
-            return np.mean([
-                (np.square(my_act - other_act)).mean(1)
-                for other_act in replays
-            ], axis=0)
+            return np.mean(
+                [
+                    (np.square(my_act - other_act)).mean(1)
+                    for other_act in replays
+                ],
+                axis=0
+            )
         else:
             raise NotImplementedError()
 
@@ -238,7 +242,7 @@ class TargetNetworkMixin:
         for var, var_target in zip(self.model_vars, self.target_model_vars):
             assign_ops.append(
                 var_target.
-                    assign(self.tau * var + (1.0 - self.tau) * var_target)
+                assign(self.tau * var + (1.0 - self.tau) * var_target)
             )
         self.update_target_expr = tf.group(*assign_ops)
 
@@ -297,8 +301,11 @@ class ConstrainNoveltyMixin:
         self.novelty_stat.append(sampled_novelty)
         if len(self.novelty_stat) < self.maxlen:
             # start tuning after the queue is full.
-            logger.debug("Current novelty stat length: {}".format(
-                len(self.novelty_stat)))
+            logger.debug(
+                "Current novelty stat length: {}".format(
+                    len(self.novelty_stat)
+                )
+            )
             return self._alpha_val
         elif np.isnan(self._novelty_target):
             self._novelty_target = self.config["novelty_target_multiplier"] * \
@@ -312,8 +319,8 @@ class ConstrainNoveltyMixin:
 
         # Slowly update novelty target.
         self._novelty_target = (
-                self._novelty_target_tau * running_mean +
-                (1 - self._novelty_target_tau) * self._novelty_target
+            self._novelty_target_tau * running_mean +
+            (1 - self._novelty_target_tau) * self._novelty_target
         )
 
         logger.debug(
@@ -333,12 +340,10 @@ class ConstrainNoveltyMixin:
                 self._alpha_val *= (1 - self._alpha_coefficient)
             elif running_mean < 0.5 * self._novelty_target:
                 self._alpha_val = min(
-                    (1 + self._alpha_coefficient) * self._alpha_val,
-                    0.5)
+                    (1 + self._alpha_coefficient) * self._alpha_val, 0.5
+                )
 
-        self._alpha.load(
-            self._alpha_val, session=self.get_session()
-        )
+        self._alpha.load(self._alpha_val, session=self.get_session())
         return self._alpha_val
 
 

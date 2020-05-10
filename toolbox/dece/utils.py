@@ -74,9 +74,9 @@ def on_postprocess_traj(info):
     if agent_id != info['agent_id']:
         return
 
-    increment_count = int(np.mean(
-        [b.count for _, b in all_pre_batches.values()]
-    ))
+    increment_count = int(
+        np.mean([b.count for _, b in all_pre_batches.values()])
+    )
     current_count = episode.batch_builder.count
     corrected_count = current_count - increment_count + post_batch.count
     episode.batch_builder.count = corrected_count

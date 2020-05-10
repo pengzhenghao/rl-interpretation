@@ -21,18 +21,16 @@ DEFAULT_POLICY_NAME = "default_policy"
 @pytest.fixture(params=[1, 3])
 def dice_trainer(request):
     initialize_ray(test_mode=True, local_mode=False)
-    return DiCETrainer_APPO(env="BipedalWalker-v2", config=dict(
-        num_agents=request.param,
-        delay_update=False
-    ))
+    return DiCETrainer_APPO(
+        env="BipedalWalker-v2",
+        config=dict(num_agents=request.param, delay_update=False)
+    )
 
 
 def assert_weights_equal(w1, w2):
     assert isinstance(w1, dict)
     assert isinstance(w2, dict)
-    for (wid1, arr1), (wid2, arr2) in zip(
-            w1.items(), w2.items()
-    ):
+    for (wid1, arr1), (wid2, arr2) in zip(w1.items(), w2.items()):
         assert arr1 == pytest.approx(arr2)
         if wid1.startswith(DEFAULT_POLICY_NAME) and \
                 wid2.startswith(DEFAULT_POLICY_NAME):
@@ -51,8 +49,7 @@ def test_policy_pool_sync(dice_trainer):
                 # ws.local_worker()._local_policy_weights.items(),
                 init_policy_pool.items(),
                 ws.local_worker()._local_policy_pool.items(),
-                ws.local_worker().get_policy().policy_pool.items()
-        ):
+                ws.local_worker().get_policy().policy_pool.items()):
             # central weights equal to local weights
             # assert pid1 == pid2
             # assert_weights_equal(w1, w2)
@@ -79,14 +76,10 @@ def test_policy_pool_sync(dice_trainer):
     new_policy_pool = copy.deepcopy(dice_trainer._central_policy_weights)
 
     # Assert the policies is changed, so old one should not equal to the new
-    for (pid1, w1), (pid2, w2) in zip(
-            init_policy_pool.items(),
-            new_policy_pool.items()
-    ):
+    for (pid1, w1), (pid2, w2) in zip(init_policy_pool.items(),
+                                      new_policy_pool.items()):
         assert pid1 == pid2
-        for (wid1, arr1), (wid2, arr2) in zip(
-                w1.items(), w2.items()
-        ):
+        for (wid1, arr1), (wid2, arr2) in zip(w1.items(), w2.items()):
             assert arr1 != pytest.approx(arr2)
             assert wid1 == wid2
 
@@ -98,8 +91,7 @@ def test_policy_pool_sync(dice_trainer):
                 # ws.local_worker()._local_policy_weights.items(),
                 new_policy_pool.items(),
                 ws.local_worker()._local_policy_pool.items(),
-                ws.local_worker().get_policy().policy_pool.items()
-        ):
+                ws.local_worker().get_policy().policy_pool.items()):
             # assert pid1 == pid2
             # assert_weights_equal(w1, w2)
 
@@ -172,15 +164,17 @@ class DiCETest(unittest.TestCase):
         _test_dice({utils.DELAY_UPDATE: False}, num_agents=num_agents_pair)
 
     def test_tsc_loss(self):
-        _test_dice({utils.TWO_SIDE_CLIP_LOSS: False},
-                   num_agents=num_agents_pair)
+        _test_dice(
+            {utils.TWO_SIDE_CLIP_LOSS: False}, num_agents=num_agents_pair
+        )
 
     def test_only_tnb(self):
         _test_dice({utils.ONLY_TNB: True}, num_agents=num_agents_pair)
 
     def test_normalize_adv(self):
-        _test_dice({utils.NORMALIZE_ADVANTAGE: True},
-                   num_agents=num_agents_pair)
+        _test_dice(
+            {utils.NORMALIZE_ADVANTAGE: True}, num_agents=num_agents_pair
+        )
 
     def test_default(self):
         _test_dice(num_agents=tune.grid_search([1, 3, 5]))
@@ -188,12 +182,13 @@ class DiCETest(unittest.TestCase):
 
 if __name__ == "__main__":
     # pytest.main(["-v"])
-    _test_dice(dict(
-        num_envs_per_worker=5,
-        sample_batch_size=10,
-        train_batch_size=50,
-        sgd_minibatch_size=10
-    ),
+    _test_dice(
+        dict(
+            num_envs_per_worker=5,
+            sample_batch_size=10,
+            train_batch_size=50,
+            sgd_minibatch_size=10
+        ),
         local_mode=True,
         t=500000,
         num_agents=1,

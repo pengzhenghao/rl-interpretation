@@ -27,27 +27,29 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
     and remote workers (IMPALA actors).
     """
 
-    def __init__(self,
-                 workers,
-                 train_batch_size=500,
-                 sample_batch_size=50,
-                 # num_envs_per_worker=1,
-                 num_gpus=0,
-                 # lr=0.0005,
-                 replay_buffer_num_slots=0,
-                 replay_proportion=0.0,
-                 num_data_loader_buffers=1,
-                 max_sample_requests_in_flight_per_worker=2,
-                 broadcast_interval=1,
-                 num_sgd_iter=1,
-                 sgd_minibatch_size=1,
-                 learner_queue_size=16,
-                 learner_queue_timeout=300,
-                 num_aggregation_workers=0,
-                 shuffle_sequences=True,
-                 sync_sampling=False,
-                 minibatch_buffer_size=1,
-                 _fake_gpus=False):
+    def __init__(
+            self,
+            workers,
+            train_batch_size=500,
+            sample_batch_size=50,
+            # num_envs_per_worker=1,
+            num_gpus=0,
+            # lr=0.0005,
+            replay_buffer_num_slots=0,
+            replay_proportion=0.0,
+            num_data_loader_buffers=1,
+            max_sample_requests_in_flight_per_worker=2,
+            broadcast_interval=1,
+            num_sgd_iter=1,
+            sgd_minibatch_size=1,
+            learner_queue_size=16,
+            learner_queue_timeout=300,
+            num_aggregation_workers=0,
+            shuffle_sequences=True,
+            sync_sampling=False,
+            minibatch_buffer_size=1,
+            _fake_gpus=False
+    ):
         PolicyOptimizer.__init__(self, workers)
 
         self._stats_start_time = time.time()
@@ -124,8 +126,9 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                     ws,
                     replay_proportion=replay_proportion,
                     max_sample_requests_in_flight_per_worker=(
-                        max_sample_requests_in_flight_per_worker if not
-                        self.sync_sampling else 1),
+                        max_sample_requests_in_flight_per_worker
+                        if not self.sync_sampling else 1
+                    ),
                     replay_buffer_num_slots=replay_buffer_num_slots,
                     train_batch_size=train_batch_size,
                     sample_batch_size=sample_batch_size,
@@ -135,8 +138,10 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             self.aggregator_set[ws_id] = aggregator
         self.train_batch_size = train_batch_size
         self.shuffle_sequences = shuffle_sequences
-        logger.debug("===== Do you in sync sampling mode? {} =====".format(
-            sync_sampling))
+        logger.debug(
+            "===== Do you in sync sampling mode? {} =====".
+            format(sync_sampling)
+        )
 
         # Stats
         self._optimizer_step_timer = TimerStat()
@@ -181,7 +186,8 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
 
         for l_id, learner in self.learner_set.items():
             assert learner.is_alive(), "{} is dead! All learners: {}.".format(
-                l_id, self.learner_set.keys())
+                l_id, self.learner_set.keys()
+            )
 
         with self._optimizer_step_timer:
             sample_timesteps, train_timesteps = self._step()
@@ -199,10 +205,9 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         self.num_steps_trained += train_timesteps
 
     @override(PolicyOptimizer)
-    def collect_metrics(self,
-                        timeout_seconds,
-                        min_history=100,
-                        selected_workers=None):
+    def collect_metrics(
+            self, timeout_seconds, min_history=100, selected_workers=None
+    ):
         """Returns worker and optimizer stats.
 
         Arguments:
@@ -225,15 +230,16 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                 workers.local_worker(),
                 selected_workers or workers.remote_workers(),
                 self.to_be_collected[ws_id],
-                timeout_seconds=timeout_seconds)
+                timeout_seconds=timeout_seconds
+            )
             orig_episodes = list(episodes)
             missing = min_history - len(episodes)
             if missing > 0:
                 episodes.extend(self.episode_history[ws_id][-missing:])
                 assert len(episodes) <= min_history
             self.episode_history[ws_id].extend(orig_episodes)
-            self.episode_history[ws_id] = self.episode_history[ws_id][
-                                          -min_history:]
+            self.episode_history[ws_id] = self.episode_history[ws_id
+                                                               ][-min_history:]
 
             episode_storage[ws_id] = episodes
             res = summarize_episodes(episodes, orig_episodes)
@@ -271,11 +277,13 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
             stats.update(self.get_mean_stats_and_reset())
             stats["timing_breakdown"] = {
                 "optimizer_step_time_ms": timer_to_ms(
-                    self._optimizer_step_timer),
+                    self._optimizer_step_timer
+                ),
                 "learner_grad_time_ms": timer_to_ms(learner.grad_timer),
                 "learner_load_time_ms": timer_to_ms(learner.load_timer),
                 "learner_load_wait_time_ms": timer_to_ms(
-                    learner.load_wait_timer),
+                    learner.load_wait_timer
+                ),
                 "learner_dequeue_time_ms": timer_to_ms(learner.queue_timer),
             }
             stats["learner_queue"] = learner.learner_queue_size.stats()
@@ -306,16 +314,16 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
         assert not hasattr(self, "aggregator")
         assert not hasattr(self, "learner")
 
-        for (ws_id, aggregator), (ws_id2, learner) in zip(
-                self.aggregator_set.items(),
-                self.learner_set.items()
-        ):
+        for (ws_id, aggregator), (ws_id2,
+                                  learner) in zip(self.aggregator_set.items(),
+                                                  self.learner_set.items()):
             assert ws_id == ws_id2
             sample_timesteps[ws_id] = 0
             train_timesteps[ws_id] = 0
 
             batch_count, step_count = _send_train_batch_to_learner(
-                aggregator, learner)
+                aggregator, learner
+            )
             if self.sync_sampling:
                 assert batch_count > 0 and step_count > 0
             sample_timesteps[ws_id] += step_count
@@ -325,7 +333,8 @@ class AsyncSamplesOptimizer(PolicyOptimizer):
                 _get_train_result_from_learner(learner, self.sync_sampling)
             if not self.sync_sampling:
                 train_timesteps[ws_id] += int(
-                    step_count // learner.num_sgd_iter)
+                    step_count // learner.num_sgd_iter
+                )
             else:
                 train_timesteps[ws_id] += int(step_count)
 
@@ -404,26 +413,37 @@ def parse_stats(stat_dict, episode_storage):
         for pid, eps in episode_storage.items()
     }
 
-    rewards_max = {pid: max(rews) if rews else np.nan
-                   for pid, rews in policy_reward.items()}
-    rewards_mean = {pid: np.mean(rews) if rews else np.nan
-                    for pid, rews in policy_reward.items()}
-    rewards_min = {pid: min(rews) if rews else np.nan
-                   for pid, rews in policy_reward.items()}
+    rewards_max = {
+        pid: max(rews) if rews else np.nan
+        for pid, rews in policy_reward.items()
+    }
+    rewards_mean = {
+        pid: np.mean(rews) if rews else np.nan
+        for pid, rews in policy_reward.items()
+    }
+    rewards_min = {
+        pid: min(rews) if rews else np.nan
+        for pid, rews in policy_reward.items()
+    }
 
     flatten_rewards = [d for v in policy_reward.values() for d in v]
 
     ret["episode_reward_max"] = np.max(
-        flatten_rewards) if flatten_rewards else np.nan
+        flatten_rewards
+    ) if flatten_rewards else np.nan
     ret["episode_reward_min"] = np.min(
-        flatten_rewards) if flatten_rewards else np.nan
+        flatten_rewards
+    ) if flatten_rewards else np.nan
     ret["episode_reward_mean"] = np.mean(
-        flatten_rewards) if flatten_rewards else np.nan
+        flatten_rewards
+    ) if flatten_rewards else np.nan
 
     ret["episode_len_mean"] = np.mean(
-        [r["episode_len_mean"] for r in stat_dict.values()])
+        [r["episode_len_mean"] for r in stat_dict.values()]
+    )
     ret["episodes_this_iter"] = sum(
-        r["episodes_this_iter"] for r in stat_dict.values())
+        r["episodes_this_iter"] for r in stat_dict.values()
+    )
 
     ret["policy_reward_mean"] = rewards_mean
     ret["policy_reward_min"] = rewards_min

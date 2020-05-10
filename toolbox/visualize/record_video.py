@@ -342,7 +342,7 @@ class GridVideoRecorder(object):
 
         unique_locations = set(locations)
         no_specify_location = len(unique_locations) == 1 and (
-                next(iter(unique_locations)) is None
+            next(iter(unique_locations)) is None
         )
         assert len(unique_locations) == len(locations) or no_specify_location
         if no_specify_location:
@@ -377,8 +377,9 @@ class GridVideoRecorder(object):
         vr = VideoRecorder(
             self.video_path, generate_gif=True, fps=self.fps, scale=0.5
         )
-        name_path_dict = vr.generate_video(frames_dict, extra_info_dict,
-                                           gif_mode=mode)
+        name_path_dict = vr.generate_video(
+            frames_dict, extra_info_dict, gif_mode=mode
+        )
         return name_path_dict
 
     def close(self):
@@ -603,7 +604,7 @@ def create_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent "
-                    "given a checkpoint."
+        "given a checkpoint."
     )
     parser.add_argument(
         "yaml",
@@ -616,9 +617,9 @@ def create_parser():
         type=str,
         required=True,
         help="The algorithm or model to train. This may refer to the name "
-             "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
-             "user-defined trainable function or class registered in the "
-             "tune registry."
+        "of a built-on algorithm (e.g. RLLib's DQN or PPO), or a "
+        "user-defined trainable function or class registered in the "
+        "tune registry."
     )
     required_named.add_argument(
         "--env", type=str, help="The gym environment to use.", required=True
@@ -635,7 +636,7 @@ def create_parser():
         default="{}",
         type=json.loads,
         help="Algorithm-specific configuration (e.g. env, hyperparams). "
-             "Surpresses loading of configuration from checkpoint."
+        "Surpresses loading of configuration from checkpoint."
     )
 
 

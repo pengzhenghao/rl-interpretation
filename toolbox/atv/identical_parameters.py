@@ -36,10 +36,12 @@ def get_dynamic_trainer(algo, init_seed, env_name):
         raise NotImplementedError()
 
     # Create the reference agent.
-    ppo_agent = restore_agent("PPO", None, env_name, {
-        "seed": init_seed,
-        "num_workers": 0
-    })
+    ppo_agent = restore_agent(
+        "PPO", None, env_name, {
+            "seed": init_seed,
+            "num_workers": 0
+        }
+    )
 
     reference_weights = copy.deepcopy(ppo_agent.get_weights())
     # reference_weights_id = ray.put(reference_weights)
@@ -61,7 +63,8 @@ def get_dynamic_trainer(algo, init_seed, env_name):
                     "A2C/A3C/IMPALA should not share value function "
                     "layers. "
                     "So we set config['model']['vf_share_layers'] to "
-                    "False")
+                    "False"
+                )
                 config["model"]["vf_share_layers"] = False
 
             super().__init__(config, *args, **kwargs)
@@ -69,15 +72,19 @@ def get_dynamic_trainer(algo, init_seed, env_name):
             # self._reference_agent_weights = ray.get(reference_weights_id)
             self._reference_agent_weights = reference_weights
 
-            print("We have received reference agent weights: ",
-                  self._reference_agent_weights)
+            print(
+                "We have received reference agent weights: ",
+                self._reference_agent_weights
+            )
 
             # Set the weights of the training agent.
             if algo in ["PPO", "A2C", "A3C", "IMPALA", "ES", "ARS"]:
                 self.set_weights(self._reference_agent_weights)
             else:
-                raise NotImplementedError("Algo is: {}. Config is: {}"
-                                          "".format(algo, config))
+                raise NotImplementedError(
+                    "Algo is: {}. Config is: {}"
+                    "".format(algo, config)
+                )
 
     TrainerWrapper.__name__ = name
     TrainerWrapper.__qualname__ = name
@@ -113,8 +120,7 @@ def train(
         keep_checkpoints_num=5 if not test_mode else None,
         checkpoint_score_attr="episode_reward_mean" if not test_mode else None,
         checkpoint_at_end=True if not test_mode else None,
-        stop={"timesteps_total": stop}
-        if isinstance(stop, int) else stop,
+        stop={"timesteps_total": stop} if isinstance(stop, int) else stop,
         config=config,
         max_failures=5,
         **kwargs
@@ -136,16 +142,17 @@ if __name__ == '__main__':
     parser.add_argument("--num-gpus", type=int, default=4)
     parser.add_argument("--num-seeds", type=int, default=10)
     parser.add_argument("--init-seed", type=int, default=2020)
-    parser.add_argument("--env-name", type=str,
-                        default="WrappedBipedalWalker-v2")
+    parser.add_argument(
+        "--env-name", type=str, default="WrappedBipedalWalker-v2"
+    )
     # parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
     algo = args.algo
     test = args.test
-    exp_name = "{}-{}-initseed{}-{}seeds".format(args.exp_name, algo,
-                                                 args.init_seed,
-                                                 args.num_seeds)
+    exp_name = "{}-{}-initseed{}-{}seeds".format(
+        args.exp_name, algo, args.init_seed, args.num_seeds
+    )
 
     algo_specify_config = {
         "PPO": {
@@ -155,11 +162,21 @@ if __name__ == '__main__':
             "lambda": 0.95,
             "lr": 2.5e-4,
         },
-        "ES": {"model": {"vf_share_layers": False}},
-        "ARS": {"model": {"vf_share_layers": False}},
+        "ES": {
+            "model": {
+                "vf_share_layers": False
+            }
+        },
+        "ARS": {
+            "model": {
+                "vf_share_layers": False
+            }
+        },
         "A2C": {
             # "num_envs_per_worker": 8,
-            "model": {"vf_share_layers": False},
+            "model": {
+                "vf_share_layers": False
+            },
             "entropy_coeff": 0.0,
             # "lr": 1e-5
         },
@@ -169,13 +186,17 @@ if __name__ == '__main__':
             # "entropy_coeff": 0.001,
             "entropy_coeff": 0.0,
             # "lr": 1e-5,
-            "model": {"vf_share_layers": False}
+            "model": {
+                "vf_share_layers": False
+            }
         },
         "IMPALA": {
             "num_envs_per_worker": 8,
             "entropy_coeff": 0.001,
             "lr": 1e-4,
-            "model": {"vf_share_layers": False}
+            "model": {
+                "vf_share_layers": False
+            }
         },
     }
 
@@ -190,13 +211,15 @@ if __name__ == '__main__':
 
     stop = int(algo_specify_stop[algo])
     config = algo_specify_config[algo]
-    config.update({
-        "log_level": "DEBUG" if test else "ERROR",
-        "num_gpus": 1 if args.num_gpus != 0 else 0,
-        "num_cpus_for_driver": 1,
-        "num_cpus_per_worker": 1,
-        # "num_workers": 8
-    })
+    config.update(
+        {
+            "log_level": "DEBUG" if test else "ERROR",
+            "num_gpus": 1 if args.num_gpus != 0 else 0,
+            "num_cpus_for_driver": 1,
+            "num_cpus_per_worker": 1,
+            # "num_workers": 8
+        }
+    )
 
     if algo in ["ES", "ARS"]:
         config["num_gpus"] = 0

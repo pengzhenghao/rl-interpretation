@@ -28,8 +28,9 @@ class Optimizer:
 
 
 class Adam(Optimizer):
-    def __init__(self, policy, stepsize=0.01, beta1=0.9, beta2=0.999,
-                 epsilon=1e-08):
+    def __init__(
+            self, policy, stepsize=0.01, beta1=0.9, beta2=0.999, epsilon=1e-08
+    ):
         Optimizer.__init__(self, policy)
         self.stepsize = stepsize
         self.beta1 = beta1
@@ -39,8 +40,9 @@ class Adam(Optimizer):
         self.v = np.zeros(self.dim, dtype=np.float32)
 
     def _compute_step(self, globalg):
-        a = self.stepsize * (np.sqrt(1 - self.beta2 ** self.t) /
-                             (1 - self.beta1 ** self.t))
+        a = self.stepsize * (
+            np.sqrt(1 - self.beta2**self.t) / (1 - self.beta1**self.t)
+        )
         self.m = self.beta1 * self.m + (1 - self.beta1) * globalg
         self.v = self.beta2 * self.v + (1 - self.beta2) * (globalg * globalg)
         step = -a * self.m / (np.sqrt(self.v) + self.epsilon)
@@ -60,7 +62,8 @@ def run_evolution_strategies(trainer, result):
         trainer._last_update_weights = get_flat(trainer.get_policy("agent0"))
         trainer._es_optimizer = Adam(trainer._last_update_weights.size)
         logger.info(
-            "First run of ES module. Setup counter, weights and optimizer.")
+            "First run of ES module. Setup counter, weights and optimizer."
+        )
 
     rewards = result['policy_reward_mean']
     steps = result['info']['num_steps_trained']
@@ -86,22 +89,26 @@ def run_evolution_strategies(trainer, result):
 
         # Compute and take a step.
         g, count = utils.batched_weighted_sum(
-            proc_noisy_returns,
-            (weights_diff[pid] for pid in rewards.keys()),
-            batch_size=500)  # batch_size 500 always greater # of policy 10
+            proc_noisy_returns, (weights_diff[pid] for pid in rewards.keys()),
+            batch_size=500
+        )  # batch_size 500 always greater # of policy 10
         g /= returns.size
 
         # Compute the new weights theta.
         theta = trainer._last_update_weights  # Old weights
         new_theta, update_ratio = trainer._es_optimizer.update(
-            -g + 0.005 * theta, theta)
+            -g + 0.005 * theta, theta
+        )
         theta_id = ray.put(new_theta)
 
         def _spawn_policy(policy, policy_id):
             new_weights = ray.get(theta_id)
             policy._variables.set_flat(new_weights)
-            logger.debug("In ES updates {} sync {}.".format(
-                trainer.update_policy_counter, policy_id))
+            logger.debug(
+                "In ES updates {} sync {}.".format(
+                    trainer.update_policy_counter, policy_id
+                )
+            )
 
         # set to policies on local worker. Then all polices would be the same.
         trainer.workers.local_worker().foreach_policy(_spawn_policy)

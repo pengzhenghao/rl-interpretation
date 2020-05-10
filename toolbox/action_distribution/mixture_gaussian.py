@@ -47,6 +47,7 @@ class DeterministicMixture(TFActionDistribution):
 
     def logp(self, x):
         return tf.zeros(tf.shape(self.weight)[0])
+
     @staticmethod
     def required_model_output_shape(action_space, model_config):
         action_length = np.prod(action_space.shape)
@@ -122,7 +123,8 @@ def register_mixture_action_distribution():
     )
     print(
         "Successfully register GaussianMixture and DeterministicMixture "
-        "action distribution.")
+        "action distribution."
+    )
 
 
 register_mixture_action_distribution()

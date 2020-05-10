@@ -63,8 +63,8 @@ def get_new_policy_weight(policy_weight_dict, policy):
     old_name = get_policy_name(policy_weight_dict)
     new_name = get_policy_name(policy.get_weights())
     return {
-        wid.replace(old_name, new_name): w for wid, w in
-        policy_weight_dict.items()
+        wid.replace(old_name, new_name): w
+        for wid, w in policy_weight_dict.items()
     }
 
 
@@ -194,11 +194,9 @@ class AgentPoolMixin(object):
             )
             assert next(iter(self.checkpoint_dict.keys())) == best_agent
 
-            best_agent_weights = self.policies_pool[best_agent][
-                'policy'].get_weights()
-            self.set_weights(
-                get_new_policy_weight(best_agent_weights,
-                                      self))
+            best_agent_weights = self.policies_pool[best_agent]['policy'
+                                                                ].get_weights()
+            self.set_weights(get_new_policy_weight(best_agent_weights, self))
 
             msg = (
                 "We successfully restore current agent with "
@@ -219,10 +217,10 @@ class AgentPoolMixin(object):
         action = sample_batch[SampleBatch.ACTIONS]
         if not self.initialized_policies_pool:
             if not hasattr(self, "_loss_inputs"):
-                return np.zeros((action.shape[0],), dtype=np.float32)
+                return np.zeros((action.shape[0], ), dtype=np.float32)
 
         if not self.enable_novelty:
-            return np.zeros((action.shape[0],), dtype=np.float32)
+            return np.zeros((action.shape[0], ), dtype=np.float32)
 
         assert self.initialized_policies_pool, self.policies_pool
 

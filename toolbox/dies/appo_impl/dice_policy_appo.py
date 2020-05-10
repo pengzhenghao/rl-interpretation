@@ -91,13 +91,15 @@ def kl_and_loss_stats_modified(policy, train_batch):
         return {}
 
     ret = original_stats(policy, train_batch)
-    ret.update({
-        "diversity_total_loss": policy.diversity_loss.total_loss,
-        "diversity_policy_loss": policy.diversity_loss.pi_loss,
-        "diversity_kl": policy.diversity_loss.mean_kl,
-        "diversity_entropy": policy.diversity_loss.entropy,
-        "diversity_reward_mean": policy.diversity_reward_mean,  # ?
-    })
+    ret.update(
+        {
+            "diversity_total_loss": policy.diversity_loss.total_loss,
+            "diversity_policy_loss": policy.diversity_loss.pi_loss,
+            "diversity_kl": policy.diversity_loss.mean_kl,
+            "diversity_entropy": policy.diversity_loss.entropy,
+            "diversity_reward_mean": policy.diversity_reward_mean,  # ?
+        }
+    )
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret['diversity_vf_explained_var'] = explained_variance(
             train_batch[DIVERSITY_VALUE_TARGETS],
@@ -165,11 +167,11 @@ class ComputeDiversityMixin:
             raise NotImplementedError()
 
 
-
 def setup_mixins_dice(policy, action_space, obs_space, config):
     original_setup_mixins(policy, action_space, obs_space, config)
-    DiversityValueNetworkMixin.__init__(policy, obs_space, action_space,
-                                        config)
+    DiversityValueNetworkMixin.__init__(
+        policy, obs_space, action_space, config
+    )
     ComputeDiversityMixin.__init__(policy)
 
 
@@ -198,6 +200,5 @@ DiCEPolicy_APPO = AsyncPPOTFPolicy.with_updates(
         ValueNetworkMixin,
         DiversityValueNetworkMixin,
         ComputeDiversityMixin,
-
     ]
 )

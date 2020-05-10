@@ -1,8 +1,6 @@
 from toolbox.action_distribution.mixture_gaussian import GaussianMixture
 from toolbox.evolution.modified_es import GaussianESTrainer
 
-
-
 if __name__ == '__main__':
     from toolbox import initialize_ray
 

@@ -105,6 +105,7 @@ def setup_policies_pool(trainer):
     # Maintain a copy of central policy pool in each local worker set,
     # alongside with a local policies weights storage
     for ws_id, worker_set in trainer.workers.items():
+
         def _setup_policy_pool(worker, worker_index):
             worker._local_policy_pool = {}
             central_weights = ray.get(central_policy_weights_id)
@@ -112,9 +113,11 @@ def setup_policies_pool(trainer):
                 policy_name = "workerset{}_worker{}_cloned_policy{}".format(
                     ws_id, worker_index, policy_id
                 )
-                logger.info("Start creating policy <{}> in worker <{}> "
-                            "in workerset <{}>"
-                            "".format(policy_name, worker_index, ws_id))
+                logger.info(
+                    "Start creating policy <{}> in worker <{}> "
+                    "in workerset <{}>"
+                    "".format(policy_name, worker_index, ws_id)
+                )
                 with tf.variable_scope(policy_name):
                     policy = policy_class(obs_space, act_space, policy_config)
                     policy.set_weights(_convert_weights(weights, policy_name))
@@ -124,9 +127,12 @@ def setup_policies_pool(trainer):
                 # We don't have target network at all
                 # policy.update_target_network(tau=1.0)
                 policy._lazy_initialize(worker._local_policy_pool)
-                logger.info("Finish single task of <{}> in worker <{}> in "
-                            "workerset <{}>".format(
-                    my_policy_name, worker_index, ws_id))
+                logger.info(
+                    "Finish single task of <{}> in worker <{}> in "
+                    "workerset <{}>".format(
+                        my_policy_name, worker_index, ws_id
+                    )
+                )
 
             worker.foreach_trainable_policy(_init_diversity_policy)
 
@@ -149,7 +155,8 @@ def after_optimizer_iteration(trainer, fetches):
                 k: w * tau + (1 - tau) * old_w
                 for (k, w), old_w in zip(
                     weights.items(),
-                    trainer._central_policy_weights[ws_id].values())
+                    trainer._central_policy_weights[ws_id].values()
+                )
             }
         else:
             trainer._central_policy_weights[ws_id] = weights
@@ -158,6 +165,7 @@ def after_optimizer_iteration(trainer, fetches):
 
     # Sync the weights in each worker
     for ws_id, worker_set in trainer.workers.items():
+
         def _sync_policy_pool(worker, worker_index):
             central_weights = ray.get(central_policy_weights_id)
             for policy_id, weights in central_weights.items():
@@ -204,7 +212,8 @@ def make_aggregators_and_optimizer(workers, config):
         num_aggregation_workers=config["num_aggregation_workers"],
         shuffle_sequences=config["shuffle_sequences"],
         sync_sampling=config["sync_sampling"],
-        **config["optimizer"])
+        **config["optimizer"]
+    )
 
     if aggregators:
         # Assign the pre-created aggregators to the optimizer

@@ -13,20 +13,22 @@ from ray.rllib.policy.tf_policy import SampleBatch
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CONFIG = with_common_config({
-    "l2_coeff": 0.005,
-    "noise_stdev": 0.02,
-    "episodes_per_batch": 1000,
-    "train_batch_size": 10000,
-    "eval_prob": 0.003,
-    "return_proc_mode": "centered_rank",
-    "num_workers": 10,
-    "stepsize": 0.01,
-    "observation_filter": "NoFilter",
-    "noise_size": 250000000,
-    "report_length": 10,
-    "optimizer_type": "adam"  # must in [adam, sgd]
-})
+DEFAULT_CONFIG = with_common_config(
+    {
+        "l2_coeff": 0.005,
+        "noise_stdev": 0.02,
+        "episodes_per_batch": 1000,
+        "train_batch_size": 10000,
+        "eval_prob": 0.003,
+        "return_proc_mode": "centered_rank",
+        "num_workers": 10,
+        "stepsize": 0.01,
+        "observation_filter": "NoFilter",
+        "noise_size": 250000000,
+        "report_length": 10,
+        "optimizer_type": "adam"  # must in [adam, sgd]
+    }
+)
 
 
 class SharedNoiseTable(object):
@@ -50,12 +52,10 @@ class SharedNoiseTable(object):
 
 @ray.remote
 class Worker:
-    def __init__(self,
-                 config,
-                 policy_params,
-                 env_creator,
-                 noise,
-                 min_task_runtime=0.2):
+    def __init__(
+            self, config, policy_params, env_creator, noise,
+            min_task_runtime=0.2
+    ):
         self.min_task_runtime = min_task_runtime
         self.config = config
         self.policy_params = policy_params
@@ -64,7 +64,8 @@ class Worker:
         self.env = env_creator(config["env_config"])
         from ray.rllib import models
         self.preprocessor = models.ModelCatalog.get_preprocessor(
-            self.env, config["model"])
+            self.env, config["model"]
+        )
 
         self.sess = utils.make_session(single_threaded=True)
 
@@ -72,8 +73,8 @@ class Worker:
             self.policy = GenericGaussianPolicy(
                 self.sess, self.env.action_space, self.env.observation_space,
                 self.preprocessor, config["observation_filter"],
-                config["model"],
-                **policy_params)
+                config["model"], **policy_params
+            )
 
     @property
     def filters(self):
@@ -96,7 +97,8 @@ class Worker:
             self.policy,
             self.env,
             timestep_limit=timestep_limit,
-            add_noise=add_noise)
+            add_noise=add_noise
+        )
         return rollout_rewards, rollout_length
 
     def do_rollouts(self, params, timestep_limit=None):
@@ -122,7 +124,8 @@ class Worker:
                 noise_index = self.noise.sample_index(self.policy.num_params)
 
                 perturbation = self.config["noise_stdev"] * self.noise.get(
-                    noise_index, self.policy.num_params)
+                    noise_index, self.policy.num_params
+                )
 
                 # These two sampling steps could be done in parallel on
                 # different actors letting us update twice as frequently.
@@ -136,7 +139,8 @@ class Worker:
                 returns.append([rewards_pos.sum(), rewards_neg.sum()])
                 sign_returns.append(
                     [np.sign(rewards_pos).sum(),
-                     np.sign(rewards_neg).sum()])
+                     np.sign(rewards_neg).sum()]
+                )
                 lengths.append([lengths_pos, lengths_neg])
 
         return Result(
@@ -145,20 +149,31 @@ class Worker:
             sign_noisy_returns=sign_returns,
             noisy_lengths=lengths,
             eval_returns=eval_returns,
-            eval_lengths=eval_lengths)
+            eval_lengths=eval_lengths
+        )
 
 
 class GenericGaussianPolicy(GenericPolicy):
-    def __init__(self, sess, action_space, obs_space, preprocessor,
-                 observation_filter, model_options, action_noise_std=0.0):
+    def __init__(
+            self,
+            sess,
+            action_space,
+            obs_space,
+            preprocessor,
+            observation_filter,
+            model_options,
+            action_noise_std=0.0
+    ):
         self.sess = sess
         self.action_space = action_space
         self.action_noise_std = action_noise_std
         self.preprocessor = preprocessor
-        self.observation_filter = get_filter(observation_filter,
-                                             self.preprocessor.shape)
-        self.inputs = tf.placeholder(tf.float32,
-                                     [None] + list(self.preprocessor.shape))
+        self.observation_filter = get_filter(
+            observation_filter, self.preprocessor.shape
+        )
+        self.inputs = tf.placeholder(
+            tf.float32, [None] + list(self.preprocessor.shape)
+        )
 
         # dist_class, dist_dim = ModelCatalog.get_action_dist(
         #     self.action_space, model_options, dist_type="deterministic")
@@ -186,17 +201,20 @@ class GenericGaussianPolicy(GenericPolicy):
         self.model_out = model_out
         self.sampler = dist.sample()
         self.variables = ray.experimental.tf_utils.TensorFlowVariables(
-            [], self.sess, self.model.variables())
+            [], self.sess, self.model.variables()
+        )
         self.num_params = sum(
             np.prod(variable.shape.as_list())
-            for _, variable in self.variables.variables.items())
+            for _, variable in self.variables.variables.items()
+        )
         self.sess.run(tf.global_variables_initializer())
 
     def compute_actions(self, observation):
         observation = self.preprocessor.transform(observation)
         observation = self.observation_filter(observation[None], update=False)
-        logit = self.sess.run(self.model_out,
-                              feed_dict={self.inputs: observation})
+        logit = self.sess.run(
+            self.model_out, feed_dict={self.inputs: observation}
+        )
         return logit
 
     def set_weights(self, x):
@@ -205,8 +223,9 @@ class GenericGaussianPolicy(GenericPolicy):
         elif isinstance(x, np.ndarray):
             self.variables.set_flat(x)
         else:
-            raise ValueError("Wrong type when setting weights in policy: ",
-                             type(x))
+            raise ValueError(
+                "Wrong type when setting weights in policy: ", type(x)
+            )
 
     def get_weights(self):
         # return self.variables.get_weights()
@@ -236,9 +255,16 @@ class GaussianESTrainer(ESTrainer):
     def get_policy(self, _=None):
         return self.policy
 
-    def compute_action(self, observation, state=None, prev_action=None,
-                       prev_reward=None, info=None,
-                       policy_id=DEFAULT_POLICY_ID, full_fetch=False):
+    def compute_action(
+            self,
+            observation,
+            state=None,
+            prev_action=None,
+            prev_reward=None,
+            info=None,
+            policy_id=DEFAULT_POLICY_ID,
+            full_fetch=False
+    ):
         return super().compute_action(observation)
 
     def _init(self, config, env_creator):
@@ -251,7 +277,8 @@ class GaussianESTrainer(ESTrainer):
         self.sess = utils.make_session(single_threaded=False)
         self.policy = GenericGaussianPolicy(
             self.sess, env.action_space, env.observation_space, preprocessor,
-            config["observation_filter"], config["model"], **policy_params)
+            config["observation_filter"], config["model"], **policy_params
+        )
         if config["optimizer_type"] == "adam":
             self.optimizer = optimizers.Adam(self.policy, config["stepsize"])
         elif config["optimizer_type"] == "sgd":
@@ -281,9 +308,13 @@ if __name__ == '__main__':
     from toolbox import initialize_ray
 
     initialize_ray(test_mode=True, local_mode=True)
-    config = {"num_workers": 3, "episodes_per_batch": 5,
-              "train_batch_size": 150, "observation_filter": "NoFilter",
-              "noise_size": 1000000}
+    config = {
+        "num_workers": 3,
+        "episodes_per_batch": 5,
+        "train_batch_size": 150,
+        "observation_filter": "NoFilter",
+        "noise_size": 1000000
+    }
     agent = GaussianESTrainer(config, "BipedalWalker-v2")
 
     agent.train()

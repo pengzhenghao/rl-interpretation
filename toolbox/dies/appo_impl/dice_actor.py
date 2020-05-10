@@ -14,10 +14,17 @@ from ray.rllib.utils.memory import ray_get_and_free
 class DRAggregatorBase:
     """Aggregators should extend from this class."""
 
-    def __init__(self, initial_weights_obj_id, remote_workers,
-                 max_sample_requests_in_flight_per_worker, replay_proportion,
-                 replay_buffer_num_slots, train_batch_size, sample_batch_size,
-                 sync_sampling=False):
+    def __init__(
+            self,
+            initial_weights_obj_id,
+            remote_workers,
+            max_sample_requests_in_flight_per_worker,
+            replay_proportion,
+            replay_buffer_num_slots,
+            train_batch_size,
+            sample_batch_size,
+            sync_sampling=False
+    ):
         """Initialize an aggregator.
 
         Arguments:
@@ -43,7 +50,8 @@ class DRAggregatorBase:
                     "Replay buffer size is too small to produce train, "
                     "please increase replay_buffer_num_slots.",
                     replay_buffer_num_slots, sample_batch_size,
-                    train_batch_size)
+                    train_batch_size
+                )
 
         self.batch_buffer = []
 
@@ -85,18 +93,20 @@ class DRAggregatorBase:
         already_sent_out = False
         # ev is the rollout worker
         for ev, sample_batch in self._augment_with_replay(
-                self.sample_tasks.completed_prefetch(
-                    blocking_wait=True, max_yield=max_yield)):
+                self.sample_tasks.completed_prefetch(blocking_wait=True,
+                                                     max_yield=max_yield)):
             sample_batch.decompress_if_needed()
             self.batch_buffer.append(sample_batch)
-            if sum(b.count for b in self.batch_buffer) >= self.train_batch_size:
+            if sum(b.count
+                   for b in self.batch_buffer) >= self.train_batch_size:
                 if len(self.batch_buffer) == 1:
                     # make a defensive copy to avoid sharing plasma memory
                     # across multiple threads
                     train_batch = self.batch_buffer[0].copy()
                 else:
                     train_batch = self.batch_buffer[0].concat_samples(
-                        self.batch_buffer)
+                        self.batch_buffer
+                    )
                 self.sample_timesteps += train_batch.count
 
                 if self.sync_sampling:
@@ -155,7 +165,8 @@ class DRAggregatorBase:
     def _augment_with_replay(self, sample_futures):
         def can_replay():
             num_needed = int(
-                np.ceil(self.train_batch_size / self.sample_batch_size))
+                np.ceil(self.train_batch_size / self.sample_batch_size)
+            )
             return len(self.replay_batches) > num_needed
 
         for ev, sample_batch in sample_futures:
@@ -174,16 +185,17 @@ class DRAggregatorBase:
 class DRAggregator(DRAggregatorBase, Aggregator):
     """Simple single-threaded implementation of an Aggregator."""
 
-    def __init__(self,
-                 workers,
-                 max_sample_requests_in_flight_per_worker=2,
-                 replay_proportion=0.0,
-                 replay_buffer_num_slots=0,
-                 train_batch_size=500,
-                 sample_batch_size=50,
-                 broadcast_interval=5,
-                 sync_sampling=False
-                 ):
+    def __init__(
+            self,
+            workers,
+            max_sample_requests_in_flight_per_worker=2,
+            replay_proportion=0.0,
+            replay_buffer_num_slots=0,
+            train_batch_size=500,
+            sample_batch_size=50,
+            broadcast_interval=5,
+            sync_sampling=False
+    ):
         self.workers = workers
         self.local_worker = workers.local_worker()
         self.broadcast_interval = broadcast_interval
@@ -192,7 +204,8 @@ class DRAggregator(DRAggregatorBase, Aggregator):
             self, self.broadcasted_weights, self.workers.remote_workers(),
             max_sample_requests_in_flight_per_worker, replay_proportion,
             replay_buffer_num_slots, train_batch_size, sample_batch_size,
-            sync_sampling)
+            sync_sampling
+        )
 
     @override(Aggregator)
     def broadcast_new_weights(self):

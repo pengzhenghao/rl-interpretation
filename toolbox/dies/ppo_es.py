@@ -16,12 +16,8 @@ ppo_es_default_config = merge_dicts(
 def validate_config(config):
     tmp_env = MultiAgentEnvWrapper(config["env_config"])
     config["multiagent"]["policies"] = {
-        "agent{}".format(i): (
-            None,
-            tmp_env.observation_space,
-            tmp_env.action_space,
-            {}
-        )
+        "agent{}".format(i):
+        (None, tmp_env.observation_space, tmp_env.action_space, {})
         for i in range(num_agents)
     }
     config["multiagent"]["policy_mapping_fn"] = lambda x: x

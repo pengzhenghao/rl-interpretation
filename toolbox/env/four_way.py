@@ -31,43 +31,53 @@ def register_four_way():
         register_gym(
             id='FourWayUseWalls-v0',
             entry_point='toolbox.env.four_way:FourWayGridWorld',
-            kwargs={"env_config": {"use_walls": True}},
+            kwargs={"env_config": {
+                "use_walls": True
+            }},
         )
         register_gym(
             id='FourWayUseWallsFixed-v0',
             entry_point='toolbox.env.four_way:FourWayGridWorld',
-            kwargs={"env_config": {"use_walls": True, "init_loc": [8.0, 8.0]}},
+            kwargs={"env_config": {
+                "use_walls": True,
+                "init_loc": [8.0, 8.0]
+            }},
         )
         register_gym(
             id="DeceptiveMaze-v0",
             entry_point='toolbox.env.four_way:FourWayGridWorld',
-            kwargs={"env_config": {
-                "use_walls": True,
-                "init_loc": [8.0, 8.0],
-                "left": 0,
-                "right": 100,
-                "record_trajectory": True,
-                "early_done": True}}
+            kwargs={
+                "env_config": {
+                    "use_walls": True,
+                    "init_loc": [8.0, 8.0],
+                    "left": 0,
+                    "right": 100,
+                    "record_trajectory": True,
+                    "early_done": True
+                }
+            }
         )
         register_gym(
             id="DeceptiveMazeFree-v0",
             entry_point='toolbox.env.four_way:FourWayGridWorld',
-            kwargs={"env_config": {
-                "use_walls": True,
-                "left": 0,
-                "right": 100,
-                "record_trajectory": False,
-                "early_done": True}}
+            kwargs={
+                "env_config": {
+                    "use_walls": True,
+                    "left": 0,
+                    "right": 100,
+                    "record_trajectory": False,
+                    "early_done": True
+                }
+            }
         )
-        print("Registed three environments: FourWay-v0, "
-              "FourWayUseWalls-v0, FourWayUseWallsFixed-v0, DeceptiveMaze-v0, "
-              "'DeceptiveMazeFree-v0 in Gym.")
+        print(
+            "Registed three environments: FourWay-v0, "
+            "FourWayUseWalls-v0, FourWayUseWallsFixed-v0, DeceptiveMaze-v0, "
+            "'DeceptiveMazeFree-v0 in Gym."
+        )
     try:
         from ray.tune.registry import register_env
-        register_env(
-            'FourWay-v0',
-            lambda _: FourWayGridWorld()
-        )
+        register_env('FourWay-v0', lambda _: FourWayGridWorld())
         register_env(
             'FourWayUseWalls-v0',
             lambda _: FourWayGridWorld(env_config={"use_walls": True}),
@@ -75,30 +85,40 @@ def register_four_way():
         register_env(
             'FourWayUseWallsFixed-v0',
             lambda _: FourWayGridWorld(
-                env_config={"use_walls": True, "init_loc": [8.0, 8.0]}),
+                env_config={
+                    "use_walls": True,
+                    "init_loc": [8.0, 8.0]
+                }
+            ),
         )
         register_env(
-            'DeceptiveMaze-v0',
-            lambda _: FourWayGridWorld(env_config={
-                "use_walls": True,
-                "init_loc": [8.0, 8.0],
-                "left": 0,
-                "right": 100,
-                "record_trajectory": True,
-                "early_done": True})
+            'DeceptiveMaze-v0', lambda _: FourWayGridWorld(
+                env_config={
+                    "use_walls": True,
+                    "init_loc": [8.0, 8.0],
+                    "left": 0,
+                    "right": 100,
+                    "record_trajectory": True,
+                    "early_done": True
+                }
+            )
         )
         register_env(
-            'DeceptiveMazeFree-v0',
-            lambda _: FourWayGridWorld(env_config={
-                "use_walls": True,
-                "left": 0,
-                "right": 100,
-                "record_trajectory": False,
-                "early_done": True})
+            'DeceptiveMazeFree-v0', lambda _: FourWayGridWorld(
+                env_config={
+                    "use_walls": True,
+                    "left": 0,
+                    "right": 100,
+                    "record_trajectory": False,
+                    "early_done": True
+                }
+            )
         )
-        print("Registed three environments: FourWay-v0, "
-              "FourWayUseWalls-v0, FourWayUseWallsFixed-v0, DeceptiveMaze-v0, "
-              "'DeceptiveMazeFree-v0 in RLLib.")
+        print(
+            "Registed three environments: FourWay-v0, "
+            "FourWayUseWalls-v0, FourWayUseWallsFixed-v0, DeceptiveMaze-v0, "
+            "'DeceptiveMazeFree-v0 in RLLib."
+        )
     except Exception:
         print("Failed to register environment in RLLib.")
 
@@ -146,8 +166,8 @@ class FourWayGridWorld(gym.Env):
         if isinstance(env_config, dict):
             self.config.update(env_config)
         self.N = self.config['N']
-        self.observation_space = Box(0, self.N, shape=(2,))
-        self.action_space = Box(-1, 1, shape=(2,))
+        self.observation_space = Box(0, self.N, shape=(2, ))
+        self.action_space = Box(-1, 1, shape=(2, ))
         self.map = np.ones((self.N + 1, self.N + 1), dtype=np.float32)
         self._fill_map()
         self.walls = []
@@ -179,10 +199,12 @@ class FourWayGridWorld(gym.Env):
         return self.step_num >= 2 * self.N
 
     def step(self, action):
-        x = _clip(self.x + action[0], max(0, self.x - 1),
-                  min(self.N, self.x + 1))
-        y = _clip(self.y + action[1], max(0, self.y - 1),
-                  min(self.N, self.y + 1))
+        x = _clip(
+            self.x + action[0], max(0, self.x - 1), min(self.N, self.x + 1)
+        )
+        y = _clip(
+            self.y + action[1], max(0, self.y - 1), min(self.N, self.y + 1)
+        )
 
         if any(w.intersect((self.x, self.y), (x, y)) for w in self.walls):
             pass
@@ -230,11 +252,11 @@ class FourWayGridWorld(gym.Env):
         else:
             if self.config['int_initialize']:
                 loc = np.random.randint(
-                    0, self.N + 1, size=(2,)
+                    0, self.N + 1, size=(2, )
                 ).astype(np.float32)
             else:
                 loc = np.random.uniform(
-                    0, self.N, size=(2,)
+                    0, self.N, size=(2, )
                 ).astype(np.float32)
         self.x, self.y = loc[0], loc[1]
         self.step_num = 0
@@ -270,8 +292,14 @@ def draw(compute_action, env_config=dict(), num_grids=32, **plt_kwargs):
             diff = new_loc - old_loc
             if np.linalg.norm(diff) < 1e-9:
                 continue
-            ax.arrow(old_loc[0], old_loc[1], diff[0], diff[1], head_width=0.2,
-                     shape='left')
+            ax.arrow(
+                old_loc[0],
+                old_loc[1],
+                diff[0],
+                diff[1],
+                head_width=0.2,
+                shape='left'
+            )
     plt.show()
 
 
@@ -297,7 +325,7 @@ if __name__ == '__main__':
     env = FourWayGridWorld(test_env_config)
     env.loc = [8, 8]
     for i in range(1000):
-        env.step(np.random.uniform(size=(2,)) * 2 - 1)
+        env.step(np.random.uniform(size=(2, )) * 2 - 1)
     env.render()
     compute_action = lambda _: [1, 0.5]
     draw(compute_action, test_env_config)

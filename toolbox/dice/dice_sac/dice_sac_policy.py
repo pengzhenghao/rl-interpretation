@@ -179,7 +179,8 @@ def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
         replay_result = policy.compute_actions(
             other_batch_raw[SampleBatch.CUR_OBS]
         )[2]
-        other_batch_raw[MY_LOGIT] = replay_result[SampleBatch.ACTION_DIST_INPUTS]
+        other_batch_raw[MY_LOGIT] = replay_result[
+            SampleBatch.ACTION_DIST_INPUTS]
 
         # Compute the diversity reward and diversity advantage of this batch.
         other_batch_raw = postprocess_diversity(

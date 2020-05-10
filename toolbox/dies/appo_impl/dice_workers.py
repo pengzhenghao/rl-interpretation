@@ -18,11 +18,16 @@ class _SetGlobalVarsFunc:
         self.workers = workers
 
     def __call__(self, vars):
-        return {wid: w.set_global_vars(vars) for wid, w in self.workers.items()}
+        return {
+            wid: w.set_global_vars(vars)
+            for wid, w in self.workers.items()
+        }
 
     def remote(self, vars):
-        return {wid: w.set_global_vars.remote(vars) for wid, w in
-                self.workers.items()}
+        return {
+            wid: w.set_global_vars.remote(vars)
+            for wid, w in self.workers.items()
+        }
 
 
 class _RolloutWorkerSetContainer:
@@ -40,20 +45,31 @@ class _RolloutWorkerSetContainer:
         return {wid: w.get_policy(idx) for wid, w in self.workers.items()}
 
     def save(self):
-        raise NotImplementedError("In our design, this function should never "
-                                  "be called. So please check!")
+        raise NotImplementedError(
+            "In our design, this function should never "
+            "be called. So please check!"
+        )
+
     #     return {wid: w.save() for wid, w in self.workers.items()}
 
 
 class SuperWorkerSet:
-
-    def __init__(self, num_sets, env_creator, policy, trainer_config=None,
-                 num_workers_per_set=0, logdir=None, _setup=True):
+    def __init__(
+            self,
+            num_sets,
+            env_creator,
+            policy,
+            trainer_config=None,
+            num_workers_per_set=0,
+            logdir=None,
+            _setup=True
+    ):
         self._worker_sets = {}
         for i in range(num_sets):
             self._worker_sets[i] = WorkerSet(
                 env_creator, policy, trainer_config, num_workers_per_set,
-                logdir, _setup)
+                logdir, _setup
+            )
 
     def items(self):
         return self._worker_sets.items()
@@ -74,7 +90,9 @@ class SuperWorkerSet:
             ws.add_workers(num_workers_per_agent)
             logger.info(
                 "Add {} workers to worker set {}".format(
-                    num_workers_per_agent, ws_id))
+                    num_workers_per_agent, ws_id
+                )
+            )
 
     def _check_worker_set_id(self, worker_set_id):
         assert worker_set_id in self._worker_sets, \
@@ -84,8 +102,11 @@ class SuperWorkerSet:
     def local_worker(self, worker_set_id=None):
         if worker_set_id is None:
             return _RolloutWorkerSetContainer(
-                {wid: ws.local_worker() for wid, ws in self._worker_sets.items()
-                 })
+                {
+                    wid: ws.local_worker()
+                    for wid, ws in self._worker_sets.items()
+                }
+            )
         else:
             self._check_worker_set_id(worker_set_id)
             return self._worker_sets[worker_set_id].local_worker()
@@ -93,9 +114,10 @@ class SuperWorkerSet:
     def remote_workers(self, worker_set_id=None):
         if worker_set_id is None:
             return [
-                _RolloutWorkerSetContainer({
-                    i: w for i, w in enumerate(ws.remote_workers())
-                }) for ws in self._worker_sets.values()
+                _RolloutWorkerSetContainer(
+                    {i: w
+                     for i, w in enumerate(ws.remote_workers())}
+                ) for ws in self._worker_sets.values()
             ]
         else:
             self._check_worker_set_id(worker_set_id)
@@ -118,17 +140,22 @@ class SuperWorkerSet:
 
     def foreach_worker_with_index(self, func, worker_set_id=None):
         if worker_set_id is None:
-            return {ws_id: ws.foreach_worker_with_index(func) for ws_id, ws in
-                    self._worker_sets.items()}
+            return {
+                ws_id: ws.foreach_worker_with_index(func)
+                for ws_id, ws in self._worker_sets.items()
+            }
         else:
             self._check_worker_set_id(worker_set_id)
             return self._worker_sets[worker_set_id].foreach_worker_with_index(
-                func)
+                func
+            )
 
     def forwach_worker(self, func, worker_set_id=None):
         if worker_set_id is None:
-            return {ws_id: ws.forwach_worker(func) for ws_id, ws in
-                    self._worker_sets.items()}
+            return {
+                ws_id: ws.forwach_worker(func)
+                for ws_id, ws in self._worker_sets.items()
+            }
         else:
             self._check_worker_set_id(worker_set_id)
             return self._worker_sets[worker_set_id].forwach_worker(func)

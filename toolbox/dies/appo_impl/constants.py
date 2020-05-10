@@ -15,22 +15,20 @@ DIVERSITY_VALUE_TARGETS = "diversity_value_targets"
 NORMALIZE_ADVANTAGE = "normalize_advantage"
 
 dice_appo_default_config = merge_dicts(
-    APPO_DEFAULT, {
+    APPO_DEFAULT,
+    {
         USE_BISECTOR: True,
         USE_DIVERSITY_VALUE_NETWORK: False,
         DELAY_UPDATE: True,
         NORMALIZE_ADVANTAGE: False,
         CLIP_DIVERSITY_GRADIENT: True,
         DIVERSITY_REWARD_TYPE: "mse",
-
         "num_agents": 1,  # Control the agent population size
         "num_sgd_iter": 10,  # In PPO this is 10
         "train_batch_size": 500,
         "sample_batch_size": 50,
-
         "tau": 5e-3,
         "clip_param": 0.3,
-
         "lr": 5e-4,
         "max_sample_requests_in_flight_per_worker": 2,  # originally 2
         "shuffle_sequences": True,
@@ -43,6 +41,5 @@ dice_appo_default_config = merge_dicts(
         # "num_data_loader_buffers": 1,
         # "vf_loss_coeff": 0.5,
         # "vtrace": False,
-
     }
 )

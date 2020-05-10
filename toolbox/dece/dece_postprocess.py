@@ -14,8 +14,8 @@ def _compute_logp(logit, x):
     x = np.expand_dims(x.astype(np.float64), 1) if x.ndim == 1 else x
     mean, log_std = np.split(logit, 2, axis=1)
     logp = (
-            -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
-            0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
+        -0.5 * np.sum(np.square((x - mean) / np.exp(log_std)), axis=1) -
+        0.5 * np.log(2.0 * np.pi) * x.shape[1] - np.sum(log_std, axis=1)
     )
     p = np.exp(logp)
     return logp, p
