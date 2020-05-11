@@ -1,7 +1,14 @@
+from ray.rllib.agents.callbacks import DefaultCallbacks
 from ray.rllib.agents.sac.sac import DEFAULT_CONFIG as sac_default_config
 
 import toolbox.dice.utils as constants
 from toolbox.utils import merge_dicts
+
+
+class DiCESACCallbacks(DefaultCallbacks):
+    def on_postprocess_trajectory(self, *args, **kwargs):
+        constants.on_postprocess_trajectory(*args, **kwargs)
+
 
 dice_sac_default_config = merge_dicts(
     sac_default_config,
@@ -28,9 +35,6 @@ dice_sac_default_config = merge_dicts(
         },
 
         # "tau": 5e-3,  # <<== SAC already have this
-        "callbacks": {
-            # "on_train_result": constants.on_train_result,
-            "on_postprocess_traj": constants.on_postprocess_traj
-        }
+        "callbacks": DiCESACCallbacks
     }
 )
