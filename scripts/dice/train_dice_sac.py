@@ -11,7 +11,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     exp_name = args.exp_name
-    stop = int(1.5e6)
+    stop = int(1e6)
 
     config = {
         "env": tune.grid_search([
