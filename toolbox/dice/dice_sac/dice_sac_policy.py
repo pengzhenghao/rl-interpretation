@@ -119,6 +119,9 @@ def postprocess_diversity(policy, batch, others_batches):
 
     # Compute diversity and add a new entry of batch: diversity_reward
     batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch, others_batches)
+
+    if np.isscalar(batch[DIVERSITY_REWARDS]) and batch[DIVERSITY_REWARDS] == np.nan:
+        print("STOP HERE!")
     """
     # Compute the diversity advantage. We mock the computing of task advantage
     # but simply replace the task reward with the diversity reward.
@@ -278,6 +281,10 @@ class ComputeDiversityMixinModified(ComputeDiversityMixin):
         if self.config[DELAY_UPDATE]:
             # If in DELAY_UPDATE mode, compute diversity against the target
             # network of each policies.
+            if not self.policies_pool:
+                print("stop")
+            assert self.policies_pool, "Your policy pool is empty."
+            assert self.initialized_policies_pool
             for other_name, other_policy in self.policies_pool.items():
                 logits = other_policy._compute_clone_network_logits(
                     my_batch[SampleBatch.CUR_OBS],

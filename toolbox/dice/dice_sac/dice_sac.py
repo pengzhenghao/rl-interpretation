@@ -1,5 +1,6 @@
 import ray
-from ray.rllib.agents.dqn.dqn import update_target_if_needed
+from ray.rllib.agents.dqn.dqn import update_target_if_needed, \
+    update_worker_exploration
 from ray.rllib.agents.sac.sac import SACTrainer, \
     validate_config as validate_config_sac
 from ray.tune.registry import _global_registry, ENV_CREATOR
@@ -80,6 +81,34 @@ def make_policy_optimizer(workers, config):
     )
 
 
+def before_train_step(trainer):
+    if hasattr(trainer, "evaluation_workers") \
+            and trainer.config[DELAY_UPDATE] \
+            and not trainer.evaluation_workers.local_worker() \
+            .get_policy('agent0').initialized_policies_pool:
+        # First step, broadcast local weights to remote worker.
+        if trainer.evaluation_workers.remote_workers():
+            weights = ray.put(
+                trainer.evaluation_workers.local_worker().get_weights())
+            for e in trainer.evaluation_workers.remote_workers():
+                e.set_weights.remote(weights)
+
+        # Second step, call the _lazy_initialize function of each policy,
+        # feeding
+        # with the policies map in the trainer.
+        def _init_pool(worker, worker_index):
+            def _init_diversity_policy(policy, my_policy_name):
+                # policy.update_target_network(tau=1.0)
+                policy.update_target(tau=1.0)
+                policy._lazy_initialize(worker.policy_map, my_policy_name)
+
+            worker.foreach_policy(_init_diversity_policy)
+
+        trainer.evaluation_workers.foreach_worker_with_index(_init_pool)
+
+    update_worker_exploration(trainer)
+
+
 DiCESACTrainer = SACTrainer.with_updates(
     name="DiCESACTrainer",
     default_config=dice_sac_default_config,
@@ -88,5 +117,6 @@ DiCESACTrainer = SACTrainer.with_updates(
     after_init=setup_policies_pool,
     after_optimizer_step=after_optimizer_step,
     validate_config=validate_config,
-    make_policy_optimizer=make_policy_optimizer
+    make_policy_optimizer=make_policy_optimizer,
+    before_train_step=before_train_step
 )

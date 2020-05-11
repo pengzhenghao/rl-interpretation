@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
         # SAC config
         "horizon": 1000,
-        "sample_batch_size": 1,
+        "rollout_fragment_length": 50,
         "train_batch_size": 256,
         "target_network_update_freq": 1,
         "timesteps_per_iteration": 1000,

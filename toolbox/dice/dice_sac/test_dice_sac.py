@@ -90,13 +90,17 @@ def regression_test2(local_mode=False):
     train(
         DiCESACTrainer,
         {
-            "soft_horizon": True,
+            # "soft_horizon": True,
             "clip_actions": False,
             "normalize_actions": False,  # <<== Handle in MARL env
             "metrics_smoothing_episodes": 5,
-            "no_done_at_end": True,
-            "train_batch_size": 1000,
+            # "no_done_at_end": True,
+            "train_batch_size": 256,
             "rollout_fragment_length": 50,
+            "target_network_update_freq": 1,
+            "timesteps_per_iteration": 500,
+            "evaluation_interval": 1,
+            "learning_starts": 1000,
             constants.DELAY_UPDATE: tune.grid_search([True, False]),
             **get_marl_env_config(
                 "Pendulum-v0", num_agents, normalize_actions=True
