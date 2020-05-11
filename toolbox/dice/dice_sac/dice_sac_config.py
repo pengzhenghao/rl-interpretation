@@ -10,9 +10,20 @@ class DiCESACCallbacks(DefaultCallbacks):
         constants.on_postprocess_trajectory(*args, **kwargs)
 
 
+def before_learn_on_batch(batch, worker, config):
+    print(batch)
+    print(1 + 1)
+    return batch
+
+
 dice_sac_default_config = merge_dicts(
     sac_default_config,
     {
+
+        # New version of SAC require this
+        "postprocess_inputs": True,
+        "before_learn_on_batch": before_learn_on_batch,
+        "use_exec_api": False,
 
         # PPO loss for diversity
         # "clip_param": 0.3,

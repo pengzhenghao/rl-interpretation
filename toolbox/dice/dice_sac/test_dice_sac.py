@@ -98,13 +98,6 @@ def regression_test2(local_mode=False):
             "train_batch_size": 1000,
             "rollout_fragment_length": 50,
             constants.DELAY_UPDATE: tune.grid_search([True, False]),
-            # constants.NOR: tune.grid_search([True, False]),
-
-            # "optimization": {
-            #     "actor_learning_rate": 0.005,
-            #     "critic_learning_rate": 0.005,
-            #     "entropy_learning_rate": 0.0001
-            # },
             **get_marl_env_config(
                 "Pendulum-v0", num_agents, normalize_actions=True
             )
@@ -120,7 +113,35 @@ def regression_test2(local_mode=False):
     shutil.rmtree(local_dir, ignore_errors=True)
 
 
+def regression_test_sac(local_mode=False):
+    num_agents = 3
+    local_dir = tempfile.mkdtemp()
+    initialize_ray(test_mode=True, local_mode=local_mode)
+    train(
+        "SAC",
+        {
+            "soft_horizon": True,
+            "clip_actions": False,
+            "normalize_actions": False,  # <<== Handle in MARL env
+            "metrics_smoothing_episodes": 5,
+            "no_done_at_end": True,
+            "train_batch_size": 1000,
+            "rollout_fragment_length": 50,
+            "env": "Pendulum-v0",
+        },
+        {
+            "episode_reward_mean": -300 * num_agents,
+            "timesteps_total": 13000 * num_agents
+        },
+        exp_name="DELETEME",
+        local_dir=local_dir,
+        test_mode=True
+    )
+    shutil.rmtree(local_dir, ignore_errors=True)
+
+
 if __name__ == "__main__":
     # pytest.main(["-v"])
     # regression_test(local_mode=False)
-    regression_test2(local_mode=False)
+    regression_test2(local_mode=True)
+    # regression_test_sac(local_mode=True)

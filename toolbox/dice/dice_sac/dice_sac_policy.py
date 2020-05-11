@@ -1,3 +1,4 @@
+import gym
 from gym.spaces import Box, Discrete
 from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch
 from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy, \
@@ -16,7 +17,7 @@ from toolbox.dice.dice_postprocess import \
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
 from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, \
     dice_sac_loss
-from toolbox.dice.dice_sac.dice_sac_model import SACModel
+from toolbox.dice.dice_sac.dice_sac_model import DiCESACModel
 from toolbox.dice.utils import *
 
 
@@ -251,8 +252,9 @@ def before_loss_init(policy, obs_space, action_space, config):
     DiversityValueNetworkMixin.__init__(
         policy, obs_space, action_space, config
     )
-    ComputeDiversityMixinModified.__init__(policy)
-    ComputeTDErrorMixin.__init__(policy)
+    discrete = isinstance(action_space, gym.spaces.Discrete)
+    ComputeDiversityMixinModified.__init__(policy, discrete)
+    ComputeTDErrorMixin.__init__(policy, dice_sac_loss)
 
 
 def extra_action_fetches_fn(policy):
@@ -263,6 +265,9 @@ def extra_action_fetches_fn(policy):
     }
     if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
         ret[DIVERSITY_VALUES] = policy.model.diversity_value_function()
+    # ret["td_error"] = policy.td_error
+    # ret["diversity_td_error"] = policy.diversity_td_error
+    # ret["diversity_reward_mean"] = policy.diversity_reward_mean
     return ret
 
 
@@ -343,14 +348,16 @@ def build_sac_model(policy, obs_space, action_space, config):
                 "`Q_model.hidden_layer_sizes`.")
             config["model"]["fcnet_hiddens"] = []
 
+    # Force-ignore any additionally provided hidden layer sizes.
+    # Everything should be configured using SAC's "Q_model" and "policy_model"
+    # settings.
     policy.model = ModelCatalog.get_model_v2(
-        obs_space,
-        action_space,
-        num_outputs,
-        config["model"],
-        framework="tf",
-        model_interface=SACModel,
-        # default_model=default_model,
+        obs_space=obs_space,
+        action_space=action_space,
+        num_outputs=num_outputs,
+        model_config=config["model"],
+        framework="torch" if config["use_pytorch"] else "tf",
+        model_interface=DiCESACModel,
         name="sac_model",
         actor_hidden_activation=config["policy_model"]["fcnet_activation"],
         actor_hiddens=config["policy_model"]["fcnet_hiddens"],
@@ -362,13 +369,12 @@ def build_sac_model(policy, obs_space, action_space, config):
     )
 
     policy.target_model = ModelCatalog.get_model_v2(
-        obs_space,
-        action_space,
-        num_outputs,
-        config["model"],
-        framework="tf",
-        model_interface=SACModel,
-        # default_model=default_model,
+        obs_space=obs_space,
+        action_space=action_space,
+        num_outputs=num_outputs,
+        model_config=config["model"],
+        framework="torch" if config["use_pytorch"] else "tf",
+        model_interface=DiCESACModel,
         name="target_sac_model",
         actor_hidden_activation=config["policy_model"]["fcnet_activation"],
         actor_hiddens=config["policy_model"]["fcnet_hiddens"],
@@ -380,6 +386,14 @@ def build_sac_model(policy, obs_space, action_space, config):
     )
 
     return policy.model
+
+
+def extra_learn_fetches_fn(policy):
+    ret = dict()
+    ret["td_error"] = policy.td_error
+    ret["diversity_td_error"] = policy.diversity_td_error
+    ret["diversity_reward_mean"] = policy.diversity_reward_mean
+    return ret
 
 
 DiCESACPolicy = SACTFPolicy.with_updates(
@@ -400,7 +414,8 @@ DiCESACPolicy = SACTFPolicy.with_updates(
     ],
     after_init=after_init,
     extra_action_fetches_fn=extra_action_fetches_fn,
-    obs_include_prev_action_reward=True,
+    extra_learn_fetches_fn=extra_learn_fetches_fn,
+    obs_include_prev_action_reward=False,
 
     # Not checked
     make_model=build_sac_model,

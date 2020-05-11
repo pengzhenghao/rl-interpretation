@@ -1,7 +1,7 @@
 import ray
-from ray.rllib.agents.dqn.dqn import update_target_if_needed, \
-    validate_config as validate_config_and_setup_param_noise
-from ray.rllib.agents.sac.sac import SACTrainer
+from ray.rllib.agents.dqn.dqn import update_target_if_needed
+from ray.rllib.agents.sac.sac import SACTrainer, \
+    validate_config as validate_config_sac
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 import toolbox.dice.utils as constants
@@ -32,7 +32,7 @@ def after_optimizer_step(trainer, fetches):
 
 
 def validate_config(config):
-    validate_config_and_setup_param_noise(config)
+    validate_config_sac(config)
 
     # Hard-coded this setting
     # assert not config["normalize_actions"]
@@ -53,13 +53,6 @@ def validate_config(config):
     # check the model
     if config[USE_DIVERSITY_VALUE_NETWORK]:
         raise NotImplementedError()
-        # ModelCatalog.register_custom_model(
-        #     "ActorDoubleCriticNetwork", ActorDoubleCriticNetwork
-        # )
-        # config['model']['custom_model'] = "ActorDoubleCriticNetwork"
-        # config['model']['custom_options'] = {
-        #     "use_diversity_value_network": config[USE_DIVERSITY_VALUE_NETWORK]
-        # }
     else:
         config['model']['custom_model'] = None
         config['model']['custom_options'] = None

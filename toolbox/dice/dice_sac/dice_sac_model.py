@@ -8,7 +8,7 @@ tf = try_import_tf()
 SCALE_DIAG_MIN_MAX = (-20, 2)
 
 
-class SACModel(TFModelV2):
+class DiCESACModel(TFModelV2):
     """Extension of standard TFModel for SAC.
 
     Data flow:
@@ -48,7 +48,7 @@ class SACModel(TFModelV2):
         only defines the layers for the output heads. Those layers for
         forward() should be defined in subclasses of SACModel.
         """
-        super(SACModel, self).__init__(
+        super(DiCESACModel, self).__init__(
             obs_space, action_space, num_outputs, model_config, name
         )
         self.discrete = False
@@ -62,7 +62,7 @@ class SACModel(TFModelV2):
             q_outs = 1
 
         self.model_out = tf.keras.layers.Input(
-            shape=(num_outputs, ), name="model_out"
+            shape=(self.num_outputs, ), name="model_out"
         )
         self.action_model = tf.keras.Sequential(
             [
