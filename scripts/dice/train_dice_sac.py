@@ -22,8 +22,6 @@ if __name__ == '__main__':
             # "Humanoid-v3"
         ]),
 
-        "num_cpus_for_driver": 2,
-
         constants.DELAY_UPDATE: tune.grid_search([True, False]),
 
         # SAC config
@@ -33,27 +31,28 @@ if __name__ == '__main__':
         "target_network_update_freq": 1,
         "timesteps_per_iteration": 1000,
         "learning_starts": 10000,
-        "clip_actions": True,
-        # "normalize_actions": True,  <<== This is handled by MARL env
         "evaluation_interval": 1,
         "metrics_smoothing_episodes": 5,
+        "num_cpus_for_driver": 2,
+
+        "clip_actions": False,
+        # "normalize_actions": True,  <<== This is handled by MARL env
     }
     config.update(get_marl_env_config(
         config["env"], args.num_agents, normalize_actions=True
     ))
 
     config["evaluation_config"] = dict(
-        # env_config=config["env_config"],
         explore=False
     )
 
     train(
         DiCESACTrainer,
-        config=config,
-        stop=stop,
         exp_name=exp_name,
-        num_seeds=args.num_seeds,
+        keep_checkpoints_num=5,
+        stop=stop,
+        config=config,
         num_gpus=args.num_gpus,
+        num_seeds=args.num_seeds,
         test_mode=args.test,
-        keep_checkpoints_num=5
     )
