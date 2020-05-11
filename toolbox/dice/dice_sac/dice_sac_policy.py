@@ -1,7 +1,7 @@
 from gym.spaces import Box, Discrete
-from ray.rllib.agents.ddpg.noop_model import NoopModel
 from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch
-from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy, TargetNetworkMixin, \
+from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy, \
+    TargetNetworkMixin, \
     ActorCriticOptimizerMixin, ComputeTDErrorMixin, postprocess_trajectory, \
     get_dist_class
 from ray.rllib.models import ModelCatalog
@@ -312,31 +312,36 @@ class ComputeDiversityMixinModified(ComputeDiversityMixin):
 
 
 def build_sac_model(policy, obs_space, action_space, config):
-    if config["model"]["custom_model"]:
+    if config["model"].get("custom_model"):
         logger.warning(
             "Setting use_state_preprocessor=True since a custom model "
-            "was specified."
-        )
+            "was specified.")
         config["use_state_preprocessor"] = True
     if not isinstance(action_space, (Box, Discrete)):
         raise UnsupportedSpaceException(
-            "Action space {} is not supported for SAC.".format(action_space)
-        )
+            "Action space {} is not supported for SAC.".format(action_space))
     if isinstance(action_space, Box) and len(action_space.shape) > 1:
         raise UnsupportedSpaceException(
             "Action space has multiple dimensions "
             "{}. ".format(action_space.shape) +
             "Consider reshaping this into a single dimension, "
-            "using a Tuple action space, or the multi-agent API."
-        )
+            "using a Tuple action space, or the multi-agent API.")
 
+    # 2 cases:
+    # 1) with separate state-preprocessor (before obs+action concat).
+    # 2) no separate state-preprocessor: concat obs+actions right away.
     if config["use_state_preprocessor"]:
-        default_model = None  # catalog decides
-        num_outputs = 256  # arbitrary
-        config["model"]["no_final_linear"] = True
+        num_outputs = 256  # Flatten last Conv2D to this many nodes.
     else:
-        default_model = NoopModel
-        num_outputs = int(np.product(obs_space.shape))
+        num_outputs = 0
+        # No state preprocessor: fcnet_hiddens should be empty.
+        if config["model"]["fcnet_hiddens"]:
+            logger.warning(
+                "When not using a state-preprocessor with SAC, `fcnet_hiddens`"
+                " will be set to an empty list! Any hidden layer sizes are "
+                "defined via `policy_model.hidden_layer_sizes` and "
+                "`Q_model.hidden_layer_sizes`.")
+            config["model"]["fcnet_hiddens"] = []
 
     policy.model = ModelCatalog.get_model_v2(
         obs_space,
@@ -345,14 +350,15 @@ def build_sac_model(policy, obs_space, action_space, config):
         config["model"],
         framework="tf",
         model_interface=SACModel,
-        default_model=default_model,
+        # default_model=default_model,
         name="sac_model",
-        actor_hidden_activation=config["policy_model"]["hidden_activation"],
-        actor_hiddens=config["policy_model"]["hidden_layer_sizes"],
-        critic_hidden_activation=config["Q_model"]["hidden_activation"],
-        critic_hiddens=config["Q_model"]["hidden_layer_sizes"],
+        actor_hidden_activation=config["policy_model"]["fcnet_activation"],
+        actor_hiddens=config["policy_model"]["fcnet_hiddens"],
+        critic_hidden_activation=config["Q_model"]["fcnet_activation"],
+        critic_hiddens=config["Q_model"]["fcnet_hiddens"],
         twin_q=config["twin_q"],
-        initial_alpha=config["initial_alpha"]
+        initial_alpha=config["initial_alpha"],
+        target_entropy=config["target_entropy"]
     )
 
     policy.target_model = ModelCatalog.get_model_v2(
@@ -362,14 +368,15 @@ def build_sac_model(policy, obs_space, action_space, config):
         config["model"],
         framework="tf",
         model_interface=SACModel,
-        default_model=default_model,
+        # default_model=default_model,
         name="target_sac_model",
-        actor_hidden_activation=config["policy_model"]["hidden_activation"],
-        actor_hiddens=config["policy_model"]["hidden_layer_sizes"],
-        critic_hidden_activation=config["Q_model"]["hidden_activation"],
-        critic_hiddens=config["Q_model"]["hidden_layer_sizes"],
+        actor_hidden_activation=config["policy_model"]["fcnet_activation"],
+        actor_hiddens=config["policy_model"]["fcnet_hiddens"],
+        critic_hidden_activation=config["Q_model"]["fcnet_activation"],
+        critic_hiddens=config["Q_model"]["fcnet_hiddens"],
         twin_q=config["twin_q"],
-        initial_alpha=config["initial_alpha"]
+        initial_alpha=config["initial_alpha"],
+        target_entropy=config["target_entropy"]
     )
 
     return policy.model

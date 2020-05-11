@@ -1,7 +1,7 @@
 import numpy as np
 from gym.spaces import Discrete
 from ray.rllib.models.tf.tf_modelv2 import TFModelV2
-from ray.rllib.utils import try_import_tf
+from ray.rllib.utils.framework import try_import_tf
 
 tf = try_import_tf()
 
@@ -20,20 +20,19 @@ class SACModel(TFModelV2):
     Note that this class by itself is not a valid model unless you
     implement forward() in a subclass."""
 
-    def __init__(
-            self,
-            obs_space,
-            action_space,
-            num_outputs,
-            model_config,
-            name,
-            actor_hidden_activation="relu",
-            actor_hiddens=(256, 256),
-            critic_hidden_activation="relu",
-            critic_hiddens=(256, 256),
-            twin_q=False,
-            initial_alpha=1.0
-    ):
+    def __init__(self,
+                 obs_space,
+                 action_space,
+                 num_outputs,
+                 model_config,
+                 name,
+                 actor_hidden_activation="relu",
+                 actor_hiddens=(256, 256),
+                 critic_hidden_activation="relu",
+                 critic_hiddens=(256, 256),
+                 twin_q=False,
+                 initial_alpha=1.0,
+                 target_entropy=None):
         """Initialize variables of this model.
 
         Extra model kwargs:
@@ -140,6 +139,17 @@ class SACModel(TFModelV2):
             np.log(initial_alpha), dtype=tf.float32, name="log_alpha"
         )
         self.alpha = tf.exp(self.log_alpha)
+
+        # Auto-calculate the target entropy.
+        if target_entropy is None or target_entropy == "auto":
+            # See hyperparams in [2] (README.md).
+            if self.discrete:
+                target_entropy = 0.98 * np.array(
+                    -np.log(1.0 / action_space.n), dtype=np.float32)
+            # See [1] (README.md).
+            else:
+                target_entropy = -np.prod(action_space.shape)
+        self.target_entropy = target_entropy
 
         self.register_variables([self.log_alpha])
 
