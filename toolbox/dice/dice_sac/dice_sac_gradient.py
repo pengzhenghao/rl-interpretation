@@ -35,15 +35,13 @@ def dice_sac_loss(policy, model, _, train_batch):
         # Sample simgle actions from distribution.
         action_dist_class = get_dist_class(policy.config, policy.action_space)
         action_dist_t = action_dist_class(
-            model.get_policy_output(model_out_t), policy.model
-        )
+            model.get_policy_output(model_out_t), policy.model)
         policy_t = action_dist_t.sample()
-        log_pis_t = tf.expand_dims(action_dist_t.sampled_action_logp(), -1)
+        log_pis_t = tf.expand_dims(action_dist_t.logp(policy_t), -1)
         action_dist_tp1 = action_dist_class(
-            model.get_policy_output(model_out_tp1), policy.model
-        )
+            model.get_policy_output(model_out_tp1), policy.model)
         policy_tp1 = action_dist_tp1.sample()
-        log_pis_tp1 = tf.expand_dims(action_dist_tp1.sampled_action_logp(), -1)
+        log_pis_tp1 = tf.expand_dims(action_dist_tp1.logp(policy_tp1), -1)
 
         # Q-values for the actually selected actions.
         q_t = model.get_q_values(model_out_t, train_batch[SampleBatch.ACTIONS])
@@ -52,8 +50,7 @@ def dice_sac_loss(policy, model, _, train_batch):
         )
         if policy.config["twin_q"]:
             twin_q_t = model.get_twin_q_values(
-                model_out_t, train_batch[SampleBatch.ACTIONS]
-            )
+                model_out_t, train_batch[SampleBatch.ACTIONS])
 
         # Q-values for current policy in given current state.
         q_t_det_policy = model.get_q_values(model_out_t, policy_t)
@@ -88,22 +85,17 @@ def dice_sac_loss(policy, model, _, train_batch):
         if policy.config["twin_q"]:
             twin_q_t_selected = tf.squeeze(twin_q_t, axis=len(q_t.shape) - 1)
         q_tp1 -= model.alpha * log_pis_tp1
-        diversity_q_tp1 -= model.alpha * log_pis_tp1
+        diversity_q_tp1 -= model.alpha * log_pis_tp1  # ???
 
         q_tp1_best = tf.squeeze(input=q_tp1, axis=len(q_tp1.shape) - 1)
-        q_tp1_best_masked = (
-                                    1.0 - tf.cast(
-                                train_batch[SampleBatch.DONES], tf.float32)
-                            ) * q_tp1_best
+        q_tp1_best_masked = (1.0 - tf.cast(train_batch[SampleBatch.DONES],
+                                           tf.float32)) * q_tp1_best
 
         diversity_q_tp1_best = tf.squeeze(
             input=diversity_q_tp1, axis=len(diversity_q_tp1.shape) - 1
         )
-        diversity_q_tp1_best_masked = (
-                                              1.0 - tf.cast(
-                                          train_batch[SampleBatch.DONES],
-                                          tf.float32)
-                                      ) * diversity_q_tp1_best
+        diversity_q_tp1_best_masked = (1.0 - tf.cast(
+            train_batch[SampleBatch.DONES], tf.float32)) * diversity_q_tp1_best
 
     assert policy.config["n_step"] == 1, "TODO(hartikainen) n_step > 1"
 
@@ -130,12 +122,6 @@ def dice_sac_loss(policy, model, _, train_batch):
     diversity_td_error = tf.abs(
         diversity_q_t_selected - diversity_q_t_selected_target)
 
-    critic_loss = [
-        tf.losses.mean_squared_error(
-            labels=q_t_selected_target, predictions=q_t_selected, weights=0.5
-        )
-    ]
-
     diversity_critic_loss = [
         tf.losses.mean_squared_error(
             labels=diversity_q_t_selected_target,
@@ -144,14 +130,17 @@ def dice_sac_loss(policy, model, _, train_batch):
         )
     ]
 
+
+    critic_loss = [
+        tf.losses.mean_squared_error(
+            labels=q_t_selected_target, predictions=q_t_selected, weights=0.5)
+    ]
     if policy.config["twin_q"]:
         critic_loss.append(
             tf.losses.mean_squared_error(
                 labels=q_t_selected_target,
                 predictions=twin_q_t_selected,
-                weights=0.5
-            )
-        )
+                weights=0.5))
 
     # Alpha- and actor losses.
     # Note: In the papers, alpha is used directly, here we take the log.
@@ -161,8 +150,8 @@ def dice_sac_loss(policy, model, _, train_batch):
         raise NotImplementedError()
     else:
         alpha_loss = -tf.reduce_mean(
-            model.log_alpha * tf.stop_gradient(log_pis_t + model.target_entropy)
-        )
+            model.log_alpha *
+            tf.stop_gradient(log_pis_t + model.target_entropy))
         actor_loss = tf.reduce_mean(model.alpha * log_pis_t - q_t_det_policy)
         diversity_actor_loss = tf.reduce_mean(
             model.alpha * log_pis_t - diversity_q_t_det_policy
@@ -181,6 +170,7 @@ def dice_sac_loss(policy, model, _, train_batch):
     policy.diversity_critic_loss = diversity_critic_loss
     policy.diversity_actor_loss = diversity_actor_loss
     policy.diversity_td_error = diversity_td_error
+    policy.log_pis_t = log_pis_t
 
     # add what we need here
     policy.diversity_reward_mean = tf.reduce_mean(

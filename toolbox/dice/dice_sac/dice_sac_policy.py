@@ -77,6 +77,7 @@ class PPOLossTwoSideDiversity:
         curr_action_dist = action_dist_class(distribution_inputs, policy.model)
         current_actions_logp = curr_action_dist.logp(actions)
         logp_ratio = tf.exp(current_actions_logp - prev_actions_logp)
+        self.debug_ratio = logp_ratio
         with tf.control_dependencies([tf.check_numerics(logp_ratio,
                                                         "logp_ratio")]):
             new_surrogate_loss = advantages * tf.minimum(
@@ -116,50 +117,19 @@ class PPOLossTwoSideDiversity:
 def postprocess_diversity(policy, batch, others_batches):
     """Compute the diversity for this policy against other policies using this
     batch."""
-
-    # Compute diversity and add a new entry of batch: diversity_reward
+    # Compute diversity and add a new entry of batch: diversity_rewards
     batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch, others_batches)
-
-    if np.isscalar(batch[DIVERSITY_REWARDS]) and batch[DIVERSITY_REWARDS] == np.nan:
-        print("STOP HERE!")
-    """
-    # Compute the diversity advantage. We mock the computing of task advantage
-    # but simply replace the task reward with the diversity reward.
-    completed = batch["dones"][-1]
-    if completed:
-        last_r_diversity = 0.0
-    else:
-        next_state = []
-        for i in range(policy.num_state_tensors()):
-            next_state.append([batch["state_out_{}".format(i)][-1]])
-        last_r_diversity = policy._diversity_value(
-            batch[SampleBatch.NEXT_OBS][-1], batch[SampleBatch.ACTIONS][-1],
-            batch[DIVERSITY_REWARDS][-1], *next_state
-        )
-    diversity_advantages, diversity_value_target = \
-        _compute_advantages_for_diversity(
-            rewards=batch[DIVERSITY_REWARDS],
-            last_r=last_r_diversity,
-            gamma=policy.config["gamma"],
-            lambda_=policy.config["lambda"],
-            values=batch[DIVERSITY_VALUES]
-            if policy.config[USE_DIVERSITY_VALUE_NETWORK] else None,
-            use_gae=policy.config[USE_DIVERSITY_VALUE_NETWORK]
-        )
-    batch[DIVERSITY_ADVANTAGES] = diversity_advantages
-    batch[DIVERSITY_VALUE_TARGETS] = diversity_value_target
-    """
+    assert not np.isscalar(batch[DIVERSITY_REWARDS])
     return batch
 
 
 def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
     if not policy.loss_initialized():
         batch = postprocess_trajectory(policy, sample_batch)
-
         batch[DIVERSITY_REWARDS] = batch["rewards"].copy()
         batch[DIVERSITY_VALUE_TARGETS] = batch["rewards"].copy()
         batch[DIVERSITY_ADVANTAGES] = batch["rewards"].copy()
-        batch['other_action_logp'] = batch[SampleBatch.ACTION_LOGP].copy()
+        # batch['other_action_logp'] = batch[SampleBatch.ACTION_LOGP].copy()
         return batch
 
     if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
@@ -400,6 +370,7 @@ def extra_learn_fetches_fn(policy):
     ret["td_error"] = policy.td_error
     ret["diversity_td_error"] = policy.diversity_td_error
     ret["diversity_reward_mean"] = policy.diversity_reward_mean
+    ret["log_pis_t"] = policy.log_pis_t
     return ret
 
 
