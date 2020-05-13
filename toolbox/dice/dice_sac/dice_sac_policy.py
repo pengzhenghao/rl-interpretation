@@ -2,8 +2,7 @@ import gym
 from gym.spaces import Box, Discrete
 from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch
 from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy, \
-    TargetNetworkMixin, \
-    ActorCriticOptimizerMixin, ComputeTDErrorMixin, postprocess_trajectory, \
+    TargetNetworkMixin, ComputeTDErrorMixin, postprocess_trajectory, \
     get_dist_class
 from ray.rllib.models import ModelCatalog
 from ray.rllib.utils.error import UnsupportedSpaceException
@@ -374,6 +373,61 @@ def extra_learn_fetches_fn(policy):
     return ret
 
 
+class ActorCriticOptimizerMixin:
+    def __init__(self, config):
+        # create global step for counting the number of update operations
+        self.global_step = tf.train.get_or_create_global_step()
+
+        # use separate optimizers for actor & critic
+        self._actor_optimizer = tf.train.AdamOptimizer(
+            learning_rate=config["optimization"]["actor_learning_rate"])
+        self._critic_optimizer = [
+            tf.train.AdamOptimizer(
+                learning_rate=config["optimization"]["critic_learning_rate"])
+        ]
+        self._diversity_critic_optimizer = [
+            tf.train.AdamOptimizer(
+                learning_rate=config["optimization"]["critic_learning_rate"])
+        ]
+        if config["twin_q"]:
+            self._critic_optimizer.append(
+                tf.train.AdamOptimizer(learning_rate=config["optimization"][
+                    "critic_learning_rate"]))
+        self._alpha_optimizer = tf.train.AdamOptimizer(
+            learning_rate=config["optimization"]["entropy_learning_rate"])
+
+
+def apply_gradients(policy, optimizer, grads_and_vars):
+    actor_apply_ops = policy._actor_optimizer.apply_gradients(
+        policy._actor_grads_and_vars)
+
+    cgrads = policy._critic_grads_and_vars
+    half_cutoff = len(cgrads) // 2
+    if policy.config["twin_q"]:
+        critic_apply_ops = [
+            policy._critic_optimizer[0].apply_gradients(cgrads[:half_cutoff]),
+            policy._critic_optimizer[1].apply_gradients(cgrads[half_cutoff:])
+        ]
+    else:
+        critic_apply_ops = [
+            policy._critic_optimizer[0].apply_gradients(cgrads)
+        ]
+
+    # Apply diversity critic gradients
+    diversity_critic_apply_ops = [
+        policy._diversity_critic_optimizer[0].apply_gradients(
+            policy._diversity_critic_grads_and_vars
+        )
+    ]
+
+    alpha_apply_ops = policy._alpha_optimizer.apply_gradients(
+        policy._alpha_grads_and_vars,
+        global_step=tf.train.get_or_create_global_step())
+    return tf.group([actor_apply_ops,
+                     alpha_apply_ops] + critic_apply_ops +
+                    diversity_critic_apply_ops)
+
+
 DiCESACPolicy = SACTFPolicy.with_updates(
     name="DiCESACPolicy",
     get_default_config=lambda: dice_sac_default_config,
@@ -382,6 +436,7 @@ DiCESACPolicy = SACTFPolicy.with_updates(
     postprocess_fn=postprocess_dice_sac,
     loss_fn=dice_sac_loss,
     gradients_fn=dice_sac_gradient,
+    apply_gradients_fn=apply_gradients,
     stats_fn=stats_fn,
     grad_stats_fn=grad_stats_fn,
     before_loss_init=before_loss_init,

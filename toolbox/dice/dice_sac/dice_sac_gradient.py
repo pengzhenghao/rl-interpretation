@@ -264,17 +264,6 @@ def dice_sac_gradient(policy, optimizer, loss):
     policy_grad = actor_grads_and_vars
     diversity_grad = diversity_actor_grads_and_vars
 
-    # if policy.config["grad_norm_clipping"] is not None:
-    #     diversity_grad = minimize_and_clip(
-    #         optimizer, policy.diversity_loss,
-    #         var_list=policy.model.policy_variables(),
-    #         clip_val=policy.config["grad_norm_clipping"]
-    #     )
-    # else:
-    #     diversity_grad = policy._actor_optimizer.compute_gradients(
-    #         policy.diversity_loss, var_list=policy.model.policy_variables()
-    #     )
-
     return_gradients = {}
     policy_grad_flatten = []
     policy_grad_info = []
@@ -312,8 +301,7 @@ def dice_sac_gradient(policy, optimizer, loss):
     # Fourth, compute the length of the final gradient.
     pg_length = tf.norm(tf.multiply(policy_grad_flatten, final_grad))
     ng_length = tf.norm(tf.multiply(diversity_grad_flatten, final_grad))
-    if policy.config[CLIP_DIVERSITY_GRADIENT]:
-        ng_length = tf.minimum(pg_length, ng_length)
+    ng_length = tf.minimum(pg_length, ng_length)
     tg_lenth = (pg_length + ng_length) / 2
 
     final_grad = final_grad * tg_lenth
@@ -365,7 +353,8 @@ def dice_sac_gradient(policy, optimizer, loss):
 
     grads_and_vars = (
             policy._actor_grads_and_vars + policy._critic_grads_and_vars +
-            policy._diversity_critic_grads_and_vars + policy._alpha_grads_and_vars
+            policy._diversity_critic_grads_and_vars +
+            policy._alpha_grads_and_vars
     )
 
     return grads_and_vars
