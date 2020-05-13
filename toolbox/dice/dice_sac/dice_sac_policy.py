@@ -428,6 +428,10 @@ def apply_gradients(policy, optimizer, grads_and_vars):
                     diversity_critic_apply_ops)
 
 
+def setup_early_mixins(policy, obs_space, action_space, config):
+    ActorCriticOptimizerMixin.__init__(policy, config)
+
+
 DiCESACPolicy = SACTFPolicy.with_updates(
     name="DiCESACPolicy",
     get_default_config=lambda: dice_sac_default_config,
@@ -445,6 +449,7 @@ DiCESACPolicy = SACTFPolicy.with_updates(
         DiCETargetNetworkMixin, DiversityValueNetworkMixin,
         ComputeDiversityMixinModified
     ],
+    before_init=setup_early_mixins,
     after_init=after_init,
     extra_action_fetches_fn=extra_action_fetches_fn,
     extra_learn_fetches_fn=extra_learn_fetches_fn,
