@@ -143,6 +143,7 @@ def stats_fn(policy, train_batch):
         "critic_loss": tf.reduce_mean(policy.critic_loss),
         "alpha_loss": tf.reduce_mean(policy.alpha_loss),
         "target_entropy": tf.reduce_mean(policy.target_entropy),
+        "entropy": tf.reduce_mean(policy.entropy),
         "mean_q": tf.reduce_mean(policy.q_t),
         "max_q": tf.reduce_max(policy.q_t),
         "min_q": tf.reduce_min(policy.q_t),

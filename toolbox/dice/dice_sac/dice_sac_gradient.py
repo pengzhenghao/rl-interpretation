@@ -213,6 +213,7 @@ def dice_sac_loss(policy, model, _, train_batch):
     policy.alpha_loss = alpha_loss
     policy.alpha_value = model.alpha
     policy.target_entropy = model.target_entropy
+    policy.entropy = action_dist_t.entropy()
 
     policy.diversity_critic_loss = diversity_critic_loss
     policy.diversity_actor_loss = diversity_actor_loss
