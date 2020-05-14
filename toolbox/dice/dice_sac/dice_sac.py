@@ -17,23 +17,23 @@ from toolbox.dice.utils import *
 # SyncReplayOptimizerModified
 
 
-def after_optimizer_step(trainer, fetches):
-    # Original SAC operation
-    update_target_if_needed(trainer, fetches)
+# def after_optimizer_step(trainer, fetches):
+#     # Original SAC operation
+#     update_target_if_needed(trainer, fetches)
 
     # only update the policies pool if used DELAY_UPDATE, otherwise
     # the policies_pool in each policy is simply not used, so we don't
     # need to update it.
     # if trainer.config[constants.DELAY_UPDATE]:
-    if trainer.workers.remote_workers():
-        weights = ray.put(trainer.workers.local_worker().get_weights())
-        for e in trainer.workers.remote_workers():
-            e.set_weights.remote(weights)
-
-        def _delay_update_for_worker(worker, worker_index):
-            worker.foreach_policy(lambda p, _: p.update_target_network())
-
-        trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
+    # if trainer.workers.remote_workers():
+    #     weights = ray.put(trainer.workers.local_worker().get_weights())
+    #     for e in trainer.workers.remote_workers():
+    #         e.set_weights.remote(weights)
+    #
+    #     def _delay_update_for_worker(worker, worker_index):
+    #         worker.foreach_policy(lambda p, _: p.update_target_network())
+    #
+    #     trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 
 
 def validate_config(config):
@@ -87,7 +87,7 @@ def make_policy_optimizer(workers, config):
         final_prioritized_replay_beta=config["final_prioritized_replay_beta"],
         prioritized_replay_eps=config["prioritized_replay_eps"],
         train_batch_size=config["train_batch_size"],
-        before_learn_on_batch=before_learn_on_batch,
+        before_learn_on_batch=before_learn_on_batch,  # <<==
         **config["optimizer"]
     )
 
@@ -98,7 +98,7 @@ DiCESACTrainer = SACTrainer.with_updates(
     default_policy=DiCESACPolicy,
     get_policy_class=lambda _: DiCESACPolicy,
     after_init=setup_policies_pool,
-    after_optimizer_step=after_optimizer_step,
+    # after_optimizer_step=update_target_if_needed,
     validate_config=validate_config,
     make_policy_optimizer=make_policy_optimizer
 )

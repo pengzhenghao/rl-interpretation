@@ -104,7 +104,7 @@ def regression_test2(local_mode=False):
             "diversity_twin_q": tune.grid_search([True, False]),
             **get_marl_env_config(
                 # "Pendulum-v0", num_agents, normalize_actions=True
-                "BipedalWalker-v2", num_agents, normalize_actions=True
+                "BipedalWalker-v3", num_agents, normalize_actions=True
             )
         },
         {
