@@ -1,9 +1,11 @@
 import gym
 from gym.spaces import Box, Discrete
-from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch
-from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy, get_dist_class, \
-    TargetNetworkMixin, ComputeTDErrorMixin, postprocess_trajectory
+from ray.rllib.agents.ddpg.ddpg_tf_policy import ComputeTDErrorMixin, \
+    TargetNetworkMixin
+from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy, \
+    postprocess_trajectory
 from ray.rllib.models import ModelCatalog
+from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.error import UnsupportedSpaceException
 from ray.rllib.utils.tf_ops import make_tf_callable
 
@@ -17,82 +19,83 @@ from toolbox.dice.dice_sac.dice_sac_model import DiCESACModel
 from toolbox.dice.utils import *
 
 
-class PPOLossTwoSideDiversity:
-    """Compute the PPO loss for diversity without diversity value network"""
-
-    def __init__(
-            self,
-            advantages,
-            policy,
-            actions,
-            obs,
-            # current_actions_logp,
-            prev_actions_logp,
-            valid_mask,
-            clip_param,
-            policies_pool
-            # entropy_coeff=0.01
-    ):
-        # cur_kl_coeff = 0.0
-
-        def reduce_mean_valid(t):
-            return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
-
-        # prev_dist = dist_class(prev_logits, model)
-
-        # This is important
-        # logp_ratio = tf.exp(curr_action_dist.logp(actions) -
-        # prev_actions_logp)
-        # model_out = policy.model.output
-
-        # A workaround, since the model out is the flatten observation
-
-        # ==========
-        # In this part, I want to compute the diversity by myself
-
-        # my_actions = tf.split(
-        #     policy.model.get_policy_output(obs),
-        #     2, axis=1)[0]
-        #
-        # losses = []
-        # for p in policies_pool.values():
-        #     logit = p.target_model.get_policy_output(obs)
-        #     other_act = tf.split(logit, 2, axis=1)[0]
-        #     losses.append(
-        #         tf.keras.losses.mean_squared_error(other_act, my_actions))
-        # mse_loss = tf.reduce_mean(losses)
-        # self.loss = mse_loss
-        # return
-
-        # ==========
-
-        # This is the PPO style loss
-        model_out = obs
-        distribution_inputs = policy.model.get_policy_output(model_out)
-        action_dist_class = get_dist_class(policy.config, policy.action_space)
-        curr_action_dist = action_dist_class(distribution_inputs, policy.model)
-        current_actions_logp = curr_action_dist.logp(actions)
-        logp_ratio = tf.exp(current_actions_logp - prev_actions_logp)
-        self.debug_ratio = logp_ratio
-        with tf.control_dependencies([tf.check_numerics(logp_ratio,
-                                                        "logp_ratio")]):
-            new_surrogate_loss = advantages * tf.minimum(
-                logp_ratio, 1 + clip_param
-            )
-
-        # action_kl = prev_dist.kl(curr_action_dist)
-        # self.mean_kl = reduce_mean_valid(action_kl)
-        # curr_entropy = curr_action_dist.entropy()
-        # self.mean_entropy = reduce_mean_valid(curr_entropy)
-
-        self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
-        self.mean_vf_loss = tf.constant(0.0)
-        loss = reduce_mean_valid(
-            -new_surrogate_loss
-            # + cur_kl_coeff * action_kl -
-            # - entropy_coeff * curr_entropy
-        )
-        self.loss = loss
+# class PPOLossTwoSideDiversity:
+#     """Compute the PPO loss for diversity without diversity value network"""
+#
+#     def __init__(
+#             self,
+#             advantages,
+#             policy,
+#             actions,
+#             obs,
+#             # current_actions_logp,
+#             prev_actions_logp,
+#             valid_mask,
+#             clip_param,
+#             policies_pool
+#             # entropy_coeff=0.01
+#     ):
+#         # cur_kl_coeff = 0.0
+#
+#         def reduce_mean_valid(t):
+#             return tf.reduce_mean(tf.boolean_mask(t, valid_mask))
+#
+#         # prev_dist = dist_class(prev_logits, model)
+#
+#         # This is important
+#         # logp_ratio = tf.exp(curr_action_dist.logp(actions) -
+#         # prev_actions_logp)
+#         # model_out = policy.model.output
+#
+#         # A workaround, since the model out is the flatten observation
+#
+#         # ==========
+#         # In this part, I want to compute the diversity by myself
+#
+#         # my_actions = tf.split(
+#         #     policy.model.get_policy_output(obs),
+#         #     2, axis=1)[0]
+#         #
+#         # losses = []
+#         # for p in policies_pool.values():
+#         #     logit = p.target_model.get_policy_output(obs)
+#         #     other_act = tf.split(logit, 2, axis=1)[0]
+#         #     losses.append(
+#         #         tf.keras.losses.mean_squared_error(other_act, my_actions))
+#         # mse_loss = tf.reduce_mean(losses)
+#         # self.loss = mse_loss
+#         # return
+#
+#         # ==========
+#
+#         # This is the PPO style loss
+#         model_out = obs
+#         distribution_inputs = policy.model.get_policy_output(model_out)
+#         action_dist_class = get_dist_class(policy.config, policy.action_space)
+#         curr_action_dist = action_dist_class(distribution_inputs,
+#         policy.model)
+#         current_actions_logp = curr_action_dist.logp(actions)
+#         logp_ratio = tf.exp(current_actions_logp - prev_actions_logp)
+#         self.debug_ratio = logp_ratio
+#         with tf.control_dependencies([tf.check_numerics(logp_ratio,
+#                                                         "logp_ratio")]):
+#             new_surrogate_loss = advantages * tf.minimum(
+#                 logp_ratio, 1 + clip_param
+#             )
+#
+#         # action_kl = prev_dist.kl(curr_action_dist)
+#         # self.mean_kl = reduce_mean_valid(action_kl)
+#         # curr_entropy = curr_action_dist.entropy()
+#         # self.mean_entropy = reduce_mean_valid(curr_entropy)
+#
+#         self.mean_policy_loss = reduce_mean_valid(-new_surrogate_loss)
+#         self.mean_vf_loss = tf.constant(0.0)
+#         loss = reduce_mean_valid(
+#             -new_surrogate_loss
+#             # + cur_kl_coeff * action_kl -
+#             # - entropy_coeff * curr_entropy
+#         )
+#         self.loss = loss
 
 
 # class SACDiversityLoss:

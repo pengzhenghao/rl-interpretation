@@ -1,8 +1,21 @@
-from ray.rllib.agents.sac.sac_tf_policy import get_dist_class
+from gym.spaces import Discrete
+from ray.rllib.models.tf.tf_action_dist import SquashedGaussian
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.tf_ops import minimize_and_clip
 
 from toolbox.dice.dice_loss import tf, _flatten
+
+
+def get_dist_class(config, action_space):
+    assert config["_use_beta_distribution"] is False, \
+        "Beta-distr. not supported for tf!"
+    if isinstance(action_space, Discrete):
+        # action_dist_class = Categorical
+        raise ValueError()
+    else:
+        action_dist_class = SquashedGaussian
+        # (SquashedGaussian if config["normalize_actions"] else DiagGaussian)
+    return action_dist_class
 
 
 def dice_sac_loss(policy, model, _, train_batch):
@@ -211,7 +224,10 @@ def dice_sac_loss(policy, model, _, train_batch):
     policy.alpha_loss = alpha_loss
     policy.alpha_value = model.alpha
     policy.target_entropy = model.target_entropy
-    policy.entropy = action_dist_t.entropy()
+
+    policy.entropy = tf.zeros_like(actor_loss) \
+        if isinstance(action_dist_t, SquashedGaussian) else \
+        action_dist_t.entropy()
 
     policy.diversity_critic_loss = diversity_critic_loss
     policy.diversity_actor_loss = diversity_actor_loss
