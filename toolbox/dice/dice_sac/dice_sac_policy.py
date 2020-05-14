@@ -1,21 +1,18 @@
 import gym
 from gym.spaces import Box, Discrete
 from ray.rllib.agents.ppo.ppo_tf_policy import SampleBatch
-from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy, \
-    TargetNetworkMixin, ComputeTDErrorMixin, postprocess_trajectory, \
-    get_dist_class
+from ray.rllib.agents.sac.sac_tf_policy import SACTFPolicy, get_dist_class, \
+    TargetNetworkMixin, ComputeTDErrorMixin, postprocess_trajectory
 from ray.rllib.models import ModelCatalog
 from ray.rllib.utils.error import UnsupportedSpaceException
 from ray.rllib.utils.tf_ops import make_tf_callable
 
 from toolbox.dice.dice_policy import grad_stats_fn, \
-    DiversityValueNetworkMixin, \
-    ComputeDiversityMixin
-from toolbox.dice.dice_postprocess import \
-    MY_LOGIT
+    DiversityValueNetworkMixin, ComputeDiversityMixin
+from toolbox.dice.dice_postprocess import MY_LOGIT
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
 from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, \
-    dice_sac_loss
+    dice_sac_loss, apply_gradients
 from toolbox.dice.dice_sac.dice_sac_model import DiCESACModel
 from toolbox.dice.utils import *
 
@@ -177,6 +174,8 @@ def stats_fn(policy, train_batch):
         "td_error": tf.reduce_mean(policy.td_error),
         "actor_loss": tf.reduce_mean(policy.actor_loss),
         "critic_loss": tf.reduce_mean(policy.critic_loss),
+        "alpha_loss": tf.reduce_mean(policy.alpha_loss),
+        "target_entropy": tf.reduce_mean(policy.target_entropy),
         "mean_q": tf.reduce_mean(policy.q_t),
         "max_q": tf.reduce_max(policy.q_t),
         "min_q": tf.reduce_min(policy.q_t),
@@ -393,39 +392,12 @@ class ActorCriticOptimizerMixin:
             self._critic_optimizer.append(
                 tf.train.AdamOptimizer(learning_rate=config["optimization"][
                     "critic_learning_rate"]))
+            self._diversity_critic_optimizer.append(
+                tf.train.AdamOptimizer(learning_rate=config["optimization"][
+                    "critic_learning_rate"]))
         self._alpha_optimizer = tf.train.AdamOptimizer(
             learning_rate=config["optimization"]["entropy_learning_rate"])
 
-
-def apply_gradients(policy, optimizer, grads_and_vars):
-    actor_apply_ops = policy._actor_optimizer.apply_gradients(
-        policy._actor_grads_and_vars)
-
-    cgrads = policy._critic_grads_and_vars
-    half_cutoff = len(cgrads) // 2
-    if policy.config["twin_q"]:
-        critic_apply_ops = [
-            policy._critic_optimizer[0].apply_gradients(cgrads[:half_cutoff]),
-            policy._critic_optimizer[1].apply_gradients(cgrads[half_cutoff:])
-        ]
-    else:
-        critic_apply_ops = [
-            policy._critic_optimizer[0].apply_gradients(cgrads)
-        ]
-
-    # Apply diversity critic gradients
-    diversity_critic_apply_ops = [
-        policy._diversity_critic_optimizer[0].apply_gradients(
-            policy._diversity_critic_grads_and_vars
-        )
-    ]
-
-    alpha_apply_ops = policy._alpha_optimizer.apply_gradients(
-        policy._alpha_grads_and_vars,
-        global_step=tf.train.get_or_create_global_step())
-    return tf.group([actor_apply_ops,
-                     alpha_apply_ops] + critic_apply_ops +
-                    diversity_critic_apply_ops)
 
 
 def setup_early_mixins(policy, obs_space, action_space, config):

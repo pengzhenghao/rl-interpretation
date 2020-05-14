@@ -62,7 +62,7 @@ class DiCESACModel(TFModelV2):
             q_outs = 1
 
         self.model_out = tf.keras.layers.Input(
-            shape=(self.num_outputs, ), name="model_out"
+            shape=(self.num_outputs,), name="model_out"
         )
         self.action_model = tf.keras.Sequential(
             [
@@ -73,7 +73,7 @@ class DiCESACModel(TFModelV2):
                 ) for i, hidden in enumerate(actor_hiddens)
             ] + [
                 tf.keras.layers.
-                Dense(units=action_outs, activation=None, name="action_out")
+            Dense(units=action_outs, activation=None, name="action_out")
             ]
         )
         self.shift_and_log_scale_diag = self.action_model(self.model_out)
@@ -83,7 +83,7 @@ class DiCESACModel(TFModelV2):
         self.actions_input = None
         if not self.discrete:
             self.actions_input = tf.keras.layers.Input(
-                shape=(self.action_dim, ), name="actions"
+                shape=(self.action_dim,), name="actions"
             )
 
         def build_q_net(name, observations, actions):
@@ -131,7 +131,13 @@ class DiCESACModel(TFModelV2):
             self.twin_q_net = build_q_net(
                 "twin_q", self.model_out, self.actions_input
             )
+
+            self.diversity_twin_q_net = build_q_net(
+                "diversity_twin_q", self.model_out, self.actions_input
+            )
+
             self.register_variables(self.twin_q_net.variables)
+            self.register_variables(self.diversity_twin_q_net.variables)
         else:
             self.twin_q_net = None
 
@@ -178,6 +184,12 @@ class DiCESACModel(TFModelV2):
             return self.diversity_q_net([model_out, actions])
         else:
             return self.diversity_q_net(model_out)
+
+    def get_diversity_twin_q_values(self, model_out, actions=None):
+        if actions is not None:
+            return self.diversity_twin_q_net([model_out, actions])
+        else:
+            return self.diversity_twin_q_net(model_out)
 
     def get_twin_q_values(self, model_out, actions=None):
         """Same as get_q_values but using the twin Q net.
