@@ -205,8 +205,10 @@ def extra_action_fetches_fn(policy):
             policy.model.last_output()
         )
     }
-    if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
-        ret[DIVERSITY_VALUES] = policy.model.diversity_value_function()
+    # TODO in fact we have the diversity critic
+    # if policy.config[USE_DIVERSITY_VALUE_NETWORK]:
+    # ret[DIVERSITY_VALUES] = policy.model.get_diversity_q_values(
+    #     policy.model.model_out)
     # ret["td_error"] = policy.td_error
     # ret["diversity_td_error"] = policy.diversity_td_error
     # ret["diversity_reward_mean"] = policy.diversity_reward_mean
@@ -290,6 +292,7 @@ def build_sac_model(policy, obs_space, action_space, config):
         critic_hidden_activation=config["Q_model"]["fcnet_activation"],
         critic_hiddens=config["Q_model"]["fcnet_hiddens"],
         twin_q=config["twin_q"],
+        diversity_twin_q=config["diversity_twin_q"],
         initial_alpha=config["initial_alpha"],
         target_entropy=config["target_entropy"]
     )
@@ -307,6 +310,7 @@ def build_sac_model(policy, obs_space, action_space, config):
         critic_hidden_activation=config["Q_model"]["fcnet_activation"],
         critic_hiddens=config["Q_model"]["fcnet_hiddens"],
         twin_q=config["twin_q"],
+        diversity_twin_q=config["diversity_twin_q"],
         initial_alpha=config["initial_alpha"],
         target_entropy=config["target_entropy"]
     )
@@ -343,6 +347,7 @@ class ActorCriticOptimizerMixin:
             self._critic_optimizer.append(
                 tf.train.AdamOptimizer(learning_rate=config["optimization"][
                     "critic_learning_rate"]))
+        if config["diversity_twin_q"]:
             self._diversity_critic_optimizer.append(
                 tf.train.AdamOptimizer(learning_rate=config["optimization"][
                     "critic_learning_rate"]))

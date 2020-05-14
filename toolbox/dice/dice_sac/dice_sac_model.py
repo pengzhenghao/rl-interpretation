@@ -31,6 +31,7 @@ class DiCESACModel(TFModelV2):
                  critic_hidden_activation="relu",
                  critic_hiddens=(256, 256),
                  twin_q=False,
+                 diversity_twin_q=False,
                  initial_alpha=1.0,
                  target_entropy=None):
         """Initialize variables of this model.
@@ -131,15 +132,16 @@ class DiCESACModel(TFModelV2):
             self.twin_q_net = build_q_net(
                 "twin_q", self.model_out, self.actions_input
             )
-
+            self.register_variables(self.twin_q_net.variables)
+        else:
+            self.twin_q_net = None
+        if diversity_twin_q:
             self.diversity_twin_q_net = build_q_net(
                 "diversity_twin_q", self.model_out, self.actions_input
             )
-
-            self.register_variables(self.twin_q_net.variables)
             self.register_variables(self.diversity_twin_q_net.variables)
         else:
-            self.twin_q_net = None
+            self.diversity_twin_q_net = None
 
         self.log_alpha = tf.Variable(
             np.log(initial_alpha), dtype=tf.float32, name="log_alpha"

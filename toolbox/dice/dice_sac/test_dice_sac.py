@@ -96,12 +96,12 @@ def regression_test2(local_mode=False):
             "metrics_smoothing_episodes": 5,
             # "no_done_at_end": True,
             "train_batch_size": 256,
-            "rollout_fragment_length": 50,
+            "rollout_fragment_length": 1,
             "target_network_update_freq": 1,
-            "timesteps_per_iteration": 500,
+            "timesteps_per_iteration": 1000,
             "evaluation_interval": 1,
-            "learning_starts": 1000,
-            constants.DELAY_UPDATE: tune.grid_search([True, False]),
+            "learning_starts": 10000,
+            "diversity_twin_q": tune.grid_search([True, False]),
             **get_marl_env_config(
                 # "Pendulum-v0", num_agents, normalize_actions=True
                 "BipedalWalker-v2", num_agents, normalize_actions=True

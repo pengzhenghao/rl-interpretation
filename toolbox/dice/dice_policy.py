@@ -127,7 +127,7 @@ class ComputeDiversityMixin:
 
     def _lazy_initialize(self, policies_pool, my_name=None):
         """Initialize the reference of policies pool within this policy."""
-        assert self.config[DELAY_UPDATE]
+        assert self.config.get(DELAY_UPDATE) or DELAY_UPDATE not in self.config
         self.policies_pool = {
             agent_name: other_policy
             for agent_name, other_policy in policies_pool.items()

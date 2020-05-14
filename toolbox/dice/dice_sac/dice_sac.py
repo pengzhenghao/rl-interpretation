@@ -24,16 +24,16 @@ def after_optimizer_step(trainer, fetches):
     # only update the policies pool if used DELAY_UPDATE, otherwise
     # the policies_pool in each policy is simply not used, so we don't
     # need to update it.
-    if trainer.config[constants.DELAY_UPDATE]:
-        if trainer.workers.remote_workers():
-            weights = ray.put(trainer.workers.local_worker().get_weights())
-            for e in trainer.workers.remote_workers():
-                e.set_weights.remote(weights)
+    # if trainer.config[constants.DELAY_UPDATE]:
+    if trainer.workers.remote_workers():
+        weights = ray.put(trainer.workers.local_worker().get_weights())
+        for e in trainer.workers.remote_workers():
+            e.set_weights.remote(weights)
 
-            def _delay_update_for_worker(worker, worker_index):
-                worker.foreach_policy(lambda p, _: p.update_target_network())
+        def _delay_update_for_worker(worker, worker_index):
+            worker.foreach_policy(lambda p, _: p.update_target_network())
 
-            trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
+        trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 
 
 def validate_config(config):
@@ -52,13 +52,8 @@ def validate_config(config):
         for i in tmp_env.agent_ids
     }
     config["multiagent"]["policy_mapping_fn"] = lambda x: x
-
-    # check the model
-    if config[USE_DIVERSITY_VALUE_NETWORK]:
-        raise NotImplementedError()
-    else:
-        config['model']['custom_model'] = None
-        config['model']['custom_options'] = None
+    config['model']['custom_model'] = None
+    config['model']['custom_options'] = None
 
 
 def before_learn_on_batch(samples, policy_map, train_batch_size):
