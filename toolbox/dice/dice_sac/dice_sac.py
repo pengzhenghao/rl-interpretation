@@ -1,16 +1,20 @@
 import ray
-from ray.rllib.agents.dqn.dqn import update_target_if_needed, \
-    update_worker_exploration
+from ray.rllib.agents.dqn.dqn import update_target_if_needed
 from ray.rllib.agents.sac.sac import SACTrainer, \
     validate_config as validate_config_sac
+from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 import toolbox.dice.utils as constants
 from toolbox.dice.dice import setup_policies_pool
+from toolbox.dice.dice_postprocess import MY_LOGIT
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
-from toolbox.dice.dice_sac.dice_sac_optimizer import SyncReplayOptimizerModified
 from toolbox.dice.dice_sac.dice_sac_policy import DiCESACPolicy
 from toolbox.dice.utils import *
+
+
+# from toolbox.dice.dice_sac.dice_sac_optimizer import
+# SyncReplayOptimizerModified
 
 
 def after_optimizer_step(trainer, fetches):
@@ -36,8 +40,6 @@ def validate_config(config):
     validate_config_sac(config)
 
     # Hard-coded this setting
-    # assert not config["normalize_actions"]
-    # assert not config["env_config"]["normalize_actions"]
     assert not config["normalize_actions"]
     assert config["env_config"]["normalize_actions"]
 
@@ -59,13 +61,26 @@ def validate_config(config):
         config['model']['custom_options'] = None
 
 
+def before_learn_on_batch(samples, policy_map, train_batch_size):
+    for agent_id, my_batch in samples.policy_batches.items():
+        assert agent_id in policy_map, (agent_id, policy_map.keys())
+        my_batch[MY_LOGIT] = policy_map[agent_id].compute_actions(
+            my_batch["obs"])[2]["action_dist_inputs"]
+        samples.policy_batches[agent_id]["diversity_rewards"] = \
+            policy_map[agent_id].compute_diversity(
+                my_batch,
+                {pid: p for pid, p in policy_map.items() if pid != agent_id}
+            )
+    return samples
+
+
 def make_policy_optimizer(workers, config):
     """Create the single process DQN policy optimizer.
 
     Returns:
         SyncReplayOptimizer: Used for generic off-policy Trainers.
     """
-    return SyncReplayOptimizerModified(
+    return SyncReplayOptimizer(
         workers,
         learning_starts=config["learning_starts"],
         buffer_size=config["buffer_size"],
@@ -77,36 +92,9 @@ def make_policy_optimizer(workers, config):
         final_prioritized_replay_beta=config["final_prioritized_replay_beta"],
         prioritized_replay_eps=config["prioritized_replay_eps"],
         train_batch_size=config["train_batch_size"],
+        before_learn_on_batch=before_learn_on_batch,
         **config["optimizer"]
     )
-
-
-def before_train_step(trainer):
-    if hasattr(trainer, "evaluation_workers") \
-            and trainer.config[DELAY_UPDATE] \
-            and not trainer.evaluation_workers.local_worker() \
-            .get_policy('agent0').initialized_policies_pool:
-        # First step, broadcast local weights to remote worker.
-        if trainer.evaluation_workers.remote_workers():
-            weights = ray.put(
-                trainer.evaluation_workers.local_worker().get_weights())
-            for e in trainer.evaluation_workers.remote_workers():
-                e.set_weights.remote(weights)
-
-        # Second step, call the _lazy_initialize function of each policy,
-        # feeding
-        # with the policies map in the trainer.
-        def _init_pool(worker, worker_index):
-            def _init_diversity_policy(policy, my_policy_name):
-                # policy.update_target_network(tau=1.0)
-                policy.update_target(tau=1.0)
-                policy._lazy_initialize(worker.policy_map, my_policy_name)
-
-            worker.foreach_policy(_init_diversity_policy)
-
-        trainer.evaluation_workers.foreach_worker_with_index(_init_pool)
-
-    update_worker_exploration(trainer)
 
 
 DiCESACTrainer = SACTrainer.with_updates(
@@ -117,6 +105,5 @@ DiCESACTrainer = SACTrainer.with_updates(
     after_init=setup_policies_pool,
     after_optimizer_step=after_optimizer_step,
     validate_config=validate_config,
-    make_policy_optimizer=make_policy_optimizer,
-    before_train_step=before_train_step
+    make_policy_optimizer=make_policy_optimizer
 )

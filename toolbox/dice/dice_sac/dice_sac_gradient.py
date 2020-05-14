@@ -6,12 +6,22 @@ from toolbox.dice.dice_loss import tf, _flatten
 
 
 def dice_sac_loss(policy, model, _, train_batch):
+    # I think diversity should be compute here.
     model_out_t, _ = model(
         {
             "obs": train_batch[SampleBatch.CUR_OBS],
             "is_training": policy._get_is_training_placeholder(),
         }, [], None
     )
+
+    diversity_reward = train_batch["diversity_rewards"]
+
+    tf.reduce_mean(
+        tf.losses.mean_squared_error(
+            tf.ones([100, 4]),
+            tf.ones([100, 4]),
+            reduction="none"
+        ), axis=1)
 
     model_out_tp1, _ = model(
         {
@@ -128,7 +138,8 @@ def dice_sac_loss(policy, model, _, train_batch):
     )
 
     diversity_q_t_selected_target = tf.stop_gradient(
-        train_batch["diversity_rewards"] +
+        # train_batch["diversity_rewards"] +
+        diversity_reward +
         policy.config["gamma"] ** policy.config["n_step"] *
         diversity_q_tp1_best_masked
     )
@@ -210,7 +221,8 @@ def dice_sac_loss(policy, model, _, train_batch):
 
     # add what we need here
     policy.diversity_reward_mean = tf.reduce_mean(
-        train_batch["diversity_rewards"]
+        # train_batch["diversity_rewards"]
+        diversity_reward
     )
 
     # in a custom apply op we handle the losses separately, but return them

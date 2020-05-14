@@ -147,5 +147,5 @@ def regression_test_sac(local_mode=False):
 if __name__ == "__main__":
     # pytest.main(["-v"])
     # regression_test(local_mode=False)
-    regression_test2(local_mode=True)
+    regression_test2(local_mode=False)
     # regression_test_sac(local_mode=True)

@@ -110,63 +110,30 @@ class PPOLossTwoSideDiversity:
 #         self.actor_loss = actor_loss
 
 
-def postprocess_diversity(policy, batch, others_batches):
-    """Compute the diversity for this policy against other policies using this
-    batch."""
-    # Compute diversity and add a new entry of batch: diversity_rewards
-    batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch, others_batches)
-    assert not np.isscalar(batch[DIVERSITY_REWARDS])
-    return batch
+# # def postprocess_diversity(policy, batch, others_batches):
+#     """Compute the diversity for this policy against other policies using this
+#     batch."""
+#     # Compute diversity and add a new entry of batch: diversity_rewards
+#     batch[DIVERSITY_REWARDS] = policy.compute_diversity(batch, others_batches)
+#     assert not np.isscalar(batch[DIVERSITY_REWARDS])
+#     return batch
 
 
 def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
-    if not policy.loss_initialized():
-        batch = postprocess_trajectory(policy, sample_batch)
-        batch[DIVERSITY_REWARDS] = batch["rewards"].copy()
-        batch[DIVERSITY_VALUE_TARGETS] = batch["rewards"].copy()
-        batch[DIVERSITY_ADVANTAGES] = batch["rewards"].copy()
-        # batch['other_action_logp'] = batch[SampleBatch.ACTION_LOGP].copy()
+    batches = [postprocess_trajectory(policy, sample_batch.copy())]
+    if policy.config[ONLY_TNB] or not policy.loss_initialized():
+        batch = batches[0]
+        batch["diversity_rewards"] = np.zeros_like(
+            batch[SampleBatch.REWARDS], dtype=np.float32)
         return batch
-
-    if (not policy.config[PURE_OFF_POLICY]) or (not others_batches):
-        batch = sample_batch.copy()
-        batch = postprocess_trajectory(policy, batch)
-        batch[MY_LOGIT] = batch[SampleBatch.ACTION_DIST_INPUTS]
-        batch = postprocess_diversity(policy, batch, others_batches)
-        batches = [batch]
-    else:
-        batches = []
-
     for pid, (other_policy, other_batch_raw) in others_batches.items():
         # other_batch_raw is the data collected by other polices.
-        if policy.config[ONLY_TNB]:
-            break
         if other_batch_raw is None:
             continue
         other_batch_raw = other_batch_raw.copy()
-
-        # Replay this policy to get the action distribution of this policy.
-        replay_result = policy.compute_actions(
-            other_batch_raw[SampleBatch.CUR_OBS]
-        )[2]
-        other_batch_raw[MY_LOGIT] = replay_result[
-            SampleBatch.ACTION_DIST_INPUTS]
-
-        # Compute the diversity reward and diversity advantage of this batch.
-        other_batch_raw = postprocess_diversity(
-            policy, other_batch_raw, others_batches
-        )
-
-        # Compute the task advantage of this batch.
         batches.append(postprocess_trajectory(policy, other_batch_raw))
-
-    # Merge all batches.
-    batch = SampleBatch.concat_samples(batches) if len(batches) != 1 \
+    return SampleBatch.concat_samples(batches) if len(batches) != 1 \
         else batches[0]
-
-    # del batch.data['new_obs']  # save memory
-    # del batch.data['action_prob']
-    return batch
 
 
 def stats_fn(policy, train_batch):
@@ -243,35 +210,15 @@ def extra_action_fetches_fn(policy):
 
 
 class ComputeDiversityMixinModified(ComputeDiversityMixin):
-    def compute_diversity(self, my_batch, others_batches):
+    def compute_diversity(self, my_batch, policy_map):
         """Compute the diversity of this agent."""
         replays = {}
-        if self.config[DELAY_UPDATE]:
-            # If in DELAY_UPDATE mode, compute diversity against the target
-            # network of each policies.
-            if not self.policies_pool:
-                print("stop")
-            assert self.policies_pool, "Your policy pool is empty."
-            assert self.initialized_policies_pool
-            for other_name, other_policy in self.policies_pool.items():
-                logits = other_policy._compute_clone_network_logits(
-                    my_batch[SampleBatch.CUR_OBS],
-                    # my_batch[SampleBatch.PREV_ACTIONS],
-                    # my_batch[SampleBatch.PREV_REWARDS]
-                )
-                replays[other_name] = logits
-        else:
-            # Otherwise compute the diversity against other latest policies
-            # contained in other_batches.
-            if not others_batches:
-                return np.zeros_like(
-                    my_batch[SampleBatch.REWARDS], dtype=np.float32
-                )
-            for other_name, (other_policy, _) in others_batches.items():
-                _, _, info = other_policy.compute_actions(
-                    my_batch[SampleBatch.CUR_OBS]
-                )
-                replays[other_name] = info[SampleBatch.ACTION_DIST_INPUTS]
+        assert policy_map
+        for other_name, other_policy in policy_map.items():
+            logits = other_policy._compute_clone_network_logits(
+                my_batch[SampleBatch.CUR_OBS],
+            )
+            replays[other_name] = logits
 
         # Compute the diversity loss based on the action distribution of
         # this policy and other polices.
@@ -397,7 +344,6 @@ class ActorCriticOptimizerMixin:
                     "critic_learning_rate"]))
         self._alpha_optimizer = tf.train.AdamOptimizer(
             learning_rate=config["optimization"]["entropy_learning_rate"])
-
 
 
 def setup_early_mixins(policy, obs_space, action_space, config):
