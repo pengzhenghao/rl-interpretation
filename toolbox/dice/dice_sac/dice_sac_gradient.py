@@ -158,9 +158,7 @@ def dice_sac_loss(policy, model, _, train_batch):
                 diversity_base_td_error + diversity_twin_td_error)
     else:
         td_error = base_td_error
-
-        diversity_td_error = tf.abs(
-            diversity_q_t_selected - diversity_q_t_selected_target)
+        diversity_td_error = diversity_base_td_error
 
     diversity_critic_loss = [
         tf.losses.mean_squared_error(
@@ -234,11 +232,20 @@ def dice_sac_loss(policy, model, _, train_batch):
 
 def dice_sac_gradient(policy, optimizer, loss):
     if policy.config["grad_clip"]:
+
         actor_grads_and_vars = minimize_and_clip(
             optimizer,
             policy.actor_loss,
             var_list=policy.model.policy_variables(),
             clip_val=policy.config["grad_clip"])
+
+        diversity_actor_grads_and_vars = minimize_and_clip(
+            optimizer,
+            policy.diversity_actor_loss,
+            var_list=policy.model.policy_variables(),
+            clip_val=policy.config["grad_clip"]
+        )
+
         if policy.config["twin_q"]:
             q_variables = policy.model.q_variables()
             half_cutoff = len(q_variables) // 2
@@ -253,20 +260,52 @@ def dice_sac_gradient(policy, optimizer, loss):
                 policy.critic_loss[1],
                 var_list=q_variables[half_cutoff:],
                 clip_val=policy.config["grad_clip"])
+
+            # Diversity
+            diversity_q_variables = policy.model.diversity_q_variables()
+            diversity_half_cutoff = len(diversity_q_variables) // 2
+            diversity_critic_grads_and_vars = []
+            diversity_critic_grads_and_vars += minimize_and_clip(
+                optimizer,
+                policy.diversity_critic_loss[0],
+                var_list=diversity_q_variables[:diversity_half_cutoff],
+                clip_val=policy.config["grad_clip"])
+            diversity_critic_grads_and_vars += minimize_and_clip(
+                optimizer,
+                policy.diversity_critic_loss[1],
+                var_list=diversity_q_variables[diversity_half_cutoff:],
+                clip_val=policy.config["grad_clip"])
+
         else:
+
             critic_grads_and_vars = minimize_and_clip(
                 optimizer,
                 policy.critic_loss[0],
                 var_list=policy.model.q_variables(),
                 clip_val=policy.config["grad_clip"])
+
+            diversity_critic_grads_and_vars = minimize_and_clip(
+                optimizer,
+                policy.diversity_critic_loss[0],
+                var_list=policy.model.diversity_q_variables(),
+                clip_val=policy.config["grad_clip"]
+            )
+
         alpha_grads_and_vars = minimize_and_clip(
             optimizer,
             policy.alpha_loss,
             var_list=[policy.model.log_alpha],
             clip_val=policy.config["grad_clip"])
     else:
+
         actor_grads_and_vars = policy._actor_optimizer.compute_gradients(
             policy.actor_loss, var_list=policy.model.policy_variables())
+
+        diversity_actor_grads_and_vars = \
+            policy._actor_optimizer.compute_gradients(
+                policy.diversity_actor_loss,
+                var_list=policy.model.policy_variables())
+
         if policy.config["twin_q"]:
             q_variables = policy.model.q_variables()
             half_cutoff = len(q_variables) // 2
@@ -276,38 +315,36 @@ def dice_sac_gradient(policy, optimizer, loss):
             ) + twin_q_optimizer.compute_gradients(
                 policy.critic_loss[1], var_list=q_variables[half_cutoff:]
             )
+
+            # Diversity
+            diversity_q_variables = policy.model.diversity_q_variables()
+            diversity_half_cutoff = len(diversity_q_variables) // 2
+            diversity_base_q_optimizer, diversity_twin_q_optimizer = \
+                policy._diversity_critic_optimizer
+            diversity_critic_grads_and_vars = \
+                diversity_base_q_optimizer.compute_gradients(
+                    policy.diversity_critic_loss[0],
+                    var_list=diversity_q_variables[:diversity_half_cutoff]
+                ) + diversity_twin_q_optimizer.compute_gradients(
+                    policy.diversity_critic_loss[1],
+                    var_list=diversity_q_variables[diversity_half_cutoff:]
+                )
+
         else:
+
             critic_grads_and_vars = policy._critic_optimizer[
                 0].compute_gradients(
                 policy.critic_loss[0], var_list=policy.model.q_variables()
             )
+
+            diversity_critic_grads_and_vars = policy._critic_optimizer[
+                0].compute_gradients(
+                policy.diversity_critic_loss[0],
+                var_list=policy.model.diversity_q_variables()
+            )
+
         alpha_grads_and_vars = policy._alpha_optimizer.compute_gradients(
             policy.alpha_loss, var_list=[policy.model.log_alpha]
-        )
-
-    # This part we get the diversity gradient
-    if policy.config["grad_clip"] is not None:
-        diversity_actor_grads_and_vars = minimize_and_clip(
-            optimizer,
-            policy.diversity_actor_loss,
-            var_list=policy.model.policy_variables(),
-            clip_val=policy.config["grad_clip"]
-        )
-        diversity_critic_grads_and_vars = minimize_and_clip(
-            optimizer,
-            policy.diversity_critic_loss[0],
-            var_list=policy.model.diversity_q_variables(),
-            clip_val=policy.config["grad_clip"]
-        )
-    else:
-        diversity_actor_grads_and_vars = \
-            policy._actor_optimizer.compute_gradients(
-                policy.diversity_actor_loss,
-                var_list=policy.model.policy_variables())
-        diversity_critic_grads_and_vars = policy._critic_optimizer[
-            0].compute_gradients(
-            policy.diversity_critic_loss[0],
-            var_list=policy.model.diversity_q_variables()
         )
 
     policy_grad = actor_grads_and_vars

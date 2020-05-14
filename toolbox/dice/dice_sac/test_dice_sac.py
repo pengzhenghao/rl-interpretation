@@ -103,11 +103,12 @@ def regression_test2(local_mode=False):
             "learning_starts": 1000,
             constants.DELAY_UPDATE: tune.grid_search([True, False]),
             **get_marl_env_config(
-                "Pendulum-v0", num_agents, normalize_actions=True
+                # "Pendulum-v0", num_agents, normalize_actions=True
+                "BipedalWalker-v2", num_agents, normalize_actions=True
             )
         },
         {
-            "episode_reward_mean": -300 * num_agents,
+            # "episode_reward_mean": -300 * num_agents,
             "timesteps_total": 13000 * num_agents
         },
         exp_name="DELETEME",
