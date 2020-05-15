@@ -1,15 +1,14 @@
 """This file provides function to parse a RLLib analysis"""
 import logging
+import numbers
 import os.path as osp
 import pickle
 import re
-from collections import Iterable
 
 import numpy as np
 import pandas as pd
 import scipy.interpolate
 from ray.tune.analysis.experiment_analysis import Analysis, ExperimentAnalysis
-import numbers
 
 
 def _process_input(path_or_obj):
@@ -33,8 +32,7 @@ def _process_input(path_or_obj):
         raise NotImplementedError(
             "We expect the input is trial_dataframes dict, an analysis object,"
             " path toward a experiment, path toward a experiment_state json "
-            "file."
-        )
+            "file.")
     assert isinstance(trial_dict, dict)
     return trial_dict
 
@@ -44,12 +42,8 @@ def _parse_tag(tag):
     tag: 0_normalize_advantage=True,seed=0,tau=0.1,mode=None
     ret: {'normalize_advantage': True, 'seed': 0, 'tau': 0.1, 'mode': None}
     """
-    tag = str(tag)
     ret = {}
-    match_result = re.match("\d+_(.*)", tag)
-    if match_result is None:
-        return {}
-    tag = match_result.groups()[0]
+    tag = re.match("\d+_(.*)", tag).groups()[0]
     for part in tag.split(","):
         key, value = part.split('=')
         try:
@@ -69,13 +63,8 @@ def get_keys(path_or_obj):
     return keys
 
 
-def parse(
-        path_or_obj,
-        interpolate=True,
-        keys=None,
-        name_mapping=None,
-        interpolate_x="timesteps_total"
-):
+def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
+          interpolate_x="timesteps_total", max_points=200):
     """
 
     :param path_or_obj: can be the following four type of inputs:
@@ -93,6 +82,7 @@ def parse(
              "vf_loss": "info/learner/agent0/vf_loss"}
     :param interpolate_x: the metric to applied interpolate on, default is
         timesteps_total
+    :param max_points: the maximum number of data points used in interpolation.
     :return: a big pandas dataframe which contains everything.
     """
     # Step 1: Read the data from four possible sources.
@@ -105,11 +95,11 @@ def parse(
     # Step 2: process the keys that user querying.
     if keys is None:
         # If default, parse all possible keys
-        keys = list(next(iter(trial_dict.values())).keys())
-        # keys = "episode_reward_mean"
+        keys = set()
+        for df in trial_dict.values():
+            keys = keys.union(set(df.keys()))
     if isinstance(keys, str):
-        keys = [keys]
-    assert isinstance(keys, Iterable)
+        keys = {keys}
     keys = set(keys)
     keys.add("timesteps_total")
     keys.add("training_iteration")
@@ -124,8 +114,7 @@ def parse(
             logging.debug(
                 "In experiment {}, detect tag {} with value {}".format(
                     trial_df.experiment_tag[0], tag_name, tag_value
-                )
-            )
+                ))
     if name_mapping is not None:
         """To simplify the keys, you can set 
             name_mapping = {
@@ -171,9 +160,16 @@ def parse(
     potential.sort()
     range_min = 0
     range_max = int(potential.max())
+
+    num_points = int(max(len(df) for df in trial_list))
+    print("During parsing data, we found that there are {} data points and we "
+          "will use {} points to interpolate.".format(
+        num_points, min(num_points, max_points) + 1
+    ))
+    num_points = min(num_points, max_points) + 1
+
     interpolate_range = np.linspace(
-        range_min, range_max,
-        int(max(len(df) for df in trial_list)) * 1
+        range_min, range_max, num_points
     )
 
     # Step 5: interpolate for each trail, each key
@@ -191,7 +187,8 @@ def parse(
                 if k in investigate_keys:
                     if isinstance(df[k][0], numbers.Number):
                         new_df[k] = scipy.interpolate.interp1d(
-                            df[interpolate_x], df[k]
+                            df[interpolate_x],
+                            df[k]
                         )(mask_rang)
                     else:
                         new_df[k] = df[k].unique()[0]
