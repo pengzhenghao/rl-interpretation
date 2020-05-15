@@ -55,8 +55,9 @@ def validate_config(config):
 def before_learn_on_batch(samples, policy_map, train_batch_size):
     for agent_id, my_batch in samples.policy_batches.items():
         assert agent_id in policy_map, (agent_id, policy_map.keys())
-        my_batch[MY_LOGIT] = policy_map[agent_id] \
-            ._compute_my_deterministic_action(my_batch["obs"])
+        my_batch[MY_LOGIT] = \
+            policy_map[agent_id]._compute_my_deterministic_action(
+                my_batch["obs"])
         samples.policy_batches[agent_id]["diversity_rewards"] = \
             policy_map[agent_id].compute_diversity(
                 my_batch,

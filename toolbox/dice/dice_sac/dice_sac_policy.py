@@ -107,12 +107,12 @@ def before_loss_init(policy, obs_space, action_space, config):
     ComputeTDErrorMixin.__init__(policy, dice_sac_loss)
 
 
-def extra_action_fetches_fn(policy):
-    return {
-        SampleBatch.ACTION_DIST_INPUTS: policy.model.action_model(
-            policy.model.last_output()
-        )
-    }
+# def extra_action_fetches_fn(policy):
+# return {
+#     SampleBatch.ACTION_DIST_INPUTS: policy.model.action_model(
+#         policy.model.last_output()
+#     )
+# }
 
 
 class ComputeDiversityMixinModified(ComputeDiversityMixin):
@@ -250,27 +250,39 @@ def setup_early_mixins(policy, obs_space, action_space, config):
     ActorCriticOptimizerMixin.__init__(policy, config)
 
 
+def get_distribution_inputs_and_class_modified(
+        policy, model, obs_batch, *, explore=True, **kwargs):
+    # Get base-model output.
+    model_out, state_out = model({
+        "obs": obs_batch,
+        "is_training": policy._get_is_training_placeholder(),
+    }, [], None)
+    # Get action model output from base-model output.
+    distribution_inputs = model.get_policy_output(model_out)
+    action_dist_class = get_dist_class(policy.config, policy.action_space)
+    return distribution_inputs, action_dist_class, state_out
+
+
 DiCESACPolicy = SACTFPolicy.with_updates(
     name="DiCESACPolicy",
     get_default_config=lambda: dice_sac_default_config,
-
-    # Finish but not test
+    make_model=build_sac_model,
     postprocess_fn=postprocess_dice_sac,
+    action_distribution_fn=get_distribution_inputs_and_class_modified,
     loss_fn=dice_sac_loss,
+    stats_fn=stats_fn,
     gradients_fn=dice_sac_gradient,
     apply_gradients_fn=apply_gradients,
-    stats_fn=stats_fn,
-    grad_stats_fn=grad_stats_fn,
-    before_loss_init=before_loss_init,
+    extra_learn_fetches_fn=extra_learn_fetches_fn,
     mixins=[
         TargetNetworkMixin, ActorCriticOptimizerMixin, ComputeTDErrorMixin,
         DiCETargetNetworkMixin, DiversityValueNetworkMixin,
         ComputeDiversityMixinModified
     ],
     before_init=setup_early_mixins,
+    before_loss_init=before_loss_init,
     after_init=after_init,
-    extra_action_fetches_fn=extra_action_fetches_fn,
-    extra_learn_fetches_fn=extra_learn_fetches_fn,
-    obs_include_prev_action_reward=False,
-    make_model=build_sac_model,
+
+    # extra_action_fetches_fn=extra_action_fetches_fn,
+    grad_stats_fn=grad_stats_fn,
 )
