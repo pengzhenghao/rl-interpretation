@@ -1,5 +1,6 @@
 """This file provides function to parse a RLLib analysis"""
 import logging
+import numbers
 import os.path as osp
 import pickle
 import re
@@ -9,7 +10,7 @@ import numpy as np
 import pandas as pd
 import scipy.interpolate
 from ray.tune.analysis.experiment_analysis import Analysis, ExperimentAnalysis
-import numbers
+
 
 def _process_input(path_or_obj):
     if isinstance(path_or_obj, str):
@@ -64,7 +65,7 @@ def get_keys(path_or_obj):
 
 
 def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
-          interpolate_x="timesteps_total"):
+          interpolate_x="timesteps_total", max_points=200):
     """
 
     :param path_or_obj: can be the following four type of inputs:
@@ -82,6 +83,7 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
              "vf_loss": "info/learner/agent0/vf_loss"}
     :param interpolate_x: the metric to applied interpolate on, default is
         timesteps_total
+    :param max_points: the maximum number of data points used in interpolation.
     :return: a big pandas dataframe which contains everything.
     """
     # Step 1: Read the data from four possible sources.
@@ -159,8 +161,16 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
     potential.sort()
     range_min = 0
     range_max = int(potential.max())
+
+    num_points = int(max(len(df) for df in trial_list))
+    print("During parsing data, we found that there are {} data points and we "
+          "will use {} points to interpolate.".format(
+        num_points, min(num_points, max_points) + 1
+    ))
+    num_points = min(num_points, max_points) + 1
+
     interpolate_range = np.linspace(
-        range_min, range_max, int(max(len(df) for df in trial_list)) * 1
+        range_min, range_max, num_points
     )
 
     # Step 5: interpolate for each trail, each key
