@@ -4,7 +4,6 @@ import numbers
 import os.path as osp
 import pickle
 import re
-from collections import Iterable
 
 import numpy as np
 import pandas as pd
@@ -96,11 +95,11 @@ def parse(path_or_obj, interpolate=True, keys=None, name_mapping=None,
     # Step 2: process the keys that user querying.
     if keys is None:
         # If default, parse all possible keys
-        keys = list(next(iter(trial_dict.values())).keys())
-        # keys = "episode_reward_mean"
+        keys = set()
+        for df in trial_dict.values():
+            keys = keys.union(set(df.keys()))
     if isinstance(keys, str):
-        keys = [keys]
-    assert isinstance(keys, Iterable)
+        keys = {keys}
     keys = set(keys)
     keys.add("timesteps_total")
     keys.add("training_iteration")
