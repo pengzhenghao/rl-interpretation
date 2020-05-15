@@ -14,7 +14,7 @@ from toolbox.dice.dice_policy import grad_stats_fn, \
 from toolbox.dice.dice_postprocess import MY_LOGIT
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
 from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, \
-    dice_sac_loss, apply_gradients
+    dice_sac_loss, apply_gradients, get_dist_class
 from toolbox.dice.dice_sac.dice_sac_model import DiCESACModel
 from toolbox.dice.utils import *
 
@@ -64,17 +64,35 @@ class DiCETargetNetworkMixin:
     """
 
     def __init__(self):
+        action_dist_class = get_dist_class(self.config, self.action_space)
+
         @make_tf_callable(self.get_session(), True)
-        def compute_clone_network_logits(ob):
+        def compute_clone_network_action(ob):
             feed_dict = {
                 SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                 "is_training": tf.convert_to_tensor(False)
             }
             model_out, _ = self.target_model(feed_dict)
-            logits = self.target_model.action_model(model_out)
-            return logits
+            distribution_inputs = self.target_model.get_policy_output(model_out)
+            dist = action_dist_class(distribution_inputs, self.target_model)
+            action = dist.deterministic_sample()
+            return action
 
-        self._compute_clone_network_logits = compute_clone_network_logits
+        self._compute_clone_network_action = compute_clone_network_action
+
+        @make_tf_callable(self.get_session(), True)
+        def compute_my_deterministic_action(ob):
+            feed_dict = {
+                SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
+                "is_training": tf.convert_to_tensor(False)
+            }
+            model_out, _ = self.model(feed_dict)
+            distribution_inputs = self.model.get_policy_output(model_out)
+            dist = action_dist_class(distribution_inputs, self.model)
+            action = dist.deterministic_sample()
+            return action
+
+        self._compute_my_deterministic_action = compute_my_deterministic_action
 
 
 def after_init(policy, obs_space, action_space, config):
@@ -100,27 +118,18 @@ def extra_action_fetches_fn(policy):
 class ComputeDiversityMixinModified(ComputeDiversityMixin):
     def compute_diversity(self, my_batch, policy_map):
         """Compute the diversity of this agent."""
-        replays = {}
+        replays = []
         assert policy_map
         for other_name, other_policy in policy_map.items():
-            logits = other_policy._compute_clone_network_logits(
+            replays.append(other_policy._compute_clone_network_action(
                 my_batch[SampleBatch.CUR_OBS],
-            )
-            replays[other_name] = logits
-
+            ))
         # Compute the diversity loss based on the action distribution of
         # this policy and other polices.
         if self.config[DIVERSITY_REWARD_TYPE] == "mse":
-            replays = [
-                np.split(logit, 2, axis=1)[0] for logit in replays.values()
-            ]
-            my_act = np.split(my_batch[MY_LOGIT], 2, axis=1)[0]
             return np.mean(
-                [
-                    (np.square(my_act - other_act)).mean(1)
-                    for other_act in replays
-                ],
-                axis=0
+                [(np.square(my_batch[MY_LOGIT] - other_act)).mean(1)
+                 for other_act in replays], axis=0
             )
         else:
             raise NotImplementedError()
@@ -263,15 +272,5 @@ DiCESACPolicy = SACTFPolicy.with_updates(
     extra_action_fetches_fn=extra_action_fetches_fn,
     extra_learn_fetches_fn=extra_learn_fetches_fn,
     obs_include_prev_action_reward=False,
-
-    # Not checked
     make_model=build_sac_model,
-
-    # before_init=setup_early_mixins,
-    # before_loss_init=setup_mid_mixins,
-    # old_mixins=[
-    #     LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin,
-    #     ValueNetworkMixin, DiversityValueNetworkMixin, ComputeDiversityMixin,
-    #     TargetNetworkMixin
-    # ]
 )

@@ -1,16 +1,12 @@
-import ray
-from ray.rllib.agents.dqn.dqn import update_target_if_needed
 from ray.rllib.agents.sac.sac import SACTrainer, \
     validate_config as validate_config_sac
 from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
-import toolbox.dice.utils as constants
 from toolbox.dice.dice import setup_policies_pool
 from toolbox.dice.dice_postprocess import MY_LOGIT
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
 from toolbox.dice.dice_sac.dice_sac_policy import DiCESACPolicy
-from toolbox.dice.utils import *
 
 
 # from toolbox.dice.dice_sac.dice_sac_optimizer import
@@ -21,19 +17,19 @@ from toolbox.dice.utils import *
 #     # Original SAC operation
 #     update_target_if_needed(trainer, fetches)
 
-    # only update the policies pool if used DELAY_UPDATE, otherwise
-    # the policies_pool in each policy is simply not used, so we don't
-    # need to update it.
-    # if trainer.config[constants.DELAY_UPDATE]:
-    # if trainer.workers.remote_workers():
-    #     weights = ray.put(trainer.workers.local_worker().get_weights())
-    #     for e in trainer.workers.remote_workers():
-    #         e.set_weights.remote(weights)
-    #
-    #     def _delay_update_for_worker(worker, worker_index):
-    #         worker.foreach_policy(lambda p, _: p.update_target_network())
-    #
-    #     trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
+# only update the policies pool if used DELAY_UPDATE, otherwise
+# the policies_pool in each policy is simply not used, so we don't
+# need to update it.
+# if trainer.config[constants.DELAY_UPDATE]:
+# if trainer.workers.remote_workers():
+#     weights = ray.put(trainer.workers.local_worker().get_weights())
+#     for e in trainer.workers.remote_workers():
+#         e.set_weights.remote(weights)
+#
+#     def _delay_update_for_worker(worker, worker_index):
+#         worker.foreach_policy(lambda p, _: p.update_target_network())
+#
+#     trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 
 
 def validate_config(config):
@@ -59,8 +55,8 @@ def validate_config(config):
 def before_learn_on_batch(samples, policy_map, train_batch_size):
     for agent_id, my_batch in samples.policy_batches.items():
         assert agent_id in policy_map, (agent_id, policy_map.keys())
-        my_batch[MY_LOGIT] = policy_map[agent_id].compute_actions(
-            my_batch["obs"])[2]["action_dist_inputs"]
+        my_batch[MY_LOGIT] = policy_map[agent_id] \
+            ._compute_my_deterministic_action(my_batch["obs"])
         samples.policy_batches[agent_id]["diversity_rewards"] = \
             policy_map[agent_id].compute_diversity(
                 my_batch,
