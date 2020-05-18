@@ -1,6 +1,9 @@
+import numpy as np
 from ray.rllib.agents.sac.sac import SACTrainer, \
     validate_config as validate_config_sac
-from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer
+from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer, \
+    PrioritizedReplayBuffer, SampleBatch, MultiAgentBatch
+# from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dice.dice_postprocess import MY_LOGIT
@@ -42,6 +45,54 @@ def _before_learn_on_batch(samples, policy_map, train_batch_size):
     return samples
 
 
+class SyncReplayOptimizerModified(SyncReplayOptimizer):
+    def __init__(self, *args, **kwargs):
+        assert "num_agents" in kwargs
+        self.num_agents = kwargs.pop("num_agents")
+        super().__init__(*args, **kwargs)
+
+    def _replay(self):
+
+        per_agent_train_batch_size = int(
+            self.train_batch_size / self.num_agents)
+
+        samples = {}
+        idxes = None
+        with self.replay_timer:
+            for policy_id, replay_buffer in self.replay_buffers.items():
+                if self.synchronize_sampling:
+                    if idxes is None:
+                        idxes = replay_buffer.sample_idxes(
+                            per_agent_train_batch_size)
+                else:
+                    idxes = replay_buffer.sample_idxes(
+                        per_agent_train_batch_size)
+
+                if isinstance(replay_buffer, PrioritizedReplayBuffer):
+                    raise NotImplementedError()
+                else:
+                    (obses_t, actions, rewards, obses_tp1,
+                     dones) = replay_buffer.sample_with_idxes(idxes)
+                    weights = np.ones_like(rewards)
+                    batch_indexes = -np.ones_like(rewards)
+                samples[policy_id] = SampleBatch({
+                    "obs": obses_t,
+                    "actions": actions,
+                    "rewards": rewards,
+                    "new_obs": obses_tp1,
+                    "dones": dones,
+                    "weights": weights,
+                    "batch_indexes": batch_indexes
+                })
+
+        # Merge the things here
+        shared_batch = SampleBatch.concat_samples(list(samples.values()))
+        return_batch = MultiAgentBatch(
+            {k: shared_batch for k in samples.keys()}, shared_batch.count)
+        # return MultiAgentBatch(samples, self.train_batch_size)
+        return return_batch
+
+
 def make_policy_optimizer(workers, config):
     """Create the single process DQN policy optimizer.
 
@@ -62,12 +113,13 @@ def make_policy_optimizer(workers, config):
             "prioritized_replay_eps": config["prioritized_replay_eps"],
         })
 
-    return SyncReplayOptimizer(
+    return SyncReplayOptimizerModified(
         workers,
         learning_starts=config["learning_starts"],
         buffer_size=config["buffer_size"],
         train_batch_size=config["train_batch_size"],
         before_learn_on_batch=_before_learn_on_batch,  # <<== Add extra callback
+        num_agents=config["env_config"]["num_agents"],
         **kwargs)
 
 

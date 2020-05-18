@@ -118,7 +118,7 @@ def regression_test2(local_mode=False):
         },
         {
             # "episode_reward_mean": -300 * num_agents,
-            "timesteps_total": 20000
+            "timesteps_total": 200000
         },
         exp_name="DELETEME-dicesac",
         local_dir=local_dir,
@@ -154,5 +154,5 @@ def regression_test_sac(local_mode=False):
 if __name__ == "__main__":
     # pytest.main(["-v"])
     # regression_test(local_mode=False)
-    anal = regression_test2(local_mode=True)
+    anal = regression_test2(local_mode=False)
     # regression_test_sac(local_mode=False)

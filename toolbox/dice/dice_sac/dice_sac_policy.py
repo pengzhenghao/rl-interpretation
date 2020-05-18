@@ -17,20 +17,12 @@ from toolbox.dice.utils import *
 
 
 def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
-    batches = [postprocess_trajectory(policy, sample_batch.copy())]
+    # The CE part is move to optimizer
+    batch = postprocess_trajectory(policy, sample_batch)
     if policy.config[ONLY_TNB] or not policy.loss_initialized():
-        batch = batches[0]
         batch["diversity_rewards"] = np.zeros_like(
             batch[SampleBatch.REWARDS], dtype=np.float32)
-        return batch
-    for pid, (other_policy, other_batch_raw) in others_batches.items():
-        # other_batch_raw is the data collected by other polices.
-        if other_batch_raw is None:
-            continue
-        other_batch_raw = other_batch_raw.copy()
-        batches.append(postprocess_trajectory(policy, other_batch_raw))
-    return SampleBatch.concat_samples(batches) if len(batches) != 1 \
-        else batches[0]
+    return batch
 
 
 def stats_fn(policy, train_batch):
