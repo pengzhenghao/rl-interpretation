@@ -1,4 +1,3 @@
-import gym
 from gym.spaces import Box, Discrete
 from ray.rllib.agents.ddpg.ddpg_tf_policy import ComputeTDErrorMixin, \
     TargetNetworkMixin
@@ -9,8 +8,6 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.error import UnsupportedSpaceException
 from ray.rllib.utils.tf_ops import make_tf_callable
 
-from toolbox.dice.dice_policy import grad_stats_fn, \
-    DiversityValueNetworkMixin, ComputeDiversityMixin
 from toolbox.dice.dice_postprocess import MY_LOGIT
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
 from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, \
@@ -37,7 +34,7 @@ def postprocess_dice_sac(policy, sample_batch, others_batches, episode):
 
 
 def stats_fn(policy, train_batch):
-    ret = {
+    return {
         "td_error": tf.reduce_mean(policy.td_error),
         "diversity_td_error": tf.reduce_mean(policy.diversity_td_error),
         "actor_loss": tf.reduce_mean(policy.actor_loss),
@@ -52,7 +49,6 @@ def stats_fn(policy, train_batch):
         "diversity_critic_loss": tf.reduce_mean(policy.diversity_critic_loss),
         "diversity_reward_mean": tf.reduce_mean(policy.diversity_reward_mean),
     }
-    return ret
 
 
 class DiCETargetNetworkMixin:
@@ -101,21 +97,15 @@ def after_init(policy, obs_space, action_space, config):
 
 
 def before_loss_init(policy, obs_space, action_space, config):
-    DiversityValueNetworkMixin.__init__(policy, obs_space, action_space, config)
-    discrete = isinstance(action_space, gym.spaces.Discrete)
-    ComputeDiversityMixinModified.__init__(policy, discrete)
+    ComputeDiversityMixinModified.__init__(policy)
     ComputeTDErrorMixin.__init__(policy, dice_sac_loss)
 
 
-# def extra_action_fetches_fn(policy):
-# return {
-#     SampleBatch.ACTION_DIST_INPUTS: policy.model.action_model(
-#         policy.model.last_output()
-#     )
-# }
+def setup_early_mixins(policy, obs_space, action_space, config):
+    ActorCriticOptimizerMixin.__init__(policy, config)
 
 
-class ComputeDiversityMixinModified(ComputeDiversityMixin):
+class ComputeDiversityMixinModified:
     def compute_diversity(self, my_batch, policy_map):
         """Compute the diversity of this agent."""
         replays = []
@@ -210,12 +200,12 @@ def build_sac_model(policy, obs_space, action_space, config):
 
 
 def extra_learn_fetches_fn(policy):
-    ret = dict()
-    ret["td_error"] = policy.td_error
-    ret["diversity_td_error"] = policy.diversity_td_error
-    ret["diversity_reward_mean"] = policy.diversity_reward_mean
-    ret["log_pis_t"] = policy.log_pis_t
-    return ret
+    return {
+        "td_error": policy.td_error,
+        "diversity_td_error": policy.diversity_td_error,
+        "diversity_reward_mean": policy.diversity_reward_mean,
+        "log_pis_t": policy.log_pis_t
+    }
 
 
 class ActorCriticOptimizerMixin:
@@ -246,10 +236,6 @@ class ActorCriticOptimizerMixin:
             learning_rate=config["optimization"]["entropy_learning_rate"])
 
 
-def setup_early_mixins(policy, obs_space, action_space, config):
-    ActorCriticOptimizerMixin.__init__(policy, config)
-
-
 def get_distribution_inputs_and_class_modified(
         policy, model, obs_batch, *, explore=True, **kwargs):
     # Get base-model output.
@@ -261,6 +247,14 @@ def get_distribution_inputs_and_class_modified(
     distribution_inputs = model.get_policy_output(model_out)
     action_dist_class = get_dist_class(policy.config, policy.action_space)
     return distribution_inputs, action_dist_class, state_out
+
+
+def grad_stats_fn(policy, batch, grads):
+    return {
+        "cos_similarity": policy.gradient_cosine_similarity,
+        "policy_grad_norm": policy.policy_grad_norm,
+        "diversity_grad_norm": policy.diversity_grad_norm
+    }
 
 
 DiCESACPolicy = SACTFPolicy.with_updates(
@@ -276,8 +270,7 @@ DiCESACPolicy = SACTFPolicy.with_updates(
     extra_learn_fetches_fn=extra_learn_fetches_fn,
     mixins=[
         TargetNetworkMixin, ActorCriticOptimizerMixin, ComputeTDErrorMixin,
-        DiCETargetNetworkMixin, DiversityValueNetworkMixin,
-        ComputeDiversityMixinModified
+        DiCETargetNetworkMixin, ComputeDiversityMixinModified
     ],
     before_init=setup_early_mixins,
     before_loss_init=before_loss_init,

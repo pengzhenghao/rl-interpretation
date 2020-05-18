@@ -87,20 +87,23 @@ def regression_test2(local_mode=False):
     num_agents = 3
     local_dir = tempfile.mkdtemp()
     initialize_ray(test_mode=True, local_mode=local_mode)
-    train(
+    return train(
         DiCESACTrainer,
         {
             # "soft_horizon": True,
             "clip_actions": False,
             "normalize_actions": False,  # <<== Handle in MARL env
-            "metrics_smoothing_episodes": 5,
+
+            # Evaluation
+            # "metrics_smoothing_episodes": 5,
+            # "evaluation_interval": 1,
+
             # "no_done_at_end": True,
             "train_batch_size": 256,
             "rollout_fragment_length": 1,
             "target_network_update_freq": 1,
             "timesteps_per_iteration": 1000,
-            "evaluation_interval": 1,
-            "learning_starts": 10000,
+            "learning_starts": 3000,
             "diversity_twin_q": tune.grid_search([True, False]),
             **get_marl_env_config(
                 # "Pendulum-v0", num_agents, normalize_actions=True
@@ -109,13 +112,13 @@ def regression_test2(local_mode=False):
         },
         {
             # "episode_reward_mean": -300 * num_agents,
-            "timesteps_total": 13000 * num_agents
+            "timesteps_total": 6000
         },
         exp_name="DELETEME",
         local_dir=local_dir,
         test_mode=True
     )
-    shutil.rmtree(local_dir, ignore_errors=True)
+    # shutil.rmtree(local_dir, ignore_errors=True)
 
 
 def regression_test_sac(local_mode=False):
@@ -148,5 +151,5 @@ def regression_test_sac(local_mode=False):
 if __name__ == "__main__":
     # pytest.main(["-v"])
     # regression_test(local_mode=False)
-    regression_test2(local_mode=False)
+    anal = regression_test2(local_mode=False)
     # regression_test_sac(local_mode=True)
