@@ -1,9 +1,10 @@
+import time
+
 import numpy as np
 from ray.rllib.agents.sac.sac import SACTrainer, \
     validate_config as validate_config_sac
 from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer, \
     PrioritizedReplayBuffer, SampleBatch, MultiAgentBatch
-# from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dice.dice_postprocess import MY_LOGIT
@@ -51,8 +52,24 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
         self.num_agents = kwargs.pop("num_agents")
         super().__init__(*args, **kwargs)
 
-    def _replay(self):
+    def step(self):
+        super().step()
 
+        # Workaround to make sure the data is log into result.
+        now = time.time()
+        while self.num_steps_sampled < self.replay_starts + \
+                self.workers._remote_config["timesteps_per_iteration"]:
+            if time.time() - now > 10:
+                print(
+                    "Current samples are not sufficient for learning. Launch"
+                    " another sample! Current steps sampled {} and replay "
+                    "will starts at {}".format(self.num_steps_sampled,
+                                               self.replay_starts))
+                now = time.time()
+            super().step()
+
+    def _replay(self):
+        # Here use small batch to get the data
         per_agent_train_batch_size = int(
             self.train_batch_size / self.num_agents)
 

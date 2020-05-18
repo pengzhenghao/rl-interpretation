@@ -102,7 +102,8 @@ def regression_test2(local_mode=False):
             "rollout_fragment_length": 1,
             "target_network_update_freq": 1,
             "timesteps_per_iteration": 100,
-            "learning_starts": 1500,
+            # "learning_starts": 1500,
+            "learning_starts": 500,
 
             # ====================================
 
@@ -118,7 +119,7 @@ def regression_test2(local_mode=False):
         },
         {
             # "episode_reward_mean": -300 * num_agents,
-            "timesteps_total": 200000
+            "timesteps_total": 3000
         },
         exp_name="DELETEME-dicesac",
         local_dir=local_dir,
@@ -137,12 +138,13 @@ def regression_test_sac(local_mode=False):
             "rollout_fragment_length": 1,
             "target_network_update_freq": 1,
             "timesteps_per_iteration": 100,
-            "learning_starts": 1500,
+            # "learning_starts": 1500,
+            "learning_starts": 500,
             "env": "Pendulum-v0",
         },
         {
             # "episode_reward_mean": -300 * num_agents,
-            "timesteps_total": 10000
+            "timesteps_total": 3000
         },
         exp_name="DELETEME",
         local_dir=local_dir,
