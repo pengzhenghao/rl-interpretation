@@ -7,7 +7,6 @@ import pytest
 
 from toolbox import train, initialize_ray
 from toolbox.dice.dice_sac.dice_sac import DiCESACTrainer
-from toolbox.dice.dice_sac.dice_sac_config import constants
 from toolbox.dice.dice_sac.dice_sac_policy import DiCESACPolicy
 from toolbox.marl import get_marl_env_config, MultiAgentEnvWrapper
 
@@ -102,17 +101,17 @@ def regression_test2(local_mode=False):
             "train_batch_size": 256,
             "rollout_fragment_length": 1,
             "target_network_update_freq": 1,
-            "timesteps_per_iteration": 1000,
-            "learning_starts": 3000,
+            "timesteps_per_iteration": 100,
+            "learning_starts": 1500,
             "diversity_twin_q": tune.grid_search([True, False]),
             **get_marl_env_config(
                 # "Pendulum-v0", num_agents, normalize_actions=True
-                "BipedalWalker-v2", num_agents, normalize_actions=True
+                "Pendulum-v0", num_agents, normalize_actions=True
             )
         },
         {
             # "episode_reward_mean": -300 * num_agents,
-            "timesteps_total": 6000
+            "timesteps_total": 10000
         },
         exp_name="DELETEME",
         local_dir=local_dir,
@@ -122,24 +121,21 @@ def regression_test2(local_mode=False):
 
 
 def regression_test_sac(local_mode=False):
-    num_agents = 3
     local_dir = tempfile.mkdtemp()
     initialize_ray(test_mode=True, local_mode=local_mode)
     train(
         "SAC",
         {
-            "soft_horizon": True,
-            "clip_actions": False,
-            "normalize_actions": False,  # <<== Handle in MARL env
-            "metrics_smoothing_episodes": 5,
-            "no_done_at_end": True,
-            "train_batch_size": 1000,
-            "rollout_fragment_length": 50,
+            "train_batch_size": 256,
+            "rollout_fragment_length": 1,
+            "target_network_update_freq": 1,
+            "timesteps_per_iteration": 100,
+            "learning_starts": 1500,
             "env": "Pendulum-v0",
         },
         {
-            "episode_reward_mean": -300 * num_agents,
-            "timesteps_total": 13000 * num_agents
+            # "episode_reward_mean": -300 * num_agents,
+            "timesteps_total": 10000
         },
         exp_name="DELETEME",
         local_dir=local_dir,
@@ -152,4 +148,4 @@ if __name__ == "__main__":
     # pytest.main(["-v"])
     # regression_test(local_mode=False)
     anal = regression_test2(local_mode=False)
-    # regression_test_sac(local_mode=True)
+    # regression_test_sac(local_mode=False)
