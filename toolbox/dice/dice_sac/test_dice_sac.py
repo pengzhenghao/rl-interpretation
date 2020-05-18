@@ -113,7 +113,7 @@ def regression_test2(local_mode=False):
             # "episode_reward_mean": -300 * num_agents,
             "timesteps_total": 10000
         },
-        exp_name="DELETEME",
+        exp_name="DELETEME-dicesac",
         local_dir=local_dir,
         test_mode=True
     )

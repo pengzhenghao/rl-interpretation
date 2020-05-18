@@ -48,6 +48,8 @@ def stats_fn(policy, train_batch):
         "diversity_actor_loss": tf.reduce_mean(policy.diversity_actor_loss),
         "diversity_critic_loss": tf.reduce_mean(policy.diversity_critic_loss),
         "diversity_reward_mean": tf.reduce_mean(policy.diversity_reward_mean),
+        "diversity_reward_max": tf.reduce_max(policy.diversity_reward_mean),
+        "diversity_reward_min": tf.reduce_min(policy.diversity_reward_mean),
     }
 
 

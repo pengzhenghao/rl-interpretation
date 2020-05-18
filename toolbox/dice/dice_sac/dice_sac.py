@@ -74,9 +74,9 @@ def make_policy_optimizer(workers, config):
 DiCESACTrainer = SACTrainer.with_updates(
     name="DiCESACTrainer",
     default_config=dice_sac_default_config,
+    validate_config=validate_config,
     default_policy=DiCESACPolicy,
     get_policy_class=lambda _: DiCESACPolicy,
-    validate_config=validate_config,
 
     # Rewrite this to add the term _before_learn_on_batch
     make_policy_optimizer=make_policy_optimizer
