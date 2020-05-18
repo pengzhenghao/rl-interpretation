@@ -241,4 +241,7 @@ class DiCESACModel(TFModelV2):
         )
 
     def diversity_q_variables(self):
-        return list(self.diversity_q_net.variables)
+        return list(self.diversity_q_net.variables) + (
+            self.diversity_twin_q_net.variables if self.diversity_twin_q_net
+            else []
+        )

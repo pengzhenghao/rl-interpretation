@@ -49,7 +49,7 @@ def stats_fn(policy, train_batch):
         "diversity_critic_loss": tf.reduce_mean(policy.diversity_critic_loss),
         "diversity_reward_mean": tf.reduce_mean(policy.diversity_reward_mean),
         "diversity_reward_max": tf.reduce_max(policy.diversity_reward_mean),
-        "diversity_reward_min": tf.reduce_min(policy.diversity_reward_mean),
+        "diversity_reward_min": tf.reduce_min(policy.diversity_reward_mean)
     }
 
 
@@ -104,7 +104,7 @@ def before_loss_init(policy, obs_space, action_space, config):
 
 
 def setup_early_mixins(policy, obs_space, action_space, config):
-    ActorCriticOptimizerMixin.__init__(policy, config)
+    ActorCriticOptimizerMixinModified.__init__(policy, config)
 
 
 class ComputeDiversityMixinModified:
@@ -205,12 +205,10 @@ def extra_learn_fetches_fn(policy):
     return {
         "td_error": policy.td_error,
         "diversity_td_error": policy.diversity_td_error,
-        "diversity_reward_mean": policy.diversity_reward_mean,
-        "log_pis_t": policy.log_pis_t
     }
 
 
-class ActorCriticOptimizerMixin:
+class ActorCriticOptimizerMixinModified:
     def __init__(self, config):
         # create global step for counting the number of update operations
         self.global_step = tf.train.get_or_create_global_step()
@@ -271,8 +269,9 @@ DiCESACPolicy = SACTFPolicy.with_updates(
     apply_gradients_fn=apply_gradients,
     extra_learn_fetches_fn=extra_learn_fetches_fn,
     mixins=[
-        TargetNetworkMixin, ActorCriticOptimizerMixin, ComputeTDErrorMixin,
-        DiCETargetNetworkMixin, ComputeDiversityMixinModified
+        TargetNetworkMixin, ActorCriticOptimizerMixinModified,
+        ComputeTDErrorMixin, DiCETargetNetworkMixin,
+        ComputeDiversityMixinModified
     ],
     before_init=setup_early_mixins,
     before_loss_init=before_loss_init,

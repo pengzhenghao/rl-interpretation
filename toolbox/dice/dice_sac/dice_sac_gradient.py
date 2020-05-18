@@ -29,13 +29,6 @@ def dice_sac_loss(policy, model, _, train_batch):
 
     diversity_reward = train_batch["diversity_rewards"]
 
-    tf.reduce_mean(
-        tf.losses.mean_squared_error(
-            tf.ones([100, 4]),
-            tf.ones([100, 4]),
-            reduction="none"
-        ), axis=1)
-
     model_out_tp1, _ = model(
         {
             "obs": train_batch[SampleBatch.NEXT_OBS],
