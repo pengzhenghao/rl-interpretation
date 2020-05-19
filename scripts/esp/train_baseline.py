@@ -88,13 +88,6 @@ if __name__ == '__main__':
         run = GaussianESTrainer
         stop = int(1e8)
 
-    if args.redis_password:
-        from toolbox import initialize_ray
-        import os
-
-        initialize_ray(address=os.environ["ip_head"], test_mode=args.test,
-                       redis_password=args.redis_password)
-
     train(
         run, stop=int(args.stop), verbose=1, config=config,
         exp_name=args.exp_name, num_seeds=args.num_seeds, num_gpus=args.num_gpus
