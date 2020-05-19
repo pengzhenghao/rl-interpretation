@@ -10,6 +10,8 @@ class DiCESACCallbacks(DefaultCallbacks):
         constants.on_postprocess_trajectory(*args, **kwargs)
 
 
+USE_MY_TARGET_DIVERSITY = "use_my_target_diversity"
+
 dice_sac_default_config = merge_dicts(
     sac_default_config,
     {
@@ -17,6 +19,7 @@ dice_sac_default_config = merge_dicts(
         # New version of SAC require this
         "postprocess_inputs": True,
         "use_exec_api": False,
+        "diversity_twin_q": False,
 
         # PPO loss for diversity
         # "clip_param": 0.3,
@@ -25,14 +28,16 @@ dice_sac_default_config = merge_dicts(
 
         # "rollout_fragment_length": 50,
         constants.USE_BISECTOR: True,
-        constants.USE_DIVERSITY_VALUE_NETWORK: False,
+        # constants.USE_DIVERSITY_VALUE_NETWORK: False,
         constants.DELAY_UPDATE: True,
+        USE_MY_TARGET_DIVERSITY: False,
+
         # constants.TWO_SIDE_CLIP_LOSS: True,
         constants.ONLY_TNB: False,
-        constants.NORMALIZE_ADVANTAGE: False,
-        constants.CLIP_DIVERSITY_GRADIENT: True,
+        # constants.NORMALIZE_ADVANTAGE: False,
+        # constants.CLIP_DIVERSITY_GRADIENT: True,
         constants.DIVERSITY_REWARD_TYPE: "mse",
-        constants.PURE_OFF_POLICY: False,
+        # constants.PURE_OFF_POLICY: False,
         "normalize_actions": False,
         "env_config": {
             "normalize_actions": False

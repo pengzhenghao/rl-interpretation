@@ -81,7 +81,7 @@ def make_policy_optimizer_tnbes(workers, config):
 
 def setup_policies_pool(trainer):
     """Initialize the team of agents by calling the function in each policy"""
-    if not trainer.config[DELAY_UPDATE]:
+    if not trainer.config.get(DELAY_UPDATE, False):
         return
     assert not trainer.get_policy('agent0').initialized_policies_pool
     # First step, broadcast local weights to remote worker.

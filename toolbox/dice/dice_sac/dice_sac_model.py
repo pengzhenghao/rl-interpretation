@@ -31,6 +31,7 @@ class DiCESACModel(TFModelV2):
                  critic_hidden_activation="relu",
                  critic_hiddens=(256, 256),
                  twin_q=False,
+                 diversity_twin_q=False,
                  initial_alpha=1.0,
                  target_entropy=None):
         """Initialize variables of this model.
@@ -62,7 +63,7 @@ class DiCESACModel(TFModelV2):
             q_outs = 1
 
         self.model_out = tf.keras.layers.Input(
-            shape=(self.num_outputs, ), name="model_out"
+            shape=(self.num_outputs,), name="model_out"
         )
         self.action_model = tf.keras.Sequential(
             [
@@ -73,7 +74,7 @@ class DiCESACModel(TFModelV2):
                 ) for i, hidden in enumerate(actor_hiddens)
             ] + [
                 tf.keras.layers.
-                Dense(units=action_outs, activation=None, name="action_out")
+            Dense(units=action_outs, activation=None, name="action_out")
             ]
         )
         self.shift_and_log_scale_diag = self.action_model(self.model_out)
@@ -83,7 +84,7 @@ class DiCESACModel(TFModelV2):
         self.actions_input = None
         if not self.discrete:
             self.actions_input = tf.keras.layers.Input(
-                shape=(self.action_dim, ), name="actions"
+                shape=(self.action_dim,), name="actions"
             )
 
         def build_q_net(name, observations, actions):
@@ -134,6 +135,13 @@ class DiCESACModel(TFModelV2):
             self.register_variables(self.twin_q_net.variables)
         else:
             self.twin_q_net = None
+        if diversity_twin_q:
+            self.diversity_twin_q_net = build_q_net(
+                "diversity_twin_q", self.model_out, self.actions_input
+            )
+            self.register_variables(self.diversity_twin_q_net.variables)
+        else:
+            self.diversity_twin_q_net = None
 
         self.log_alpha = tf.Variable(
             np.log(initial_alpha), dtype=tf.float32, name="log_alpha"
@@ -178,6 +186,12 @@ class DiCESACModel(TFModelV2):
             return self.diversity_q_net([model_out, actions])
         else:
             return self.diversity_q_net(model_out)
+
+    def get_diversity_twin_q_values(self, model_out, actions=None):
+        if actions is not None:
+            return self.diversity_twin_q_net([model_out, actions])
+        else:
+            return self.diversity_twin_q_net(model_out)
 
     def get_twin_q_values(self, model_out, actions=None):
         """Same as get_q_values but using the twin Q net.
@@ -227,4 +241,7 @@ class DiCESACModel(TFModelV2):
         )
 
     def diversity_q_variables(self):
-        return list(self.diversity_q_net.variables)
+        return list(self.diversity_q_net.variables) + (
+            self.diversity_twin_q_net.variables if self.diversity_twin_q_net
+            else []
+        )

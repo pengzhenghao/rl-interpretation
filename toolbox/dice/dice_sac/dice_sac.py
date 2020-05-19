@@ -1,43 +1,21 @@
-import ray
-from ray.rllib.agents.dqn.dqn import update_target_if_needed, \
-    update_worker_exploration
+import time
+
+import numpy as np
 from ray.rllib.agents.sac.sac import SACTrainer, \
     validate_config as validate_config_sac
+from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer, \
+    PrioritizedReplayBuffer, SampleBatch, MultiAgentBatch
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
-import toolbox.dice.utils as constants
-from toolbox.dice.dice import setup_policies_pool
+from toolbox.dice.dice_postprocess import MY_LOGIT
 from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
-from toolbox.dice.dice_sac.dice_sac_optimizer import SyncReplayOptimizerModified
 from toolbox.dice.dice_sac.dice_sac_policy import DiCESACPolicy
-from toolbox.dice.utils import *
-
-
-def after_optimizer_step(trainer, fetches):
-    # Original SAC operation
-    update_target_if_needed(trainer, fetches)
-
-    # only update the policies pool if used DELAY_UPDATE, otherwise
-    # the policies_pool in each policy is simply not used, so we don't
-    # need to update it.
-    if trainer.config[constants.DELAY_UPDATE]:
-        if trainer.workers.remote_workers():
-            weights = ray.put(trainer.workers.local_worker().get_weights())
-            for e in trainer.workers.remote_workers():
-                e.set_weights.remote(weights)
-
-            def _delay_update_for_worker(worker, worker_index):
-                worker.foreach_policy(lambda p, _: p.update_target_network())
-
-            trainer.workers.foreach_worker_with_index(_delay_update_for_worker)
 
 
 def validate_config(config):
     validate_config_sac(config)
 
     # Hard-coded this setting
-    # assert not config["normalize_actions"]
-    # assert not config["env_config"]["normalize_actions"]
     assert not config["normalize_actions"]
     assert config["env_config"]["normalize_actions"]
 
@@ -50,13 +28,86 @@ def validate_config(config):
         for i in tmp_env.agent_ids
     }
     config["multiagent"]["policy_mapping_fn"] = lambda x: x
+    config['model']['custom_model'] = None
+    config['model']['custom_options'] = None
 
-    # check the model
-    if config[USE_DIVERSITY_VALUE_NETWORK]:
-        raise NotImplementedError()
-    else:
-        config['model']['custom_model'] = None
-        config['model']['custom_options'] = None
+
+def _before_learn_on_batch(samples, policy_map, train_batch_size):
+    for agent_id, my_batch in samples.policy_batches.items():
+        assert agent_id in policy_map, (agent_id, policy_map.keys())
+        my_batch[MY_LOGIT] = \
+            policy_map[agent_id]._compute_my_deterministic_action(
+                my_batch["obs"])
+        samples.policy_batches[agent_id]["diversity_rewards"] = \
+            policy_map[agent_id].compute_diversity(
+                my_batch,
+                {pid: p for pid, p in policy_map.items() if pid != agent_id}
+            )
+    return samples
+
+
+class SyncReplayOptimizerModified(SyncReplayOptimizer):
+    def __init__(self, *args, **kwargs):
+        assert "num_agents" in kwargs
+        self.num_agents = kwargs.pop("num_agents")
+        super().__init__(*args, **kwargs)
+
+    def step(self):
+        super().step()
+
+        # Workaround to make sure the data is log into result.
+        now = time.time()
+        while self.num_steps_sampled < self.replay_starts + \
+                self.workers._remote_config["timesteps_per_iteration"]:
+            if time.time() - now > 10:
+                print(
+                    "Current samples are not sufficient for learning. Launch"
+                    " another sample! Current steps sampled {} and replay "
+                    "will starts at {}".format(self.num_steps_sampled,
+                                               self.replay_starts))
+                now = time.time()
+            super().step()
+
+    def _replay(self):
+        # Here use small batch to get the data
+        per_agent_train_batch_size = int(
+            self.train_batch_size / self.num_agents)
+
+        samples = {}
+        idxes = None
+        with self.replay_timer:
+            for policy_id, replay_buffer in self.replay_buffers.items():
+                if self.synchronize_sampling:
+                    if idxes is None:
+                        idxes = replay_buffer.sample_idxes(
+                            per_agent_train_batch_size)
+                else:
+                    idxes = replay_buffer.sample_idxes(
+                        per_agent_train_batch_size)
+
+                if isinstance(replay_buffer, PrioritizedReplayBuffer):
+                    raise NotImplementedError()
+                else:
+                    (obses_t, actions, rewards, obses_tp1,
+                     dones) = replay_buffer.sample_with_idxes(idxes)
+                    weights = np.ones_like(rewards)
+                    batch_indexes = -np.ones_like(rewards)
+                samples[policy_id] = SampleBatch({
+                    "obs": obses_t,
+                    "actions": actions,
+                    "rewards": rewards,
+                    "new_obs": obses_tp1,
+                    "dones": dones,
+                    "weights": weights,
+                    "batch_indexes": batch_indexes
+                })
+
+        # Merge the things here
+        shared_batch = SampleBatch.concat_samples(list(samples.values()))
+        return_batch = MultiAgentBatch(
+            {k: shared_batch for k in samples.keys()}, shared_batch.count)
+        # return MultiAgentBatch(samples, self.train_batch_size)
+        return return_batch
 
 
 def make_policy_optimizer(workers, config):
@@ -65,58 +116,37 @@ def make_policy_optimizer(workers, config):
     Returns:
         SyncReplayOptimizer: Used for generic off-policy Trainers.
     """
+    # SimpleQ does not use a PR buffer.
+    kwargs = {"prioritized_replay": config.get("prioritized_replay", False)}
+    kwargs.update(**config["optimizer"])
+    if "prioritized_replay" in config:
+        kwargs.update({
+            "prioritized_replay_alpha": config["prioritized_replay_alpha"],
+            "prioritized_replay_beta": config["prioritized_replay_beta"],
+            "prioritized_replay_beta_annealing_timesteps": config[
+                "prioritized_replay_beta_annealing_timesteps"],
+            "final_prioritized_replay_beta": config[
+                "final_prioritized_replay_beta"],
+            "prioritized_replay_eps": config["prioritized_replay_eps"],
+        })
+
     return SyncReplayOptimizerModified(
         workers,
         learning_starts=config["learning_starts"],
         buffer_size=config["buffer_size"],
-        prioritized_replay=config["prioritized_replay"],
-        prioritized_replay_alpha=config["prioritized_replay_alpha"],
-        prioritized_replay_beta=config["prioritized_replay_beta"],
-        prioritized_replay_beta_annealing_timesteps=config[
-            "prioritized_replay_beta_annealing_timesteps"],
-        final_prioritized_replay_beta=config["final_prioritized_replay_beta"],
-        prioritized_replay_eps=config["prioritized_replay_eps"],
         train_batch_size=config["train_batch_size"],
-        **config["optimizer"]
-    )
-
-
-def before_train_step(trainer):
-    if hasattr(trainer, "evaluation_workers") \
-            and trainer.config[DELAY_UPDATE] \
-            and not trainer.evaluation_workers.local_worker() \
-            .get_policy('agent0').initialized_policies_pool:
-        # First step, broadcast local weights to remote worker.
-        if trainer.evaluation_workers.remote_workers():
-            weights = ray.put(
-                trainer.evaluation_workers.local_worker().get_weights())
-            for e in trainer.evaluation_workers.remote_workers():
-                e.set_weights.remote(weights)
-
-        # Second step, call the _lazy_initialize function of each policy,
-        # feeding
-        # with the policies map in the trainer.
-        def _init_pool(worker, worker_index):
-            def _init_diversity_policy(policy, my_policy_name):
-                # policy.update_target_network(tau=1.0)
-                policy.update_target(tau=1.0)
-                policy._lazy_initialize(worker.policy_map, my_policy_name)
-
-            worker.foreach_policy(_init_diversity_policy)
-
-        trainer.evaluation_workers.foreach_worker_with_index(_init_pool)
-
-    update_worker_exploration(trainer)
+        before_learn_on_batch=_before_learn_on_batch,  # <<== Add extra callback
+        num_agents=config["env_config"]["num_agents"],
+        **kwargs)
 
 
 DiCESACTrainer = SACTrainer.with_updates(
     name="DiCESACTrainer",
     default_config=dice_sac_default_config,
+    validate_config=validate_config,
     default_policy=DiCESACPolicy,
     get_policy_class=lambda _: DiCESACPolicy,
-    after_init=setup_policies_pool,
-    after_optimizer_step=after_optimizer_step,
-    validate_config=validate_config,
-    make_policy_optimizer=make_policy_optimizer,
-    before_train_step=before_train_step
+
+    # Rewrite this to add the term _before_learn_on_batch
+    make_policy_optimizer=make_policy_optimizer
 )
