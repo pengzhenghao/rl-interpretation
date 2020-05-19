@@ -45,13 +45,6 @@ if __name__ == '__main__':
 
     }
 
-    if args.redis_password:
-        from toolbox import initialize_ray
-        import os
-
-        initialize_ray(address=os.environ["ip_head"], test_mode=args.test,
-                       redis_password=args.redis_password)
-
     train(
         EPTrainer,
         config=config,

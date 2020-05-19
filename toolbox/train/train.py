@@ -1,5 +1,6 @@
 import argparse
 import copy
+import os
 import pickle
 
 import numpy as np
@@ -79,7 +80,19 @@ def train(
         **kwargs
 ):
     # initialize ray
-    initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
+    if not os.environ.get("redis_password"):
+        initialize_ray(test_mode=test_mode, local_mode=False, num_gpus=num_gpus)
+    else:
+        password = os.environ.get("redis_password")
+        assert os.environ.get("ip_head")
+        print("We detect redis_password ({}) exists in environment! So "
+              "we will start a ray cluster!".format(password))
+        if num_gpus:
+            print("We are in cluster mode! So GPU specification is disable and"
+                  " should be done when submitting task to cluster! You are "
+                  "requiring {} GPU for each machine!".format(num_gpus))
+        initialize_ray(address=os.environ["ip_head"], test_mode=test_mode,
+                       redis_password=password)
 
     # prepare config
     used_config = {
@@ -150,7 +163,7 @@ def get_train_parser():
     parser.add_argument("--num-cpus-for-driver", type=float, default=1.0)
     parser.add_argument("--env-name", type=str, default="BipedalWalker-v2")
     parser.add_argument("--test", action="store_true")
-    parser.add_argument("--redis-password", type=str, default="")
+    # parser.add_argument("--redis-password", type=str, default="")
     return parser
 
 
