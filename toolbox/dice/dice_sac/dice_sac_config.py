@@ -10,6 +10,8 @@ class DiCESACCallbacks(DefaultCallbacks):
         constants.on_postprocess_trajectory(*args, **kwargs)
 
 
+USE_MY_TARGET_DIVERSITY = "use_my_target_diversity"
+
 dice_sac_default_config = merge_dicts(
     sac_default_config,
     {
@@ -27,7 +29,9 @@ dice_sac_default_config = merge_dicts(
         # "rollout_fragment_length": 50,
         constants.USE_BISECTOR: True,
         # constants.USE_DIVERSITY_VALUE_NETWORK: False,
-        # constants.DELAY_UPDATE: True,
+        constants.DELAY_UPDATE: True,
+        USE_MY_TARGET_DIVERSITY: False,
+
         # constants.TWO_SIDE_CLIP_LOSS: True,
         constants.ONLY_TNB: False,
         # constants.NORMALIZE_ADVANTAGE: False,

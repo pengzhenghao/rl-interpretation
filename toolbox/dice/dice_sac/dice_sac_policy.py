@@ -9,7 +9,8 @@ from ray.rllib.utils.error import UnsupportedSpaceException
 from ray.rllib.utils.tf_ops import make_tf_callable
 
 from toolbox.dice.dice_postprocess import MY_LOGIT
-from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
+from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config, \
+    USE_MY_TARGET_DIVERSITY
 from toolbox.dice.dice_sac.dice_sac_gradient import dice_sac_gradient, \
     dice_sac_loss, apply_gradients, get_dist_class
 from toolbox.dice.dice_sac.dice_sac_model import DiCESACModel
@@ -56,19 +57,27 @@ class DiCETargetNetworkMixin:
     def __init__(self):
         action_dist_class = get_dist_class(self.config, self.action_space)
 
+        if self.config[DELAY_UPDATE]:
+            used_model = self.target_model
+        else:
+            used_model = self.model
+
         @make_tf_callable(self.get_session(), True)
         def compute_clone_network_action(ob):
             feed_dict = {
                 SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                 "is_training": tf.convert_to_tensor(False)
             }
-            model_out, _ = self.target_model(feed_dict)
-            distribution_inputs = self.target_model.get_policy_output(model_out)
-            dist = action_dist_class(distribution_inputs, self.target_model)
+            model_out, _ = used_model(feed_dict)
+            distribution_inputs = used_model.get_policy_output(model_out)
+            dist = action_dist_class(distribution_inputs, used_model)
             action = dist.deterministic_sample()
             return action
 
-        self._compute_clone_network_action = compute_clone_network_action
+        if self.config[USE_MY_TARGET_DIVERSITY]:
+            my_used_model = self.target_model
+        else:
+            my_used_model = self.model
 
         @make_tf_callable(self.get_session(), True)
         def compute_my_deterministic_action(ob):
@@ -76,12 +85,13 @@ class DiCETargetNetworkMixin:
                 SampleBatch.CUR_OBS: tf.convert_to_tensor(ob),
                 "is_training": tf.convert_to_tensor(False)
             }
-            model_out, _ = self.model(feed_dict)
-            distribution_inputs = self.model.get_policy_output(model_out)
-            dist = action_dist_class(distribution_inputs, self.model)
+            model_out, _ = my_used_model(feed_dict)
+            distribution_inputs = my_used_model.get_policy_output(model_out)
+            dist = action_dist_class(distribution_inputs, my_used_model)
             action = dist.deterministic_sample()
             return action
 
+        self._compute_clone_network_action = compute_clone_network_action
         self._compute_my_deterministic_action = compute_my_deterministic_action
 
 
