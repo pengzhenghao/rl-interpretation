@@ -20,15 +20,15 @@ if __name__ == '__main__':
     stop = int(1e6)
 
     config = {
-        "env": tune.grid_search([
-            # "HalfCheetah-v3",
-            # "Walker2d-v3",
-            "Ant-v3",  # <<== This script run only one env for validation
-            # "Hopper-v3",
-            # "Humanoid-v3"
-        ]),
 
+        # Grid Search
+        "env": tune.grid_search([
+            'Walker2DBulletEnv-v0',
+            'HopperBulletEnv-v0',
+        ]),
         constants.DELAY_UPDATE: tune.grid_search([True, False]),
+        "use_my_target_diversity": tune.grid_search([True, False]),
+        "diversity_twin_q": tune.grid_search([True, False]),
 
         # SAC config
         "horizon": 1000,
@@ -46,7 +46,9 @@ if __name__ == '__main__':
         "evaluation_config": {
             "explore": False,
         },
-        "num_cpus_for_driver": 2,
+
+        # Resource
+        "num_cpus_for_driver": 4,
     }
     config.update(get_marl_env_config(
         config["env"], args.num_agents, normalize_actions=True

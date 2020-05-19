@@ -94,8 +94,11 @@ def regression_test2(local_mode=False):
             "normalize_actions": False,  # <<== Handle in MARL env
 
             # Evaluation
-            # "metrics_smoothing_episodes": 5,
-            # "evaluation_interval": 1,
+            "evaluation_interval": 1,
+            "metrics_smoothing_episodes": 5,
+            "evaluation_config": {
+                "explore": False,
+            },
 
             # "no_done_at_end": True,
             "train_batch_size": 256,
@@ -105,12 +108,7 @@ def regression_test2(local_mode=False):
             # "learning_starts": 1500,
             "learning_starts": 500,
 
-            # ====================================
-
             "diversity_twin_q": tune.grid_search([True, False]),
-            # "diversity_twin_q": tune.grid_search([False]),
-
-            # ====================================
 
             **get_marl_env_config(
                 # "Pendulum-v0", num_agents, normalize_actions=True
@@ -118,14 +116,12 @@ def regression_test2(local_mode=False):
             )
         },
         {
-            # "episode_reward_mean": -300 * num_agents,
-            "timesteps_total": 3000
+            "timesteps_total": 10000
         },
         exp_name="DELETEME-dicesac",
         local_dir=local_dir,
         test_mode=True
     )
-    # shutil.rmtree(local_dir, ignore_errors=True)
 
 
 def regression_test_sac(local_mode=False):
