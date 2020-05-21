@@ -11,6 +11,7 @@ class DiCESACCallbacks(DefaultCallbacks):
 
 
 USE_MY_TARGET_DIVERSITY = "use_my_target_diversity"
+SHARE_BUFFER = "share_buffer"
 
 dice_sac_default_config = merge_dicts(
     sac_default_config,
@@ -31,6 +32,7 @@ dice_sac_default_config = merge_dicts(
         # constants.USE_DIVERSITY_VALUE_NETWORK: False,
         constants.DELAY_UPDATE: True,
         USE_MY_TARGET_DIVERSITY: False,
+        SHARE_BUFFER: False,
 
         # constants.TWO_SIDE_CLIP_LOSS: True,
         constants.ONLY_TNB: False,

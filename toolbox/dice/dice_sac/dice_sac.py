@@ -8,7 +8,8 @@ from ray.rllib.optimizers.sync_replay_optimizer import SyncReplayOptimizer, \
 from ray.tune.registry import _global_registry, ENV_CREATOR
 
 from toolbox.dice.dice_postprocess import MY_LOGIT
-from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config
+from toolbox.dice.dice_sac.dice_sac_config import dice_sac_default_config, \
+    SHARE_BUFFER
 from toolbox.dice.dice_sac.dice_sac_policy import DiCESACPolicy
 
 
@@ -51,6 +52,7 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
         assert "num_agents" in kwargs
         self.num_agents = kwargs.pop("num_agents")
         super().__init__(*args, **kwargs)
+        self.config = self.workers._remote_config
 
     def step(self):
         super().step()
@@ -58,7 +60,7 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
         # Workaround to make sure the data is log into result.
         now = time.time()
         while self.num_steps_sampled < self.replay_starts + \
-                self.workers._remote_config["timesteps_per_iteration"]:
+                self.config["timesteps_per_iteration"]:
             if time.time() - now > 10:
                 print(
                     "Current samples are not sufficient for learning. Launch"
@@ -68,45 +70,64 @@ class SyncReplayOptimizerModified(SyncReplayOptimizer):
                 now = time.time()
             super().step()
 
+    def _sample_a_mini_batch(self, idxes, policy_id, batch_size):
+        replay_buffer = self.replay_buffers[policy_id]
+        if self.synchronize_sampling:
+            if idxes is None:
+                idxes = replay_buffer.sample_idxes(
+                    batch_size)
+        else:
+            idxes = replay_buffer.sample_idxes(
+                batch_size)
+
+        if isinstance(replay_buffer, PrioritizedReplayBuffer):
+            raise NotImplementedError()
+        else:
+            (obses_t, actions, rewards, obses_tp1,
+             dones) = replay_buffer.sample_with_idxes(idxes)
+            weights = np.ones_like(rewards)
+            batch_indexes = -np.ones_like(rewards)
+        return SampleBatch({
+            "obs": obses_t,
+            "actions": actions,
+            "rewards": rewards,
+            "new_obs": obses_tp1,
+            "dones": dones,
+            "weights": weights,
+            "batch_indexes": batch_indexes
+        })
+
     def _replay(self):
         # Here use small batch to get the data
         per_agent_train_batch_size = int(
             self.train_batch_size / self.num_agents)
 
+        if self.config[SHARE_BUFFER]:
+            samples = {}
+            with self.replay_timer:
+                for policy_id in self.replay_buffers.keys():
+                    mini_batches = [
+                        self._sample_a_mini_batch(
+                            None, oppo, per_agent_train_batch_size
+                        ) for oppo in self.replay_buffers.keys()
+                    ]
+                    samples[policy_id] = SampleBatch.concat_samples(
+                        mini_batches)
+            return MultiAgentBatch(samples,
+                                   sum(s.count for s in samples.values()))
+
         samples = {}
         idxes = None
         with self.replay_timer:
             for policy_id, replay_buffer in self.replay_buffers.items():
-                if self.synchronize_sampling:
-                    if idxes is None:
-                        idxes = replay_buffer.sample_idxes(
-                            per_agent_train_batch_size)
-                else:
-                    idxes = replay_buffer.sample_idxes(
-                        per_agent_train_batch_size)
-
-                if isinstance(replay_buffer, PrioritizedReplayBuffer):
-                    raise NotImplementedError()
-                else:
-                    (obses_t, actions, rewards, obses_tp1,
-                     dones) = replay_buffer.sample_with_idxes(idxes)
-                    weights = np.ones_like(rewards)
-                    batch_indexes = -np.ones_like(rewards)
-                samples[policy_id] = SampleBatch({
-                    "obs": obses_t,
-                    "actions": actions,
-                    "rewards": rewards,
-                    "new_obs": obses_tp1,
-                    "dones": dones,
-                    "weights": weights,
-                    "batch_indexes": batch_indexes
-                })
+                mini_batch = self._sample_a_mini_batch(
+                    idxes, policy_id, per_agent_train_batch_size)
+                samples[policy_id] = mini_batch
 
         # Merge the things here
         shared_batch = SampleBatch.concat_samples(list(samples.values()))
         return_batch = MultiAgentBatch(
             {k: shared_batch for k in samples.keys()}, shared_batch.count)
-        # return MultiAgentBatch(samples, self.train_batch_size)
         return return_batch
 
 
