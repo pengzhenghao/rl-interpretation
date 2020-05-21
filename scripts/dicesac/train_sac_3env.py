@@ -11,11 +11,11 @@ if __name__ == '__main__':
 
     sac_config = {
         "env": tune.grid_search([
-            # "HalfCheetah-v3",
-            "Walker2d-v3",
-            # "Ant-v3",
-            "Hopper-v3",
-            # "Humanoid-v3"
+            "HalfCheetah-v3",
+            # "Walker2d-v3",
+            "Ant-v3",
+            # "Hopper-v3",
+            "Humanoid-v3"
         ]),
 
         "horizon": 1000,
