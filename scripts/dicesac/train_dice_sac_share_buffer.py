@@ -9,6 +9,7 @@ from toolbox.train import train, get_train_parser
 if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--num-agents", type=int, default=5)
+    parser.add_argument("--run-3env", action="store_true")
     args = parser.parse_args()
 
     exp_name = args.exp_name
@@ -16,12 +17,14 @@ if __name__ == '__main__':
 
     config = {
         "env": tune.grid_search([
-            "HalfCheetah-v3",
-            "Walker2d-v3",
-            "Ant-v3",
-            "Hopper-v3",
-            "Humanoid-v3"
-        ]),
+                                    "HalfCheetah-v3",
+                                    "Ant-v3",
+                                    "Humanoid-v3"]
+                                if args.run_3_env else
+                                [
+                                    "Hopper-v3",
+                                    "Walker2d-v3",
+                                ]),
 
         constants.DELAY_UPDATE: tune.grid_search([True, ]),
         "diversity_twin_q": tune.grid_search([False, ]),
