@@ -61,13 +61,6 @@ class MultiAgentEnvWrapper(MultiAgentEnv, gym.Env):
     def step(self, action_dict):
         obs, rewards, dones, infos = {}, {}, {}, {}
         for aid, act in action_dict.items():
-            # 0414 Workaround in dice-rebuttal
-            # raise error is act is NaN
-            if not np.all(np.isfinite(act)):
-                raise ValueError(
-                    "Agent {} input is not finite: {}".format(aid, act)
-                )
-            act = np.nan_to_num(act, copy=False)
             o, r, d, i = self.envs[aid].step(act)
             if d:
                 if d in self.dones:
