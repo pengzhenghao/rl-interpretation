@@ -32,11 +32,11 @@ setup(
         "seaborn",
         "distro",
         "gputil",
-        "ray==0.8.4",
-        "ray[tune]==0.8.4",
-        "ray[rllib]==0.8.4",
-        "ray[dashboard]==0.8.4",
-        "ray[debug]==0.8.4",
+        "ray==0.8.5",
+        "ray[tune]==0.8.5",
+        "ray[rllib]==0.8.5",
+        "ray[dashboard]==0.8.5",
+        "ray[debug]==0.8.5",
         "dm-tree",
         "pybullet"
     ]

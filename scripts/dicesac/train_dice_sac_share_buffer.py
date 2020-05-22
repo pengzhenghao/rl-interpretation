@@ -20,7 +20,7 @@ if __name__ == '__main__':
                                     "HalfCheetah-v3",
                                     "Ant-v3",
                                     "Humanoid-v3"]
-                                if args.run_3_env else
+                                if args.run_3env else
                                 [
                                     "Hopper-v3",
                                     "Walker2d-v3",
