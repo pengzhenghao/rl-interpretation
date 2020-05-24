@@ -48,7 +48,7 @@ if __name__ == '__main__':
             "explore": False,
         },
 
-        "num_cpus_for_driver": 4,
+        "num_cpus_for_driver": 5,
     }
     config.update(get_marl_env_config(
         config["env"], args.num_agents, normalize_actions=True
