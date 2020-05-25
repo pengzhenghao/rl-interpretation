@@ -10,6 +10,7 @@ if __name__ == '__main__':
     parser = get_train_parser()
     parser.add_argument("--num-agents", type=int, default=5)
     parser.add_argument("--run-3env", action="store_true")
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
     exp_name = args.exp_name
@@ -63,4 +64,5 @@ if __name__ == '__main__':
         num_gpus=args.num_gpus,
         num_seeds=args.num_seeds,
         test_mode=args.test,
+        resume=args.resume if args.resume else None
     )
